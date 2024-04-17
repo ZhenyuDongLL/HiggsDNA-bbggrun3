@@ -128,14 +128,31 @@ parser.add_option(
     default="INFO",
     help="Verbosity level for the logger: INFO (default), DEBUG",
 )
+parser.add_option(
+    "--output",
+    dest="output",
+    type="string",
+    default="",
+    help="Output path for the merged and ROOT files.",
+)
+parser.add_option(
+    "--folder-structure",
+    dest="folder_structure",
+    type="string",
+    default="",
+    help="Uses the given folder structure for dirlist.",
+)
 (opt, args) = parser.parse_args()
 
 if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
     opt.verbose = "INFO"
 logger = setup_logger(level=opt.verbose)
 
+folder_for_dirlist = opt.input
+if opt.folder_structure != "":
+    folder_for_dirlist = opt.folder_structure
 os.system(
-    f"ls -l {opt.input} | tail -n +2 | grep -v .coffea | grep -v merged | grep -v root |"
+    f"ls -l {folder_for_dirlist} | tail -n +2 | grep -v .coffea | grep -v merged | grep -v root |"
     + "awk '{print $NF}' > dirlist.txt"
 )
 
@@ -215,8 +232,28 @@ with open("category.json", "w") as file:
 with open("variation.json", "w") as file:
     file.write(json.dumps(var_dict))
 
-os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
-os.system(f"mv variation.json {SCRIPT_DIR}/../../higgs_dna/variation.json")
+# Using OUT_PATH for the location of the output if different from the input path
+if opt.output == "":
+    OUT_PATH = IN_PATH
+    os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
+    os.system(f"mv variation.json {SCRIPT_DIR}/../../higgs_dna/variation.json")
+    # if opt.folder_structure != "":
+    #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
+    # else:
+    dirlist_path = f"{EXEC_PATH}/dirlist.txt"
+else:
+    OUT_PATH = opt.output
+    os.system(f"mv category.json {OUT_PATH}/category.json")
+    os.system(f"mv variation.json {OUT_PATH}/variation.json")
+    # if opt.folder_structure != "":
+    #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
+    #     os.system(f"mv {dirlist_path} {OUT_PATH}/dirlist.txt")
+    # else:
+    dirlist_path = f"{OUT_PATH}/dirlist.txt"
+    os.system(f"mv {EXEC_PATH}/dirlist.txt {OUT_PATH}/dirlist.txt")
+    
+
+
 cat_dict = "category.json"
 
 # Define string if normalisation to be skipped
@@ -224,9 +261,8 @@ skip_normalisation_str = "--skip-normalisation" if opt.skip_normalisation else "
 
 # The process var below is the function that will be executed in parallel for each systematic variation. It substitutes the old loop of the systematics to speed up the process.
 # Paths now must be ABSOLUTE!! - CD while multi thread is not a good idea! 
-def process_var(var, var_dict, IN_PATH, SCRIPT_DIR, file, cat_dict, skip_normalisation_str):
-    target_dir = f"{IN_PATH}/merged/{file}/{var_dict[var]}"
-    # Assuming MKDIRP is a predefined function
+def process_var(var, var_dict, IN_PATH, OUT_PATH, SCRIPT_DIR, file, cat_dict, skip_normalisation_str):
+    target_dir = f"{OUT_PATH}/merged/{file}/{var_dict[var]}"
     MKDIRP(target_dir)
 
     command = f"python3 merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {skip_normalisation_str}"
@@ -236,10 +272,10 @@ def process_var(var, var_dict, IN_PATH, SCRIPT_DIR, file, cat_dict, skip_normali
     subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
 # Loop to paralelize the loop over the "files", which are the ttH_125_preEE, etc. datasets
-def process_file(file, IN_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisation_str, opt):
+def process_file(file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisation_str, opt):
     file = file.strip()  # Removes newline characters and leading/trailing whitespace
     if "data" not in file.lower():
-        target_path = f"{IN_PATH}/merged/{file}"
+        target_path = f"{OUT_PATH}/merged/{file}"
         if os.path.exists(target_path):
             raise Exception(f"The selected target path: {target_path} already exists")
         MKDIRP(target_path)
@@ -247,7 +283,7 @@ def process_file(file, IN_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisati
         if opt.syst:
             # Systematic variations processing
             with ThreadPoolExecutor(max_workers=7) as executor:
-                futures = [executor.submit(process_var, var, var_dict, IN_PATH, SCRIPT_DIR, file, cat_dict, skip_normalisation_str) for var in var_dict]
+                futures = [executor.submit(process_var, var, var_dict, IN_PATH, OUT_PATH, SCRIPT_DIR, file, cat_dict, skip_normalisation_str) for var in var_dict]
 
             for future in futures:
                 try:
@@ -260,8 +296,8 @@ def process_file(file, IN_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisati
             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
     else:
         # Data processing
-        merged_target_path = f"{IN_PATH}/merged/{file}/{file}_merged.parquet"
-        data_dir_path = f"{IN_PATH}/merged/Data_{file.split('_')[-1]}"
+        merged_target_path = f"{OUT_PATH}/merged/{file}/{file}_merged.parquet"
+        data_dir_path = f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'
         if os.path.exists(merged_target_path):
             raise Exception(f"The selected target path: {merged_target_path} already exists")
         if not os.path.exists(data_dir_path):
@@ -271,12 +307,12 @@ def process_file(file, IN_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisati
 
 
 if opt.merge:
-    with open(f"{EXEC_PATH}/dirlist.txt") as fl:
+    with open(dirlist_path) as fl:
         files = fl.readlines()
         
         # No more loop over the files, we will use the ThreadPoolExecutor to parallelize the process!
         with ThreadPoolExecutor(max_workers=8) as executor:
-            futures = [executor.submit(process_file, file, IN_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisation_str, opt) for file in files]
+            futures = [executor.submit(process_file, file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisation_str, opt) for file in files]
 
         # Optionally, wait for all futures to complete and check for exceptions
         for future in futures:
@@ -292,14 +328,14 @@ if opt.merge:
         for file in files:
             file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
             if "data" in file.lower() or "DoubleEG" in file:
-                dirpath, dirnames, filenames = next(os.walk(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}'))
+                dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                 if len(filenames) > 0:
                     os.system(
-                        f'python3 merge_parquet.py --source {IN_PATH}/merged/Data_{file.split("_")[-1]} --target {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict} --is-data'
+                        f'python3 merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict} --is-data'
                     )
                     break
                 else:
-                    logger.info(f'No merged parquet found for {file} in the directory: {IN_PATH}/merged/Data_{file.split("_")[-1]}')
+                    logger.info(f'No merged parquet found for {file} in the directory: {OUT_PATH}/merged/Data_{file.split("_")[-1]}')
 
 if opt.root:
     logger.info("Starting root step")
@@ -310,26 +346,28 @@ if opt.root:
         logger.info("you've selected the run without systematics")
         args = ""
 
+    if opt.merge:
+        IN_PATH = OUT_PATH
     # Note, in my version of HiggsDNA I run the analysis splitting data per Era in different datasets
     # the treatment of data here is tested just with that structure
-    with open(f"{EXEC_PATH}/dirlist.txt") as fl:
+    with open(dirlist_path) as fl:
         files = fl.readlines()
         for file in files:
             file = file.split("\n")[0]
             if "data" not in file.lower() and file in process_dict:
-                if os.path.exists(f"{IN_PATH}/root/{file}"):
+                if os.path.exists(f"{OUT_PATH}/root/{file}"):
                     raise Exception(
-                        f"The selected target path: {IN_PATH}/root/{file} already exists"
+                        f"The selected target path: {OUT_PATH}/root/{file} already exists"
                     )
 
                 if os.listdir(f"{IN_PATH}/merged/{file}/"):
                     logger.info(f"Found merged files {IN_PATH}/merged/{file}/")
                 else:
                     raise Exception(f"Merged parquet not found at {IN_PATH}/merged/")
-                MKDIRP(f"{IN_PATH}/root/{file}")
+                MKDIRP(f"{OUT_PATH}/root/{file}")
                 os.chdir(SCRIPT_DIR)
                 os.system(
-                    f"python3 convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {IN_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict} --vars variation.json"
+                    f"python3 convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict} --vars variation.json"
                 )
             elif "data" in file.lower():
                 if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
@@ -342,22 +380,22 @@ if opt.root:
                     )
 
                 if os.path.exists(
-                    f'{IN_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
+                    f'{OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
                 ):
                     logger.info(
-                        f'Data already converted: {IN_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
+                        f'Data already converted: {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
                     )
                     continue
-                elif not os.path.exists(f"{IN_PATH}/root/Data/"):
-                    MKDIRP(f"{IN_PATH}/root/Data")
+                elif not os.path.exists(f"{OUT_PATH}/root/Data/"):
+                    MKDIRP(f"{OUT_PATH}/root/Data")
                     os.chdir(SCRIPT_DIR)
                     os.system(
-                        f'python3 convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {IN_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json'
+                        f'python3 convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json'
                     )
                 else:
                     os.chdir(SCRIPT_DIR)
                     os.system(
-                        f'python3 convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {IN_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json'
+                        f'python3 convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json'
                     )
 
 if opt.ws:
@@ -365,12 +403,13 @@ if opt.ws:
         raise Exception(
             f"The selected FlashggFinalFit path: {opt.final_fit} is invalid"
         )
+        
     if os.path.exists(f"{IN_PATH}/root/Data"):
-        os.system(f"echo Data >> {EXEC_PATH}/dirlist.txt")
+        os.system(f"echo Data >> {dirlist_path}")
 
     data_done = False
 
-    with open(f"{EXEC_PATH}/dirlist.txt") as fl:
+    with open(dirlist_path) as fl:
         files = fl.readlines()
         if opt.syst:
             doSystematics = "--doSystematics"
@@ -417,9 +456,16 @@ if opt.ws:
     os.chdir(EXEC_PATH)
 
 # We don't want to leave trash around
-if os.path.exists(f"{EXEC_PATH}/dirlist.txt"):
-    os.system(f"rm {EXEC_PATH}/dirlist.txt")
-if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/category.json"):
-    os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/category.json")
-if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/variation.json"):
-    os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/variation.json")
+if os.path.exists(dirlist_path):
+    os.system(f"rm {dirlist_path}")
+if opt.output == "":
+    if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/category.json"):
+        os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/category.json")
+    if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/variation.json"):
+        os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/variation.json")
+
+else:
+    if os.path.exists(f"{OUT_PATH}/category.json"):
+        os.system(f"rm {OUT_PATH}/category.json")
+    if os.path.exists(f"{OUT_PATH}/variation.json"):
+        os.system(f"rm {OUT_PATH}/variation.json")

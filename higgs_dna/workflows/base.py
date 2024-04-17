@@ -512,11 +512,13 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
 
             diphotons = diphotons[fid_det_passed]
 
-            # Add the fiducial flags for particle level
-            diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
-            diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
+            if self.data_kind == "mc":
 
-            diphotons['PTH'], diphotons['YH'] = get_higgs_gen_attributes(events)
+                # Add the fiducial flags for particle level
+                diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
+                diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
+
+                diphotons['PTH'], diphotons['YH'] = get_higgs_gen_attributes(events)
 
             # baseline modifications to diphotons
             if self.diphoton_mva is not None:
