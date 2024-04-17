@@ -145,6 +145,9 @@ class LXPlusVanillaSubmitter:
                     submit_file.write(f"request_memory = {self.memory}\n")
                     submit_file.write("getenv = True\n")
                     submit_file.write(f'+JobFlavour = "{self.queue}"\n')
+                    submit_file.write('on_exit_remove = (ExitBySignal == False) && (ExitCode == 0)\n')
+                    submit_file.write('max_retries = 3\n')
+                    submit_file.write('requirements = Machine =!= LastRemoteHost\n')
                     submit_file.write(f"queue {n_jobs}\n")
                 self.job_files.append(job_file_submit)
 
@@ -169,6 +172,9 @@ class LXPlusVanillaSubmitter:
                         submit_file.write(f"request_memory = {self.memory}\n")
                         submit_file.write("getenv = True\n")
                         submit_file.write(f'+JobFlavour = "{self.queue}"\n')
+                        submit_file.write('on_exit_remove = (ExitBySignal == False) && (ExitCode == 0)\n')
+                        submit_file.write('max_retries = 3\n')
+                        submit_file.write('requirements = Machine =!= LastRemoteHost\n')
                         submit_file.write("queue 1\n")
                     self.job_files.append(job_file_name)
 
