@@ -8,6 +8,7 @@ from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import diphoton_list_to_pandas, dump_pandas
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.flow_corrections import calculate_flow_corrections
+from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import logging
@@ -125,6 +126,10 @@ class TagAndProbeProcessor(HggBaseProcessor):
                 )
         # apply filters and triggers
         events = self.apply_filters_and_triggers(events)
+
+        # remove events affected by EcalBadCalibCrystal
+        if self.data_kind == "data":
+            events = remove_EcalBadCalibCrystal_events(events)
 
         # we need ScEta for corrections and systematics, which is not present in NanoAODv11 but can be calculated using PV
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)

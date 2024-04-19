@@ -1,4 +1,5 @@
 import awkward
+import numpy as np
 
 
 def delta_r_mask(
@@ -19,3 +20,17 @@ def delta_r_mask(
     """
     mval = first.metric_table(second)
     return awkward.all(mval > threshold, axis=-1)
+
+
+def delta_phi_mask(
+        Phi1: awkward.highlevel.Array,
+        Phi2: awkward.highlevel.Array,
+        threshold: float
+) -> awkward.highlevel.Array:
+    # Select objects that are at least threshold away in Phi space
+
+    # calculate delta_phi
+    dPhi = abs(Phi1 - Phi2) % (2 * np.pi)
+    dPhi = awkward.where(dPhi > np.pi, 2 * np.pi - dPhi, dPhi)
+
+    return dPhi > threshold
