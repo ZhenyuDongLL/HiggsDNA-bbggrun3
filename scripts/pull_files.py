@@ -363,11 +363,11 @@ def get_presel_json(logger, target_dir):
             "to": f"{to_prefix}/2018/PreselSF_2018.json",
         },
         "2022preEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/Preselection_2022PreEE.json",  # correct nominal values, prelim. uncertainties due to issues in alt. signal model
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/HggSFsSuman19Apr2024/Preselection_2022PreEE_Final.json",
             "to": f"{to_prefix}/2022/Preselection_2022PreEE.json",
         },
         "2022postEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/Preselection_2022PostEE.json",  # correct nominal values, prelim. uncertainties due to issues in alt. signal model
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/HggSFsSuman19Apr2024/Preselection_2022PostEE_Final.json",
             "to": f"{to_prefix}/2022/Preselection_2022PostEE.json",
         },
     }
@@ -463,11 +463,11 @@ def get_photonid_json(logger, target_dir):
             "to": f"{to_prefix}/2018/photon.json.gz",
         },
         "2022preEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/PhotonIDMVA_2022PreEE.json",  # correct nominal values, prelim. uncertainties due to issues in alt. signal model
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/HggSFsSuman19Apr2024/PhotonIDMVA_2022PreEE_Final.json",
             "to": f"{to_prefix}/2022/PhotonIDMVA_2022PreEE.json",
         },
         "2022postEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/PhotonIDMVA_2022PostEE.json",  # correct nominal values, prelim. uncertainties due to issues in alt. signal model
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/HggSFsSuman19Apr2024/PhotonIDMVA_2022PostEE_Final.json",
             "to": f"{to_prefix}/2022/PhotonIDMVA_2022PostEE.json",
         },
     }
