@@ -1,5 +1,6 @@
 from higgs_dna.workflows.base import HggBaseProcessor
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
+from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
 from higgs_dna.selections.lepton_selections_Zmmy import (
     select_muons_zmmy,
     select_photons_zmmy,
@@ -165,6 +166,10 @@ class ZmmyProcessor(HggBaseProcessor):
             trig_flag = self.apply_triggers(events)
             events = events[trig_flag]
             # events = events[self.apply_triggers(events)]
+
+        # remove events affected by EcalBadCalibCrystal
+        if self.data_kind == "data":
+            events = remove_EcalBadCalibCrystal_events(events)
 
         # we need ScEta for corrections and systematics, which is not present in NanoAODv11 but can be calculated using PV
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)

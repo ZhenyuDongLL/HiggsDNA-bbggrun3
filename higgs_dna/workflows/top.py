@@ -2,6 +2,7 @@ from higgs_dna.workflows.base import HggBaseProcessor
 
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
+from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap
@@ -133,6 +134,10 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
 
         # apply filters and triggers
         events = self.apply_filters_and_triggers(events)
+
+        # remove events affected by EcalBadCalibCrystal
+        if self.data_kind == "data":
+            events = remove_EcalBadCalibCrystal_events(events)
 
         # we need ScEta for corrections and systematics, which is not present in NanoAODv11 but can be calculated using PV
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)
