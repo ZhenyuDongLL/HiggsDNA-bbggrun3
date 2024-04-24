@@ -8,7 +8,7 @@ from higgs_dna.selections.jet_selections import select_jets, select_fatjets, jet
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas
 from higgs_dna.utils.misc_utils import choose_jet
-from higgs_dna.selections.HHbbgg_selections import getCosThetaStar_CS, get_HHbbgg, getCosThetaStar_gg, getCosThetaStar_jj, DeltaR
+from higgs_dna.selections.HHbbgg_selections import getCosThetaStar_CS, get_HHbbgg, getCosThetaStar_gg, getCosThetaStar_jj, DeltaR, Cxx
 from higgs_dna.tools.flow_corrections import calculate_flow_corrections
 
 from higgs_dna.tools.mass_decorrelator import decorrelate_mass_resolution
@@ -27,6 +27,7 @@ import awkward
 import numpy
 import sys
 import vector
+from coffea.nanoevents.methods import candidate
 from coffea.analysis_tools import Weights
 from copy import deepcopy
 
@@ -376,6 +377,7 @@ class HHbbggProcessor(HggBaseProcessor):
                             "charge": awkward.zeros_like(
                                 Jets.pt
                             ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
+                            "jetId": Jets.jetId,
                             "hFlav": Jets.hadronFlavour
                             if self.data_kind == "mc"
                             else awkward.zeros_like(Jets.pt),
@@ -384,6 +386,7 @@ class HHbbggProcessor(HggBaseProcessor):
                             "btagDeepFlav_CvL": Jets.btagDeepFlavCvL,
                             "btagDeepFlav_QG": Jets.btagDeepFlavQG,
                             "btagPNetB": Jets.btagPNetB,
+                            "btagPNetQvG": Jets.btagPNetQvG,
                             "PNetRegPtRawCorr": Jets.PNetRegPtRawCorr,
                             "PNetRegPtRawCorrNeutrino": Jets.PNetRegPtRawCorrNeutrino,
                             "PNetRegPtRawRes": Jets.PNetRegPtRawRes,
@@ -586,6 +589,63 @@ class HHbbggProcessor(HggBaseProcessor):
                     diphotons = diphotons[
                         diphotons["sublead_bjet_pt"] > -998
                     ]
+
+                    # Add VBF jets information
+                    HHbbgg = awkward.with_name(HHbbgg, "PtEtaPhiMCandidate", behavior=candidate.behavior)
+                    jets = awkward.with_name(jets, "PtEtaPhiMCandidate", behavior=candidate.behavior)
+                    jets["dr_VBFj_b1"] = jets.delta_r(HHbbgg.first_jet)
+                    jets["dr_VBFj_b2"] = jets.delta_r(HHbbgg.second_jet)
+                    jets["dr_VBFj_g1"] = jets.delta_r(HHbbgg.pho_lead)
+                    jets["dr_VBFj_g2"] = jets.delta_r(HHbbgg.pho_sublead)
+
+                    # VBF jet selection
+                    vbf_jets = jets[(jets.pt > 30) & (jets.dr_VBFj_b1 > 0.4) & (jets.dr_VBFj_b2 > 0.4)]
+                    vbf_jet_pair = awkward.combinations(
+                        vbf_jets, 2, fields=("first_jet", "second_jet")
+                    )
+                    vbf = awkward.zip({
+                        "first_jet": vbf_jet_pair["0"],
+                        "second_jet": vbf_jet_pair["1"],
+                        "dijet": vbf_jet_pair["0"] + vbf_jet_pair["1"],
+                    })
+                    vbf = vbf[vbf.first_jet.pt > 40.]
+                    vbf = vbf[awkward.argsort(vbf.dijet.mass, ascending=False)]
+                    vbf = awkward.firsts(vbf)
+
+                    # Store VBF jets properties
+                    vbf_jets_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "PNetRegPtRawCorr", "PNetRegPtRawCorrNeutrino", "PNetRegPtRawRes", "btagPNetQvG", "btagDeepFlav_QG"]
+                    for i in vbf.fields:
+                        vbf_properties = vbf_jets_properties if i != "dijet" else vbf_jets_properties[:5]
+                        for prop in vbf_properties:
+                            key = f"VBF_{i}_{prop}"
+                            value = awkward.fill_none(getattr(vbf[i], prop), -999)
+                            # Store the value in the diphotons dictionary
+                            diphotons[key] = value
+
+                    diphotons["VBF_first_jet_PtOverM"] = awkward.where(diphotons.VBF_first_jet_pt != -999, diphotons.VBF_first_jet_pt / diphotons.VBF_dijet_mass, -999)
+                    diphotons["VBF_second_jet_PtOverM"] = awkward.where(diphotons.VBF_second_jet_pt != -999, diphotons.VBF_second_jet_pt / diphotons.VBF_dijet_mass, -999)
+                    diphotons["VBF_jet_eta_prod"] = awkward.fill_none(vbf.first_jet.eta * vbf.second_jet.eta, -999)
+                    diphotons["VBF_jet_eta_diff"] = awkward.fill_none(vbf.first_jet.eta - vbf.second_jet.eta, -999)
+                    diphotons["VBF_jet_eta_sum"] = awkward.fill_none(vbf.first_jet.eta + vbf.second_jet.eta, -999)
+
+                    diphotons["VBF_DeltaR_j1b1"] = awkward.fill_none(vbf.first_jet.dr_VBFj_b1, -999)
+                    diphotons["VBF_DeltaR_j1b2"] = awkward.fill_none(vbf.first_jet.dr_VBFj_b2, -999)
+                    diphotons["VBF_DeltaR_j2b1"] = awkward.fill_none(vbf.second_jet.dr_VBFj_b1, -999)
+                    diphotons["VBF_DeltaR_j2b2"] = awkward.fill_none(vbf.second_jet.dr_VBFj_b2, -999)
+
+                    diphotons["VBF_DeltaR_j1g1"] = awkward.fill_none(vbf.first_jet.dr_VBFj_g1, -999)
+                    diphotons["VBF_DeltaR_j1g2"] = awkward.fill_none(vbf.first_jet.dr_VBFj_g2, -999)
+                    diphotons["VBF_DeltaR_j2g1"] = awkward.fill_none(vbf.second_jet.dr_VBFj_g1, -999)
+                    diphotons["VBF_DeltaR_j2g2"] = awkward.fill_none(vbf.second_jet.dr_VBFj_g2, -999)
+
+                    DeltaR_jb = awkward.Array([diphotons["VBF_DeltaR_j1b1"], diphotons["VBF_DeltaR_j2b1"], diphotons["VBF_DeltaR_j1b2"], diphotons["VBF_DeltaR_j2b2"]])
+                    DeltaR_jg = awkward.Array([diphotons["VBF_DeltaR_j1g1"], diphotons["VBF_DeltaR_j2g1"], diphotons["VBF_DeltaR_j1g2"], diphotons["VBF_DeltaR_j2g2"]])
+
+                    diphotons["VBF_DeltaR_jb_min"] = awkward.min(DeltaR_jb, axis=0)
+                    diphotons["VBF_DeltaR_jg_min"] = awkward.min(DeltaR_jg, axis=0)
+
+                    diphotons["VBF_Cgg"] = awkward.where(diphotons.VBF_jet_eta_diff != -999, Cxx(diphotons.eta, diphotons.VBF_jet_eta_diff, diphotons.VBF_jet_eta_sum), -999)
+                    diphotons["VBF_Cbb"] = awkward.where(diphotons.VBF_jet_eta_diff != -999, Cxx(diphotons.dijet_eta, diphotons.VBF_jet_eta_diff, diphotons.VBF_jet_eta_sum), -999)
 
                     # Addition of lepton info-> Taken from the top workflow. This part of the code was orignally written by Florain Mausolf
                     # Adding a 'generation' field to electrons and muons
