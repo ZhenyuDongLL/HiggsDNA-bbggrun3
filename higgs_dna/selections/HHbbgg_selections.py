@@ -110,3 +110,8 @@ def DeltaR(photon, jet):
     pho_obj = ak.with_name(photon,"Momentum4D")
     jet_obj = ak.with_name(jet,"Momentum4D")
     return vector.Spatial.deltaR(pho_obj,jet_obj)
+
+
+def Cxx(higgs_eta, VBFjet_eta_diff, VBFjet_eta_sum):
+    # Centrality variable
+    return np.exp(-4 / (VBFjet_eta_diff)**2 * (higgs_eta - (VBFjet_eta_sum) / 2)**2)
