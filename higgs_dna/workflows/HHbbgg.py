@@ -377,7 +377,6 @@ class HHbbggProcessor(HggBaseProcessor):
                             "charge": awkward.zeros_like(
                                 Jets.pt
                             ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
-                            "jetId": Jets.jetId,
                             "hFlav": Jets.hadronFlavour
                             if self.data_kind == "mc"
                             else awkward.zeros_like(Jets.pt),
