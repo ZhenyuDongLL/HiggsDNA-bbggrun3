@@ -37,10 +37,10 @@ def activate_final_fit(path, command):
     os.chdir(current_path)
 
 
-# --------------------------------------------------------------------------------------------------------------------------#
-# - USAGE: -----------------------------------------------------------------------------------------------------------------#
-# - python3 prepare_output_file.py --input ../out_dir_syst_090323/ --merge --root --ws --syst --cats --args "--do_syst" -#
-# --------------------------------------------------------------------------------------------------------------------------#
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+# - EXAMPLE USAGE: ----------------------------------------------------------------------------------------------------------------------------------------------------------------#
+# - python3 prepare_output_file.py --input <dir_to_HiggsDNA_dump> --merge --varDict <path_to_varDict> --root --syst --cats --catDict <path_to_catDict> --output <path_to_output_dir>
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
 # Read options from command line
 usage = "Usage: python %prog filelists [options]"
@@ -157,31 +157,59 @@ os.system(
 )
 
 process_dict = {
-    "GluGluHtoGG_M-125_preEE": "ggh_125",
-    "GluGluHtoGG_M-125_postEE": "ggh_125",
+    "GluGluHtoGG": "ggh",
+    "VBFHtoGG": "vbf",
+    "VHtoGG": "vh",
+    "ttHtoGG": "tth",
     "GluGluHtoGG_M-120_preEE": "ggh_120",
     "GluGluHtoGG_M-120_postEE": "ggh_120",
+    "GluGluHtoGG_M-125_preEE": "ggh_125",
+    "GluGluHtoGG_M-125_postEE": "ggh_125",
     "GluGluHtoGG_M-130_preEE": "ggh_130",
     "GluGluHtoGG_M-130_postEE": "ggh_130",
-    "GluGluHtoGG": "ggh",
-    "VBFHtoGG_M-125_preEE": "vbf_125",
-    "VBFHtoGG_M-125_postEE": "vbf_125",
     "VBFHtoGG_M-120_preEE": "vbf_120",
     "VBFHtoGG_M-120_postEE": "vbf_120",
+    "VBFHtoGG_M-125_preEE": "vbf_125",
+    "VBFHtoGG_M-125_postEE": "vbf_125",
     "VBFHtoGG_M-130_preEE": "vbf_130",
     "VBFHtoGG_M-130_postEE": "vbf_130",
-    "VHtoGG_M-125_preEE": "vh_125",
-    "VHtoGG_M-125_postEE": "vh_125",
     "VHtoGG_M-120_preEE": "vh_120",
     "VHtoGG_M-120_postEE": "vh_120",
+    "VHtoGG_M-125_preEE": "vh_125",
+    "VHtoGG_M-125_postEE": "vh_125",
     "VHtoGG_M-130_preEE": "vh_130",
     "VHtoGG_M-130_postEE": "vh_130",
-    "ttHtoGG_M-125_preEE": "tth_125",
-    "ttHtoGG_M-125_postEE": "tth_125",
     "ttHtoGG_M-120_preEE": "tth_120",
     "ttHtoGG_M-120_postEE": "tth_120",
+    "ttHtoGG_M-125_preEE": "tth_125",
+    "ttHtoGG_M-125_postEE": "tth_125",
     "ttHtoGG_M-130_preEE": "tth_130",
     "ttHtoGG_M-130_postEE": "tth_130",
+    # Shorter conventions
+    "ggh_M-120_preEE": "ggh_120",
+    "ggh_M-120_postEE": "ggh_120",
+    "ggh_M-125_preEE": "ggh_125",
+    "ggh_M-125_postEE": "ggh_125",
+    "ggh_M-130_preEE": "ggh_130",
+    "ggh_M-130_postEE": "ggh_130",
+    "vbf_M-120_preEE": "vbf_120",
+    "vbf_M-120_postEE": "vbf_120",
+    "vbf_M-125_preEE": "vbf_125",
+    "vbf_M-125_postEE": "vbf_125",
+    "vbf_M-130_preEE": "vbf_130",
+    "vbf_M-130_postEE": "vbf_130",
+    "vh_M-120_preEE": "vh_120",
+    "vh_M-120_postEE": "vh_120",
+    "vh_M-125_preEE": "vh_125",
+    "vh_M-125_postEE": "vh_125",
+    "vh_M-130_preEE": "vh_130",
+    "vh_M-130_postEE": "vh_130",
+    "tth_M-120_preEE": "tth_120",
+    "tth_M-120_postEE": "tth_120",
+    "tth_M-125_preEE": "tth_125",
+    "tth_M-125_postEE": "tth_125",
+    "tth_M-130_preEE": "tth_130",
+    "tth_M-130_postEE": "tth_130",
     "DYto2L_2Jets": "dy",
     "GG-Box-3Jets_MGG-80_postEE": "ggbox",
     "GG-Box-3Jets_MGG-80_preEE": "ggbox",
@@ -330,9 +358,8 @@ if opt.merge:
             if "data" in file.lower() or "DoubleEG" in file:
                 dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                 if len(filenames) > 0:
-                    os.system(
-                        f'python3 merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict} --is-data'
-                    )
+                    command = f'python3 merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict} --is-data'
+                    subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
                     break
                 else:
                     logger.info(f'No merged parquet found for {file} in the directory: {OUT_PATH}/merged/Data_{file.split("_")[-1]}')

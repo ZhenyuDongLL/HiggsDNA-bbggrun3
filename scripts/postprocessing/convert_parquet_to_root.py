@@ -318,9 +318,11 @@ with uproot.recreate(outfiles[process]) as file:
                         for key, new_key in [
                             ["CMS_hgg_mass", "CMS_hgg_mass"],
                             [weight, "weight"],
-                            ["fiducialGeometricTagger_20", "fiducialGeometricTagger_20"],
+                            ["fiducialGeometricFlag", "fiducialGeometricFlag"],
                             ["HTXS_Higgs_pt", "HTXS_Higgs_pt"],
-                            ["HTXS_Higgs_y", "HTXS_Higgs_y"]
+                            ["HTXS_Higgs_y", "HTXS_Higgs_y"],
+                            ["PTH", "PTH"],
+                            ["YH", "YH"]
                         ]:
                             if "NOMINAL" in df_dict and cat in df_dict["NOMINAL"] and key in df_dict["NOMINAL"][cat]:
                                 red_dict[new_key] = df_dict["NOMINAL"][cat][key]
@@ -332,9 +334,11 @@ with uproot.recreate(outfiles[process]) as file:
                         for key, new_key in [
                             ["CMS_hgg_mass", "CMS_hgg_mass"],
                             [weight, "weight"],
-                            ["fiducialGeometricTagger_20", "fiducialGeometricTagger_20"],
+                            ["fiducialGeometricFlag", "fiducialGeometricFlag"],
                             ["HTXS_Higgs_pt", "HTXS_Higgs_pt"],
-                            ["HTXS_Higgs_y", "HTXS_Higgs_y"]
+                            ["HTXS_Higgs_y", "HTXS_Higgs_y"],
+                            ["PTH", "PTH"],
+                            ["YH", "YH"]
                         ]:
                             if syst_ in df_dict and cat in df_dict[syst_] and key in df_dict[syst_][cat]:
                                 red_dict[new_key] = ak.flatten(df_dict[syst_][cat][key], 0)
