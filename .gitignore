@@ -138,3 +138,37 @@ dask-report.html
 #sshfs on mac
 ._*
 Diphoton_CDFs.pkl.gx
+
+# Sample directory (input txts and output jsons)
+higgs_dna/samples/*.txt
+higgs_dna/samples/*.json
+
+### The following ingredients can be pulled with scripts/pull_files.py and are therefore not added to the index
+
+## JSONs for systematics
+# Weight-based Egamma objects
+higgs_dna/systematics/JSONs/TriggerSF/
+higgs_dna/systematics/JSONs/Preselection/
+higgs_dna/systematics/JSONs/ElectronVetoSF/
+higgs_dna/systematics/JSONs/SF_photon_ID/
+# Weight-based jets
+higgs_dna/systematics/JSONs/cTagSF/
+# Weight-based event level
+higgs_dna/systematics/JSONs/pileup
+# Variable-based Egamma (potentially custom for Hgg)
+higgs_dna/systematics/JSONs/scaleAndSmearing/
+higgs_dna/systematics/JSONs/FNUF/
+higgs_dna/systematics/JSONs/Material
+higgs_dna/systematics/JSONs/ShowerShape/
+# Variable-based central (e.g. JME)
+higgs_dna/systematics/JSONs/POG/
+# JEC and JER (not sure why it is named data to be honest)
+higgs_dna/systematics/data/
+
+# CDFs for decorrelation
+higgs_dna/tools/Diphoton_CDFs.pkl.gz
+higgs_dna/tools/Smeared_Diphoton_CDFs.pkl.gz
+higgs_dna/tools/decorrelation_CDFs/
+
+# Flow models
+higgs_dna/tools/flows/
