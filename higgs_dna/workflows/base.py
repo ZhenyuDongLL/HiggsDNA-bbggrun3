@@ -5,8 +5,8 @@ from higgs_dna.tools.photonid_mva import calculate_photonid_mva, load_photonid_m
 from higgs_dna.tools.photonid_mva import calculate_photonid_mva_run3, load_photonid_mva_run3
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
-from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_NGenJets, get_higgs_gen_attributes
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
+from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higgs_gen_attributes
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap
@@ -107,7 +107,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         self.jet_pt_threshold = 20
         self.jet_max_eta = 4.7
 
-        self.clean_jet_dipho = True
+        self.clean_jet_dipho = False
         self.clean_jet_pho = True
         self.clean_jet_ele = False
         self.clean_jet_muo = False
@@ -523,7 +523,10 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
 
                 diphotons['PTH'], diphotons['YH'] = get_higgs_gen_attributes(events)
-                diphotons['NJ'] = get_NGenJets(events, pt_cut=30, eta_cut=2.5)
+
+                genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
+                diphotons['NJ'] = awkward.num(genJets)
+                diphotons['PTJ0'] = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
 
             # baseline modifications to diphotons
             if self.diphoton_mva is not None:
