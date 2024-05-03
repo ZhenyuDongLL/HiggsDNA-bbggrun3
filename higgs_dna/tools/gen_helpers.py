@@ -1,6 +1,6 @@
 import awkward as ak
 import numpy as np
-# from higgs_dna.selections.object_selections import delta_r_mask
+from higgs_dna.selections.object_selections import delta_r_mask
 import logging
 
 logger = logging.getLogger(__name__)
@@ -73,14 +73,75 @@ def get_fiducial_flag(events: ak.Array, flavour: str = "Geometric") -> ak.Array:
     return fiducial_flag
 
 
-def get_NGenJets(events: ak.Array, pt_cut, eta_cut) -> ak.Array:
+def get_genJets(self, events: ak.Array, pt_cut, eta_cut) -> ak.Array:
     GenJets = events.GenJet
-    GenJets = GenJets[GenJets.partonFlavour != 0]  # Removing GenJets that have not been matched to coloured particles
+    # We decide to clean based on dR criteria and not use partonFlavour as this is easier to reproduce
+    # The commented option below is also interesting, removing jets that have not been matched to a coloured parton...
+    # GenJets = GenJets[GenJets.partonFlavour != 0]
+
+    if 'iso' in events.GenPart.fields:
+        # Note: iso is a relative quantity
+        sel_pho = (events.GenPart.pdgId == 22) & (events.GenPart.status == 1) & (events.GenPart.iso * events.GenPart.pt < 10)
+        photons = events.GenPart[sel_pho]
+        photons = photons[ak.argsort(photons.pt, ascending=False)]
+        GenIsolatedPhotons = ak.pad_none(photons, 2)
+    else:
+        # Extract and pad the gen isolated photons
+        GenIsolatedPhotons = events.GenIsolatedPhoton
+        GenIsolatedPhotons = ak.pad_none(GenIsolatedPhotons, 2)
+
+    # Separate leading and subleading photons
+    lead_pho = GenIsolatedPhotons[:, 0]
+    sublead_pho = GenIsolatedPhotons[:, 1]
+
+    diphotons = lead_pho + sublead_pho
+
+    if (ak.num(diphotons.pt, axis=0) > 0):
+        lead = ak.zip(
+            {
+                "pt": lead_pho.pt,
+                "eta": lead_pho.eta,
+                "phi": lead_pho.phi,
+                "mass": lead_pho.mass,
+            }
+        )
+        lead = ak.with_name(lead, "PtEtaPhiMCandidate")
+        sublead = ak.zip(
+            {
+                "pt": sublead_pho.pt,
+                "eta": sublead_pho.eta,
+                "phi": sublead_pho.phi,
+                "mass": sublead_pho.mass,
+            }
+        )
+        sublead = ak.with_name(sublead, "PtEtaPhiMCandidate")
+        dr_pho_lead_cut = delta_r_mask(GenJets, lead, self.jet_pho_min_dr)
+        dr_pho_sublead_cut = delta_r_mask(GenJets, sublead, self.jet_pho_min_dr)
+    else:
+        dr_pho_lead_cut = GenJets.pt > -1
+        dr_pho_sublead_cut = GenJets.pt > -1
+
+    # Lepton selection for overlap removal
+    GenLeptons = events.GenPart[(abs(events.GenPart.pdgId == 11)) | (abs(events.GenPart.pdgId == 13)) & (events.GenPart.status == 1)]
+    # # 11: Electron, 13: Muon
+    if 'iso' in events.GenPart.fields:
+        SelGenElectrons = GenLeptons[(abs(GenLeptons.pdgId == 11)) & (GenLeptons.pt > self.electron_pt_threshold) & (GenLeptons.eta < self.electron_max_eta) & (GenLeptons.iso < 0.2)]
+        SelGenMuons = GenLeptons[(abs(GenLeptons.pdgId == 13)) & (GenLeptons.pt > self.muon_pt_threshold) & (GenLeptons.eta < self.muon_max_eta) & (GenLeptons.iso < 0.2)]
+        dr_electrons_mask = delta_r_mask(GenJets, SelGenElectrons, self.jet_ele_min_dr)
+        dr_muons_mask = delta_r_mask(GenJets, SelGenMuons, self.jet_muo_min_dr)
+    else:
+        logger.info("Careful: You are running over a sample that is nanoAOD v13 or older where the genPart collection does not contain the iso field")
+        logger.info("Overlap removal for counting GenJets wrt to leptons will not be performed.")
+        dr_electrons_mask = GenJets.pt > -1
+        dr_muons_mask = GenJets.pt > -1
+
+    GenJets = GenJets[(dr_pho_lead_cut) & (dr_pho_sublead_cut) & (dr_electrons_mask) & (dr_muons_mask)]
+
     # This is targeted primarly at photons from Higgs decay but also prompt electrons and muons in VH, TTH
     GenJets = GenJets[GenJets.pt > pt_cut]
     GenJets = GenJets[np.abs(GenJets.eta) < eta_cut]
-    NGenJets = ak.num(GenJets)
-    return NGenJets
+
+    return GenJets
 
 
 def get_higgs_gen_attributes(events: ak.Array) -> ak.Array:
@@ -93,7 +154,7 @@ def get_higgs_gen_attributes(events: ak.Array) -> ak.Array:
     - If the GenPart_iso branch is not included in the NanoAOD, the GenIsolatedPhotons collection is used, to be consistent with get_fiducial_flag() above.
     """
     if 'iso' in events.GenPart.fields:
-        sel_pho = (events.GenPart.pdgId == 22) & (events.GenPart.status == 1)
+        sel_pho = (events.GenPart.pdgId == 22) & (events.GenPart.status == 1) & (events.GenPart.iso * events.GenPart.pt < 10)
         gen_photons = events.GenPart[sel_pho]
         gen_photons = gen_photons[ak.argsort(gen_photons.pt, ascending=False)]
         gen_photons = ak.pad_none(gen_photons, 2)
