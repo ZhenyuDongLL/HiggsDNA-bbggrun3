@@ -122,11 +122,11 @@ def get_genJets(self, events: ak.Array, pt_cut, eta_cut) -> ak.Array:
         dr_pho_sublead_cut = GenJets.pt > -1
 
     # Lepton selection for overlap removal
-    GenLeptons = events.GenPart[(abs(events.GenPart.pdgId == 11)) | (abs(events.GenPart.pdgId == 13)) & (events.GenPart.status == 1)]
+    GenLeptons = events.GenPart[(abs(events.GenPart.pdgId) == 11) | (abs(events.GenPart.pdgId) == 13) & (events.GenPart.status == 1)]
     # # 11: Electron, 13: Muon
     if 'iso' in events.GenPart.fields:
-        SelGenElectrons = GenLeptons[(abs(GenLeptons.pdgId == 11)) & (GenLeptons.pt > self.electron_pt_threshold) & (GenLeptons.eta < self.electron_max_eta) & (GenLeptons.iso < 0.2)]
-        SelGenMuons = GenLeptons[(abs(GenLeptons.pdgId == 13)) & (GenLeptons.pt > self.muon_pt_threshold) & (GenLeptons.eta < self.muon_max_eta) & (GenLeptons.iso < 0.2)]
+        SelGenElectrons = GenLeptons[(abs(GenLeptons.pdgId) == 11) & (GenLeptons.pt > self.electron_pt_threshold) & (abs(GenLeptons.eta) < self.electron_max_eta) & (GenLeptons.iso < 0.2)]
+        SelGenMuons = GenLeptons[(abs(GenLeptons.pdgId) == 13) & (GenLeptons.pt > self.muon_pt_threshold) & (abs(GenLeptons.eta) < self.muon_max_eta) & (GenLeptons.iso < 0.2)]
         dr_electrons_mask = delta_r_mask(GenJets, SelGenElectrons, self.jet_ele_min_dr)
         dr_muons_mask = delta_r_mask(GenJets, SelGenMuons, self.jet_muo_min_dr)
     else:
