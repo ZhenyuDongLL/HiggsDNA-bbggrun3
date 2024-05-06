@@ -202,20 +202,22 @@ if __name__ == "__main__":
             "higgs_dna.metaconditions", all_metaconditions[metaconditions]
         ) as f:
             processor_instance = workflows[workflow](
-                json.load(f),
-                systematics,
-                corrections,
-                args.use_trigger,
-                args.dump,
-                wf_taggers,
-                args.skipCQR,
-                args.skipJetVetoMap,
-                year,
-                args.fiducialCuts,
-                args.doDeco,
-                args.Smear_sigma_m,
-                args.doFlow_corrections,
-                args.output_format,
+                metaconditions=json.load(f),
+                systematics=systematics,
+                corrections=corrections,
+                apply_trigger=args.use_trigger,
+                output_location=args.dump,
+                analysis=args.analysis,
+                trigger_group=args.triggerGroup,
+                taggers=wf_taggers,
+                skipCQR=args.skipCQR,
+                skipJetVetoMap=args.skipJetVetoMap,
+                year=year,
+                fiducialCuts=args.fiducialCuts,
+                doDeco=args.doDeco,
+                Smear_sigma_m=args.Smear_sigma_m,
+                doFlow_corrections=args.doFlow_corrections,
+                output_format=args.output_format,
             )  # additional args can go here to configure a processor
     else:
         raise NotImplementedError

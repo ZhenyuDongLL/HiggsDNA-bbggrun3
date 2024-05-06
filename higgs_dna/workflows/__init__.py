@@ -7,6 +7,7 @@ from higgs_dna.workflows.HHbbgg import HHbbggProcessor
 from higgs_dna.workflows.particleLevel import ParticleLevelProcessor
 from higgs_dna.workflows.top import TopProcessor
 from higgs_dna.workflows.Zmmy import ZmmyProcessor, ZmmyHist, ZmmyZptHist
+from higgs_dna.workflows.hpc_processor import HplusCharmProcessor
 
 workflows = {}
 
@@ -18,5 +19,6 @@ workflows["top"] = TopProcessor
 workflows["zmmy"] = ZmmyProcessor
 workflows["zmmyHist"] = ZmmyHist
 workflows["zmmyZptHist"] = ZmmyZptHist
+workflows["hpc"] = HplusCharmProcessor
 
 __all__ = ["workflows", "taggers", "DYStudiesProcessor"]

@@ -99,7 +99,7 @@ def calculate_diphoton_mva(
 
 def calculate_retrained_diphoton_mva(
     self,
-    mva: Tuple[Optional[xgboost.Booster], List[str]],
+    mva: Tuple[Tuple[Optional[xgboost.Booster], Optional[xgboost.Booster]], List[str]],
     diphotons: awkward.Array,
     events: awkward.Array,
 ) -> awkward.Array:
@@ -111,7 +111,9 @@ def calculate_retrained_diphoton_mva(
         diphotons["bdt_score"] = awkward.zeros_like(diphotons.mass)
         return diphotons, events
 
-    diphoton_mva = mva[0]
+    diphoton_mva = []
+    diphoton_mva.append(mva[0][0])
+    diphoton_mva.append(mva[0][1])
 
     var_order = mva[1]
 
@@ -139,11 +141,11 @@ def calculate_retrained_diphoton_mva(
     v_lead = calc_displacement(diphotons.pho_lead, events)
     v_sublead = calc_displacement(diphotons.pho_sublead, events)
 
-    p_lead = v_lead.unit() * diphotons.pho_lead.energyRaw
-    p_lead["energy"] = diphotons.pho_lead.energyRaw
+    p_lead = v_lead.unit() * diphotons.pho_lead.energy
+    p_lead["energy"] = diphotons.pho_lead.energy
     p_lead = awkward.with_name(p_lead, "Momentum4D")
-    p_sublead = v_sublead.unit() * diphotons.pho_sublead.energyRaw
-    p_sublead["energy"] = diphotons.pho_sublead.energyRaw
+    p_sublead = v_sublead.unit() * diphotons.pho_sublead.energy
+    p_sublead["energy"] = diphotons.pho_sublead.energy
     p_sublead = awkward.with_name(p_sublead, "Momentum4D")
 
     sech_lead = 1.0 / numpy.cosh(p_lead.eta)
@@ -228,14 +230,21 @@ def calculate_retrained_diphoton_mva(
         features_bdt.view((float, len(features_bdt.dtype.names)))
     )
 
-    # tempmatrix = xgboost.DMatrix(features_bdt, feature_names=var_order)
-    scores = diphoton_mva.predict(features_bdt_matrix)
+    scores = []
+    for bdt in diphoton_mva:
+        scores.append(bdt.predict(features_bdt_matrix))
 
     for var in bdt_features:
         if "dipho" not in var:
             diphotons[var] = events_bdt[var]
 
+    scores_out = awkward.where(
+        events.event % 2 < 1,
+        scores[1],
+        scores[0]
+    )
+
     diphotons["bdt_score"] = awkward.zeros_like(diphotons.mass)
-    diphotons["bdt_score"] = scores
+    diphotons["bdt_score"] = scores_out
 
     return diphotons, events

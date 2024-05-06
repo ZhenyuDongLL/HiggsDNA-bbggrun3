@@ -65,6 +65,18 @@ def get_main_parser():
         choices=("root", "parquet"),
     )
     parser.add_argument(
+        "--triggerGroup",
+        default=".*DoubleEG.*",
+        help="trigger group to be selected",
+        choices=(".*DoubleEG.*", ".*EGamma.*2018.*", ".*EGamma.*", ".*SingleEle.*", ".*DoubleMuon.*"),
+    )
+    parser.add_argument(
+        "--analysis",
+        default="mainAnalysis",
+        help="analysis to run",
+        choices=("mainAnalysis", "tagAndProbe", "ZmmyAnalysis")
+    )
+    parser.add_argument(
         "--save",
         default=None,
         help="If not None, save the coffea output, e.g., --save run_summary.coffea",
