@@ -97,6 +97,31 @@ def dump_pandas(
     pathlib.Path(local_file).unlink()
 
 
+def diphoton_ak_array_fields(
+    self, diphotons: awkward.Array, fields, logger
+) -> awkward.Array:
+    """
+    This function allows you to add the list of variables to be dumped
+    Adjust the prefix.
+    By default the observables related to each item of the diphoton pair are
+    stored preceded by its prefix (e.g. 'lead', 'sublead').
+    The observables related to the diphoton pair are stored with no prefix.
+    """
+    output = {}
+    for field in fields:
+        if (
+            field != "photons"
+        ):  # not needed in the output, the information is already stored in pho_lead and pho_sublead
+            prefix = self.prefixes.get(field, "")
+            if len(prefix) > 0:
+                for subfield in awkward.fields(diphotons[field]):
+                    if subfield != "__systematics__":
+                        output[f"{prefix}_{subfield}"] = diphotons[field][subfield]
+            else:
+                output[field] = diphotons[field]
+    return awkward.Array(output)
+
+
 def diphoton_ak_array(self, diphotons: awkward.Array) -> awkward.Array:
     """
     Adjust the prefix.
