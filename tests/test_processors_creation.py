@@ -1,0 +1,63 @@
+from higgs_dna.utils.logger_utils import setup_logger
+from higgs_dna.workflows import DYStudiesProcessor, TagAndProbeProcessor, ZmmyProcessor
+import os
+import subprocess
+from coffea import processor
+import json
+from importlib import resources
+import pytest
+
+# This is a dummy function to test the processor creation from run_analyses.py    
+def test_processors_creation():
+    
+    # Pulling golden json
+    os.chdir("scripts")
+    subprocess.run("python pull_files.py --target GoldenJSON", shell=True)
+    os.chdir("..")
+    
+    # Lets test tag and probe processor
+    command = [
+    "python", "scripts/run_analysis.py",
+    "--json-analysis", "tests/config_files/runner_v13_tagandprobe.json",
+    "--dump", "./EE_leak",
+    "--skipCQR",
+    "--skipJetVetoMap",
+    "--executor", "iterative",
+    "--limit", "1",
+    "--workers", "1"
+    ]
+
+    #subprocess.run(command)
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if result.returncode != 0:
+        print("Error running the script:")
+        print(result.stderr)
+        pytest.fail(f"Script failed with stderr: {result.stderr}")
+        
+    # Asserting directly if you prefer a more pytest-like approach
+    assert result.returncode == 0, f"Script failed with stderr: {result.stderr}"
+    
+    # Now the base processor   
+    command = [
+    "python", "scripts/run_analysis.py",
+    "--json-analysis", "tests/config_files/runner_v13_base.json",
+    "--dump", "./EE_leak",
+    "--skipCQR",
+    "--skipJetVetoMap",
+    "--executor", "iterative",
+    "--limit", "1",
+    "--workers", "1"
+    ]
+
+    #subprocess.run(command)
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    if result.returncode != 0:
+        print("Error running the script:")
+        print(result.stderr)
+        pytest.fail(f"Script failed with stderr: {result.stderr}")
+        
+    # Asserting directly if you prefer a more pytest-like approach
+    assert result.returncode == 0, f"Script failed with stderr: {result.stderr}"
+    
