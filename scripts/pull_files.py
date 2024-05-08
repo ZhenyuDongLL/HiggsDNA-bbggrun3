@@ -566,7 +566,9 @@ def get_goldenjson(logger, target_dir):
     #        os.path.dirname(__file__), "../metaconditions/pileup"
     #    )
 
-    prefix = "../higgs_dna/metaconditions/CAF/certification/"
+    prefix = os.path.join(
+        os.path.dirname(__file__), "../higgs_dna/metaconditions/CAF/certification/"
+    )
 
     from_to_dict = {
         "2016": {
