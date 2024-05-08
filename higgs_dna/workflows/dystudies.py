@@ -30,6 +30,8 @@ class DYStudiesProcessor(HggBaseProcessor):
         apply_trigger: bool = False,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
+        trigger_group: str = ".*DoubleEG.*",
+        analysis: str = "mainAnalysis",
         skipCQR: bool = False,
         skipJetVetoMap: bool = False,
         year: Dict[str, List[str]] = None,
@@ -46,8 +48,8 @@ class DYStudiesProcessor(HggBaseProcessor):
             apply_trigger=apply_trigger,
             output_location=output_location,
             taggers=taggers,
-            trigger_group=".*DoubleEG.*",
-            analysis="mainAnalysis",
+            trigger_group=trigger_group,
+            analysis=analysis,
             skipCQR=skipCQR,
             skipJetVetoMap=skipJetVetoMap,
             year=year,
@@ -57,8 +59,6 @@ class DYStudiesProcessor(HggBaseProcessor):
             doFlow_corrections=doFlow_corrections,
             output_format=output_format
         )
-        self.trigger_group = ".*DoubleEG.*"
-        self.analysis = "mainAnalysis"
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
@@ -76,6 +76,8 @@ class TagAndProbeProcessor(HggBaseProcessor):
         apply_trigger: bool = False,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
+        trigger_group: str = ".*SingleEle.*",
+        analysis: str = "tagAndProbe",
         skipCQR: bool = False,
         skipJetVetoMap: bool = False,
         year: Optional[Dict[str, List[str]]] = None,
@@ -103,8 +105,6 @@ class TagAndProbeProcessor(HggBaseProcessor):
             doFlow_corrections=doFlow_corrections,
             output_format=output_format
         )
-        self.trigger_group = ".*SingleEle.*"
-        self.analysis = "tagAndProbe"
 
         self.prefixes = {"tag": "tag", "probe": "probe"}
 
