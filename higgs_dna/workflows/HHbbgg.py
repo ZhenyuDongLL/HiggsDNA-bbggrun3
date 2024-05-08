@@ -47,6 +47,8 @@ class HHbbggProcessor(HggBaseProcessor):
         apply_trigger: bool = False,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
+        trigger_group=".*DoubleEG.*",
+        analysis="mainAnalysis",
         skipCQR: bool = False,
         skipJetVetoMap: bool = False,
         year: Dict[str, List[str]] = None,
@@ -63,8 +65,8 @@ class HHbbggProcessor(HggBaseProcessor):
             apply_trigger=apply_trigger,
             output_location=output_location,
             taggers=taggers,
-            trigger_group=".*DoubleEG.*",
-            analysis="mainAnalysis",
+            trigger_group=trigger_group,
+            analysis=analysis,
             skipCQR=skipCQR,
             skipJetVetoMap=skipJetVetoMap,
             year=year,
@@ -74,8 +76,6 @@ class HHbbggProcessor(HggBaseProcessor):
             doFlow_corrections=doFlow_corrections,
             output_format=output_format
         )
-        self.trigger_group = ".*DoubleEG.*"
-        self.analysis = "mainAnalysis"
 
         self.num_fatjets_to_store = 4
         self.num_leptons_to_store = 4
