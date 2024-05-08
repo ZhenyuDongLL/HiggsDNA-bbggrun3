@@ -1,3 +1,4 @@
 higgs_dna/metaconditions/*.json filter=lfs diff=lfs merge=lfs -text
 higgs_dna/metaconditions/*/*.json filter=lfs diff=lfs merge=lfs -text
 higgs_dna/metaconditions/*/*/*.json filter=lfs diff=lfs merge=lfs -text
+*.h5 filter=lfs diff=lfs merge=lfs -text
