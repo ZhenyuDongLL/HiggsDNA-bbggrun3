@@ -1,0 +1,5 @@
+{    
+    "Diphoton_postEE_v13": [
+        "./tests/samples/skimmed_nano/EGamma_F_Skim.root"
+    ]
+}
