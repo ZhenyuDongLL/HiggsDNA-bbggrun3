@@ -31,5 +31,6 @@ dependencies:
   - pandoc
   - pytorch
   - torchvision
+  - requests
   - pip:
     - zuko==1.0.1

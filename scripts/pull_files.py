@@ -2,6 +2,7 @@
 import argparse
 import os
 from higgs_dna.utils.logger_utils import setup_logger
+import requests
 import urllib.request
 import pathlib
 import shutil
@@ -83,6 +84,13 @@ def fetch_file(target_name, logger, from_to_dict, type="url"):
             try:
                 with urllib.request.urlopen(from_to_dict[ikey]["from"]) as f:
                     json_object = f.read().decode("utf-8")
+            except:
+                logger.info("INFO: urllib did not work, falling back to requests to fetch file from URL...")
+                pass
+            try:
+                response = requests.get(from_to_dict[ikey]["from"], verify=True)
+                response.raise_for_status()  # Raise an exception for HTTP errors
+                json_object = response.text
                 # create the folder
                 p = pathlib.Path(from_to_dict[ikey]["to"])
                 p = pathlib.Path(*p.parts[:-1])  # remove file name

@@ -145,12 +145,16 @@ higgs_dna/samples/*.json
 
 ### The following ingredients can be pulled with scripts/pull_files.py and are therefore not added to the index
 
+## golden JSON
+higgs_dna/metaconditions/CAF/
+
 ## JSONs for systematics
 # Weight-based Egamma objects
 higgs_dna/systematics/JSONs/TriggerSF/
 higgs_dna/systematics/JSONs/Preselection/
 higgs_dna/systematics/JSONs/ElectronVetoSF/
 higgs_dna/systematics/JSONs/SF_photon_ID/
+higgs_dna/systematics/JSONs/LooseMvaSF/
 # Weight-based jets
 higgs_dna/systematics/JSONs/cTagSF/
 # Weight-based event level

@@ -53,6 +53,9 @@ def test_processors_creation():
     #subprocess.run(command)
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
+    # clean up
+    subprocess.run("rm -r EE_leak", shell=True)
+
     if result.returncode != 0:
         print("Error running the script:")
         print(result.stderr)

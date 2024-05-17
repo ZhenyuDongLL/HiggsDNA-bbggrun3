@@ -1,4 +1,5 @@
 import pytest
+import subprocess
 
 def test_merge_parquet_and_convert():
     """
@@ -11,5 +12,9 @@ def test_merge_parquet_and_convert():
     os.system("cp ./tests/test_cat.json ./higgs_dna/category.json")
     x = os.system("python ./scripts/postprocessing/merge_parquet.py --source ./tests/samples/parquet_files/singles/ --target ./tests/samples/parquet_files/merged/ --cats test_cat.json --skip-normalisation")  
     x += os.system("python ./scripts/postprocessing/convert_parquet_to_root.py ./tests/samples/parquet_files/merged/merged.parquet ./tests/samples/parquet_files/merged/merged.root mc --cats category.json") 
+
+    # clean up
+    subprocess.run("rm -r ./tests/samples/parquet_files/merged", shell=True)
+    subprocess.run("rm ./higgs_dna/category.json", shell=True)
 
     assert x==0
