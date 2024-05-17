@@ -86,3 +86,5 @@ def test_processors():
         processor_instance=processor_instance,
     )
     
+    # clean up
+    subprocess.run("rm -r output", shell=True)
