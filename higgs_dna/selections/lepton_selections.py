@@ -15,6 +15,8 @@ def select_electrons(
         id_cut = electrons.mvaIso_WP90
     elif self.el_iso_wp == "WP80":
         id_cut = electrons.mvaIso_WP80
+    elif self.el_iso_wp == "loose":
+        id_cut = electrons.cutBased >= 2
     # WPL is not supported anymore with the Run 3 electron ID, CMSSW 130X v12 nanoAODs only have WP80 and WP90 options
     # elif self.el_iso_wp == "WPL":
     #    id_cut = electrons.mvaIso_WPL

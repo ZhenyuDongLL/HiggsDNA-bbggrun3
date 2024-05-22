@@ -96,7 +96,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         # electron selection cuts
         self.electron_pt_threshold = 15
         self.electron_max_eta = 2.5
-        self.el_iso_wp = "WP80"
+        self.el_iso_wp = "loose"
 
         # jet selection cuts
         self.jet_jetId = "tightLepVeto"  # can be "tightLepVeto" or "tight": https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
@@ -109,8 +109,8 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
 
         self.clean_jet_dipho = False
         self.clean_jet_pho = True
-        self.clean_jet_ele = False
-        self.clean_jet_muo = False
+        self.clean_jet_ele = True
+        self.clean_jet_muo = True
 
         # diphoton preselection cuts
         self.min_pt_photon = 25.0
@@ -565,11 +565,15 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                     "phi": events.Electron.phi,
                     "mass": events.Electron.mass,
                     "charge": events.Electron.charge,
+                    "cutBased": events.Electron.cutBased,
                     "mvaIso_WP90": events.Electron.mvaIso_WP90,
                     "mvaIso_WP80": events.Electron.mvaIso_WP80,
                 }
             )
             electrons = awkward.with_name(electrons, "PtEtaPhiMCandidate")
+
+            # Special cut for base workflow to replicate iso cut for electrons also for muons
+            events['Muon'] = events.Muon[events.Muon.pfRelIso03_all < 0.2]
 
             muons = awkward.zip(
                 {
