@@ -3,7 +3,8 @@ from higgs_dna.systematics import object_corrections as available_object_correct
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.utils.dumping_utils import diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas
 
-from higgs_dna.tools.gen_helpers import get_fiducial_flag
+from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets
+from higgs_dna.utils.misc_utils import choose_jet
 
 from typing import Any, Dict, List, Optional
 import awkward
@@ -134,6 +135,10 @@ class ParticleLevelProcessor(HggBaseProcessor):
         diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
         diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
 
+        genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
+        diphotons['NJ'] = awkward.num(genJets)
+        diphotons['PTJ0'] = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
+
         # workflow specific processing
         events, process_extra = self.process_extra(events)
         histos_etc.update(process_extra)
@@ -202,6 +207,7 @@ class ParticleLevelProcessor(HggBaseProcessor):
                 ]._partition_key.replace("/", "_")
                 + ".%s" % self.output_format
             )
+
             subdirs = []
             if "dataset" in events.metadata:
                 subdirs.append(events.metadata["dataset"])
