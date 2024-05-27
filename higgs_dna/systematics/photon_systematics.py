@@ -49,14 +49,14 @@ def Scale(pt, events, year="2022postEE", is_correction=True):
         path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/SS_RerecoE_PromptFG_2022.json')
         evaluator = correctionlib.CorrectionSet.from_file(path_json)["2022Re-recoE+PromptFG_ScaleJSON"]
     else:
-        print("\n WARNING: there are only scale corrections for the year strings [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\"]! \n Exiting. \n")
+        logger.info("WARNING: there are only scale corrections for the year strings [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\"]! \n Exiting. \n")
         exit()
 
     if is_correction:
 
         if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
             # the correction is already applied for Run 2
-            logger.info("the scale correction for Run 2  MC is alsready applied in nAOD, nothing to be done")
+            logger.info("the scale correction for Run 2  MC is already applied in nAOD, nothing to be done")
         else:
             correction = evaluator.evaluate("total_correction", gain, run, eta, r9, _pt)
             pt_corr = _pt * correction
@@ -116,7 +116,7 @@ def Smearing(pt, events, year="2022postEE", is_correction=True):
     elif year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
         logger.info("the systematic variations are taken directly from the dedicated nAOD branches Photon.dEsigmaUp and Photon.dEsigmaDown")
     else:
-        print("\n WARNING: the correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\"] \n Exiting. \n")
+        logger.info("WARNING: the correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\"] \n Exiting. \n")
         exit()
 
     if is_correction:
@@ -219,11 +219,19 @@ def FNUF(pt, events, year="2017", is_correction=True):
     _energy = ak.flatten(events.Photon.energy)
     _pt = ak.flatten(events.Photon.pt)
 
-    # era/year defined as parameter of the function, only 2017 is implemented up to now
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]
+    # era/year defined as parameter of the function
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE"]
     if year not in avail_years:
-        print(f"\n WARNING: only FNUF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        logger.info(f"WARNING: only FNUF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
+    elif "2022" in year:
+        logger.info(f"""WARNING: You selected the year_string {year}, which is a 2022 era.
+                        FNUF was not re-derived for Run 3 yet, but we fall back to the Run 2 2018 values.
+                        These values only constitute up/down variations, no correction is applied.
+                        The values are the averaged corrections from Run 2, turned into a systematic and inflated by 25%.
+                        Please make sure that this is what you want. You have been warned.""")
+        # The values have been provided by Badder for HIG-23-014 and Fabrice suggested to increase uncertainty a bit.
+        year = "2022"
     elif "2016" in year:
         year = "2016"
 
@@ -278,7 +286,7 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
     # era/year defined as parameter of the function
     avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]
     if year not in avail_years:
-        print(f"\n WARNING: only ShowerShape corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        logger.info(f"WARNING: only ShowerShape corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
     elif "2016" in year:
         year = "2016"
@@ -332,13 +340,16 @@ def Material(pt, events, year="2017", is_correction=True):
     # era/year defined as parameter of the function, only 2017 is implemented up to now
     avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE"]
     if year not in avail_years:
-        print(f"\n WARNING: only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        logger.info(f"WARNING: only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
     elif "2016" in year:
         year = "2016"
     # use Run 2 files also for Run 3, preliminary
     elif year in ["2022preEE", "2022postEE"]:
-        year = "2017"
+        logger.info(f"""WARNING: You selected the year_string {year}, which is a 2022 era.
+                  Material was not rederived for Run 3 yet, but we fall back to the Run 2 2018 values.
+                  Please make sure that this is what you want. You have been warned.""")
+        year = "2018"
 
     jsonpog_file = os.path.join(os.path.dirname(__file__), f"JSONs/Material/{year}/Material_{year}.json")
     evaluator = correctionlib.CorrectionSet.from_file(jsonpog_file)["Material"]
