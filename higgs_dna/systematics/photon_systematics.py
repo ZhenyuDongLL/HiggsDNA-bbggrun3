@@ -15,7 +15,7 @@ def photon_pt_scale_dummy(pt, **kwargs):
 
 # Not nice but working: if the functions are called in the base processor by Photon.add_systematic(... "what"="pt"...), the pt is passed to the function as first argument.
 # I need the full events here, so I pass in addition the events. Seems to only work if it is explicitly a function of pt, but I might be missing something. Open for better solutions.
-def Scale(pt, events, year="2022postEE", is_correction=True):
+def Scale(pt, events, year="2022postEE", is_correction=True, restriction=None):
     """
     Applies the photon pt scale corrections (use on data!) and corresponding uncertainties (on MC!).
     JSONs need to be pulled first with scripts/pull_files.py
@@ -82,6 +82,25 @@ def Scale(pt, events, year="2022postEE", is_correction=True):
         else:
             correction = evaluator.evaluate("total_correction", gain, run, eta, r9, _pt)
             uncertainty = evaluator.evaluate("total_uncertainty", gain, run, eta, r9, _pt)
+
+            if restriction is not None:
+                if restriction == "EB":
+                    uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEB))
+
+                elif restriction == "EE":
+                    uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEE))
+                    if year == "2022preEE":
+                        rescaleFactor = 1.5
+                        logger.info(f"Increasing EB scale uncertainty by factor {rescaleFactor}.")
+                        uncertainty *= rescaleFactor
+                    elif year == "2022postEE":
+                        rescaleFactor = 2.
+                        logger.info(f"Increasing EE scale uncertainty by factor {rescaleFactor}.")
+                        uncertainty *= rescaleFactor
+
+                uncertainty = np.where(
+                    uncMask, uncertainty, np.zeros_like(uncertainty)
+                )
 
             # divide by correction since it is already applied before
             corr_up_variation = (correction + uncertainty) / correction
