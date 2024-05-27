@@ -239,6 +239,11 @@ def get_fnuf_json(logger, target_dir):
         "2018": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/2018/FNUF_2018.json",
             "to": f"{to_prefix}/2018/FNUF_2018.json",
+        },
+        "2022":
+        {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/JSONs/FNUF_2022.json",
+            "to": f"{to_prefix}/2022/FNUF_2022.json",
         }
     }
     fetch_file("FNUF", logger, from_to_dict, type="copy")
