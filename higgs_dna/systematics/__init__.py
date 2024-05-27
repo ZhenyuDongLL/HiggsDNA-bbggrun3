@@ -48,6 +48,24 @@ object_systematics = {
             "varying_function": partial(Scale, is_correction=False),
         },
     },
+    # in case scale uncertainties should only be applied on barrel photons
+    "ScaleEB": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Scale, is_correction=False, restriction="EB"),
+        },
+    },
+    # in case scale uncertainties should only be applied on endcap photons
+    "ScaleEE": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Scale, is_correction=False, restriction="EE"),
+        },
+    },
     "Smearing": {
         "object": "Photon",
         "args": {
