@@ -242,6 +242,9 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
     vetomap = cset[key_map[year]].evaluate(*(inputs))
 
     if not year == "2022postEE":
+        flag_eep_jet = (
+            awkward.zeros_like(jets.pt) > 1
+        )  # flag_eep_jet always False for non-2022postEE
         sel_obj.add("vetomap", np.abs(vetomap) > 0)
     else:
         # ref: https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVRun3Analysis#From_JME
@@ -251,17 +254,19 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
         input_dict["type"] = "jetvetomap_eep"
         inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
         vetomap_eep = cset[key_map[year]].evaluate(*(inputs))
-        sel_obj.add(
-            "vetomap",
-            (np.abs(vetomap) > 0) | ((np.abs(vetomap_eep) > 0) & (jets.pt > 30)),
-        )
-
+        flag_eep_jet = (np.abs(vetomap_eep) > 0) & (jets.pt > 30)
+        sel_obj.add("vetomap", (np.abs(vetomap) > 0) | (flag_eep_jet))
     sel_veto_jet = sel_obj.all(*(sel_obj.names))
     sel_good_jet = ~awkward.Array(sel_veto_jet)
     logger.debug(
         f"[{systematic}] total: {len(sel_good_jet)}, pass: {awkward.sum(sel_good_jet)}"
     )
     sel_good_jet_jagged = awkward.unflatten(sel_good_jet, count)
+    flag_eep_jet_jagged = awkward.unflatten(flag_eep_jet, count)
     events.Jet = jets_jagged[sel_good_jet_jagged]
+    sel_event_veto = ~awkward.any(flag_eep_jet_jagged, axis=1)
+    logger.debug(
+        f"[{systematic}] total event: {len(sel_event_veto)}, pass event: {awkward.sum(sel_event_veto)}"
+    )
 
-    return events
+    return events[sel_event_veto]
