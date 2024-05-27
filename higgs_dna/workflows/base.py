@@ -288,7 +288,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 logger.info(
                     f"[ lumimask ] Skip now! Unable to find year info of {dataset_name}"
                 )
-        # apply jetvetomap
+        # apply jetvetomap: only retain events that without any jets in the EE leakage region
         if not self.skipJetVetoMap:
             events = jetvetomap(
                 events, logger, dataset_name, year=self.year[dataset_name][0]
