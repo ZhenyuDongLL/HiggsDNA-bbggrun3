@@ -41,7 +41,13 @@ parser.add_argument(
     action="store_true",
     help="Independent of file type, skip normalisation step",
 )
-
+parser.add_argument(
+    "--abs",
+    dest="abs",
+    action="store_true",
+    default=False,
+    help="Uses absolute path for the dictionary files.",
+)
 
 args = parser.parse_args()
 source_paths = args.source.split(",")
@@ -63,7 +69,11 @@ if (
 
 
 if args.cats_dict != "":
-    with open(BASEDIR + "category.json") as pf:
+    if args.abs:
+        cats_path = args.cats_dict
+    else: 
+        cats_path = BASEDIR + "category.json"
+    with open(cats_path) as pf:
         cat_dict = json.load(pf)
     for cat in cat_dict:
         logger.info(f"Found category: {cat}")

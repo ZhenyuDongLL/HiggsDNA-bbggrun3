@@ -47,6 +47,13 @@ parser.add_argument(
     default="",
     help="Dictionary containing variations.",
 )
+parser.add_argument(
+    "--abs",
+    dest="abs",
+    action="store_true",
+    default=False,
+    help="Uses absolute path for the dictionary files.",
+)
 args = parser.parse_args()
 source_path = args.source
 target_path = args.target
@@ -131,7 +138,11 @@ outfiles = {
 }
 # Loading category informations (used for naming of files to read/write)
 if args.cats_dict != "":
-    with open(BASEDIR + args.cats_dict) as pf:
+    if args.abs:
+        cats_path = args.cats_dict
+    else: 
+        cats_path = BASEDIR + args.cats_dict
+    with open(cats_path) as pf:
     # with resources.open_text("higgs_dna", args.cats_dict) as pf:
         cat_dict = json.load(pf)
     for cat in cat_dict:
@@ -148,8 +159,12 @@ else:
 # Loading variation informations (used for naming of files to read/write)
 # Active object systematics, weight systematics are just different sets of weights contained in the nominal file
 if args.vars_dict != "":
+    if args.abs:
+        vars_path = args.vars_dict
+    else: 
+        vars_path = BASEDIR + args.vars_dict
     # with resources.open_text("higgs_dna", args.vars_dict) as pf:
-    with open(BASEDIR + args.vars_dict) as pf:
+    with open(vars_path) as pf:
         variation_dict = json.load(pf)
     for var in variation_dict:
         logger.debug(f"Found variation: {var}")

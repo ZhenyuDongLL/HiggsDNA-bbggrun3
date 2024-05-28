@@ -3,10 +3,9 @@
 import os
 import subprocess
 from optparse import OptionParser
-import json
+import json, glob
 from higgs_dna.utils.logger_utils import setup_logger
 
-import os
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
@@ -142,6 +141,20 @@ parser.add_option(
     default="",
     help="Uses the given folder structure for dirlist.",
 )
+parser.add_option(
+    "--condor",
+    dest="condor",
+    action="store_true",
+    default=False,
+    help="Flag for using the execution via HTCondor instead of a local execution.",
+)
+parser.add_option(
+    "--merge-data-only",
+    dest="merge_data",
+    action="store_true",
+    default=False,
+    help="Flag for merging data to an allData file.",
+)
 (opt, args) = parser.parse_args()
 
 if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
@@ -149,8 +162,16 @@ if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
 logger = setup_logger(level=opt.verbose)
 
 folder_for_dirlist = opt.input
-if opt.folder_structure != "":
-    folder_for_dirlist = opt.folder_structure
+if opt.condor:
+    if opt.root and not opt.merge:
+        folder_for_dirlist = opt.input + "/merged"
+    elif opt.folder_structure != "":
+        folder_for_dirlist = opt.folder_structure
+else:
+    if opt.root and not opt.merge:
+        folder_for_dirlist = opt.input + "/merged"
+    if opt.folder_structure != "":
+        folder_for_dirlist = opt.folder_structure
 os.system(
     f"ls -l {folder_for_dirlist} | tail -n +2 | grep -v .coffea | grep -v merged | grep -v root |"
     + "awk '{print $NF}' > dirlist.txt"
@@ -253,36 +274,78 @@ SCRIPT_DIR = os.path.dirname(
 # I create a dictionary and save it to a temporary json so that this can be shared between the two scripts
 # and then gets deleted to not leave trash around. We have to care for the environment :P.
 # Not super elegant, open for suggestions
-with open("category.json", "w") as file:
-    file.write(json.dumps(cat_dict))
+# with open("category.json", "w") as file:
+#     file.write(json.dumps(cat_dict))
 
 # Same for variation dictionary, which is shared between merging and ROOTing steps.
-with open("variation.json", "w") as file:
-    file.write(json.dumps(var_dict))
+# with open("variation.json", "w") as file:
+#     file.write(json.dumps(var_dict))
 
 # Using OUT_PATH for the location of the output if different from the input path
-if opt.output == "":
-    OUT_PATH = IN_PATH
-    os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
-    os.system(f"mv variation.json {SCRIPT_DIR}/../../higgs_dna/variation.json")
-    # if opt.folder_structure != "":
-    #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
-    # else:
-    dirlist_path = f"{EXEC_PATH}/dirlist.txt"
+if not opt.condor:
+    if opt.output == "":
+        OUT_PATH = IN_PATH
+        # os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
+        # os.system(f"mv variation.json {SCRIPT_DIR}/../../higgs_dna/variation.json")
+        with open("{SCRIPT_DIR}/../../higgs_dna/category.json", "w") as file:
+            file.write(json.dumps(cat_dict))
+        with open("{SCRIPT_DIR}/../../higgs_dna/variation.json", "w") as file:
+            file.write(json.dumps(var_dict))
+        # if opt.folder_structure != "":
+        #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
+        # else:
+        dirlist_path = f"{EXEC_PATH}/dirlist.txt"
+    else:
+        OUT_PATH = opt.output
+        # os.system(f"mv category.json {OUT_PATH}/category.json")
+        # os.system(f"mv variation.json {OUT_PATH}/variation.json")
+        # os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
+        # os.system(f"mv variation.json {SCRIPT_DIR}/../../higgs_dna/variation.json")
+        with open("{SCRIPT_DIR}/../../higgs_dna/category.json", "w") as file:
+            file.write(json.dumps(cat_dict))
+        with open("{SCRIPT_DIR}/../../higgs_dna/variation.json", "w") as file:
+            file.write(json.dumps(var_dict))
+        # if opt.folder_structure != "":
+        #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
+        #     os.system(f"mv {dirlist_path} {OUT_PATH}/dirlist.txt")
+        # else:
+        dirlist_path = f"{OUT_PATH}/dirlist.txt"
+        os.system(f"mv {EXEC_PATH}/dirlist.txt {OUT_PATH}/dirlist.txt")
+    cat_dict = "category.json"
 else:
-    OUT_PATH = opt.output
-    os.system(f"mv category.json {OUT_PATH}/category.json")
-    os.system(f"mv variation.json {OUT_PATH}/variation.json")
-    # if opt.folder_structure != "":
-    #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
-    #     os.system(f"mv {dirlist_path} {OUT_PATH}/dirlist.txt")
-    # else:
-    dirlist_path = f"{OUT_PATH}/dirlist.txt"
-    os.system(f"mv {EXEC_PATH}/dirlist.txt {OUT_PATH}/dirlist.txt")
+    if opt.output == "":
+        OUT_PATH = IN_PATH
+        cat_dict_loc = f"{SCRIPT_DIR}/../../higgs_dna/category.json"
+        var_dict_loc = f"{SCRIPT_DIR}/../../higgs_dna/variation.json"
+        # os.system(f"mv category.json {cat_dict_loc}")
+        # os.system(f"mv variation.json {var_dict_loc}")
+        with open(cat_dict_loc, "w") as file:
+            file.write(json.dumps(cat_dict))
+        with open(var_dict_loc, "w") as file:
+            file.write(json.dumps(var_dict))
+
+        dirlist_path = f"{EXEC_PATH}/dirlist.txt"
+    else:
+        OUT_PATH = opt.output
+        cat_dict_loc = f"{OUT_PATH}/category.json"
+        var_dict_loc = f"{OUT_PATH}/variation.json"
+        # os.system(f"mv category.json {cat_dict_loc}")
+        # os.system(f"mv variation.json {var_dict_loc}")
+        with open(cat_dict_loc, "w") as file:
+            file.write(json.dumps(cat_dict))
+        with open(var_dict_loc, "w") as file:
+            file.write(json.dumps(var_dict))
+
+        dirlist_path = f"{OUT_PATH}/dirlist.txt"
+        os.system(f"mv {EXEC_PATH}/dirlist.txt {OUT_PATH}/dirlist.txt")
     
-
-
-cat_dict = "category.json"
+def submit_jobs(directory, suffix=""):
+    if suffix != "":
+        sub_files = glob.glob(f"{directory}/*{suffix}.sub")
+    else:
+        sub_files = glob.glob(f"{directory}/*.sub")
+    for current_file in sub_files:
+        subprocess.run(["condor_submit", "-spool", current_file])
 
 # Define string if normalisation to be skipped
 skip_normalisation_str = "--skip-normalisation" if opt.skip_normalisation else ""
@@ -333,166 +396,411 @@ def process_file(file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_n
         command = f'python3 merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict} --is-data'
         subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
-
-if opt.merge:
-    with open(dirlist_path) as fl:
-        files = fl.readlines()
-        
-        # No more loop over the files, we will use the ThreadPoolExecutor to parallelize the process!
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            futures = [executor.submit(process_file, file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisation_str, opt) for file in files]
-
-        # Optionally, wait for all futures to complete and check for exceptions
-        for future in futures:
-            try:
-                future.result()
-            except Exception as e:
-                # Log file-level exceptions
-                logger.error(f"Error processing file: {e}")
-
-
-        # at this point Data will be split in eras if any Data dataset is present, here we merge them again in one allData file to rule them all
-        # we also skip this step if there is no Data
-        for file in files:
-            file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
-            if "data" in file.lower() or "DoubleEG" in file:
-                dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
-                if len(filenames) > 0:
-                    command = f'python3 merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict} --is-data'
-                    subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
-                    break
-                else:
-                    logger.info(f'No merged parquet found for {file} in the directory: {OUT_PATH}/merged/Data_{file.split("_")[-1]}')
-
-if opt.root:
-    logger.info("Starting root step")
-    if opt.syst:
-        logger.info("you've selected the run with systematics")
-        args = "--do_syst"
-    else:
-        logger.info("you've selected the run without systematics")
-        args = ""
-
+if not opt.condor:
     if opt.merge:
-        IN_PATH = OUT_PATH
-    # Note, in my version of HiggsDNA I run the analysis splitting data per Era in different datasets
-    # the treatment of data here is tested just with that structure
-    with open(dirlist_path) as fl:
-        files = fl.readlines()
-        for file in files:
-            file = file.split("\n")[0]
-            if "data" not in file.lower() and file in process_dict:
-                if os.path.exists(f"{OUT_PATH}/root/{file}"):
-                    raise Exception(
-                        f"The selected target path: {OUT_PATH}/root/{file} already exists"
-                    )
+        with open(dirlist_path) as fl:
+            files = fl.readlines()
+            
+            # No more loop over the files, we will use the ThreadPoolExecutor to parallelize the process!
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                futures = [executor.submit(process_file, file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisation_str, opt) for file in files]
 
-                if os.listdir(f"{IN_PATH}/merged/{file}/"):
-                    logger.info(f"Found merged files {IN_PATH}/merged/{file}/")
-                else:
-                    raise Exception(f"Merged parquet not found at {IN_PATH}/merged/")
-                MKDIRP(f"{OUT_PATH}/root/{file}")
-                os.chdir(SCRIPT_DIR)
-                os.system(
-                    f"python3 convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict} --vars variation.json"
-                )
-            elif "data" in file.lower():
-                if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
-                    logger.info(
-                        f'Found merged data files in: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
-                    )
-                else:
-                    raise Exception(
-                        f'Merged parquet not found at: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
-                    )
+            # Optionally, wait for all futures to complete and check for exceptions
+            for future in futures:
+                try:
+                    future.result()
+                except Exception as e:
+                    # Log file-level exceptions
+                    logger.error(f"Error processing file: {e}")
 
-                if os.path.exists(
-                    f'{OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
-                ):
-                    logger.info(
-                        f'Data already converted: {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
-                    )
-                    continue
-                elif not os.path.exists(f"{OUT_PATH}/root/Data/"):
-                    MKDIRP(f"{OUT_PATH}/root/Data")
-                    os.chdir(SCRIPT_DIR)
-                    os.system(
-                        f'python3 convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json'
-                    )
-                else:
-                    os.chdir(SCRIPT_DIR)
-                    os.system(
-                        f'python3 convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json'
-                    )
 
-if opt.ws:
-    if not os.listdir(opt.final_fit):
-        raise Exception(
-            f"The selected FlashggFinalFit path: {opt.final_fit} is invalid"
-        )
-        
-    if os.path.exists(f"{IN_PATH}/root/Data"):
-        os.system(f"echo Data >> {dirlist_path}")
+            # at this point Data will be split in eras if any Data dataset is present, here we merge them again in one allData file to rule them all
+            # we also skip this step if there is no Data
+            for file in files:
+                file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
+                if "data" in file.lower() or "DoubleEG" in file:
+                    dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
+                    if len(filenames) > 0:
+                        command = f'python3 merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict} --is-data'
+                        subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
+                        break
+                    else:
+                        logger.info(f'No merged parquet found for {file} in the directory: {OUT_PATH}/merged/Data_{file.split("_")[-1]}')
 
-    data_done = False
-
-    with open(dirlist_path) as fl:
-        files = fl.readlines()
+    if opt.root:
+        logger.info("Starting root step")
         if opt.syst:
-            doSystematics = "--doSystematics"
+            logger.info("you've selected the run with systematics")
+            args = "--do_syst"
         else:
-            doSystematics = ""
-        with open(f"{SCRIPT_DIR}/../../higgs_dna/category.json") as f:
-            cat_file = json.load(f)
-        for dir in files:
-            dir = dir.split("\n")[0]
-            # if MC
-            if "data" not in dir.lower() and dir in process_dict:
-                if os.listdir(f"{IN_PATH}/root/{dir}/"):
-                    filename = subprocess.check_output(
-                        f"find {IN_PATH}/root/{dir} -name *.root -type f",
-                        shell=True,
-                        universal_newlines=True,
-                    )
-                else:
-                    raise Exception(
-                        f"The selected target path: {IN_PATH}/root/{dir} it's empty"
-                    )
-                doNOTAG = ""
-                if ("NOTAG" in cat_file.keys()):
-                    doNOTAG = "--doNOTAG"
-                command = f"python trees2ws.py {doNOTAG} --inputConfig {opt.config} --productionMode {process_dict[dir]} --year 2017 {doSystematics} --inputTreeFile {filename}"
-                activate_final_fit(opt.final_fit, command)
-            elif "data" in dir.lower() and not data_done:
-                if os.listdir(f"{IN_PATH}/root/Data/"):
-                    filename = subprocess.check_output(
-                        f"find {IN_PATH}/root/Data -name *.root -type f",
-                        shell=True,
-                        universal_newlines=True,
-                    )
-                else:
-                    raise Exception(
-                        f"The selected target path: {IN_PATH}/root/{dir} it's empty"
-                    )
-                doNOTAG = ""
-                if ("NOTAG" in cat_file.keys()):
-                    doNOTAG = "--doNOTAG"
-                command = f"python trees2ws_data.py {doNOTAG} --inputConfig {opt.config} --inputTreeFile {filename}"
-                activate_final_fit(opt.final_fit, command)
-                data_done = True
-    os.chdir(EXEC_PATH)
+            logger.info("you've selected the run without systematics")
+            args = ""
 
-# We don't want to leave trash around
-if os.path.exists(dirlist_path):
-    os.system(f"rm {dirlist_path}")
-if opt.output == "":
-    if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/category.json"):
-        os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/category.json")
-    if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/variation.json"):
-        os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/variation.json")
+        if opt.merge:
+            IN_PATH = OUT_PATH
+        # Note, in my version of HiggsDNA I run the analysis splitting data per Era in different datasets
+        # the treatment of data here is tested just with that structure
+        with open(dirlist_path) as fl:
+            files = fl.readlines()
+            for file in files:
+                file = file.split("\n")[0]
+                if "data" not in file.lower() and file in process_dict:
+                    if os.path.exists(f"{OUT_PATH}/root/{file}"):
+                        raise Exception(
+                            f"The selected target path: {OUT_PATH}/root/{file} already exists"
+                        )
+
+                    if os.listdir(f"{IN_PATH}/merged/{file}/"):
+                        logger.info(f"Found merged files {IN_PATH}/merged/{file}/")
+                    else:
+                        raise Exception(f"Merged parquet not found at {IN_PATH}/merged/")
+                    MKDIRP(f"{OUT_PATH}/root/{file}")
+                    os.chdir(SCRIPT_DIR)
+                    os.system(
+                        f"python3 convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict} --vars variation.json"
+                    )
+                elif "data" in file.lower():
+                    if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
+                        logger.info(
+                            f'Found merged data files in: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
+                        )
+                    else:
+                        raise Exception(
+                            f'Merged parquet not found at: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
+                        )
+
+                    if os.path.exists(
+                        f'{OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
+                    ):
+                        logger.info(
+                            f'Data already converted: {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
+                        )
+                        continue
+                    elif not os.path.exists(f"{OUT_PATH}/root/Data/"):
+                        MKDIRP(f"{OUT_PATH}/root/Data")
+                        os.chdir(SCRIPT_DIR)
+                        os.system(
+                            f'python3 convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json'
+                        )
+                    else:
+                        os.chdir(SCRIPT_DIR)
+                        os.system(
+                            f'python3 convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json'
+                        )
+
+    if opt.ws:
+        if not os.listdir(opt.final_fit):
+            raise Exception(
+                f"The selected FlashggFinalFit path: {opt.final_fit} is invalid"
+            )
+            
+        if os.path.exists(f"{IN_PATH}/root/Data"):
+            os.system(f"echo Data >> {dirlist_path}")
+
+        data_done = False
+
+        with open(dirlist_path) as fl:
+            files = fl.readlines()
+            if opt.syst:
+                doSystematics = "--doSystematics"
+            else:
+                doSystematics = ""
+            with open(f"{SCRIPT_DIR}/../../higgs_dna/category.json") as f:
+                cat_file = json.load(f)
+            for dir in files:
+                dir = dir.split("\n")[0]
+                # if MC
+                if "data" not in dir.lower() and dir in process_dict:
+                    if os.listdir(f"{IN_PATH}/root/{dir}/"):
+                        filename = subprocess.check_output(
+                            f"find {IN_PATH}/root/{dir} -name *.root -type f",
+                            shell=True,
+                            universal_newlines=True,
+                        )
+                    else:
+                        raise Exception(
+                            f"The selected target path: {IN_PATH}/root/{dir} it's empty"
+                        )
+                    doNOTAG = ""
+                    if ("NOTAG" in cat_file.keys()):
+                        doNOTAG = "--doNOTAG"
+                    command = f"python trees2ws.py {doNOTAG} --inputConfig {opt.config} --productionMode {process_dict[dir]} --year 2017 {doSystematics} --inputTreeFile {filename}"
+                    activate_final_fit(opt.final_fit, command)
+                elif "data" in dir.lower() and not data_done:
+                    if os.listdir(f"{IN_PATH}/root/Data/"):
+                        filename = subprocess.check_output(
+                            f"find {IN_PATH}/root/Data -name *.root -type f",
+                            shell=True,
+                            universal_newlines=True,
+                        )
+                    else:
+                        raise Exception(
+                            f"The selected target path: {IN_PATH}/root/{dir} it's empty"
+                        )
+                    doNOTAG = ""
+                    if ("NOTAG" in cat_file.keys()):
+                        doNOTAG = "--doNOTAG"
+                    command = f"python trees2ws_data.py {doNOTAG} --inputConfig {opt.config} --inputTreeFile {filename}"
+                    activate_final_fit(opt.final_fit, command)
+                    data_done = True
+        os.chdir(EXEC_PATH)
 
 else:
-    if os.path.exists(f"{OUT_PATH}/category.json"):
-        os.system(f"rm {OUT_PATH}/category.json")
-    if os.path.exists(f"{OUT_PATH}/variation.json"):
-        os.system(f"rm {OUT_PATH}/variation.json")
+    if opt.merge:
+        with open(dirlist_path) as fl:
+            files = fl.readlines()
+            if not opt.merge_data:
+                for file in files:
+                    file = file.split("\n")[0]
+                    # parent_id = 0
+                    # MC dataset are identified as everythingthat does not contain "data" or "Data" in the name.
+                    if "data" not in file.lower():
+                        job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
+                        job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
+                        job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
+                        job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                        job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
+                        
+                        with open(job_file_executable, "w") as executable_file:
+                            executable_file.write("#!/bin/sh\n")
+                            if os.path.exists(f"{OUT_PATH}/merged/{file}"):
+                                raise Exception(
+                                    f"The selected target path: {OUT_PATH}/merged/{file} already exists"
+                                )
+
+                            MKDIRP(f"{OUT_PATH}/merged/{file}")
+                            if opt.syst:
+                                # if we have systematic variations in different files we have to split them in different directories
+                                # otherwise they will be all merged at once in the same output file
+                                i = 0
+                                for var in var_dict:
+                                    os.chdir(OUT_PATH)
+
+                                    MKDIRP(f"{OUT_PATH}/merged/{file}/{var_dict[var]}")
+
+                                    os.chdir(SCRIPT_DIR)
+                                    logger.info(f"python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs")
+                                    print(f"python3 merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs")
+                                    executable_file.write(f"if [ $1 -eq {i} ]; then\n")
+                                    executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs\n")
+                                    executable_file.write("fi\n")
+                                    i += 1
+
+                            else:
+                                i = 1
+                                os.chdir(SCRIPT_DIR)
+                                print(f"python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs")
+                                executable_file.write(f"if [ $1 -eq 0 ]; then\n")
+                                executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs\n")
+                                executable_file.write("fi\n")
+                                
+                        os.system(f"chmod 775 {job_file_executable}")
+                        with open(job_file_submit, "w") as submit_file:
+                            submit_file.write(f"executable = {job_file_executable}\n")
+                            submit_file.write("arguments = $(ProcId)\n")
+                            submit_file.write(f"output = {job_file_out}\n")
+                            submit_file.write(f"error = {job_file_err}\n")
+                            submit_file.write(f"log = {job_file_log}\n")
+                            submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
+                            submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
+                            submit_file.write("getenv = True\n")
+                            submit_file.write(f'+JobFlavour = "microcentury"\n')
+                            submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
+                            submit_file.write(f"queue {i}\n")
+
+                    else:
+                        job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
+                        job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
+                        job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
+                        job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                        job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
+                        with open(job_file_executable, "w") as executable_file:
+                            executable_file.write("#!/bin/sh\n")
+                            if os.path.exists(f"{OUT_PATH}/merged/{file}/{file}_merged.parquet"):
+                                raise Exception(
+                                    f"The selected target path: {OUT_PATH}/merged/{file}/{file}_merged.parquet already exists"
+                                )
+                            if not os.path.exists(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'):
+                                MKDIRP(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}')
+                            os.chdir(SCRIPT_DIR)
+                            print(f'python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs')
+                            executable_file.write(f"if [ $1 -eq 0 ]; then\n")
+                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs\n")
+                            executable_file.write("fi\n")
+                            
+                        os.system(f"chmod 775 {job_file_executable}")
+                        with open(job_file_submit, "w") as submit_file:
+                            submit_file.write(f"executable = {job_file_executable}\n")
+                            submit_file.write("arguments = $(ProcId)\n")
+                            submit_file.write(f"output = {job_file_out}\n")
+                            submit_file.write(f"error = {job_file_err}\n")
+                            submit_file.write(f"log = {job_file_log}\n")
+                            submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
+                            submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
+                            submit_file.write("getenv = True\n")
+                            submit_file.write(f'+JobFlavour = "microcentury"\n')
+                            submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
+                            submit_file.write(f"queue\n")
+                submit_jobs(OUT_PATH)
+
+            # at this point Data will be split in eras if any Data dataset is present, here we merge them again in one allData file to rule them all
+            # we also skip this step if there is no Data
+            if opt.merge_data:
+                j = 0
+                for file in files:
+                    if j != 0: continue
+                    file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
+                    job_file_executable = os.path.join(OUT_PATH, f"{file}_merge_data.sh")
+                    job_file_submit = os.path.join(OUT_PATH, f"{file}_merge_data.sub")
+                    job_file_out = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).out")
+                    job_file_err = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).err")
+                    job_file_log = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).log")
+                    if "data" in file.lower() or "DoubleEG" in file:
+                        with open(job_file_executable, "w") as executable_file:
+                            executable_file.write("#!/bin/sh\n")
+                            dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
+                            if len(filenames) > 0:
+                                print(f'python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs')
+                                executable_file.write(f"if [ $1 -eq 0 ]; then\n")
+                                executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs\n")
+                                executable_file.write("fi\n")
+                                #break
+                            else:
+                                logger.info(f'No merged parquet found for {file} in the directory: {OUT_PATH}/merged/Data_{file.split("_")[-1]}')
+                        with open(job_file_submit, "w") as submit_file:
+                            submit_file.write(f"executable = {job_file_executable}\n")
+                            submit_file.write("arguments = $(ProcId)\n")
+                            submit_file.write(f"output = {job_file_out}\n")
+                            submit_file.write(f"error = {job_file_err}\n")
+                            submit_file.write(f"log = {job_file_log}\n")
+                            submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
+                            submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
+                            submit_file.write("getenv = True\n")
+                            submit_file.write(f'+JobFlavour = "microcentury"\n')
+                            submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
+                            submit_file.write(f"queue\n")
+                    os.system(f"chmod 775 {job_file_executable}")
+                    j += 1
+                submit_jobs(OUT_PATH, "merge_data")
+    
+    if opt.root:
+        logger.info("Starting root step")
+        if opt.syst:
+            logger.info("you've selected the run with systematics")
+            args = "--do_syst"
+        else:
+            logger.info("you've selected the run without systematics")
+            args = ""
+
+        if opt.merge:
+            IN_PATH = OUT_PATH
+        # Note, in my version of HiggsDNA I run the analysis splitting data per Era in different datasets
+        # the treatment of data here is tested just with that structure
+        with open(dirlist_path) as fl:
+            files = fl.readlines()
+            for file in files:
+                file = file.split("\n")[0]
+                if "data" not in file.lower() and file in process_dict:
+                    job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
+                    if not opt.merge:
+                        job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
+                        job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
+                        job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+                        job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
+                    
+                    with open(job_file_executable, "w") as executable_file:
+                        executable_file.write("#!/bin/sh\n")
+                        if os.path.exists(f"{OUT_PATH}/root/{file}"):
+                            raise Exception(
+                                f"The selected target path: {OUT_PATH}/root/{file} already exists"
+                            )
+
+                        if os.listdir(f"{IN_PATH}/merged/{file}/"):
+                            logger.info(f"Found merged files {IN_PATH}/merged/{file}/")
+                        else:
+                            raise Exception(f"Merged parquet not found at {IN_PATH}/merged/")
+                        MKDIRP(f"{OUT_PATH}/root/{file}")
+                        os.chdir(SCRIPT_DIR)
+                        executable_file.write(f"if [ $1 -eq 0 ]; then\n")
+                        executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs\n")
+                        executable_file.write("fi\n")
+                    os.system(f"chmod 775 {job_file_executable}")
+                    with open(job_file_submit, "w") as submit_file:
+                        submit_file.write(f"executable = {job_file_executable}\n")
+                        submit_file.write("arguments = $(ProcId)\n")
+                        submit_file.write(f"output = {job_file_out}\n")
+                        submit_file.write(f"error = {job_file_err}\n")
+                        submit_file.write(f"log = {job_file_log}\n")
+                        submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
+                        submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
+                        submit_file.write("getenv = True\n")
+                        submit_file.write(f'+JobFlavour = "microcentury"\n')
+                        submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
+                        submit_file.write(f"queue\n")
+                elif "data" in file.lower():
+                    job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
+                    if not opt.merge:
+                        job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
+                        job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
+                        job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+                        job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
+                    
+                    with open(job_file_executable, "w") as executable_file:
+                        executable_file.write("#!/bin/sh\n")
+                        if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
+                            logger.info(
+                                f'Found merged data files in: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
+                            )
+                        else:
+                            raise Exception(
+                                f'Merged parquet not found at: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
+                            )
+
+                        if os.path.exists(
+                            f'{OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
+                        ):
+                            logger.info(
+                                f'Data already converted: {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
+                            )
+                            continue
+                        elif not os.path.exists(f"{OUT_PATH}/root/Data/"):
+                            MKDIRP(f"{OUT_PATH}/root/Data")
+                            os.chdir(SCRIPT_DIR)
+                            executable_file.write(f"if [ $1 -eq 0 ]; then\n")
+                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs\n")
+                            executable_file.write("fi\n")
+                        else:
+                            os.chdir(SCRIPT_DIR)
+                            executable_file.write(f"if [ $1 -eq 0 ]; then\n")
+                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs\n")
+                            executable_file.write("fi\n")
+                os.system(f"chmod 775 {job_file_executable}")
+                with open(job_file_submit, "w") as submit_file:
+                    submit_file.write(f"executable = {job_file_executable}\n")
+                    submit_file.write("arguments = $(ProcId)\n")
+                    submit_file.write(f"output = {job_file_out}\n")
+                    submit_file.write(f"error = {job_file_err}\n")
+                    submit_file.write(f"log = {job_file_log}\n")
+                    submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
+                    submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
+                    submit_file.write("getenv = True\n")
+                    submit_file.write(f'+JobFlavour = "microcentury"\n')
+                    submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
+                    submit_file.write(f"queue\n")
+        submit_jobs(OUT_PATH, "root")
+
+if not opt.condor:
+    # We don't want to leave trash around
+    if os.path.exists(dirlist_path):
+        os.system(f"rm {dirlist_path}")
+    if opt.output == "":
+        if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/category.json"):
+            os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/category.json")
+        if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/variation.json"):
+            os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/variation.json")
+
+    else:
+        if os.path.exists(f"{OUT_PATH}/category.json"):
+            os.system(f"rm {OUT_PATH}/category.json")
+        if os.path.exists(f"{OUT_PATH}/variation.json"):
+            os.system(f"rm {OUT_PATH}/variation.json")
