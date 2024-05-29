@@ -287,9 +287,9 @@ if not opt.condor:
         OUT_PATH = IN_PATH
         # os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
         # os.system(f"mv variation.json {SCRIPT_DIR}/../../higgs_dna/variation.json")
-        with open("{SCRIPT_DIR}/../../higgs_dna/category.json", "w") as file:
+        with open(f"{SCRIPT_DIR}/../../higgs_dna/category.json", "w") as file:
             file.write(json.dumps(cat_dict))
-        with open("{SCRIPT_DIR}/../../higgs_dna/variation.json", "w") as file:
+        with open(f"{SCRIPT_DIR}/../../higgs_dna/variation.json", "w") as file:
             file.write(json.dumps(var_dict))
         # if opt.folder_structure != "":
         #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
@@ -301,9 +301,9 @@ if not opt.condor:
         # os.system(f"mv variation.json {OUT_PATH}/variation.json")
         # os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
         # os.system(f"mv variation.json {SCRIPT_DIR}/../../higgs_dna/variation.json")
-        with open("{SCRIPT_DIR}/../../higgs_dna/category.json", "w") as file:
+        with open(f"{SCRIPT_DIR}/../../higgs_dna/category.json", "w") as file:
             file.write(json.dumps(cat_dict))
-        with open("{SCRIPT_DIR}/../../higgs_dna/variation.json", "w") as file:
+        with open(f"{SCRIPT_DIR}/../../higgs_dna/variation.json", "w") as file:
             file.write(json.dumps(var_dict))
         # if opt.folder_structure != "":
         #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
