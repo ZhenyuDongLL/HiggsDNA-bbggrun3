@@ -155,6 +155,41 @@ parser.add_option(
     default=False,
     help="Flag for merging data to an allData file.",
 )
+parser.add_option(
+    "--max-materialize",
+    dest="max_materialize",
+    type="string",
+    default="5",
+    help="Maximum number of jobs running at the same time in the cluster.",
+)
+parser.add_option(
+    "--condor-logs",
+    dest="condor_logs",
+    type="string",
+    default="",
+    help="Output path of the Condor Log files.",
+)
+parser.add_option(
+    "--max-materialize",
+    dest="max_materialize",
+    type="string",
+    default="",
+    help="Maximum number of jobs running at the same time in the cluster.",
+)
+parser.add_option(
+    "--make-condor-logs",
+    dest="make_condor_logs",
+    action="store_true",
+    default=False,
+    help="Condor log files activated.",
+)
+parser.add_option(
+    "--condor-logs",
+    dest="condor_logs",
+    type="string",
+    default="",
+    help="Output path of the Condor log files.",
+)
 (opt, args) = parser.parse_args()
 
 if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
@@ -172,10 +207,15 @@ else:
         folder_for_dirlist = opt.input + "/merged"
     if opt.folder_structure != "":
         folder_for_dirlist = opt.folder_structure
+# os.system(
+#    f"ls -l {folder_for_dirlist} | tail -n +2 | grep -v .coffea | grep -v merged | grep -v root |"
+#     + "awk '{print $NF}' > dirlist.txt"
+# )
+
 os.system(
-    f"ls -l {folder_for_dirlist} | tail -n +2 | grep -v .coffea | grep -v merged | grep -v root |"
-    + "awk '{print $NF}' > dirlist.txt"
-)
+    f"find {folder_for_dirlist} -mindepth 1 -maxdepth 1 -type d | grep -v '^.$' | grep -v .coffea | grep -v '/merged$' | grep -v '/root$' |"
+    + "awk -F'/' '{print $NF}' > dirlist.txt"
+    )
 
 process_dict = {
     "GluGluHtoGG": "ggh",
@@ -271,6 +311,7 @@ SCRIPT_DIR = os.path.dirname(
     os.path.abspath(__file__)
 )  # script directory
 
+CONDOR_PATH = os.path.realpath(os.path.abspath(opt.condor_logs)) # need real absolute path. otherwise problems can arise on lxplus (between afs and eos)
 # I create a dictionary and save it to a temporary json so that this can be shared between the two scripts
 # and then gets deleted to not leave trash around. We have to care for the environment :P.
 # Not super elegant, open for suggestions
@@ -345,7 +386,10 @@ def submit_jobs(directory, suffix=""):
     else:
         sub_files = glob.glob(f"{directory}/*.sub")
     for current_file in sub_files:
-        subprocess.run(["condor_submit", "-spool", current_file])
+        if opt.max_materialize != "":
+            subprocess.run(["condor_submit", current_file])
+        else:
+            subprocess.run(["condor_submit", "-spool", current_file])
 
 # Define string if normalisation to be skipped
 skip_normalisation_str = "--skip-normalisation" if opt.skip_normalisation else ""
@@ -555,11 +599,25 @@ else:
                     # parent_id = 0
                     # MC dataset are identified as everythingthat does not contain "data" or "Data" in the name.
                     if "data" not in file.lower():
-                        job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
-                        job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
-                        job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                        job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
-                        job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
+						if opt.condor_logs != "":
+							job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
+							job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
+						else:
+							job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
+							job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
+
+						if not opt.make_condor_logs:
+							job_file_out = "/dev/null"
+							job_file_err = "/dev/null"
+							job_file_log = "/dev/null"
+						elif opt.condor_logs != "":
+							job_file_out = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).out")
+							job_file_err = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+							job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
+						else:
+							job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
+							job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+							job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
                         
                         with open(job_file_executable, "w") as executable_file:
                             executable_file.write("#!/bin/sh\n")
@@ -582,7 +640,8 @@ else:
                                     logger.info(f"python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs")
                                     print(f"python3 merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs")
                                     executable_file.write(f"if [ $1 -eq {i} ]; then\n")
-                                    executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs\n")
+                                    executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs || exit 107\n")
+									executable_file.write("exit 0\n")
                                     executable_file.write("fi\n")
                                     i += 1
 
@@ -591,11 +650,13 @@ else:
                                 os.chdir(SCRIPT_DIR)
                                 print(f"python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs")
                                 executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs\n")
+                                executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs || exit 107\n")
+								executable_file.write("exit 0\n")
                                 executable_file.write("fi\n")
                                 
                         os.system(f"chmod 775 {job_file_executable}")
                         with open(job_file_submit, "w") as submit_file:
+							if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
                             submit_file.write(f"executable = {job_file_executable}\n")
                             submit_file.write("arguments = $(ProcId)\n")
                             submit_file.write(f"output = {job_file_out}\n")
@@ -604,16 +665,34 @@ else:
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             submit_file.write("getenv = True\n")
+							if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
+	                        submit_file.write("max_retries = 3\n")
+							submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             submit_file.write(f'+JobFlavour = "microcentury"\n')
                             submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                             submit_file.write(f"queue {i}\n")
 
                     else:
-                        job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
-                        job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
-                        job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                        job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
-                        job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
+						if opt.condor_logs != "":
+							job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
+							job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
+						else:
+							job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
+							job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
+
+						if not opt.make_condor_logs:
+							job_file_out = "/dev/null"
+							job_file_err = "/dev/null"
+							job_file_log = "/dev/null"
+						elif opt.condor_logs != "":
+							job_file_out = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).out")
+							job_file_err = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+							job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
+						else:
+							job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
+							job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+							job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
+
                         with open(job_file_executable, "w") as executable_file:
                             executable_file.write("#!/bin/sh\n")
                             if os.path.exists(f"{OUT_PATH}/merged/{file}/{file}_merged.parquet"):
@@ -625,11 +704,13 @@ else:
                             os.chdir(SCRIPT_DIR)
                             print(f'python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs')
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs\n")
+                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs || exit 107\n")
+							executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                             
                         os.system(f"chmod 775 {job_file_executable}")
                         with open(job_file_submit, "w") as submit_file:
+							if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
                             submit_file.write(f"executable = {job_file_executable}\n")
                             submit_file.write("arguments = $(ProcId)\n")
                             submit_file.write(f"output = {job_file_out}\n")
@@ -638,6 +719,9 @@ else:
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             submit_file.write("getenv = True\n")
+							if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
+							submit_file.write("max_retries = 3\n")
+							submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             submit_file.write(f'+JobFlavour = "microcentury"\n')
                             submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                             submit_file.write(f"queue\n")
@@ -650,11 +734,25 @@ else:
                 for file in files:
                     if j != 0: continue
                     file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
-                    job_file_executable = os.path.join(OUT_PATH, f"{file}_merge_data.sh")
-                    job_file_submit = os.path.join(OUT_PATH, f"{file}_merge_data.sub")
-                    job_file_out = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).out")
-                    job_file_err = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).err")
-                    job_file_log = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).log")
+					if opt.condor_logs != "":
+						job_file_executable = os.path.join(CONDOR_PATH, f"{file}_merge_data.sh")
+						job_file_submit = os.path.join(CONDOR_PATH, f"{file}_merge_data.sub")
+					else:
+						job_file_executable = os.path.join(OUT_PATH, f"{file}_merge_data.sh")
+						job_file_submit = os.path.join(OUT_PATH, f"{file}_merge_data.sub")
+
+					if not opt.make_condor_logs:
+						job_file_out = "/dev/null"
+						job_file_err = "/dev/null"
+						job_file_log = "/dev/null"
+					elif opt.condor_logs != "":
+						job_file_out = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).out")
+						job_file_err = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).err")
+						job_file_log = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).log")
+					else:
+						job_file_out = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).out")
+						job_file_err = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).err")
+						job_file_log = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).log")
                     if "data" in file.lower() or "DoubleEG" in file:
                         with open(job_file_executable, "w") as executable_file:
                             executable_file.write("#!/bin/sh\n")
@@ -662,12 +760,14 @@ else:
                             if len(filenames) > 0:
                                 print(f'python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs')
                                 executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs\n")
+                                executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs || exit 107\n")
+								executable_file.write("exit 0\n")
                                 executable_file.write("fi\n")
                                 #break
                             else:
                                 logger.info(f'No merged parquet found for {file} in the directory: {OUT_PATH}/merged/Data_{file.split("_")[-1]}')
                         with open(job_file_submit, "w") as submit_file:
+							if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
                             submit_file.write(f"executable = {job_file_executable}\n")
                             submit_file.write("arguments = $(ProcId)\n")
                             submit_file.write(f"output = {job_file_out}\n")
@@ -676,12 +776,18 @@ else:
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             submit_file.write("getenv = True\n")
+							if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
+						    submit_file.write("max_retries = 3\n")
+							submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             submit_file.write(f'+JobFlavour = "microcentury"\n')
                             submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                             submit_file.write(f"queue\n")
                     os.system(f"chmod 775 {job_file_executable}")
                     j += 1
-                submit_jobs(OUT_PATH, "merge_data")
+				if opt.condor_logs != "":
+					submit_jobs(CONDOR_PATH, "merge_data")
+				else:
+					submit_jobs(OUT_PATH, "merge_data")
     
     if opt.root:
         logger.info("Starting root step")
@@ -701,13 +807,28 @@ else:
             for file in files:
                 file = file.split("\n")[0]
                 if "data" not in file.lower() and file in process_dict:
-                    job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
+					if opt.condor_logs != "":
+						job_file_executable = os.path.join(CONDOR_PATH, f"{file}_root.sh")
+					else:
+						job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
+
                     if not opt.merge:
-                        job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
-                        job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                        job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
-                        job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
-                    
+						if opt.condor_logs != "":
+							job_file_submit = os.path.join(CONDOR_PATH, f"{file}_root.sub")
+						else:
+							job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
+						if not opt.make_condor_logs:
+							job_file_out = "/dev/null"
+							job_file_err = "/dev/null"
+							job_file_log = "/dev/null"
+						elif opt.condor_logs != "":
+							job_file_out = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
+							job_file_err = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+							job_file_log = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).log")
+						else:
+							job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
+							job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+							job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
                     with open(job_file_executable, "w") as executable_file:
                         executable_file.write("#!/bin/sh\n")
                         if os.path.exists(f"{OUT_PATH}/root/{file}"):
@@ -722,10 +843,12 @@ else:
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                        executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs\n")
+                        executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs || exit 107\n")
+						executable_file.write("exit 0\n")
                         executable_file.write("fi\n")
                     os.system(f"chmod 775 {job_file_executable}")
                     with open(job_file_submit, "w") as submit_file:
+						if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
                         submit_file.write(f"executable = {job_file_executable}\n")
                         submit_file.write("arguments = $(ProcId)\n")
                         submit_file.write(f"output = {job_file_out}\n")
@@ -734,16 +857,36 @@ else:
                         submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                         submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                         submit_file.write("getenv = True\n")
+						if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
+						submit_file.write("max_retries = 3\n")
+                        submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                         submit_file.write(f'+JobFlavour = "microcentury"\n')
                         submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                         submit_file.write(f"queue\n")
                 elif "data" in file.lower():
-                    job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
+					if opt.condor_logs != "":
+						job_file_executable = os.path.join(CONDOR_PATH, f"{file}_root.sh")
+					else:
+						job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
+
                     if not opt.merge:
-                        job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
-                        job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                        job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
-                        job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
+						if opt.condor_logs != "":
+							job_file_submit = os.path.join(CONDOR_PATH, f"{file}_root.sub")
+						else:
+							job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
+
+						if not opt.make_condor_logs:
+							job_file_out = "/dev/null"
+							job_file_err = "/dev/null"
+							job_file_log = "/dev/null"
+						elif opt.condor_logs != "":
+							job_file_out = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
+							job_file_err = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+							job_file_log = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).log")
+						else:
+							job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
+							job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+							job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
                     
                     with open(job_file_executable, "w") as executable_file:
                         executable_file.write("#!/bin/sh\n")
@@ -767,15 +910,18 @@ else:
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs\n")
+                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs || exit 107\n")
+							executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                         else:
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs\n")
+                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs || exit 107\n")
+							executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                 os.system(f"chmod 775 {job_file_executable}")
                 with open(job_file_submit, "w") as submit_file:
+					if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
                     submit_file.write(f"executable = {job_file_executable}\n")
                     submit_file.write("arguments = $(ProcId)\n")
                     submit_file.write(f"output = {job_file_out}\n")
@@ -784,10 +930,16 @@ else:
                     submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                     submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                     submit_file.write("getenv = True\n")
+					if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
+					submit_file.write("max_retries = 3\n")
+                    submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                     submit_file.write(f'+JobFlavour = "microcentury"\n')
                     submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                     submit_file.write(f"queue\n")
-        submit_jobs(OUT_PATH, "root")
+        if opt.condor_logs != "":
+            submit_jobs(CONDOR_PATH, "root")
+        else:
+            submit_jobs(OUT_PATH, "root")
 
 if not opt.condor:
     # We don't want to leave trash around
