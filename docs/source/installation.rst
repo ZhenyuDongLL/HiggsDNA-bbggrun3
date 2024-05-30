@@ -36,18 +36,18 @@ Docker images are built in CI every time a commit is pushed on the master branch
 
 If you want to use the latest image with HiggsDNA already installed in it (i.e. no development), you can pull it with::
 
-        apptainer shell --bind /afs -B /cvmfs/cms.cern.ch \
-        --bind /tmp --bind /eos/cms/ \
-        --env KRB5CCNAME=$KRB5CCNAME --bind /etc/sysconfig/ngbauth-submit \
-        docker://gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest
+        apptainer shell -B /afs -B /cvmfs/cms.cern.ch \
+        -B /tmp  -B /eos/cms/ \
+        -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} --env KRB5CCNAME="FILE:${XDG_RUNTIME_DIR}/krb5cc" \
+        /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest
 
 If you want to also develop you can pull the same image and create a virtual environment inside it::
 
         # pull and access the image
-        apptainer shell --bind /afs -B /cvmfs/cms.cern.ch \
-        --bind /tmp --bind /eos/cms/ \
-        --env KRB5CCNAME=$KRB5CCNAME --bind /etc/sysconfig/ngbauth-submit \
-        docker://gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest
+        apptainer shell -B /afs -B /cvmfs/cms.cern.ch \
+        -B /tmp  -B /eos/cms/ \
+        -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} --env KRB5CCNAME="FILE:${XDG_RUNTIME_DIR}/krb5cc" \
+        /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest
 
         # create virtual environment 
         python -m venv --system-site-packages myenv
