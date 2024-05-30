@@ -156,13 +156,6 @@ parser.add_option(
     help="Flag for merging data to an allData file.",
 )
 parser.add_option(
-    "--condor-logs",
-    dest="condor_logs",
-    type="string",
-    default="",
-    help="Output path of the Condor Log files.",
-)
-parser.add_option(
     "--max-materialize",
     dest="max_materialize",
     type="string",
@@ -659,7 +652,7 @@ else:
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             submit_file.write("getenv = True\n")
                             if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-	                        submit_file.write("max_retries = 3\n")
+                            submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             submit_file.write(f'+JobFlavour = "microcentury"\n')
                             submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
@@ -939,15 +932,15 @@ else:
 
     if not opt.condor:
     # We don't want to leave trash around
-    if os.path.exists(dirlist_path):
-        os.system(f"rm {dirlist_path}")
-    if opt.output == "":
-        if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/category.json"):
-            os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/category.json")
-        if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/variation.json"):
-            os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/variation.json")
+        if os.path.exists(dirlist_path):
+            os.system(f"rm {dirlist_path}")
+        if opt.output == "":
+            if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/category.json"):
+                os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/category.json")
+            if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/variation.json"):
+                os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/variation.json")
 
-    else:
+    elif (opt.condor) and (opt.root):
         if os.path.exists(f"{OUT_PATH}/category.json"):
             os.system(f"rm {OUT_PATH}/category.json")
         if os.path.exists(f"{OUT_PATH}/variation.json"):
