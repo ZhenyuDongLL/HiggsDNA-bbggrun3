@@ -626,7 +626,7 @@ else:
                                     logger.info(f"python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs")
                                     print(f"python3 merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs")
                                     executable_file.write(f"if [ $1 -eq {i} ]; then\n")
-                                    executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs || exit 107\n")
+                                    executable_file.write(f"    python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs || exit 107\n")
                                     executable_file.write("exit 0\n")
                                     executable_file.write("fi\n")
                                     i += 1
@@ -636,7 +636,7 @@ else:
                                 os.chdir(SCRIPT_DIR)
                                 print(f"python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs")
                                 executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs || exit 107\n")
+                                executable_file.write(f"    python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs || exit 107\n")
                                 executable_file.write("exit 0\n")
                                 executable_file.write("fi\n")
                                 
@@ -690,7 +690,7 @@ else:
                             os.chdir(SCRIPT_DIR)
                             print(f'python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs')
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs || exit 107\n")
+                            executable_file.write(f"    python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                             
@@ -749,7 +749,7 @@ else:
                             if len(filenames) > 0:
                                 print(f'python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs')
                                 executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs || exit 107\n")
+                                executable_file.write(f"    python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs || exit 107\n")
                                 executable_file.write("exit 0\n")
                                 executable_file.write("fi\n")
                                 #break
@@ -832,7 +832,7 @@ else:
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                        executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs || exit 107\n")
+                        executable_file.write(f"    python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs || exit 107\n")
                         executable_file.write("exit 0\n")
                         executable_file.write("fi\n")
                     os.system(f"chmod 775 {job_file_executable}")
@@ -899,13 +899,13 @@ else:
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs || exit 107\n")
+                            executable_file.write(f"    python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                         else:
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    /usr/bin/env python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs || exit 107\n")
+                            executable_file.write(f"    python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                 os.system(f"chmod 775 {job_file_executable}")
@@ -940,8 +940,8 @@ else:
             if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/variation.json"):
                 os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/variation.json")
 
-    elif (opt.condor) and (opt.root):
-        if os.path.exists(f"{OUT_PATH}/category.json"):
-            os.system(f"rm {OUT_PATH}/category.json")
-        if os.path.exists(f"{OUT_PATH}/variation.json"):
-            os.system(f"rm {OUT_PATH}/variation.json")
+    # elif (opt.condor) and (opt.root):
+    #     if os.path.exists(f"{OUT_PATH}/category.json"):
+    #         os.system(f"rm {OUT_PATH}/category.json")
+    #     if os.path.exists(f"{OUT_PATH}/variation.json"):
+    #         os.system(f"rm {OUT_PATH}/variation.json")
