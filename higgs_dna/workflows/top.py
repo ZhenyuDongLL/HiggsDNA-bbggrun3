@@ -139,7 +139,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
         if self.data_kind == "data":
             events = remove_EcalBadCalibCrystal_events(events)
 
-        # we need ScEta for corrections and systematics, which is not present in NanoAODv11 but can be calculated using PV
+        # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)
 
         # add veto EE leak branch for photons, could also be used for electrons
