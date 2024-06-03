@@ -363,7 +363,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         # apply filters and triggers
         events = self.apply_filters_and_triggers(events)
 
-        # we need ScEta for corrections and systematics, which is not present in NanoAODv11 but can be calculated using PV
+        # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)
 
         # add veto EE leak branch for photons, could also be used for electrons

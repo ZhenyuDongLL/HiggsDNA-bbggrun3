@@ -9,6 +9,10 @@ def add_photon_SC_eta(photons: ak.Array, PV: ak.Array) -> ak.Array:
     The SC eta is needed to correctly apply a number of corrections and systematics.
     """
 
+    if "superclusterEta" in photons.fields:
+        photons["ScEta"] = photons.superclusterEta
+        return photons
+
     PV_x = PV.x.to_numpy()
     PV_y = PV.y.to_numpy()
     PV_z = PV.z.to_numpy()
