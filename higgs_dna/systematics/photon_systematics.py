@@ -53,6 +53,9 @@ def Scale(pt, events, year="2022postEE", is_correction=True, restriction=None):
         exit()
 
     if is_correction:
+        # scale is a residual correction on data to match MC calibration. Check if is MC, throw error in this case.
+        if hasattr(events, "GenPart"):
+            raise ValueError("Scale corrections should only be applied to data!")
 
         if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
             # the correction is already applied for Run 2
@@ -70,6 +73,8 @@ def Scale(pt, events, year="2022postEE", is_correction=True, restriction=None):
         return events
 
     else:
+        if not hasattr(events, "GenPart"):
+            raise ValueError("Scale uncertainties should only be applied to MC!")
 
         if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
             # the uncertainty is applied in reverse because the correction is meant for data as I understand fro EGM instructions here: https://cms-talk.web.cern.ch/t/pnoton-energy-corrections-in-nanoaod-v11/34327/2
