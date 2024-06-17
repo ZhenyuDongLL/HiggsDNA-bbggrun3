@@ -609,7 +609,7 @@ def NNLOPS(
     json_file = os.path.join(os.path.dirname(__file__), "JSONs/NNLOPS_reweight.json")
 
     if is_correction:
-        if 'ggh' or 'glugluh' not in dataset_name.lower():
+        if 'ggh' not in dataset_name.lower() and 'glugluh' not in dataset_name.lower():
             logger.info(f"\n WARNING: You specified NNLOPS reweighting for dataset with {dataset_name} but this does not appear like a ggF sample. Consider checking your runner JSON Proceed with caution.")
         # Extract NNLOPS weights from json file
         with open(json_file, "r") as jf:
