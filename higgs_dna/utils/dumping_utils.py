@@ -223,15 +223,21 @@ def dress_branches(
     Returns:
         awkward.Array: return new array
     """
+    import numpy as np
+
     for field in awkward.fields(additional_arr):
-        if field != "__systematics__":
-            main_arr[f"{prefix}_{field}"] = additional_arr[field]
+        if not field == "__systematics__":
+            if "bool" in str(additional_arr[field].type):
+                # * change `bool` to `int8` avoid error when using coffea to read the parquet
+                main_arr[f"{prefix}_{field}"] = awkward.values_astype(
+                    additional_arr[field], np.int8
+                )
+            else:
+                main_arr[f"{prefix}_{field}"] = additional_arr[field]
     return main_arr
 
 
-def get_obj_syst_dict(
-    obj_ak: awkward.Array, var_new: Optional[List[str]] = ["pt"]
-) -> [list, dict]:
+def get_obj_syst_dict(obj_ak: awkward.Array, var_new: Optional[List[str]] = ["pt"]):
     """_summary_
 
     Args:

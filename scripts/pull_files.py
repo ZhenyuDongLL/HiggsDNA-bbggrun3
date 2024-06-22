@@ -20,7 +20,7 @@ parser.add_argument(
     dest="target",
     help="Choose the target to download (default: %(default)s)",
     default="GoldenJson",
-    choices=["GoldenJSON", "cTag", "PhotonID", "PU", "SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva"],
+    choices=["GoldenJSON", "cTag", "PhotonID", "PU", "SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva","LowMass-DiPhotonMVA"],
 )
 
 parser.add_argument(
@@ -731,6 +731,33 @@ def get_pileup(logger, target_dir):
     fetch_file("Pileup", logger, from_to_dict, type="copy")
 
 
+def get_lowmass_diphotonmva_model(logger, target_dir):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.dirname(__file__)
+        to_prefix = os.path.join(os.path.dirname(__file__), "../higgs_dna/tools")
+
+    from_to_dict = {
+        "2022postEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_diphoton/DiphotonXGboost_LM2022_postEE.onnx",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_diphoton_mva/2022postEE/DiphotonXGboost_LM.onnx",
+            ),
+        },
+        "2022preEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_diphoton/DiphotonXGboost_LM2022_postEE.onnx",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_diphoton_mva/2022preEE/DiphotonXGboost_LM.onnx",
+            ),
+        },
+    }
+
+    fetch_file("LowMass-DiPhotonMVA", logger, from_to_dict, type="copy")
+
+
 if __name__ == "__main__":
     # log output
     logfile = os.path.join(args.log_dir, f"{args.analysis}_jsons.log")
@@ -758,6 +785,7 @@ if __name__ == "__main__":
         get_trigger_json(logger, args.target_dir)
         get_presel_json(logger, args.target_dir)
         get_eveto_json(logger, args.target_dir)
+        get_lowmass_diphotonmva_model(logger, args.target_dir)
     elif args.target == "GoldenJSON":
         get_goldenjson(logger, args.target_dir)
     elif args.target == "PU":
@@ -792,6 +820,8 @@ if __name__ == "__main__":
         get_presel_json(logger, args.target_dir)
     elif args.target == "eVetoSF":
         get_eveto_json(logger, args.target_dir)
+    elif args.target == "LowMass-DiPhotonMVA":
+        get_lowmass_diphotonmva_model(logger, args.target_dir)
     else:
         logger.info("Unknown target, exit now!")
         exit(0)
