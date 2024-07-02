@@ -6,6 +6,7 @@ dependencies:
   - python>=3.6
   - ipython
   - coffea<2023
+  - correctionlib<=2.5.0
   - pyaml
   - xrootd # use 5.6.4 if you experience problems, recommended as of March 2024
   - numba
