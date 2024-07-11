@@ -707,6 +707,267 @@ def PartonShower(photons, events, weights, dataset_name, **kwargs):
     return weights
 
 
+def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
+    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    if year not in avail_years:
+        print(f"\n WARNING: only scale corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        exit()
+    btag_systematics = [
+        "lf",
+        "hf",
+        "cferr1",
+        "cferr2",
+        "lfstats1",
+        "lfstats2",
+        "hfstats1",
+        "hfstats2",
+        "jes",
+    ]
+    inputFilePath = "JSONs/bTagSF/"
+    btag_correction_configs = {
+        "2016preVFP": {
+            "file": os.path.join(
+                inputFilePath , "2016preVFP_UL/btagging.json.gz"
+            ),
+            "method": "deepJet_shape",
+            "systs": btag_systematics,
+        },
+        "2016postVFP": {
+            "file": os.path.join(
+                inputFilePath , "2016postVFP_UL/btagging.json.gz"
+            ),
+            "method": "deepJet_shape",
+            "systs": btag_systematics,
+        },
+        "2017": {
+            "file": os.path.join(
+                inputFilePath , "2017_UL/btagging.json.gz"
+            ),
+            "method": "deepJet_shape",
+            "systs": btag_systematics,
+        },
+        "2018": {
+            "file": os.path.join(
+                inputFilePath , "2018_UL/btagging.json.gz"
+            ),
+            "method": "deepJet_shape",
+            "systs": btag_systematics,
+        },
+        "2022preEE":{
+            "file": os.path.join(
+                inputFilePath , "2022_Summer22/btagging.json.gz"
+            ),
+            "method": "deepJet_shape",
+            "systs": btag_systematics,
+        },
+        "2022postEE":{
+            "file": os.path.join(
+                inputFilePath , "2022_Summer22EE/btagging.json.gz"
+            ),
+            "method": "deepJet_shape",
+            "systs": btag_systematics,
+        },
+        "2023preBPix":{
+            "file": os.path.join(
+                inputFilePath , "2023_Summer23/btagging.json.gz"
+            ),
+            "method": "deepJet_shape",
+            "systs": btag_systematics,
+        },
+        "2023postBPix":{
+            "file": os.path.join(
+                inputFilePath , "2023_Summer23BPix/btagging.json.gz"
+            ),
+            "method": "deepJet_shape",
+            "systs": btag_systematics,
+        },
+    }
+    jsonpog_file = os.path.join(
+        os.path.dirname(__file__), btag_correction_configs[year]["file"]
+    )
+    evaluator = correctionlib.CorrectionSet.from_file(jsonpog_file)[
+        btag_correction_configs[year]["method"]
+    ]
+
+    dummy_sf = ak.ones_like(events["event"])
+
+    relevant_jets = events["sel_jets"][
+        np.abs(events["sel_jets"].eta) < 2.5
+    ]
+    # only calculate correction to nominal weight
+    # we will evaluate the scale factors relative to all jets to be multiplied
+    jet_pt = relevant_jets.pt
+    jet_eta = np.abs(relevant_jets.eta)
+    jet_hFlav = relevant_jets.hFlav
+    jet_btagDeepFlavB = relevant_jets.btagDeepFlavB
+
+    # Convert the jets in one dimension array and store the orignal structure of the ak array in counts
+    flat_jet_pt = ak.flatten(jet_pt)
+    flat_jet_eta = ak.flatten(jet_eta)
+    flat_jet_btagDeepFlavB = ak.flatten(jet_btagDeepFlavB)
+    flat_jet_hFlav = ak.flatten(jet_hFlav)
+
+    counts = ak.num(jet_hFlav)
+
+    logger.info("Warning: you have to normalise b-tag weights afterwards so that they do not change the yield!")
+
+    if is_correction:
+
+        _sf = []
+        # Evluate the scale factore per jet and unflatten the scale fatores in original structure
+        _sf = ak.unflatten(
+            evaluator.evaluate(
+                "central",
+                flat_jet_hFlav,
+                flat_jet_eta,
+                flat_jet_pt,
+                flat_jet_btagDeepFlavB,
+            ),
+            counts
+        )
+        # Multiply the scale factore of all jets in a even
+        sf = ak.prod(_sf,axis=1)
+
+        sfs_up = [None for _ in btag_systematics]
+        sfs_down = [None for _ in btag_systematics]
+
+    else:
+        # only calculate correction to nominal weight
+        # replace by accessing partial weight!
+        _sf = []
+        # Evluate the scale factore per jet and unflatten the scale fatores in original structure
+        _sf_central = evaluator.evaluate(
+            "central",
+            flat_jet_hFlav,
+            flat_jet_eta,
+            flat_jet_pt,
+            flat_jet_btagDeepFlavB,
+        )
+        # Multiply the scale factore of all jets in a even
+
+        sf = ak.values_astype(dummy_sf, np.float)
+        sf_central = ak.prod(
+            ak.unflatten(_sf_central, counts),
+            axis=1
+        )
+
+        variations = {}
+
+        # Define a condiation based the jet flavour because the json file are defined for the 4(c),5(b),0(lf) flavour jets
+        flavour_condition = np.logical_or(jet_hFlav < 4,jet_hFlav > 5)
+        # Replace the flavour to 0 (lf) if the jet flavour is neither 4 nor 5
+        jet_hFlav_JSONrestricted = ak.where(flavour_condition, 0 ,jet_hFlav)
+        flat_jet_hFlav_JSONrestricted = ak.flatten(jet_hFlav_JSONrestricted)
+        # We need a dmmy sf array set to one to multiply for flavour dependent systentic variation
+        flat_dummy_sf = ak.ones_like(flat_jet_hFlav_JSONrestricted)
+
+        for syst_name in btag_correction_configs[year]["systs"]:
+
+            # we will append the scale factors relative to all jets to be multiplied
+            _sfup = []
+            _sfdown = []
+            variations[syst_name] = {}
+
+            if "cferr" in syst_name:
+                # we to remember which jet is correspond to c(hadron flv 4) jets
+                cjet_masks = flat_jet_hFlav_JSONrestricted == 4
+
+                flat_jet_hFlavC_JSONrestricted = ak.where(flat_jet_hFlav_JSONrestricted != 4, 4 ,flat_jet_hFlav_JSONrestricted)
+                _Csfup = evaluator.evaluate(
+                    "up_" + syst_name,
+                    flat_jet_hFlavC_JSONrestricted,
+                    flat_jet_eta,
+                    flat_jet_pt,
+                    flat_jet_btagDeepFlavB,
+                )
+
+                _Csfdown = evaluator.evaluate(
+                    "down_" + syst_name,
+                    flat_jet_hFlavC_JSONrestricted,
+                    flat_jet_eta,
+                    flat_jet_pt,
+                    flat_jet_btagDeepFlavB,
+                )
+                _Csfup = ak.where(
+                    cjet_masks,
+                    _Csfup,
+                    flat_dummy_sf,
+                )
+                _Csfdown = ak.where(
+                    cjet_masks,
+                    _Csfdown,
+                    flat_dummy_sf,
+                )
+                # Replace all the calculated sf with 1 when there is light jet or with flavour b otherwise keep the cerntral weight
+                _sfcentral_Masked_notC = ak.where(
+                    ~cjet_masks,
+                    _sf_central,
+                    flat_dummy_sf,
+                )
+                _sfup = ak.unflatten(np.multiply(_sfcentral_Masked_notC,_Csfup),counts)
+                _sfdown = ak.unflatten(np.multiply(_sfcentral_Masked_notC,_Csfdown),counts)
+            else:
+                # We to remember which jet is correspond to c(hadron flv 4) jets
+                cjet_masks = flat_jet_hFlav_JSONrestricted == 4
+
+                flat_jet_hFlavNonC_JSONrestricted = ak.where(cjet_masks, 0 ,flat_jet_hFlav_JSONrestricted)
+
+                _NonCsfup = evaluator.evaluate(
+                    "up_" + syst_name,
+                    flat_jet_hFlavNonC_JSONrestricted,
+                    flat_jet_eta,
+                    flat_jet_pt,
+                    flat_jet_btagDeepFlavB,
+                )
+
+                _NonCsfdown = evaluator.evaluate(
+                    "down_" + syst_name,
+                    flat_jet_hFlavNonC_JSONrestricted,
+                    flat_jet_eta,
+                    flat_jet_pt,
+                    flat_jet_btagDeepFlavB,
+                )
+
+                _NonCsfup = ak.where(
+                    ~cjet_masks,
+                    _NonCsfup,
+                    flat_dummy_sf,
+                )
+                _NonCsfdown = ak.where(
+                    ~cjet_masks,
+                    _NonCsfdown,
+                    flat_dummy_sf,
+                )
+                # Replace all the calculated sf with 1 when there is c jet otherwise keep the cerntral weight
+                _sfcentral_Masked_C = ak.where(
+                    cjet_masks,
+                    _sf_central,
+                    flat_dummy_sf,
+                )
+                _sfup = ak.unflatten(np.multiply(_sfcentral_Masked_C,_NonCsfup),counts)
+                _sfdown = ak.unflatten(np.multiply(_sfcentral_Masked_C,_NonCsfdown),counts)
+
+            sf_up = ak.prod(_sfup,axis=1)
+            sf_down = ak.prod(_sfdown,axis=1)
+            variations[syst_name]["up"] = sf_up
+            variations[syst_name]["down"] = sf_down
+        # coffea weights.add_multivariation() wants a list of arrays for the multiple up and down variations
+        # we devide sf_central because cofea processor save the up and down vartion by multiplying the central weights
+        sfs_up = [variations[syst_name]["up"] / sf_central for syst_name in btag_systematics]
+        sfs_down = [variations[syst_name]["down"] / sf_central for syst_name in btag_systematics]
+
+    weights.add_multivariation(
+        name="bTagSF",
+        weight=sf,
+        modifierNames=btag_systematics,
+        weightsUp=sfs_up,
+        weightsDown=sfs_down,
+        shift=False,
+    )
+
+    return weights
+
+
 def cTagSF(events, weights, is_correction=True, year="2017", **kwargs):
     """
     Add c-tagging reshaping SFs as from /https://github.com/higgs-charm/flashgg/blob/dev/cH_UL_Run2_withBDT/Systematics/scripts/applyCTagCorrections.py
@@ -821,11 +1082,8 @@ def cTagSF(events, weights, is_correction=True, year="2017", **kwargs):
         for nth in _sf:
             sf = sf * nth
 
-        sfs_up = []
-        sfs_down = []
-        for syst in ctag_systematics:
-            sfs_up.append(ak.values_astype(dummy_sf, np.float))
-            sfs_down.append(ak.values_astype(dummy_sf, np.float))
+        sfs_up = [ak.values_astype(dummy_sf, np.float) for _ in ctag_systematics]
+        sfs_down = [ak.values_astype(dummy_sf, np.float) for _ in ctag_systematics]
 
         weights.add_multivariation(
             name="cTagSF",

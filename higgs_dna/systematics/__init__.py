@@ -18,6 +18,7 @@ from .event_weight_systematics import (
     AlphaS,
     PartonShower,
     cTagSF,
+    bTagShapeSF,
     Zpt,
 )
 from .jet_systematics import (
@@ -164,6 +165,7 @@ weight_systematics = {
     "PreselSF": partial(PreselSF, is_correction=False),
     "TriggerSF": partial(TriggerSF, is_correction=False),
     "cTagSF": partial(cTagSF, is_correction=False),
+    "bTagShapeSF": partial(bTagShapeSF, is_correction=False),
     "AlphaS": partial(AlphaS),
     "PartonShower": partial(PartonShower),
     "LHEScale": None,
@@ -181,6 +183,7 @@ weight_corrections = {
     "PreselSF": partial(PreselSF, is_correction=True),
     "TriggerSF": partial(TriggerSF, is_correction=True),
     "cTagSF": partial(cTagSF, is_correction=True),
+    "bTagShapeSF": partial(bTagShapeSF, is_correction=True),
     "NNLOPS": partial(NNLOPS, is_correction=True),
     "Zpt": partial(Zpt, is_correction=True),
 }
