@@ -20,7 +20,7 @@ parser.add_argument(
     dest="target",
     help="Choose the target to download (default: %(default)s)",
     default="GoldenJson",
-    choices=["GoldenJSON", "cTag", "PhotonID", "PU", "SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva","LowMass-DiPhotonMVA"],
+    choices=["GoldenJSON", "cTag", "bTag", "PhotonID", "PU", "SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva","LowMass-DiPhotonMVA"],
 )
 
 parser.add_argument(
@@ -421,6 +421,56 @@ def get_eveto_json(logger, target_dir):
     fetch_file("eVetoSF", logger, from_to_dict, type="copy")
 
 
+def get_btag_json(logger, target_dir):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            os.path.dirname(__file__), "../higgs_dna/systematics/JSONs/bTagSF/"
+        )
+
+    from_to_dict = {
+        "2016preVFP": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2016preVFP_UL/btagging.json.gz",
+            "to": f"{to_prefix}/2016preVFP_UL/btagging.json.gz",
+        },
+        "2016postVFP": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2016postVFP_UL/btagging.json.gz",
+            "to": f"{to_prefix}/2016postVFP_UL/btagging.json.gz",
+        },
+        "2017": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2017_UL/btagging.json.gz",
+            "to": f"{to_prefix}/2017_UL/btagging.json.gz",
+        },
+        "2018": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2018_UL/btagging.json.gz",
+            "to": f"{to_prefix}/2018_UL/btagging.json.gz",
+        },
+        "2018": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2018_UL/btagging.json.gz",
+            "to": f"{to_prefix}/2018_UL/btagging.json.gz",
+        },
+        "2022preEE": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2022_Summer22/btagging.json.gz",
+            "to": f"{to_prefix}/2022_Summer22/btagging.json.gz",
+        },
+        "2022postEE": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2022_Summer22EE/btagging.json.gz",
+            "to": f"{to_prefix}/2022_Summer22EE/btagging.json.gz",
+        },
+        "2023preBPix": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2023_Summer23/btagging.json.gz",
+            "to": f"{to_prefix}/2023_Summer23/btagging.json.gz",
+        },
+        "2023postBPix": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2023_Summer23BPix/btagging.json.gz",
+            "to": f"{to_prefix}/2023_Summer23BPix/btagging.json.gz",
+        },
+    }
+    fetch_file("bTag", logger, from_to_dict, type="copy")
+
+
+
 def get_ctag_json(logger, target_dir):
     if target_dir is not None:
         to_prefix = target_dir
@@ -774,6 +824,7 @@ if __name__ == "__main__":
         get_mass_decorrelation_CDF(logger, args.target_dir)
         get_Flow_files(logger, args.target_dir)
         get_ctag_json(logger, args.target_dir)
+        get_btag_json(logger, args.target_dir)
         get_photonid_json(logger, args.target_dir)
         get_jetmet_json(logger, args.target_dir)
         get_jec_files(logger, args.target_dir)
@@ -798,6 +849,8 @@ if __name__ == "__main__":
         get_Flow_files(logger, args.target_dir)
     elif args.target == "cTag":
         get_ctag_json(logger, args.target_dir)
+    elif args.target == "bTag":
+        get_btag_json(logger, args.target_dir)
     elif args.target == "PhotonID":
         get_photonid_json(logger, args.target_dir)
     elif args.target == "JetMET":
