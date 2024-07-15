@@ -12,7 +12,7 @@ HiggsDNA - Higgs to Diphoton NanoAOD Framework
    installation
    concepts
    jobs
-   output_grooming
+   postprocessing
    developers
    examples
    api
