@@ -7,6 +7,7 @@ from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
 from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higgs_gen_attributes
+from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap
@@ -814,140 +815,8 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 )
                 diphotons["weight"] = awkward.ones_like(diphotons["event"])
 
-            ### Add mass resolution uncertainty
-            # Note that pt*cosh(eta) is equal to the energy of a four vector
-            # Note that you need to call it slightly different than in the output of HiggsDNA as pho_lead -> lead is only done in dumping utils
-            if (self.data_kind == "mc" and self.doFlow_corrections):
-                diphotons["sigma_m_over_m"] = 0.5 * numpy.sqrt(
-                    (
-                        diphotons["pho_lead"].raw_energyErr
-                        / (
-                            diphotons["pho_lead"].pt
-                            * numpy.cosh(diphotons["pho_lead"].eta)
-                        )
-                    )
-                    ** 2
-                    + (
-                        diphotons["pho_sublead"].raw_energyErr
-                        / (
-                            diphotons["pho_sublead"].pt
-                            * numpy.cosh(diphotons["pho_sublead"].eta)
-                        )
-                    )
-                    ** 2
-                )
-
-                diphotons["sigma_m_over_m_corr"] = 0.5 * numpy.sqrt(
-                    (
-                        diphotons["pho_lead"].energyErr
-                        / (
-                            diphotons["pho_lead"].pt
-                            * numpy.cosh(diphotons["pho_lead"].eta)
-                        )
-                    )
-                    ** 2
-                    + (
-                        diphotons["pho_sublead"].energyErr
-                        / (
-                            diphotons["pho_sublead"].pt
-                            * numpy.cosh(diphotons["pho_sublead"].eta)
-                        )
-                    )
-                    ** 2
-                )
-
-            else:
-                diphotons["sigma_m_over_m"] = 0.5 * numpy.sqrt(
-                    (
-                        diphotons["pho_lead"].energyErr
-                        / (
-                            diphotons["pho_lead"].pt
-                            * numpy.cosh(diphotons["pho_lead"].eta)
-                        )
-                    )
-                    ** 2
-                    + (
-                        diphotons["pho_sublead"].energyErr
-                        / (
-                            diphotons["pho_sublead"].pt
-                            * numpy.cosh(diphotons["pho_sublead"].eta)
-                        )
-                    )
-                    ** 2
-                )
-
-            # This is the mass SigmaM/M value including the smearing term from the Scale and smearing
-            # The implementation follows the flashGG implementation -> https://github.com/cms-analysis/flashgg/blob/4edea8897e2a4b0518dca76ba6c9909c20c40ae7/DataFormats/src/Photon.cc#L293
-            # adittional flashGG link when the smearing of the SigmaE/E smearing is called -> https://github.com/cms-analysis/flashgg/blob/4edea8897e2a4b0518dca76ba6c9909c20c40ae7/Systematics/plugins/PhotonSigEoverESmearingEGMTool.cc#L83C40-L83C45
-            # Just a reminder, the pt/energy of teh data is not smearing, but the smearing term is added to the data sigma_m_over_m
-            if (self.Smear_sigma_m):
-
-                if (self.doFlow_corrections and self.data_kind == "mc"):
-                    # Adding the smeared BDT error to the ntuples!
-                    diphotons["pho_lead","energyErr_Smeared"] = numpy.sqrt((diphotons["pho_lead"].raw_energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                    diphotons["pho_sublead","energyErr_Smeared"] = numpy.sqrt((diphotons["pho_sublead"].raw_energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-
-                    diphotons["sigma_m_over_m_Smeared"] = 0.5 * numpy.sqrt(
-                        (
-                            numpy.sqrt((diphotons["pho_lead"].raw_energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_lead"].pt
-                                * numpy.cosh(diphotons["pho_lead"].eta)
-                            )
-                        )
-                        ** 2
-                        + (
-                            numpy.sqrt((diphotons["pho_sublead"].raw_energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_sublead"].pt
-                                * numpy.cosh(diphotons["pho_sublead"].eta)
-                            )
-                        )
-                        ** 2
-                    )
-
-                    diphotons["sigma_m_over_m_Smeared_corr"] = 0.5 * numpy.sqrt(
-                        (
-                            numpy.sqrt((diphotons["pho_lead"].energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_lead"].pt
-                                * numpy.cosh(diphotons["pho_lead"].eta)
-                            )
-                        )
-                        ** 2
-                        + (
-                            numpy.sqrt((diphotons["pho_sublead"].energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_sublead"].pt
-                                * numpy.cosh(diphotons["pho_sublead"].eta)
-                            )
-                        )
-                        ** 2
-                    )
-
-                else:
-                    # Adding the smeared BDT error to the ntuples!
-                    diphotons["pho_lead","energyErr_Smeared"] = numpy.sqrt((diphotons["pho_lead"].energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                    diphotons["pho_sublead","energyErr_Smeared"] = numpy.sqrt((diphotons["pho_sublead"].energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-
-                    diphotons["sigma_m_over_m_Smeared"] = 0.5 * numpy.sqrt(
-                        (
-                            numpy.sqrt((diphotons["pho_lead"].energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_lead"].pt
-                                * numpy.cosh(diphotons["pho_lead"].eta)
-                            )
-                        )
-                        ** 2
-                        + (
-                            numpy.sqrt((diphotons["pho_sublead"].energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_sublead"].pt
-                                * numpy.cosh(diphotons["pho_sublead"].eta)
-                            )
-                        )
-                        ** 2
-                    )
+            # Compute and store the different variations of sigma_m_over_m
+            diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m)
 
             # Decorrelating the mass resolution - Still need to supress the decorrelator noises
             if self.doDeco:
@@ -993,6 +862,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                     ]._partition_key.replace("/", "_")
                     + ".%s" % self.output_format
                 )
+                fname = (fname.replace("%2F","")).replace("%3B1","")
                 subdirs = []
                 if "dataset" in events.metadata:
                     subdirs.append(events.metadata["dataset"])
