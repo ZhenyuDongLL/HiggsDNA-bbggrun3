@@ -9,6 +9,7 @@ from higgs_dna.utils.dumping_utils import diphoton_list_to_pandas, dump_pandas
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.flow_corrections import calculate_flow_corrections
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
+from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import logging
@@ -354,116 +355,8 @@ class TagAndProbeProcessor(HggBaseProcessor):
                                 year=self.year[dataset_name][0],
                             )
 
-            # Calculating sigma_m_overm_m
-            if self.data_kind == "mc" and self.doFlow_corrections:
-                tnp_candidates["sigma_m_over_m"] = 0.5 * numpy.sqrt(
-                    (
-                        tnp_candidates["tag"].raw_energyErr
-                        / (
-                            tnp_candidates["tag"].pt
-                            * numpy.cosh(tnp_candidates["tag"].eta)
-                        )
-                    )
-                    ** 2
-                    + (
-                        tnp_candidates["probe"].raw_energyErr
-                        / (
-                            tnp_candidates["probe"].pt
-                            * numpy.cosh(tnp_candidates["probe"].eta)
-                        )
-                    )
-                    ** 2
-                )
-
-                # We can now also calculate the corrected sigma_m_over_m
-                tnp_candidates["sigma_m_over_m_corr"] = 0.5 * numpy.sqrt(
-                    (
-                        tnp_candidates["tag"].energyErr
-                        / (
-                            tnp_candidates["tag"].pt
-                            * numpy.cosh(tnp_candidates["tag"].eta)
-                        )
-                    )
-                    ** 2
-                    + (
-                        tnp_candidates["probe"].energyErr
-                        / (
-                            tnp_candidates["probe"].pt
-                            * numpy.cosh(tnp_candidates["probe"].eta)
-                        )
-                    )
-                    ** 2
-                )
-
-            else:
-                tnp_candidates["sigma_m_over_m"] = 0.5 * numpy.sqrt(
-                    (
-                        tnp_candidates["tag"].energyErr
-                        / (
-                            tnp_candidates["tag"].pt
-                            * numpy.cosh(tnp_candidates["tag"].eta)
-                        )
-                    )
-                    ** 2
-                    + (
-                        tnp_candidates["probe"].energyErr
-                        / (
-                            tnp_candidates["probe"].pt
-                            * numpy.cosh(tnp_candidates["probe"].eta)
-                        )
-                    )
-                    ** 2
-                )
-
-            # Adding the smearing of the mass resolution also for the tag and probe workflow - for both data and Simulation!
-            # Just a reminder, the pt/energy of teh data is not smearing, but the smearing term is added to the data sigma_m_over_m
-            if self.Smear_sigma_m:
-
-                # Adding the smeared energyErr error to the ntuples!
-                if self.doFlow_corrections and self.data_kind == "mc":
-                    tnp_candidates["tag","energyErr_Smeared"] = numpy.sqrt((tnp_candidates["tag"].raw_energyErr)**2 + (tnp_candidates["tag"].rho_smear * ((tnp_candidates["tag"].pt * numpy.cosh(tnp_candidates["tag"].eta)))) ** 2)
-                    tnp_candidates["probe","energyErr_Smeared"] = numpy.sqrt((tnp_candidates["probe"].raw_energyErr) ** 2 + (tnp_candidates["probe"].rho_smear * ((tnp_candidates["probe"].pt * numpy.cosh(tnp_candidates["probe"].eta)))) ** 2)
-
-                    tnp_candidates["sigma_m_over_m_Smeared"] = 0.5 * numpy.sqrt(
-                        (
-                            tnp_candidates["tag"].energyErr_Smeared / (tnp_candidates["tag"].pt * numpy.cosh(tnp_candidates["tag"].eta))
-                        )
-                        ** 2
-                        + (
-                            tnp_candidates["probe"].energyErr_Smeared / (tnp_candidates["probe"].pt * numpy.cosh(tnp_candidates["probe"].eta))
-                        )
-                        ** 2
-                    )
-
-                    # Adding the smeared energyErr error to the ntuples!
-                    tnp_candidates["tag","corr_energyErr_Smeared"] = numpy.sqrt((tnp_candidates["tag"].energyErr) ** 2 + (tnp_candidates["tag"].rho_smear * ((tnp_candidates["tag"].pt * numpy.cosh(tnp_candidates["tag"].eta)))) ** 2)
-                    tnp_candidates["probe","corr_energyErr_Smeared"] = numpy.sqrt((tnp_candidates["probe"].energyErr) ** 2 + (tnp_candidates["probe"].rho_smear * ((tnp_candidates["probe"].pt * numpy.cosh(tnp_candidates["probe"].eta)))) ** 2)
-
-                    tnp_candidates["sigma_m_over_m_Smeared_corrected"] = 0.5 * numpy.sqrt(
-                        (
-                            tnp_candidates["tag"].corr_energyErr_Smeared / (tnp_candidates["tag"].pt * numpy.cosh(tnp_candidates["tag"].eta))
-                        )
-                        ** 2
-                        + (
-                            tnp_candidates["probe"].corr_energyErr_Smeared / (tnp_candidates["probe"].pt * numpy.cosh(tnp_candidates["probe"].eta))
-                        )
-                        ** 2
-                    )
-
-                else:
-                    tnp_candidates["tag","energyErr_Smeared"] = numpy.sqrt((tnp_candidates["tag"].energyErr)**2 + (tnp_candidates["tag"].rho_smear * ((tnp_candidates["tag"].pt * numpy.cosh(tnp_candidates["tag"].eta)))) ** 2)
-                    tnp_candidates["probe","energyErr_Smeared"] = numpy.sqrt((tnp_candidates["probe"].energyErr) ** 2 + (tnp_candidates["probe"].rho_smear * ((tnp_candidates["probe"].pt * numpy.cosh(tnp_candidates["probe"].eta)))) ** 2)
-
-                    tnp_candidates["sigma_m_over_m_Smeared"] = 0.5 * numpy.sqrt(
-                        (
-                            tnp_candidates["tag"].energyErr_Smeared / (tnp_candidates["tag"].pt * numpy.cosh(tnp_candidates["tag"].eta))
-                        )
-                        ** 2
-                        + (
-                            tnp_candidates["probe"].energyErr_Smeared / (tnp_candidates["probe"].pt * numpy.cosh(tnp_candidates["probe"].eta))
-                        )
-                        ** 2
-                    )
+            # Compute and store the different variations of sigma_m_over_m
+            tnp_candidates = compute_sigma_m(tnp_candidates, processor='tnp', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m)
 
             # Adding the tagandprobe pair mass. Based on the expression provided here for a massless pair of particles -> (https://en.wikipedia.org/wiki/Invariant_mass)
             tnp_candidates["mass"] = numpy.sqrt(2 * tnp_candidates["tag"].pt * tnp_candidates["probe"].pt * (numpy.cosh(tnp_candidates["tag"].eta - tnp_candidates["probe"].eta) - numpy.cos(tnp_candidates["tag"].phi - tnp_candidates["probe"].phi)))
