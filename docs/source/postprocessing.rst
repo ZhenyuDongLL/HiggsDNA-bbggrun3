@@ -1,4 +1,4 @@
-Workspace preparation for FinalFit interface
+Postprocessing
 ============================================
 
 Standard Procedure
@@ -60,6 +60,72 @@ Root step
 During this step the script calls multiple times the script ``convert_parquet_to_root.py``. The arguments to pass to the script, for instance if you want the systematic variation included in the output ``ROOT tree`` are specified when calling ``prepare_output_file.py`` using ``--args "--do_syst"``.
 As before the script creates a new called ``root`` under ``out_dir``, if this directory already exists it will throw an error and exit. In the script there is a dictionary called ``outfiles`` that contains the name of the output root file that will be created according to the process tipe, if the wf is run using the main script this correspond to the proces containd in ``process_dict``.
 
+By default, ``prepare_output_file.py`` uses the local execution to process files. If one wants to process the files via HTCondor (tested on LXPLUS), the ``--condor`` flag is to be used.
+
+Data processing with local
+--------------------------
+
+To process the data locally, we have to know some things. First, we need to specify the absolute input path (``--input``) which leads to your output of ``run_analysis.py`` (unmerged parquet files). The output folder in which the merged parquet files are stored needs to be specified with ``--output``. If one wants to categorize the files, the ``--cats`` keyword is used in conjunction with ``--catsDict`` which points to the ``category.json`` to be considered. Are systematics desired, they have to be activated with ``--syst``.
+
+In order to merge the parquet files according to the categories and produce the ROOT files in the same step, the following command is to be used:
+
+.. code-block:: python
+
+    python prepare_output_file.py --input /absolute/input/path --cats --catDict /absolute/path/to/cat_data.json --varDict /absolute/path/to/varDict_data.json --syst --merge --root --output /absolute/output/path
+
+Using the condor-way, one has to pay attention when processing data as an additional step wrt. the local-way is required, and the merge and ROOT-production step have to be separated:
+
+Data processing with condor
+---------------------------
+
+The first step is to merge the data parquet files according to the chosen categories. Since the data come in so-called eras (era ``A``, era ``B``, etc.), they have to be merged, such that we have per era and category a parquet file. This is the purpose of the following command, which has to be executed first:
+
+.. code-block:: python
+
+    python prepare_output_file.py --input /absolute/input/path --cats --catDict /absolute/path/to/cat_data.json --varDict /absolute/path/to/varDict_data.json --syst --merge --output /absolute/output/path --condor
+
+Studies in the past showed that for 2022 data there is not much of a difference significance-wise between splitting ``preEE`` and ``postEE`` datasets (referencing to the ECAL Endcap water leak in 2022) and merging them. For this reason, it was merged to one big dataset for HIG-23-014. The following command merges the era datasets to an ``allData.parquet`` file according to the categories. One needs in addition the flag ``--merge-data-only``:
+
+.. code-block:: python
+
+    python prepare_output_file.py --input /absolute/input/path --cats --catDict /absolute/path/to/cat_data.json --varDict /absolute/path/to/varDict_data.json --syst --merge --output /absolute/output/path --merge-data-only --condor
+
+Finally, we convert the parquet files to ROOT:
+
+.. code-block:: python
+
+    python prepare_output_file.py --input /absolute/input_path/to_folder_with_merged --cats --catDict /absolute/path/to/cat_data.json --varDict /absolute/path/to/varDict_data.json --syst --root --output /absolute/input_path/to_folder_with_merged --condor
+
+Whenever the parquet files are merged (after the first step), a folder ``merged`` in the ``/absolute/output/path`` is created. For getting the ROOT files, one has to use the folder ``/absolute/output/path`` (which is now containing the ``merged`` subfolders) as the new input folder. The file processing for MC samples functions in a similar way:
+
+MC processing with condor
+-------------------------
+
+Similar to data, the MC samples can be processed with HTCondor. Here we only have two steps. The first consists of merging the parquet files according to the categories just like in the data case:
+
+.. code-block:: python
+
+    python prepare_output_file.py --input /absolute/input/path --cats --catDict /absolute/path/to/cat_mc.json --varDict /absolute/path/to/varDict_mc.json --syst --merge --output /absolute/output/path --condor
+
+In order to convert the parquet files to ROOT, one executes:
+
+.. code-block:: python
+
+    python prepare_output_file.py --input /absolute/input_path/to_folder_with_merged --cats --catDict /absolute/path/to/cat_mc.json --varDict /absolute/path/to/varDict_mc.json --syst --root --output /absolute/input_path/to_folder_with_merged --condor
+
+It can happen that if the samples are stored on or the conda environment is installed on ``afs``, that the postprocessing can trigger the AFS throttling of your user account which leads to a much slower postprocessing of the files. Usually the throttle is revoked after a few hours.
+
+To avoid that, one has to throttle condor to such an extent, that the AFS throttling is not triggered. This can be done with the ``max_materialize`` function of HTCondor. This option limits the number of simultaneous processed condor jobs.
+
+An **important** point is that whenever one uses ``max_materialize`` while using files on ``eos``, all condor log, err, out, sub, and sh files have to be put to ``afs``. The reason for that is, that the option switches the submission host from lxplus directly to the schedd, which doesn't have access to ``eos``. One can specify a separate path which is hosting all the sub and sh files with ``--condor-logs``. If the condor log, err, and out files are desired (e.g. for debugging purposes) they can be explicitly produced with ``--make-condor-logs``.
+
+A valid command would for example be:
+
+.. code-block:: python
+
+    python prepare_output_file.py --input /absolute/input/path --cats --catDict /absolute/path/to/cat_mc.json --varDict /absolute/path/to/varDict_mc.json --syst --merge --output /absolute/output/path --max-materialize 5 --condor-logs /absolute/path/to/condor/logs --make-condor-logs --condor
+
+
 Workspace step
 --------------
 
@@ -89,6 +155,14 @@ The complete list of options for the main file is here:
     * ``--args``, "additional options for root converter: --do_syst, --notag",
     * ``--skip-normalisation``, "Independent of file type, skip normalisation step",
     * ``--verbose``, "verbose lefer for the logger: INFO (default), DEBUG",
+    * ``--output``, "Output path for the merged and ROOT files.",
+    * ``--folder-structure``, "Uses the given folder structure for the dirlist. Mainly used for debug purposes.",
+    * ``--condor``, "Flag for using the execution via HTCondor instead of a local execution.",
+    * ``--merge-data-only``, "Flag for merging data to an allData file. Only used when --condor is used, and only when we process data.",
+    * ``--max-materialize``, "Maximum number of jobs running at the same time in the cluster. Necessary to avoid overloading afs and getting throttled.",
+    * ``--make-condor-logs``, "Create condor log files.",
+    * ``--condor-logs``, "Output path of the Condor log files.",
+
 
 The merging step can also be run separately using::
 
@@ -101,5 +175,6 @@ Same for the root step::
         python3 convert_parquet_to_root.py [/path/to/merged.parquet] [path to output file containing also the filename] mc (or data depending what you're doing) --process [process name (should match one of the outfiles dict entries)] --do_syst --cats [cat_dict] --vars [variation.json]
 
 ``--do_syst`` is not mandatory, but if it's there also the dictionary containing the variations must be specified with the ``--var`` option. As before the script works also without the ``--cats`` option.
+
 
 
