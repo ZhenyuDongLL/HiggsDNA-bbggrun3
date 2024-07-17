@@ -3,7 +3,7 @@ from higgs_dna.systematics import object_corrections as available_object_correct
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.utils.dumping_utils import diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas
 
-from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets
+from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higgs_gen_attributes
 from higgs_dna.utils.misc_utils import choose_jet
 
 from typing import Any, Dict, List, Optional
@@ -134,6 +134,7 @@ class ParticleLevelProcessor(HggBaseProcessor):
 
         diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
         diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
+        diphotons['PTH'], diphotons['YH'] = get_higgs_gen_attributes(events)
 
         genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
         diphotons['NJ'] = awkward.num(genJets)
@@ -153,11 +154,16 @@ class ParticleLevelProcessor(HggBaseProcessor):
         diphotons["genWeight"] = events.genWeight
         diphotons["dZ"] = events.GenVtx.z - events.PV.z
         # Necessary for differential xsec measurements in final fits ("truth" variables)
-        diphotons["HTXS_Higgs_pt"] = events.HTXS.Higgs_pt
-        diphotons["HTXS_Higgs_y"] = events.HTXS.Higgs_y
-        diphotons["HTXS_njets30"] = events.HTXS.njets30  # Need to clarify if this variable is suitable, does it fulfill abs(eta_j) < 2.5? Probably not
+        # diphotons["HTXS_Higgs_pt"] = events.HTXS.Higgs_pt
+        # diphotons["HTXS_Higgs_y"] = events.HTXS.Higgs_y
+        # diphotons["HTXS_njets30"] = events.HTXS.njets30  # Need to clarify if this variable is suitable, does it fulfill abs(eta_j) < 2.5? Probably not
         # Preparation for HTXS measurements later, start with stage 0 to disentangle VH into WH and ZH for final fits
-        diphotons["HTXS_stage_0"] = events.HTXS.stage_0
+        # diphotons["HTXS_stage_0"] = events.HTXS.stage_0
+
+        for i in range(9):
+            diphotons["LHEScaleWeight_" + str(i)] = events.LHEScaleWeight[:,i]
+        for i in range(103):
+            diphotons["LHEPdfWeight_" + str(i)] = events.LHEPdfWeight[:,i]
 
         # return if there is no surviving events
         if len(diphotons) == 0:
