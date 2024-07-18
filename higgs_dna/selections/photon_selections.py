@@ -11,6 +11,7 @@ def photon_preselection(
     events: awkward.Array,
     apply_electron_veto=True,
     year="2023",
+    IsFlag=False
 ) -> awkward.Array:
     """
     Apply preselection cuts to photons.
@@ -141,18 +142,37 @@ def photon_preselection(
     )
     # not apply electron veto for for TnP workflow
     e_veto = self.e_veto if apply_electron_veto else -1
-    return photons[
-        (photons.electronVeto > e_veto)
-        & (photons.pt > self.min_pt_photon)
-        & (photons.isScEtaEB | photons.isScEtaEE)
-        & (photons.mvaID > self.min_mvaid)
-        & (photons.hoe < self.max_hovere)
-        & (
-            (photons.r9 > self.min_full5x5_r9)
-            | (
-                rel_iso * photons.pt < self.max_chad_iso
+
+    if IsFlag:
+        photons["PassPresel"] = (
+            (photons.electronVeto > e_veto)
+            & (photons.pt > self.min_pt_photon)
+            & (photons.isScEtaEB | photons.isScEtaEE)
+            & (photons.mvaID > self.min_mvaid)
+            & (photons.hoe < self.max_hovere)
+            & (
+                (photons.r9 > self.min_full5x5_r9)
+                | (
+                    rel_iso * photons.pt < self.max_chad_iso
+                )
+                | (rel_iso < self.max_chad_rel_iso)
             )
-            | (rel_iso < self.max_chad_rel_iso)
+            & (isEB_high_r9 | isEB_low_r9 | isEE_high_r9 | isEE_low_r9)
         )
-        & (isEB_high_r9 | isEB_low_r9 | isEE_high_r9 | isEE_low_r9)
-    ]
+        return photons
+    else:
+        return photons[
+            (photons.electronVeto > e_veto)
+            & (photons.pt > self.min_pt_photon)
+            & (photons.isScEtaEB | photons.isScEtaEE)
+            & (photons.mvaID > self.min_mvaid)
+            & (photons.hoe < self.max_hovere)
+            & (
+                (photons.r9 > self.min_full5x5_r9)
+                | (
+                    rel_iso * photons.pt < self.max_chad_iso
+                )
+                | (rel_iso < self.max_chad_rel_iso)
+            )
+            & (isEB_high_r9 | isEB_low_r9 | isEE_high_r9 | isEE_low_r9)
+        ]
