@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 import argparse
-import json
+import json, ast
 import os
 import glob
 import awkward
 from higgs_dna.utils.logger_utils import setup_logger
 import pyarrow.parquet as pq
+import numpy as np
 
 parser = argparse.ArgumentParser(
     description="Simple utility script to merge all parquet files in one folder."
@@ -48,6 +49,13 @@ parser.add_argument(
     default=False,
     help="Uses absolute path for the dictionary files.",
 )
+parser.add_argument(
+    "--genBinning",
+    type=str,
+    dest="genBinning",
+    default="",
+    help="Optional: Path to the JSON containing the binning at gen-level.",
+)
 
 args = parser.parse_args()
 source_paths = args.source.split(",")
@@ -57,7 +65,74 @@ BASEDIR = os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))
 ) + "/../higgs_dna/"
 
+if args.genBinning != "":
+    if args.abs:
+        genBinning_path = args.genBinning
+    else: 
+        genBinning_path = BASEDIR + '../scripts/postprocessing/sample_gen_binning.json'
+    with open(genBinning_path, 'r') as json_file:
+        gen_binning = json.load(json_file)
+else:
+    gen_binning = None
+
 logger = setup_logger(level="INFO")
+
+def extract_tuples(input_string):
+    tuples = []
+    # Remove leading and trailing parentheses and split by comma
+    tuple_strings = input_string.strip("()").split(";")
+    for tuple_str in tuple_strings:
+        # Remove leading and trailing whitespace and parentheses
+        tuple_elements = tuple_str.strip("()").split(",")
+        # Strip each element and append to the list of tuples
+        tuples.append(tuple(map(str.strip, tuple_elements)))
+    return tuples
+
+def extract_filter(dataset, additionalConditionTuple):
+    variable, operator, value = additionalConditionTuple
+    
+    if operator == ">":
+        return dataset[variable] > float(value)
+    elif operator == ">=":
+        return dataset[variable] >= float(value)
+    elif operator == "<":
+        return dataset[variable] < float(value)
+    elif operator == "<=":
+        return dataset[variable] <= float(value)
+    elif operator == "==":
+        if ("True" in value) or ("False" in value):
+            value = bool(value)
+            return dataset[variable] == value
+        else:
+            return dataset[variable] == float(value)
+
+def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="GenPTH", diffVariableName="diffVariable_GenPTH"):
+    # Initialize diff variable in the awkward array
+    dataset[diffVariableName] = 0
+
+    # Specify variables which need the absolute value for the selection (eg. rapidity)
+    absolute_value_vars = ["GenYH"]
+
+    for range_min, range_max, fiducialTag, additionalConditions in ranges_dict.keys():
+        diffId = ranges_dict[(range_min, range_max, fiducialTag, additionalConditions)]
+
+        if fiducialTag == "in":
+            condition = (dataset["fiducialGeometricFlag"] == True)
+        else:
+            condition = (dataset["fiducialGeometricFlag"] == False)
+
+        if selectionVariableName in absolute_value_vars:
+            condition = condition & (np.abs(dataset[selectionVariableName]) >= range_min) & (np.abs(dataset[selectionVariableName]) < range_max)
+        else:
+            condition = condition & (dataset[selectionVariableName] >= range_min) & (dataset[selectionVariableName] < range_max)
+        
+        if additionalConditions != "":
+            tuple_list = extract_tuples(additionalConditions)
+            for additionalCondition in tuple_list:
+                condition = condition & extract_filter(dataset, additionalCondition)
+        dataset[diffVariableName] = awkward.where(condition, diffId, dataset_arr[diffVariableName])
+    
+    return dataset
 
 if (
     (len(source_paths) != len(target_paths))
@@ -126,6 +201,13 @@ for i, source_path in enumerate(source_paths):
             # Remove ParquetDataset from memory and read file in as awkward array
             del dataset
             dataset_arr = awkward.from_parquet(target_paths[i] + cat + "_merged.parquet")
+            # Add filtering for differentials here
+            
+            if gen_binning != None:
+                for keys in gen_binning:
+                    var_dict = {ast.literal_eval(key): value for key, value in gen_binning[keys].items()}
+                    dataset_arr = filter_and_set_diff_variable(dataset_arr, var_dict, keys, "diffVariable_" + keys)
+
             # Add column for unnormalised weight
             dataset_arr['weight_nominal'] = dataset_arr['weight']
             dataset_arr['weight'] = dataset_arr['weight'] / sum_genw_beforesel_arr[i]

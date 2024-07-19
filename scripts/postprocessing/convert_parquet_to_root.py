@@ -54,6 +54,13 @@ parser.add_argument(
     default=False,
     help="Uses absolute path for the dictionary files.",
 )
+parser.add_argument(
+    "--genBinning",
+    type=str,
+    dest="genBinning",
+    default="",
+    help="Optional: Path to the JSON containing the binning at gen-level.",
+)
 args = parser.parse_args()
 source_path = args.source
 target_path = args.target
@@ -66,6 +73,16 @@ logger = setup_logger(level=args.log)
 BASEDIR = os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))
 ) + "/../higgs_dna/"
+
+if args.genBinning != "":
+    if args.abs:
+        genBinning_path = args.genBinning
+    else: 
+        genBinning_path = BASEDIR + '../scripts/postprocessing/sample_gen_binning.json'
+    with open(genBinning_path, 'r') as json_file:
+        gen_binning = json.load(json_file)
+else:
+    gen_binning = None
 
 # Dictionary for renaming variables in ROOT tree output for final fits
 rename_dict = {
@@ -270,28 +287,7 @@ if type == "mc":
                         syst_,
                         cat,
                     ]
-                )      
-    else:
-        for cat in cat_dict:
-            syst_ = ""
-            if len(process.split("_"))>1:
-                labels[cat].append(
-                    [
-                        "DiphotonTree/" + process.split('_')[0] + f"_{process.split('_')[-1]}_13TeV_{cat}_" + syst_,
-                        "weight",
-                        syst_,
-                        cat,
-                    ]
-                )
-            else:
-                labels[cat].append(
-                [
-                    "DiphotonTree/" + process + f"_125_13TeV_{cat}_" + syst_,
-                    "weight",
-                    syst_,
-                    cat,
-                ]
-                )
+            )      
 
 else:
     for cat in cat_dict:
@@ -327,34 +323,31 @@ with uproot.recreate(outfiles[process]) as file:
                         continue
                     logger.debug(f"{syst_name}, {weight}, {syst_}, {c}")
                     # If the name is not in the variation dictionary it is assumed to be a weight systematic
-                    if syst_ not in variation_dict:
-                        logger.debug(f"found weight syst {syst_}")
-                        red_dict = {}
-                        for key, new_key in [
+                    var_list = [
                             ["CMS_hgg_mass", "CMS_hgg_mass"],
                             [weight, "weight"],
-                            ["fiducialGeometricFlag", "fiducialGeometricFlag"],
                             ["HTXS_Higgs_pt", "HTXS_Higgs_pt"],
                             ["HTXS_Higgs_y", "HTXS_Higgs_y"],
                             ["PTH", "PTH"],
-                            ["YH", "YH"]
-                        ]:
+                            ["YH", "YH"],
+                            ["fiducialGeometricFlag", "fiducialGeometricFlag"]
+                        ]
+                    if gen_binning != None:
+                        for keys in gen_binning:
+                            var_list.append(["diffVariable_" + keys, "diffVariable_" + keys])
+
+                    if syst_ not in variation_dict:
+                        logger.debug(f"found weight syst {syst_}")
+                        red_dict = {}
+                        for key, new_key in var_list:
                             if "NOMINAL" in df_dict and cat in df_dict["NOMINAL"] and key in df_dict["NOMINAL"][cat]:
                                 red_dict[new_key] = df_dict["NOMINAL"][cat][key]
-
+                        
                         logger.info(f"Adding {syst_name}01sigma to out tree...")
                         file[syst_name + "01sigma"] = red_dict
                     else:
                         red_dict = {}
-                        for key, new_key in [
-                            ["CMS_hgg_mass", "CMS_hgg_mass"],
-                            [weight, "weight"],
-                            ["fiducialGeometricFlag", "fiducialGeometricFlag"],
-                            ["HTXS_Higgs_pt", "HTXS_Higgs_pt"],
-                            ["HTXS_Higgs_y", "HTXS_Higgs_y"],
-                            ["PTH", "PTH"],
-                            ["YH", "YH"]
-                        ]:
+                        for key, new_key in var_list:
                             if syst_ in df_dict and cat in df_dict[syst_] and key in df_dict[syst_][cat]:
                                 red_dict[new_key] = ak.flatten(df_dict[syst_][cat][key], 0)
 
