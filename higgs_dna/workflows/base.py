@@ -523,11 +523,60 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
                 diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
 
-                diphotons['PTH'], diphotons['YH'] = get_higgs_gen_attributes(events)
+                diphotons['GenPTH'], GenYH, GenPhiH = get_higgs_gen_attributes(events)
 
                 genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
-                diphotons['NJ'] = awkward.num(genJets)
-                diphotons['PTJ0'] = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
+                diphotons['GenNJ'] = awkward.num(genJets)
+                GenPTJ0 = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
+                diphotons['GenPTJ0'] = GenPTJ0
+
+                gen_first_jet_eta = choose_jet(genJets.eta, 0, -999.0)
+                gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
+                gen_first_jet_phi = choose_jet(genJets.phi, 0, -999.0)
+
+                gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
+                gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
+
+                with numpy.errstate(divide='ignore', invalid='ignore'):
+                    GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
+
+                GenYJ0 = awkward.fill_none(GenYJ0, -999)
+                GenYJ0 = awkward.where(numpy.isnan(GenYJ0), -999, GenYJ0)
+                diphotons['GenYJ0'] = GenYJ0
+
+                GenYH = awkward.fill_none(GenYH, -999)
+                GenYH = awkward.where(numpy.isnan(GenYH), -999, GenYH)
+                diphotons['GenYH'] = GenYH
+
+                GenAbsPhiHJ0 = numpy.abs(gen_first_jet_phi - GenPhiH)
+
+                # Set all entries above 2*pi to -999
+                GenAbsPhiHJ0 = awkward.where(
+                    GenAbsPhiHJ0 > 2 * numpy.pi,
+                    -999,
+                    GenAbsPhiHJ0
+                )
+                GenAbsPhiHJ0_pi_array = awkward.full_like(GenAbsPhiHJ0, 2 * numpy.pi)
+
+                # Select the smallest angle
+                GenAbsPhiHJ0 = awkward.where(
+                    GenAbsPhiHJ0 > numpy.pi,
+                    GenAbsPhiHJ0_pi_array - GenAbsPhiHJ0,
+                    GenAbsPhiHJ0
+                )
+
+                diphotons["GenDPhiHJ0"] = GenAbsPhiHJ0
+
+                GenAbsYHJ0 = numpy.abs(GenYJ0 - GenYH)
+
+                # Set all entries above 500 to -999
+                GenAbsYHJ0 = awkward.where(
+                    GenAbsYHJ0 > 500,
+                    -999,
+                    GenAbsYHJ0
+                )
+
+                diphotons["GenDYHJ0"] = GenAbsYHJ0
 
             # baseline modifications to diphotons
             if self.diphoton_mva is not None:
@@ -620,20 +669,60 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
             second_jet_mass = choose_jet(jets.mass, 1, -999.0)
             second_jet_charge = choose_jet(jets.charge, 1, -999.0)
 
-            diphotons["first_jet_pt"] = first_jet_pt
+            diphotons["PTJ0"] = first_jet_pt
             diphotons["first_jet_eta"] = first_jet_eta
             diphotons["first_jet_phi"] = first_jet_phi
             diphotons["first_jet_mass"] = first_jet_mass
             diphotons["first_jet_charge"] = first_jet_charge
 
-            diphotons["second_jet_pt"] = second_jet_pt
+            diphotons["PTJ1"] = second_jet_pt
             diphotons["second_jet_eta"] = second_jet_eta
             diphotons["second_jet_phi"] = second_jet_phi
             diphotons["second_jet_mass"] = second_jet_mass
             diphotons["second_jet_charge"] = second_jet_charge
 
             diphotons["n_jets"] = n_jets
-            diphotons["Njets2p5"] = Njets2p5
+            diphotons["NJ"] = Njets2p5
+
+            first_jet_pz = first_jet_pt * numpy.sinh(first_jet_eta)
+            first_jet_energy = numpy.sqrt((first_jet_pt**2 * numpy.cosh(first_jet_eta)**2) + first_jet_mass**2)
+
+            first_jet_y = 0.5 * numpy.log((first_jet_energy + first_jet_pz) / (first_jet_energy - first_jet_pz))
+            first_jet_y = awkward.fill_none(first_jet_y, -999)
+            first_jet_y = awkward.where(numpy.isnan(first_jet_y), -999, first_jet_y)
+            diphotons["YJ0"] = first_jet_y
+
+            AbsPhiHJ0 = numpy.abs(first_jet_phi - diphotons["phi"])
+
+            AbsPhiHJ0_pi_array = awkward.full_like(AbsPhiHJ0, 2 * numpy.pi)
+
+            # Select the smallest angle
+            AbsPhiHJ0 = awkward.where(
+                AbsPhiHJ0 > numpy.pi,
+                AbsPhiHJ0_pi_array - AbsPhiHJ0,
+                AbsPhiHJ0
+            )
+            AbsPhiHJ0 = awkward.where(
+                AbsPhiHJ0 > 2 * numpy.pi,
+                -999,
+                awkward.where(
+                    AbsPhiHJ0 < 0,
+                    -999,
+                    AbsPhiHJ0
+                )
+            )
+            diphotons["DPhiHJ0"] = AbsPhiHJ0
+
+            AbsYHJ0 = numpy.abs(first_jet_y - diphotons["rapidity"])
+
+            # Set all entries above 500 to -999
+            AbsYHJ0 = awkward.where(
+                AbsYHJ0 > 500,
+                -999,
+                AbsYHJ0
+            )
+
+            diphotons["DYHJ0"] = AbsYHJ0
 
             # run taggers on the events list with added diphotons
             # the shape here is ensured to be broadcastable

@@ -170,5 +170,6 @@ def get_higgs_gen_attributes(events: ak.Array) -> ak.Array:
 
     pt = gen_diphoton.pt
     y = 0.5 * np.log((gen_diphoton.energy + gen_diphoton.pz) / (gen_diphoton.energy - gen_diphoton.pz))
+    phi = gen_diphoton.phi
 
-    return (pt, y)
+    return (pt, y, phi)
