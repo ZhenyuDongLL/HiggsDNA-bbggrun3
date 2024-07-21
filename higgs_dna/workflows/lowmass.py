@@ -29,6 +29,7 @@ from higgs_dna.systematics import weight_systematics as available_weight_systema
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 
 import functools
+import operator
 import warnings
 from typing import Any, Dict, List, Optional
 import awkward
@@ -360,9 +361,49 @@ class lowmassProcessor(HggBaseProcessor):
         self.min_pt_photon = 18.0
         self.min_pt_lead_photon = 30.0
         self.e_veto = "presel"  # presel/single_invert/double_invert
+        self.trigger_group = ".*DoubleEG.*"
+        self.analysis = "lowMassAnalysis"
 
     def process_extra(self, events: awkward.Array) -> awkward.Array:
         return events, {}
+
+    def apply_filters(self, events: awkward.Array) -> awkward.Array:
+        # met filters
+        met_filters = self.meta["flashggMetFilters"][self.data_kind]
+        filtered = functools.reduce(
+            operator.and_,
+            (events.Flag[metfilter.split("_")[-1]] for metfilter in met_filters),
+        )
+
+        return events[filtered]
+
+    def apply_triggers(
+        self, events: awkward.Array, apply_to_mc: bool = False
+    ) -> awkward.Array:
+        # trigger selection
+        logger.debug(
+            f"[apply_triggers] {self.trigger_group} {self.analysis} {self.data_kind} {apply_to_mc}"
+        )
+        triggered = awkward.ones_like(events.event)
+
+        if self.apply_trigger:
+            if not apply_to_mc and self.data_kind == "mc":
+                return events
+            else:
+                trigger_names = []
+                triggers = self.meta["TriggerPaths"][self.trigger_group][self.analysis]
+                hlt = events.HLT
+                for trigger in triggers:
+                    actual_trigger = trigger.replace("HLT_", "").replace("*", "")
+                    for field in hlt.fields:
+                        if field.startswith(actual_trigger):
+                            trigger_names.append(field)
+                triggered = functools.reduce(
+                    operator.or_, (hlt[trigger_name] for trigger_name in trigger_names)
+                )
+                return events[triggered]
+
+        return events
 
     def process(self, events: awkward.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
@@ -417,7 +458,10 @@ class lowmassProcessor(HggBaseProcessor):
             metadata["sum_genw_presel"] = "Data"
 
         # apply filters and triggers
-        events = self.apply_filters_and_triggers(events)
+        events = self.apply_filters(events)
+        # ! by default, trigger is not applied to MC
+        # ! if need to be applied, change apply_to_mc to True
+        events = self.apply_triggers(events, apply_to_mc=False)
 
         # remove events affected by EcalBadCalibCrystal
         if self.data_kind == "data":
