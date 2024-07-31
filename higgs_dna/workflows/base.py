@@ -523,7 +523,10 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
                 diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
 
-                diphotons['GenPTH'], GenYH, GenPhiH = get_higgs_gen_attributes(events)
+                GenPTH, GenYH, GenPhiH = get_higgs_gen_attributes(events)
+
+                GenPTH = awkward.fill_none(GenPTH, -999.0)
+                diphotons['GenPTH'] = GenPTH
 
                 genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
                 diphotons['GenNJ'] = awkward.num(genJets)
@@ -564,6 +567,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                     GenAbsPhiHJ0_pi_array - GenAbsPhiHJ0,
                     GenAbsPhiHJ0
                 )
+                GenAbsPhiHJ0 = awkward.fill_none(GenAbsPhiHJ0, -999.0)
 
                 diphotons["GenDPhiHJ0"] = GenAbsPhiHJ0
 
