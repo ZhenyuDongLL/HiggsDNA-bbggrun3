@@ -10,7 +10,7 @@ dependencies:
   - pyaml
   - xrootd # use 5.6.4 if you experience problems, recommended as of March 2024
   - numba
-  - pyarrow
+  - pyarrow>=11.0.0
   - pandas
   - rich
   - matplotlib
