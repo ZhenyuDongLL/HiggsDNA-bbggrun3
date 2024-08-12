@@ -148,11 +148,25 @@ parser.add_option(
     help="Uses the given folder structure for dirlist.",
 )
 parser.add_option(
+    "--condor",
+    dest="condor",
+    action="store_true",
+    default=False,
+    help="Flag for using the execution via HTCondor instead of a local execution.",
+)
+parser.add_option(
     "--merge-data-only",
     dest="merge_data",
     action="store_true",
     default=False,
     help="Flag for merging data to an allData file.",
+)
+parser.add_option(
+    "--max-materialize",
+    dest="max_materialize",
+    type="string",
+    default="",
+    help="Maximum number of jobs running at the same time in the cluster.",
 )
 parser.add_option(
     "--make-condor-logs",
@@ -182,7 +196,7 @@ if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
 logger = setup_logger(level=opt.verbose)
 
 folder_for_dirlist = opt.input
-if opt.apptainer:
+if opt.condor:
     if opt.root and not opt.merge:
         folder_for_dirlist = opt.input + "/merged"
     elif opt.folder_structure != "":
@@ -289,9 +303,9 @@ else:
     cat_dict = {"NOTAG": {"cat_filter": [("pt", ">", -1.0)]}}
 
 # Now, after loading the JSONs from possibly relative paths, we can change the directory appropriately to get to work
-EXEC_PATH = os.path.realpath(os.getcwd())
+EXEC_PATH = os.getcwd()
 os.chdir(opt.input)
-IN_PATH = os.path.realpath(os.getcwd())
+IN_PATH = os.getcwd()
 SCRIPT_DIR = os.path.dirname(
     os.path.abspath(__file__)
 )  # script directory
@@ -308,7 +322,7 @@ CONDOR_PATH = os.path.realpath(os.path.abspath(opt.condor_logs)) # need real abs
 #     file.write(json.dumps(var_dict))
 
 # Using OUT_PATH for the location of the output if different from the input path
-if not opt.apptainer:
+if not opt.condor:
     if opt.output == "":
         OUT_PATH = IN_PATH
         # os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
@@ -352,7 +366,7 @@ else:
 
         dirlist_path = f"{EXEC_PATH}/dirlist.txt"
     else:
-        OUT_PATH = os.path.realpath(opt.output)
+        OUT_PATH = opt.output
         cat_dict_loc = f"{OUT_PATH}/category.json"
         var_dict_loc = f"{OUT_PATH}/variation.json"
         # os.system(f"mv category.json {cat_dict_loc}")
@@ -371,7 +385,10 @@ def submit_jobs(directory, suffix=""):
     else:
         sub_files = glob.glob(f"{directory}/*.sub")
     for current_file in sub_files:
-        subprocess.run(["condor_submit", "-spool", current_file])
+        if opt.max_materialize != "":
+            subprocess.run(["condor_submit", current_file])
+        else:
+            subprocess.run(["condor_submit", "-spool", current_file])
 
 if opt.genBinning != "":
     genBinning_str = f"--genBinning {opt.genBinning}"
@@ -426,7 +443,7 @@ def process_file(file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_n
         command = f'python3 merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict} --is-data {genBinning_str}'
         subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
-if not opt.apptainer:
+if not opt.condor:
     if opt.merge:
         with open(dirlist_path) as fl:
             files = fl.readlines()
@@ -623,9 +640,9 @@ else:
                                     MKDIRP(f"{OUT_PATH}/merged/{file}/{var_dict[var]}")
 
                                     os.chdir(SCRIPT_DIR)
-                                    logger.info(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str}")
+                                    logger.info(f"python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str}")
                                     executable_file.write(f"if [ $1 -eq {i} ]; then\n")
-                                    executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str} || exit 107\n")
+                                    executable_file.write(f"    python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str} || exit 107\n")
                                     executable_file.write("exit 0\n")
                                     executable_file.write("fi\n")
                                     i += 1
@@ -633,9 +650,9 @@ else:
                             else:
                                 i = 1
                                 os.chdir(SCRIPT_DIR)
-                                print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str}")
+                                print(f"python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str}")
                                 executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str} || exit 107\n")
+                                executable_file.write(f"    python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str} || exit 107\n")
                                 executable_file.write("exit 0\n")
                                 executable_file.write("fi\n")
                                 
@@ -649,14 +666,12 @@ else:
                             submit_file.write(f"log = {job_file_log}\n")
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                            # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                            if opt.apptainer:
-                                submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest"\n""")
-                                submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                            submit_file.write("getenv = True\n")
+                            if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             submit_file.write(f'+JobFlavour = "microcentury"\n')
+                            submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                             submit_file.write(f"queue {i}\n")
 
                     else:
@@ -689,9 +704,9 @@ else:
                             if not os.path.exists(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'):
                                 MKDIRP(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}')
                             os.chdir(SCRIPT_DIR)
-                            print(f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}')
+                            print(f'python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}')
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str} || exit 107\n")
+                            executable_file.write(f"    python3 {EXEC_PATH}/merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str} || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                             
@@ -705,14 +720,12 @@ else:
                             submit_file.write(f"log = {job_file_log}\n")
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                            # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                            if opt.apptainer:
-                                submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest"\n""")
-                                submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                            submit_file.write("getenv = True\n")
+                            if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             submit_file.write(f'+JobFlavour = "microcentury"\n')
+                            submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                             submit_file.write(f"queue\n")
                 if opt.condor_logs != "":
                     submit_jobs(CONDOR_PATH)
@@ -750,9 +763,9 @@ else:
                             executable_file.write("#!/bin/sh\n")
                             dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                             if len(filenames) > 0:
-                                print(f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}')
+                                print(f'python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}')
                                 executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs {genBinning_str} || exit 107\n")
+                                executable_file.write(f"    python3 {EXEC_PATH}/merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs {genBinning_str} || exit 107\n")
                                 executable_file.write("exit 0\n")
                                 executable_file.write("fi\n")
                                 #break
@@ -767,14 +780,12 @@ else:
                             submit_file.write(f"log = {job_file_log}\n")
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                            # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                            if opt.apptainer:
-                                submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest"\n""")
-                                submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                            submit_file.write("getenv = True\n")
+                            if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             submit_file.write(f'+JobFlavour = "microcentury"\n')
+                            submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                             submit_file.write(f"queue\n")
                     os.system(f"chmod 775 {job_file_executable}")
                     j += 1
@@ -837,7 +848,7 @@ else:
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                        executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
+                        executable_file.write(f"    python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
                         executable_file.write("exit 0\n")
                         executable_file.write("fi\n")
                     os.system(f"chmod 775 {job_file_executable}")
@@ -850,14 +861,12 @@ else:
                         submit_file.write(f"log = {job_file_log}\n")
                         submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                         submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                        # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                        if opt.apptainer:
-                            submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                            submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest"\n""")
-                            submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                        submit_file.write("getenv = True\n")
+                        if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                         submit_file.write("max_retries = 3\n")
                         submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                         submit_file.write(f'+JobFlavour = "microcentury"\n')
+                        submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                         submit_file.write(f"queue\n")
                 elif "data" in file.lower():
                     if opt.condor_logs != "":
@@ -906,13 +915,13 @@ else:
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
+                            executable_file.write(f"    python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                         else:
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
+                            executable_file.write(f"    python3 {EXEC_PATH}/convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                 os.system(f"chmod 775 {job_file_executable}")
@@ -925,21 +934,19 @@ else:
                     submit_file.write(f"log = {job_file_log}\n")
                     submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                     submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                    # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                    if opt.apptainer:
-                        submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                        submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest"\n""")
-                        submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                    submit_file.write("getenv = True\n")
+                    if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                     submit_file.write("max_retries = 3\n")
                     submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                     submit_file.write(f'+JobFlavour = "microcentury"\n')
+                    submit_file.write('+AccountingGroup = "group_u_CMS.u_zh.users"\n')
                     submit_file.write(f"queue\n")
         if opt.condor_logs != "":
             submit_jobs(CONDOR_PATH, "root")
         else:
             submit_jobs(OUT_PATH, "root")
 
-    if not opt.apptainer:
+    if not opt.condor:
     # We don't want to leave trash around
         if os.path.exists(dirlist_path):
             os.system(f"rm {dirlist_path}")
@@ -949,7 +956,7 @@ else:
             if os.path.exists(f"{SCRIPT_DIR}/../../higgs_dna/variation.json"):
                 os.system(f"rm {SCRIPT_DIR}/../../higgs_dna/variation.json")
 
-    # elif (opt.apptainer) and (opt.root):
+    # elif (opt.condor) and (opt.root):
     #     if os.path.exists(f"{OUT_PATH}/category.json"):
     #         os.system(f"rm {OUT_PATH}/category.json")
     #     if os.path.exists(f"{OUT_PATH}/variation.json"):
