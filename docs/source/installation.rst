@@ -28,7 +28,7 @@ Docker & Singularity
 
 In case you experience issues using the conda environment, docker images are available to try. These are especially useful on LXPLUS, where instead of ``docker`` the ``singularity`` command should be used (also called ``apptainer``).
 
-Since the main goal of the Docker images to use on LXPLUS it to ease the experience of submitting jobs using Dask, the base image used is the one provided with the `dask-lxplus <https://gitlab.cern.ch/batch-team/dask-lxplus>`_ package (as can be seen in the `Dockerfile <https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/-/blob/master/docker/Dockerfile_lxplus>`_).
+Since the main goal of the Docker images to use on LXPLUS it to ease the experience of submitting jobs using Dask, the base image used is the one provided with the `dask-lxplus <https://gitlab.cern.ch/batch-team/dask-lxplus>`_ package (as can be seen in the `Dockerfile <https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/-/blob/master/Dockerfile?ref_type=heads>`_).
 
 Docker images are built in CI every time a commit is pushed on the master branch, with the most recent one tagged as ``latest``.
 
