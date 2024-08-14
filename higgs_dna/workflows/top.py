@@ -435,6 +435,9 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                             # Store the value in the diphotons dictionary
                             diphotons[key] = value
 
+                    diphotons["met_pt"] = events.PuppiMET.pt
+                    diphotons["met_phi"] = events.PuppiMET.phi
+
                     diphotons = ak.firsts(diphotons)
                     # set diphotons as part of the event record
                     events[f"diphotons_{do_variation}"] = diphotons
