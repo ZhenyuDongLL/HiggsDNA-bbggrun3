@@ -9,6 +9,7 @@ from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrysta
 from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higgs_gen_attributes
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.selections.photon_selections import photon_preselection
+from higgs_dna.selections.diphoton_selections import apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap
 from higgs_dna.selections.lumi_selections import select_lumis
@@ -505,18 +506,8 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 awkward.argsort(diphotons.pt, ascending=False)
             ]
 
-            # Determine if event passes fiducial Hgg cuts at detector-level
-            if self.fiducialCuts == 'classical':
-                fid_det_passed = (diphotons.pho_lead.pt / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (diphotons.pho_lead.pfRelIso03_all_quadratic * diphotons.pho_lead.pt < 10) & ((diphotons.pho_sublead.pfRelIso03_all_quadratic * diphotons.pho_sublead.pt) < 10) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
-            elif self.fiducialCuts == 'geometric':
-                fid_det_passed = (numpy.sqrt(diphotons.pho_lead.pt * diphotons.pho_sublead.pt) / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (diphotons.pho_lead.pfRelIso03_all_quadratic * diphotons.pho_lead.pt < 10) & (diphotons.pho_sublead.pfRelIso03_all_quadratic * diphotons.pho_sublead.pt < 10) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
-            elif self.fiducialCuts == 'none':
-                fid_det_passed = diphotons.pho_lead.pt > -10  # This is a very dummy way but I do not know how to make a true array of outer shape of diphotons
-            else:
-                warnings.warn("You chose %s the fiducialCuts mode, but this is currently not supported. You should check your settings. For this run, no fiducial selection at detector level is applied." % self.fiducialCuts)
-                fid_det_passed = diphotons.pho_lead.pt > -10
-
-            diphotons = diphotons[fid_det_passed]
+            # Apply the fiducial cut at detector level with helper function
+            diphotons = apply_fiducial_cut_det_level(self, diphotons)
 
             if self.data_kind == "mc":
                 # Add the fiducial flags for particle level
