@@ -134,11 +134,11 @@ class ParticleLevelProcessor(HggBaseProcessor):
 
         diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
         diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
-        diphotons['PTH'], diphotons['YH'] = get_higgs_gen_attributes(events)
+        diphotons['GenPTH'], diphotons['GenYH'], diphotons['GenPhiH'] = get_higgs_gen_attributes(events)
 
         genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
-        diphotons['NJ'] = awkward.num(genJets)
-        diphotons['PTJ0'] = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
+        diphotons['GenNJ'] = awkward.num(genJets)
+        diphotons['GenPTJ0'] = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
 
         # workflow specific processing
         events, process_extra = self.process_extra(events)
@@ -153,12 +153,6 @@ class ParticleLevelProcessor(HggBaseProcessor):
         # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
         diphotons["genWeight"] = events.genWeight
         diphotons["dZ"] = events.GenVtx.z - events.PV.z
-        # Necessary for differential xsec measurements in final fits ("truth" variables)
-        # diphotons["HTXS_Higgs_pt"] = events.HTXS.Higgs_pt
-        # diphotons["HTXS_Higgs_y"] = events.HTXS.Higgs_y
-        # diphotons["HTXS_njets30"] = events.HTXS.njets30  # Need to clarify if this variable is suitable, does it fulfill abs(eta_j) < 2.5? Probably not
-        # Preparation for HTXS measurements later, start with stage 0 to disentangle VH into WH and ZH for final fits
-        # diphotons["HTXS_stage_0"] = events.HTXS.stage_0
 
         for i in range(9):
             diphotons["LHEScaleWeight_" + str(i)] = events.LHEScaleWeight[:,i]

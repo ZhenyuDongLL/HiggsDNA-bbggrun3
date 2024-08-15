@@ -1,7 +1,6 @@
 ### functions for Z to mumugamma
 import awkward as ak
 from coffea.analysis_tools import PackedSelection
-import numpy as np
 import vector
 
 vector.register_awkward()
@@ -55,7 +54,7 @@ def get_zmmy(
 ) -> ak.highlevel.Array:
     sel_obj = PackedSelection()
     # combine dimuon & photon
-    photons["charge"] = ak.zeros_like(photons.pt, dtype=np.int)
+    photons["charge"] = ak.zeros_like(photons.pt, dtype=int)
     mmy_jagged = ak.cartesian({"dimuon": dimuons, "photon": photons}, axis=1)
     # flatten mmy, selection only accept flatten arrays
     count = ak.num(mmy_jagged)
