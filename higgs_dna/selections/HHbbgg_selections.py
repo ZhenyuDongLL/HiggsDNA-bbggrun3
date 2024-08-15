@@ -10,7 +10,7 @@ def get_HHbbgg(
 ) -> ak.highlevel.Array:
     # Script adapted from the Zmumug analysis
     # combine dijet & diphoton
-    dijets["charge"] = ak.zeros_like(dijets.pt, dtype=np.int)
+    dijets["charge"] = ak.zeros_like(dijets.pt, dtype=int)
     HHbbgg_jagged = ak.cartesian({"diphoton": diphotons, "dijet": dijets}, axis=1)
     # flatten HHbbgg, selection only accept flatten arrays
     count = ak.num(HHbbgg_jagged)

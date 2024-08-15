@@ -19,3 +19,13 @@ python scripts/nano_postproc.py /work/gallim/devel/HiggsDNA/tests/samples/skimme
 ```
 
 the input file is also available on DAS.
+
+**EGamma_2022E_v13.root**
+
+First 100 events of `/store/data/Run2022E/EGamma/NANOAOD/16Dec2023-v1/2540000/03a335e4-00af-4ebe-bada-9616018738e1.root`
+
+Note: Added since PNet only available from v12 and above
+
+**ggH_M125_amcatnlo_v13.root**
+
+First 100 events of `/store/mc/Run3Summer22EENanoAODv13/GluGluHtoGG_M-125_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/NANOAODSIM/133X_mcRun3_2022_realistic_postEE_ForNanov13_v1-v2/2560000/27a6931b-fe7e-40ab-a1ae-867f0aa6670d.root`

@@ -402,6 +402,7 @@ class HHbbggProcessor(HggBaseProcessor):
                             "phi": events.Electron.phi,
                             "mass": events.Electron.mass,
                             "charge": events.Electron.charge,
+                            "cutBased": events.Electron.cutBased,
                             "mvaIso_WP90": events.Electron.mvaIso_WP90,
                             "mvaIso_WP80": events.Electron.mvaIso_WP80,
                         }
