@@ -73,6 +73,7 @@ class ZmmyProcessor(HggBaseProcessor):
             doFlow_corrections=doFlow_corrections,
             output_format=output_format,
         )
+        self.trigger_group = ".*DoubleMuon.*"
         self.analysis = "ZmmyAnalysis"
         # muon selection cuts
         self.muon_pt_threshold = 10
