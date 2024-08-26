@@ -8,7 +8,7 @@ from higgs_dna.selections.diphoton_selections import apply_fiducial_cut_det_leve
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap
 from higgs_dna.selections.lumi_selections import select_lumis
-from higgs_dna.utils.dumping_utils import diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas
+from higgs_dna.utils.dumping_utils import diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas, get_obj_syst_dict
 from higgs_dna.utils.misc_utils import choose_jet
 from higgs_dna.tools.flow_corrections import calculate_flow_corrections
 
@@ -174,7 +174,9 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                 continue
 
         original_photons = events.Photon
+        # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
+
         # systematic object variations
         for systematic_name in systematic_names:
             if systematic_name in available_object_systematics.keys():
@@ -195,21 +197,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                         )
                         # name=systematic_name, **systematic_dct["args"]
                     )
-                elif systematic_dct["object"] == "Jet":
-                    logger.info(
-                        f"Adding systematic {systematic_name} to jets collection of dataset {dataset_name}"
-                    )
-                    original_jets.add_systematic(
-                        # passing the arguments here explicitly since I want to pass the events to the varying function. If there is a more elegant / flexible way, just change it!
-                        name=systematic_name,
-                        kind=systematic_dct["args"]["kind"],
-                        what=systematic_dct["args"]["what"],
-                        varying_function=functools.partial(
-                            systematic_dct["args"]["varying_function"], events=events
-                        )
-                        # name=systematic_name, **systematic_dct["args"]
-                    )
-                # to be implemented for other objects here
+                # to be implemented for other objects than photons or jets here
             elif systematic_name in available_weight_systematics:
                 # event weight systematics will be applied after photon preselection / application of further taggers
                 continue
@@ -220,6 +208,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                 )
                 continue
 
+        # Applying systematic variations
         photons_dct = {}
         photons_dct["nominal"] = original_photons
         logger.debug(original_photons.systematics.fields)
@@ -230,245 +219,309 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     original_photons.systematics[systematic][variation]
                 )
 
-        jets_dct = {}
-        jets_dct["nominal"] = original_jets
-        logger.debug(original_jets.systematics.fields)
-        for systematic in original_jets.systematics.fields:
-            for variation in original_jets.systematics[systematic].fields:
-                # deepcopy to allow for independent calculations on photon variables with CQR
-                jets_dct[f"{systematic}_{variation}"] = original_jets.systematics[
-                    systematic
-                ][variation]
+        # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
+        jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
+        # print("\n", jets_dct, jets_dct.keys(), "\n")
+        # object systematics dictionary
+        logger.debug(f"[ jerc systematics ] {jerc_syst_list}")
 
-        for variation, photons in photons_dct.items():
-            for jet_variation, Jets in jets_dct.items():
-                # make sure no duplicate executions
-                if variation == "nominal" or jet_variation == "nominal":
-                    if variation != "nominal" and jet_variation != "nominal":
-                        continue
-                    do_variation = "nominal"
-                    if not (variation == "nominal" and jet_variation == "nominal"):
-                        do_variation = (
-                            variation if variation != "nominal" else jet_variation
+        # Build the flattened array of all possible variations
+        variations_combined = []
+        variations_combined.append(original_photons.systematics.fields)
+        # NOTE: jet jerc systematics are not added with add_systematics
+        variations_combined.append(jerc_syst_list)
+        # Flatten
+        variations_flattened = sum(variations_combined, [])  # Begin with empty list and keep concatenating
+        # Attach _down and _up
+        variations = [item + suffix for item in variations_flattened for suffix in ['_down', '_up']]
+        # Add nominal to the list
+        variations.append('nominal')
+
+        logger.debug(f"[systematics variations] {variations}")
+
+        for variation in variations:
+            logger.info(f"Processing {variation} samples.\n")
+            photons, jets = photons_dct["nominal"], events.Jet
+            if variation == "nominal":
+                pass  # Do nothing since we already get the unvaried, but nominally corrected objets above
+            elif variation in [*photons_dct]:  # [*dict] gets the keys of the dict since Python >= 3.5
+                photons = photons_dct[variation]
+                logger.info(f"Replacing nominal photons with variation {variation}.\n")
+            elif variation in [*jets_dct]:
+                jets = jets_dct[variation]
+                logger.info(f"Replacing nominal jets with variation {variation}.\n")
+            do_variation = variation  # We can also simplify this a bit but for now it works
+
+            if self.chained_quantile is not None:
+                photons = self.chained_quantile.apply(photons, events)
+            # recompute photonid_mva on the fly
+            if self.photonid_mva_EB and self.photonid_mva_EE:
+                photons = self.add_photonid_mva(photons, events)
+
+            # Computing the normalizing flow correction
+            # align this with base workflow! Move flow corrections outside of loop!
+            if self.data_kind == "mc" and self.doFlow_corrections:
+
+                # Applying the Flow corrections to all photons before pre-selection
+                counts = ak.num(photons)
+                corrected_inputs,var_list = calculate_flow_corrections(photons, events, self.meta["flashggPhotons"]["flow_inputs"], self.meta["flashggPhotons"]["Isolation_transform_order"], year=self.year[dataset_name][0])
+
+                # Store the raw nanoAOD value and update photon ID MVA value for preselection
+                photons["mvaID_run3"] = ak.unflatten(self.add_photonid_mva_run3(photons, events), counts)
+                photons["mvaID_nano"] = photons["mvaID"]
+
+                # Store the raw values of the inputs and update the input values with the corrections since some variables used in the preselection
+                for i in range(len(var_list)):
+                    photons["raw_" + str(var_list[i])] = photons[str(var_list[i])]
+                    photons[str(var_list[i])] = ak.unflatten(corrected_inputs[:,i] , counts)
+
+                photons["mvaID"] = ak.unflatten(self.add_photonid_mva_run3(photons, events), counts)
+
+            # photon preselection
+            photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
+            # sort photons in each event descending in pt
+            # make descending-pt combinations of photons
+            photons = photons[ak.argsort(photons.pt, ascending=False)]
+            photons["charge"] = ak.zeros_like(
+                photons.pt
+            )  # added this because charge is not a property of photons in nanoAOD v11. We just assume every photon has charge zero...
+            diphotons = ak.combinations(
+                photons, 2, fields=["pho_lead", "pho_sublead"]
+            )
+            # the remaining cut is to select the leading photons
+            # the previous sort assures the order
+            diphotons = diphotons[
+                diphotons["pho_lead"].pt > self.min_pt_lead_photon
+            ]
+
+            # now turn the diphotons into candidates with four momenta and such
+            diphoton_4mom = diphotons["pho_lead"] + diphotons["pho_sublead"]
+            diphotons["pt"] = diphoton_4mom.pt
+            diphotons["eta"] = diphoton_4mom.eta
+            diphotons["phi"] = diphoton_4mom.phi
+            diphotons["mass"] = diphoton_4mom.mass
+            diphotons["charge"] = diphoton_4mom.charge
+            diphotons = ak.with_name(diphotons, "PtEtaPhiMCandidate")
+
+            # sort diphotons by pT
+            diphotons = diphotons[
+                ak.argsort(diphotons.pt, ascending=False)
+            ]
+
+            # Apply the fiducial cut at detector level with helper function
+            diphotons = apply_fiducial_cut_det_level(self, diphotons)
+
+            # baseline modifications to diphotons
+            if self.diphoton_mva is not None:
+                diphotons = self.add_diphoton_mva(diphotons, events)
+
+            # workflow specific processing
+            events, process_extra = self.process_extra(events)
+            histos_etc.update(process_extra)
+
+            # jet_variables
+            jets = ak.zip(
+                {
+                    "pt": jets.pt,
+                    "eta": jets.eta,
+                    "phi": jets.phi,
+                    "mass": jets.mass,
+                    "charge": ak.zeros_like(jets.pt),
+                    "hFlav": jets.hadronFlavour if self.data_kind == "mc" else ak.zeros_like(jets.pt),
+                    "btagPNetB": jets.btagPNetB,
+                    "btagDeepFlavB": jets.btagDeepFlavB,
+                    "btagRobustParTAK4B": jets.btagRobustParTAK4B,
+                    "btagRobustParTAK4CvB": jets.btagRobustParTAK4CvB,
+                    "btagRobustParTAK4CvL": jets.btagRobustParTAK4CvL,
+                    "btagRobustParTAK4QG": jets.btagRobustParTAK4QG,
+                    "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
+                    "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
+                    "btagDeepFlav_QG": jets.btagDeepFlavQG,
+                    "jetId": jets.jetId,
+                }
+            )
+            jets = ak.with_name(jets, "PtEtaPhiMCandidate")
+
+            electrons = ak.zip(
+                {
+                    "pt": events.Electron.pt,
+                    "eta": events.Electron.eta,
+                    "phi": events.Electron.phi,
+                    "mass": events.Electron.mass,
+                    "charge": events.Electron.charge,
+                    "mvaIso_WP90": events.Electron.mvaIso_WP90,
+                    "mvaIso_WP80": events.Electron.mvaIso_WP80,
+                }
+            )
+            electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
+
+            muons = ak.zip(
+                {
+                    "pt": events.Muon.pt,
+                    "eta": events.Muon.eta,
+                    "phi": events.Muon.phi,
+                    "mass": events.Muon.mass,
+                    "charge": events.Muon.charge,
+                    "tightId": events.Muon.tightId,
+                    "mediumId": events.Muon.mediumId,
+                    "looseId": events.Muon.looseId,
+                    "isGlobal": events.Muon.isGlobal,
+                }
+            )
+            muons = ak.with_name(muons, "PtEtaPhiMCandidate")
+
+            # lepton cleaning
+            sel_electrons = electrons[
+                select_electrons(self, electrons, diphotons)
+            ]
+            sel_muons = muons[select_muons(self, muons, diphotons)]
+
+            # jet selection and pt ordering
+            jets = jets[
+                select_jets(self, jets, diphotons, sel_muons, sel_electrons)
+            ]
+            jets = jets[ak.argsort(jets.pt, ascending=False)]
+
+            # adding selected jets to events to be used in ctagging SF calculation
+            events["sel_jets"] = jets
+            n_jets = ak.num(jets)
+            diphotons["JetHT"] = ak.sum(jets.pt,axis=1)
+
+            num_jets = 8
+            jet_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagDeepFlavB", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
+            for i in range(num_jets):
+                for prop in jet_properties:
+                    key = f"jet{i+1}_{prop}"
+                    value = choose_jet(getattr(jets, prop), i, -999.0)
+                    # Store the value in the diphotons dictionary
+                    diphotons[key] = value
+            diphotons["n_jets"] = n_jets
+
+            # Adding a 'generation' field to electrons and muons
+            sel_electrons['generation'] = ak.ones_like(sel_electrons.pt)
+            sel_muons['generation'] = 2 * ak.ones_like(sel_muons.pt)
+
+            # Combine electrons and muons into a single leptons collection
+            leptons = ak.concatenate([sel_electrons, sel_muons], axis=1)
+            leptons = ak.with_name(leptons, "PtEtaPhiMCandidate")
+
+            # Sort leptons by pt in descending order
+            leptons = leptons[ak.argsort(leptons.pt, ascending=False)]
+
+            n_leptons = ak.num(leptons)
+            diphotons["n_leptons"] = n_leptons
+
+            # Annotate diphotons with selected leptons properties
+            lepton_properties = ["pt", "eta", "phi", "mass", "charge", "generation"]
+            num_leptons = 2  # Number of leptons to select
+            for i in range(num_leptons):
+                for prop in lepton_properties:
+                    key = f"lepton{i+1}_{prop}"
+                    # Retrieve the value using the choose_jet function (which can be used for leptons as well)
+                    value = choose_jet(getattr(leptons, prop), i, -999.0)
+                    # Store the value in the diphotons dictionary
+                    diphotons[key] = value
+
+            diphotons["met_pt"] = events.PuppiMET.pt
+            diphotons["met_phi"] = events.PuppiMET.phi
+
+            diphotons = ak.firsts(diphotons)
+            # set diphotons as part of the event record
+            events[f"diphotons_{do_variation}"] = diphotons
+            # annotate diphotons with event information
+            diphotons["event"] = events.event
+            diphotons["lumi"] = events.luminosityBlock
+            diphotons["run"] = events.run
+            # nPV just for validation of pileup reweighting
+            diphotons["nPV"] = events.PV.npvs
+            diphotons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll
+            # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
+            if self.data_kind == "mc":
+                diphotons["genWeight"] = events.genWeight
+                diphotons["dZ"] = events.GenVtx.z - events.PV.z
+                diphotons["HTXS_Higgs_pt"] = events.HTXS.Higgs_pt
+                diphotons["HTXS_Higgs_y"] = events.HTXS.Higgs_y
+                diphotons["HTXS_njets30"] = events.HTXS.njets30
+                diphotons["HTXS_stage_0"] = events.HTXS.stage_0
+            else:
+                diphotons["dZ"] = ak.zeros_like(events.PV.z)
+
+            # drop events without a preselected diphoton candidate
+            selection_mask = ~ak.is_none(diphotons)
+            diphotons = diphotons[selection_mask]
+
+            # return if there is no surviving events
+            if len(diphotons) == 0:
+                logger.debug("No surviving events in this run, return now!")
+                return histos_etc
+            if self.data_kind == "mc":
+                # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
+                event_weights = Weights(size=len(events[selection_mask]),storeIndividual=True)
+
+                # corrections to event weights:
+                for correction_name in correction_names:
+                    if correction_name in available_weight_corrections:
+                        logger.info(
+                            f"Adding correction {correction_name} to weight collection of dataset {dataset_name}"
                         )
-                    logger.debug("Variation: {}".format(do_variation))
-                    if self.chained_quantile is not None:
-                        photons = self.chained_quantile.apply(photons, events)
-                    # recompute photonid_mva on the fly
-                    if self.photonid_mva_EB and self.photonid_mva_EE:
-                        photons = self.add_photonid_mva(photons, events)
-
-                    # Computing the normalizing flow correction
-                    if self.data_kind == "mc" and self.doFlow_corrections:
-
-                        # Applying the Flow corrections to all photons before pre-selection
-                        counts = ak.num(photons)
-                        corrected_inputs,var_list = calculate_flow_corrections(photons, events, self.meta["flashggPhotons"]["flow_inputs"], self.meta["flashggPhotons"]["Isolation_transform_order"], year=self.year[dataset_name][0])
-
-                        # Store the raw nanoAOD value and update photon ID MVA value for preselection
-                        photons["mvaID_run3"] = ak.unflatten(self.add_photonid_mva_run3(photons, events), counts)
-                        photons["mvaID_nano"] = photons["mvaID"]
-
-                        # Store the raw values of the inputs and update the input values with the corrections since some variables used in the preselection
-                        for i in range(len(var_list)):
-                            photons["raw_" + str(var_list[i])] = photons[str(var_list[i])]
-                            photons[str(var_list[i])] = ak.unflatten(corrected_inputs[:,i] , counts)
-
-                        photons["mvaID"] = ak.unflatten(self.add_photonid_mva_run3(photons, events), counts)
-
-                    # photon preselection
-                    photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
-                    # sort photons in each event descending in pt
-                    # make descending-pt combinations of photons
-                    photons = photons[ak.argsort(photons.pt, ascending=False)]
-                    photons["charge"] = ak.zeros_like(
-                        photons.pt
-                    )  # added this because charge is not a property of photons in nanoAOD v11. We just assume every photon has charge zero...
-                    diphotons = ak.combinations(
-                        photons, 2, fields=["pho_lead", "pho_sublead"]
-                    )
-                    # the remaining cut is to select the leading photons
-                    # the previous sort assures the order
-                    diphotons = diphotons[
-                        diphotons["pho_lead"].pt > self.min_pt_lead_photon
-                    ]
-
-                    # now turn the diphotons into candidates with four momenta and such
-                    diphoton_4mom = diphotons["pho_lead"] + diphotons["pho_sublead"]
-                    diphotons["pt"] = diphoton_4mom.pt
-                    diphotons["eta"] = diphoton_4mom.eta
-                    diphotons["phi"] = diphoton_4mom.phi
-                    diphotons["mass"] = diphoton_4mom.mass
-                    diphotons["charge"] = diphoton_4mom.charge
-                    diphotons = ak.with_name(diphotons, "PtEtaPhiMCandidate")
-
-                    # sort diphotons by pT
-                    diphotons = diphotons[
-                        ak.argsort(diphotons.pt, ascending=False)
-                    ]
-
-                    # Apply the fiducial cut at detector level with helper function
-                    diphotons = apply_fiducial_cut_det_level(self, diphotons)
-
-                    # baseline modifications to diphotons
-                    if self.diphoton_mva is not None:
-                        diphotons = self.add_diphoton_mva(diphotons, events)
-
-                    # workflow specific processing
-                    events, process_extra = self.process_extra(events)
-                    histos_etc.update(process_extra)
-
-                    # jet_variables
-                    jets = ak.zip(
-                        {
-                            "pt": Jets.pt,
-                            "eta": Jets.eta,
-                            "phi": Jets.phi,
-                            "mass": Jets.mass,
-                            "charge": ak.zeros_like(
-                                Jets.pt
-                            ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
-                            "hFlav": Jets.hadronFlavour
-                            if self.data_kind == "mc"
-                            else ak.zeros_like(Jets.pt),
-                            "btagPNetB": Jets.btagPNetB,
-                            "btagDeepFlavB": Jets.btagDeepFlavB,
-                            "btagRobustParTAK4B": Jets.btagRobustParTAK4B,
-                            "btagRobustParTAK4CvB": Jets.btagRobustParTAK4CvB,
-                            "btagRobustParTAK4CvL": Jets.btagRobustParTAK4CvL,
-                            "btagRobustParTAK4QG": Jets.btagRobustParTAK4QG,
-                            "btagDeepFlav_CvB": Jets.btagDeepFlavCvB,
-                            "btagDeepFlav_CvL": Jets.btagDeepFlavCvL,
-                            "btagDeepFlav_QG": Jets.btagDeepFlavQG,
-                            "jetId": Jets.jetId,
-                        }
-                    )
-                    jets = ak.with_name(jets, "PtEtaPhiMCandidate")
-
-                    electrons = ak.zip(
-                        {
-                            "pt": events.Electron.pt,
-                            "eta": events.Electron.eta,
-                            "phi": events.Electron.phi,
-                            "mass": events.Electron.mass,
-                            "charge": events.Electron.charge,
-                            "mvaIso_WP90": events.Electron.mvaIso_WP90,
-                            "mvaIso_WP80": events.Electron.mvaIso_WP80,
-                        }
-                    )
-                    electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
-
-                    muons = ak.zip(
-                        {
-                            "pt": events.Muon.pt,
-                            "eta": events.Muon.eta,
-                            "phi": events.Muon.phi,
-                            "mass": events.Muon.mass,
-                            "charge": events.Muon.charge,
-                            "tightId": events.Muon.tightId,
-                            "mediumId": events.Muon.mediumId,
-                            "looseId": events.Muon.looseId,
-                            "isGlobal": events.Muon.isGlobal,
-                        }
-                    )
-                    muons = ak.with_name(muons, "PtEtaPhiMCandidate")
-
-                    # lepton cleaning
-                    sel_electrons = electrons[
-                        select_electrons(self, electrons, diphotons)
-                    ]
-                    sel_muons = muons[select_muons(self, muons, diphotons)]
-
-                    # jet selection and pt ordering
-                    jets = jets[
-                        select_jets(self, jets, diphotons, sel_muons, sel_electrons)
-                    ]
-                    jets = jets[ak.argsort(jets.pt, ascending=False)]
-
-                    # adding selected jets to events to be used in ctagging SF calculation
-                    events["sel_jets"] = jets
-                    n_jets = ak.num(jets)
-                    diphotons["JetHT"] = ak.sum(jets.pt,axis=1)
-
-                    num_jets = 8
-                    jet_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagDeepFlavB", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
-                    for i in range(num_jets):
-                        for prop in jet_properties:
-                            key = f"jet{i+1}_{prop}"
-                            value = choose_jet(getattr(jets, prop), i, -999.0)
-                            # Store the value in the diphotons dictionary
-                            diphotons[key] = value
-                    diphotons["n_jets"] = n_jets
-
-                    # Adding a 'generation' field to electrons and muons
-                    sel_electrons['generation'] = ak.ones_like(sel_electrons.pt)
-                    sel_muons['generation'] = 2 * ak.ones_like(sel_muons.pt)
-
-                    # Combine electrons and muons into a single leptons collection
-                    leptons = ak.concatenate([sel_electrons, sel_muons], axis=1)
-                    leptons = ak.with_name(leptons, "PtEtaPhiMCandidate")
-
-                    # Sort leptons by pt in descending order
-                    leptons = leptons[ak.argsort(leptons.pt, ascending=False)]
-
-                    n_leptons = ak.num(leptons)
-                    diphotons["n_leptons"] = n_leptons
-
-                    # Annotate diphotons with selected leptons properties
-                    lepton_properties = ["pt", "eta", "phi", "mass", "charge", "generation"]
-                    num_leptons = 2  # Number of leptons to select
-                    for i in range(num_leptons):
-                        for prop in lepton_properties:
-                            key = f"lepton{i+1}_{prop}"
-                            # Retrieve the value using the choose_jet function (which can be used for leptons as well)
-                            value = choose_jet(getattr(leptons, prop), i, -999.0)
-                            # Store the value in the diphotons dictionary
-                            diphotons[key] = value
-
-                    diphotons["met_pt"] = events.PuppiMET.pt
-                    diphotons["met_phi"] = events.PuppiMET.phi
-
-                    diphotons = ak.firsts(diphotons)
-                    # set diphotons as part of the event record
-                    events[f"diphotons_{do_variation}"] = diphotons
-                    # annotate diphotons with event information
-                    diphotons["event"] = events.event
-                    diphotons["lumi"] = events.luminosityBlock
-                    diphotons["run"] = events.run
-                    # nPV just for validation of pileup reweighting
-                    diphotons["nPV"] = events.PV.npvs
-                    diphotons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll
-                    # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
-                    if self.data_kind == "mc":
-                        diphotons["genWeight"] = events.genWeight
-                        diphotons["dZ"] = events.GenVtx.z - events.PV.z
-                        diphotons["HTXS_Higgs_pt"] = events.HTXS.Higgs_pt
-                        diphotons["HTXS_Higgs_y"] = events.HTXS.Higgs_y
-                        diphotons["HTXS_njets30"] = events.HTXS.njets30
-                        diphotons["HTXS_stage_0"] = events.HTXS.stage_0
-                    else:
-                        diphotons["dZ"] = ak.zeros_like(events.PV.z)
-
-                    # drop events without a preselected diphoton candidate
-                    selection_mask = ~ak.is_none(diphotons)
-                    diphotons = diphotons[selection_mask]
-
-                    # return if there is no surviving events
-                    if len(diphotons) == 0:
-                        logger.debug("No surviving events in this run, return now!")
-                        return histos_etc
-                    if self.data_kind == "mc":
-                        # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
-                        event_weights = Weights(size=len(events[selection_mask]),storeIndividual=True)
-
-                        # corrections to event weights:
-                        for correction_name in correction_names:
-                            if correction_name in available_weight_corrections:
-                                logger.info(
-                                    f"Adding correction {correction_name} to weight collection of dataset {dataset_name}"
-                                )
-                                varying_function = available_weight_corrections[
-                                    correction_name
+                        varying_function = available_weight_corrections[
+                            correction_name
+                        ]
+                        event_weights = varying_function(
+                            events=events[selection_mask],
+                            photons=events[f"diphotons_{do_variation}"][
+                                selection_mask
+                            ],
+                            weights=event_weights,
+                            dataset_name=dataset_name,
+                            year=self.year[dataset_name][0],
+                        )
+                metadata["sum_weight_central_wo_bTagSF"] = str(
+                    ak.sum(event_weights.partial_weight(exclude=["bTagSF"]))
+                )
+                diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
+                # systematic variations of event weights go to nominal output dataframe:
+                if do_variation == "nominal":
+                    for systematic_name in systematic_names:
+                        if systematic_name in available_weight_systematics:
+                            logger.info(
+                                f"Adding systematic {systematic_name} to weight collection of dataset {dataset_name}"
+                            )
+                            if systematic_name == "LHEScale":
+                                if hasattr(events, "LHEScaleWeight"):
+                                    diphotons["nweight_LHEScale"] = ak.num(
+                                        events.LHEScaleWeight[selection_mask],
+                                        axis=1,
+                                    )
+                                    diphotons[
+                                        "weight_LHEScale"
+                                    ] = events.LHEScaleWeight[selection_mask]
+                                else:
+                                    logger.info(
+                                        f"No {systematic_name} Weights in dataset {dataset_name}"
+                                    )
+                            elif systematic_name == "LHEPdf":
+                                if hasattr(events, "LHEPdfWeight"):
+                                    # two AlphaS weights are removed
+                                    diphotons["nweight_LHEPdf"] = (
+                                        ak.num(
+                                            events.LHEPdfWeight[selection_mask],
+                                            axis=1,
+                                        )
+                                        - 2
+                                    )
+                                    diphotons[
+                                        "weight_LHEPdf"
+                                    ] = events.LHEPdfWeight[selection_mask][
+                                        :, :-2
+                                    ]
+                                else:
+                                    logger.info(
+                                        f"No {systematic_name} Weights in dataset {dataset_name}"
+                                    )
+                            else:
+                                varying_function = available_weight_systematics[
+                                    systematic_name
                                 ]
                                 event_weights = varying_function(
                                     events=events[selection_mask],
@@ -479,130 +532,74 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],
                                 )
-                        metadata["sum_weight_central_wo_bTagSF"] = str(
-                            ak.sum(event_weights.partial_weight(exclude=["bTagSF"]))
+
+                diphotons["weight_central"] = event_weights.weight()
+                metadata["sum_weight_central"] = str(
+                    ak.sum(event_weights.weight())
+                )
+                # Store variations with respect to central weight
+                if do_variation == "nominal":
+                    if len(event_weights.variations):
+                        logger.info(
+                            "Adding systematic weight variations to nominal output file."
                         )
-                        diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
-                        # systematic variations of event weights go to nominal output dataframe:
-                        if do_variation == "nominal":
-                            for systematic_name in systematic_names:
-                                if systematic_name in available_weight_systematics:
-                                    logger.info(
-                                        f"Adding systematic {systematic_name} to weight collection of dataset {dataset_name}"
-                                    )
-                                    if systematic_name == "LHEScale":
-                                        if hasattr(events, "LHEScaleWeight"):
-                                            diphotons["nweight_LHEScale"] = ak.num(
-                                                events.LHEScaleWeight[selection_mask],
-                                                axis=1,
-                                            )
-                                            diphotons[
-                                                "weight_LHEScale"
-                                            ] = events.LHEScaleWeight[selection_mask]
-                                        else:
-                                            logger.info(
-                                                f"No {systematic_name} Weights in dataset {dataset_name}"
-                                            )
-                                    elif systematic_name == "LHEPdf":
-                                        if hasattr(events, "LHEPdfWeight"):
-                                            # two AlphaS weights are removed
-                                            diphotons["nweight_LHEPdf"] = (
-                                                ak.num(
-                                                    events.LHEPdfWeight[selection_mask],
-                                                    axis=1,
-                                                )
-                                                - 2
-                                            )
-                                            diphotons[
-                                                "weight_LHEPdf"
-                                            ] = events.LHEPdfWeight[selection_mask][
-                                                :, :-2
-                                            ]
-                                        else:
-                                            logger.info(
-                                                f"No {systematic_name} Weights in dataset {dataset_name}"
-                                            )
-                                    else:
-                                        varying_function = available_weight_systematics[
-                                            systematic_name
-                                        ]
-                                        event_weights = varying_function(
-                                            events=events[selection_mask],
-                                            photons=events[f"diphotons_{do_variation}"][
-                                                selection_mask
-                                            ],
-                                            weights=event_weights,
-                                            dataset_name=dataset_name,
-                                            year=self.year[dataset_name][0],
-                                        )
-
-                        diphotons["weight_central"] = event_weights.weight()
-                        metadata["sum_weight_central"] = str(
-                            ak.sum(event_weights.weight())
+                    for modifier in event_weights.variations:
+                        diphotons["weight_" + modifier] = event_weights.weight(
+                            modifier=modifier
                         )
-                        # Store variations with respect to central weight
-                        if do_variation == "nominal":
-                            if len(event_weights.variations):
-                                logger.info(
-                                    "Adding systematic weight variations to nominal output file."
-                                )
-                            for modifier in event_weights.variations:
-                                diphotons["weight_" + modifier] = event_weights.weight(
-                                    modifier=modifier
-                                )
-                                if ("bTagSF" in modifier):
-                                    metadata["sum_weight_" + modifier] = str(
-                                        ak.sum(event_weights.weight(modifier=modifier))
-                                    )
-
-                        # Multiply weight by genWeight for normalisation in post-processing chain
-                        event_weights._weight = (
-                            events["genWeight"][selection_mask]
-                            * diphotons["weight_central"]
-                        )
-                        diphotons["weight"] = event_weights.weight()
-
-                        if ak.num(events.LHEReweightingWeight)[0] > 0:
-                            diphotons["LHEReweightingWeight"] = events.LHEReweightingWeight[selection_mask]
-                            diphotons["LHEWeight"] = events.LHEWeight[selection_mask]
-
-                    # Add weight variables (=1) for data for consistent datasets
-                    else:
-                        diphotons["weight_central"] = ak.ones_like(
-                            diphotons["event"]
-                        )
-                        diphotons["weight"] = ak.ones_like(diphotons["event"])
-
-                    if self.output_location is not None:
-                        if self.output_format == "root":
-                            df = diphoton_list_to_pandas(self, diphotons)
-                        else:
-                            akarr = diphoton_ak_array(self, diphotons)
-
-                            # Remove fixedGridRhoAll from photons to avoid having event-level info per photon
-                            akarr = akarr[
-                                [
-                                    field
-                                    for field in akarr.fields
-                                    if "lead_fixedGridRhoAll" not in field
-                                ]
-                            ]
-
-                        fname = (
-                            events.behavior[
-                                "__events_factory__"
-                            ]._partition_key.replace("/", "_")
-                            + ".%s" % self.output_format
-                        )
-                        subdirs = []
-                        if "dataset" in events.metadata:
-                            subdirs.append(events.metadata["dataset"])
-                        subdirs.append(do_variation)
-                        if self.output_format == "root":
-                            dump_pandas(self, df, fname, self.output_location, subdirs)
-                        else:
-                            dump_ak_array(
-                                self, akarr, fname, self.output_location, metadata, subdirs,
+                        if ("bTagSF" in modifier):
+                            metadata["sum_weight_" + modifier] = str(
+                                ak.sum(event_weights.weight(modifier=modifier))
                             )
+
+                # Multiply weight by genWeight for normalisation in post-processing chain
+                event_weights._weight = (
+                    events["genWeight"][selection_mask]
+                    * diphotons["weight_central"]
+                )
+                diphotons["weight"] = event_weights.weight()
+
+                if ak.num(events.LHEReweightingWeight)[0] > 0:
+                    diphotons["LHEReweightingWeight"] = events.LHEReweightingWeight[selection_mask]
+                    diphotons["LHEWeight"] = events.LHEWeight[selection_mask]
+
+            # Add weight variables (=1) for data for consistent datasets
+            else:
+                diphotons["weight_central"] = ak.ones_like(
+                    diphotons["event"]
+                )
+                diphotons["weight"] = ak.ones_like(diphotons["event"])
+
+            if self.output_location is not None:
+                if self.output_format == "root":
+                    df = diphoton_list_to_pandas(self, diphotons)
+                else:
+                    akarr = diphoton_ak_array(self, diphotons)
+
+                    # Remove fixedGridRhoAll from photons to avoid having event-level info per photon
+                    akarr = akarr[
+                        [
+                            field
+                            for field in akarr.fields
+                            if "lead_fixedGridRhoAll" not in field
+                        ]
+                    ]
+
+                fname = (
+                    events.behavior[
+                        "__events_factory__"
+                    ]._partition_key.replace("/", "_")
+                    + ".%s" % self.output_format
+                )
+                subdirs = []
+                if "dataset" in events.metadata:
+                    subdirs.append(events.metadata["dataset"])
+                subdirs.append(do_variation)
+                if self.output_format == "root":
+                    dump_pandas(self, df, fname, self.output_location, subdirs)
+                else:
+                    dump_ak_array(
+                        self, akarr, fname, self.output_location, metadata, subdirs,
+                    )
 
         return histos_etc
