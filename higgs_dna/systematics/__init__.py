@@ -25,6 +25,12 @@ from .jet_systematics import (
     jet_pt_scale_dummy,
     JERC_jet,
 )
+
+from .electron_systematics import (
+    Electron_Scale,
+    Electron_Smearing,
+)
+
 from .jet_systematics_json import jerc_jet
 from functools import partial
 import logging
@@ -47,6 +53,14 @@ object_systematics = {
             "kind": "UpDownSystematic",
             "what": "pt",
             "varying_function": partial(Scale, is_correction=False),
+        },
+    },
+    "Electron_Scale": {
+        "object": "Electron",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Electron_Scale, is_correction=False),
         },
     },
     # in case scale uncertainties should only be applied on barrel photons
@@ -73,6 +87,14 @@ object_systematics = {
             "kind": "UpDownSystematic",
             "what": "pt",
             "varying_function": partial(Smearing, is_correction=False),
+        },
+    },
+    "Electron_Smearing": {
+        "object": "Electron",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Electron_Smearing, is_correction=False),
         },
     },
     "energyErrShift": {
@@ -137,7 +159,9 @@ object_systematics = {
 # dict containing "name": varying_function
 object_corrections = {
     "Scale": partial(Scale, pt=None, is_correction=True),
+    "Electron_Scale": partial(Electron_Scale, pt=None, is_correction=True),
     "Smearing": partial(Smearing, pt=None, is_correction=True),
+    "Electron_Smearing": partial(Electron_Smearing, pt=None, is_correction=True),
     "energyErrShift": partial(energyErrShift, energyErr=None, is_correction=True),
     "FNUF": partial(FNUF, pt=None, is_correction=True),
     "ShowerShape": partial(ShowerShape, pt=None, is_correction=True),
