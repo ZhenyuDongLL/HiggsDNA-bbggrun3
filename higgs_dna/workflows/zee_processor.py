@@ -139,38 +139,8 @@ class ZeeProcessor(HggBaseProcessor):
         if self.data_kind == "data":
             events = remove_EcalBadCalibCrystal_events(events)
 
-        # Matching photons eta and phi to electrons
-        events["Photon"] = events.Photon[events.Photon.electronIdx > -1]
-        events = events[awkward.num(events.Photon) >= 2]
-
-        photons = events.Photon
-        matched_electrons = events.Electron[photons.electronIdx]
-
-        # Keeping the photon eta and phi
-        photons["phoeta"] = photons.eta
-        photons["phophi"] = photons.phi
-
-        # Substituting the photon eta and phi with the matched electron eta and phi
-        photons["eta"] = matched_electrons.eta
-        photons["phi"] = matched_electrons.phi
-
-        photons["ele_pt"] = matched_electrons.pt
-        photons["ele_energy"] = matched_electrons.energy
-        photons["ele_ecalEnergy"] = matched_electrons.ecalEnergy
-        photons["ele_ecalEnergyError"] = matched_electrons.ecalEnergyError
-        photons["ele_ScEta"] = matched_electrons.eta + matched_electrons.deltaEtaSC
-
-        events.Photon = photons
-
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)
-
-        # add veto EE leak branch for photons, could also be used for electrons
-        if (
-            self.year[dataset_name][0] == "2022EE"
-            or self.year[dataset_name][0] == "2022postEE"
-        ):
-            events.Photon = veto_EEleak_flag(self, events.Photon)
 
         # read which systematics and corrections to process
         try:
@@ -192,6 +162,20 @@ class ZeeProcessor(HggBaseProcessor):
                 "Smearing should be specified in the corrections field in .json in order to smear the mass!"
             )
             sys.exit(0)
+
+        # Matching photons eta and phi to electrons and making basic selection
+        events["Photon"] = events.Photon[events.Photon.electronIdx > -1]
+        events = events[awkward.num(events.Photon) >= 2]
+
+        # Need to add ScEta for scale and smear corrections
+        matched_electrons = events.Electron[events.Photon.electronIdx]
+        matched_electrons["ScEta"] = matched_electrons.eta + matched_electrons.deltaEtaSC
+
+        # Adding these entries as they are used inside the Scale and smearing calculations
+        matched_electrons["isScEtaEB"] = numpy.abs(matched_electrons.ScEta) < 1.4442
+        matched_electrons["isScEtaEE"] = numpy.abs(matched_electrons.ScEta) > 1.566
+
+        events.Electron = matched_electrons
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -222,7 +206,35 @@ class ZeeProcessor(HggBaseProcessor):
                 warnings.warn(f"Could not process correction {correction_name}.")
                 continue
 
+        photons = events.Photon
+
+        # Keeping the photon eta and phi
+        photons["phoeta"] = photons.eta
+        photons["phophi"] = photons.phi
+
+        # Substituting the photon eta and phi with the matched electron eta and phi
+        photons["eta"] = events.Electron.eta
+        photons["phi"] = events.Electron.phi
+
+        photons["ele_seedGain"] = events.Electron.seedGain
+        photons["ele_r9"] = events.Electron.r9
+        photons["ele_pt"] = events.Electron.pt
+        photons["ele_energy"] = events.Electron.energy
+        photons["ele_ecalEnergy"] = events.Electron.ecalEnergy
+        photons["ele_ecalEnergyError"] = events.Electron.ecalEnergyError
+        photons["ele_ScEta"] = events.Electron.eta + events.Electron.deltaEtaSC
+
+        events.Photon = photons
+
+        # add veto EE leak branch for photons, could also be used for electrons
+        if (
+            self.year[dataset_name][0] == "2022EE"
+            or self.year[dataset_name][0] == "2022postEE"
+        ):
+            events.Photon = veto_EEleak_flag(self, events.Photon)
+
         original_photons = events.Photon
+        original_electrons = events.Electron
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
 
@@ -264,6 +276,22 @@ class ZeeProcessor(HggBaseProcessor):
                         # name=systematic_name, **systematic_dct["args"]
                     )
                 # to be implemented for other objects here
+                if systematic_dct["object"] == "Electron":
+                    logger.info(
+                        f"Adding systematic {systematic_name} to electrons collection of dataset {dataset_name}"
+                    )
+                    original_electrons.add_systematic(
+                        # passing the arguments here explicitly since I want to pass the events to the varying function. If there is a more elegant / flexible way, just change it!
+                        name=systematic_name,
+                        kind=systematic_dct["args"]["kind"],
+                        what=systematic_dct["args"]["what"],
+                        varying_function=functools.partial(
+                            systematic_dct["args"]["varying_function"],
+                            events=events,
+                            year=self.year[dataset_name][0],
+                        )
+                        # name=systematic_name, **systematic_dct["args"]
+                    )
             elif systematic_name in available_weight_systematics:
                 # event weight systematics will be applied after photon preselection / application of further taggers
                 continue
@@ -285,6 +313,16 @@ class ZeeProcessor(HggBaseProcessor):
                     original_photons.systematics[systematic][variation]
                 )
 
+        electrons_dct = {}
+        electrons_dct["nominal"] = original_electrons
+        logger.debug(original_electrons.systematics.fields)
+        for systematic in original_electrons.systematics.fields:
+            for variation in original_electrons.systematics[systematic].fields:
+                # deepcopy to allow for independent calculations on photon variables with CQR
+                electrons_dct[f"{systematic}_{variation}"] = deepcopy(
+                    original_electrons.systematics[systematic][variation]
+                )
+
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
         # object systematics dictionary
@@ -293,6 +331,7 @@ class ZeeProcessor(HggBaseProcessor):
         # Build the flattened array of all possible variations
         variations_combined = []
         variations_combined.append(original_photons.systematics.fields)
+        variations_combined.append(original_electrons.systematics.fields)
         # NOTE: jet jerc systematics are not added with add_systematics
         variations_combined.append(jerc_syst_list)
         # Flatten

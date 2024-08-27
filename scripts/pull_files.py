@@ -572,6 +572,16 @@ def get_scale_and_smearing(logger, target_dir):
             "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoE+PromptFG/photonSS.json.gz",
             "to": f"{to_prefix}/SS_RerecoE_PromptFG_2022.json.gz",
         },
+
+        "2022preEE_Electrons": {
+            "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoBCD/electronSS.json.gz",
+            "to": f"{to_prefix}/SS_Electron_Rereco2022BCD.json.gz",
+        },
+        "2022postEE_Electrons": {
+            "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoE+PromptFG/electronSS.json.gz",
+            "to": f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json.gz",
+        },
+
     }
     fetch_file("Scale and Smearing", logger, from_to_dict, type="copy")
     # Now, unpack the gz to have the raw JSONs
@@ -585,6 +595,19 @@ def get_scale_and_smearing(logger, target_dir):
         f"{to_prefix}/SS_RerecoE_PromptFG_2022.json.gz",
         f"{to_prefix}/SS_RerecoE_PromptFG_2022.json",
     )
+    
+    unzip_gz_with_zcat(
+        logger,
+        f"{to_prefix}/SS_Electron_Rereco2022BCD.json.gz",
+        f"{to_prefix}/SS_Electron_Rereco2022BCD.json",
+    )
+
+    unzip_gz_with_zcat(
+        logger,
+        f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json.gz",
+        f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json",
+    )
+
 
 
 def get_mass_decorrelation_CDF(logger, target_dir):
