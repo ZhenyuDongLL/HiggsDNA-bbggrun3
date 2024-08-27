@@ -177,3 +177,6 @@ higgs_dna/tools/decorrelation_CDFs/
 
 # Flow models
 higgs_dna/tools/flows/
+
+# analysis specific stuff
+higgs_dna/tools/lowmass_diphoton_mva/
