@@ -21,6 +21,7 @@ import functools
 import warnings
 from typing import Any, Dict, List, Optional
 import awkward as ak
+import numpy as np
 import vector
 from coffea.analysis_tools import Weights
 from copy import deepcopy
@@ -144,6 +145,13 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)
 
+        # Need to add ScEta variables to electrons for scale and smearing corrections
+        electrons = events.Electron
+        electrons["ScEta"] = electrons.eta + electrons.deltaEtaSC
+        electrons["isScEtaEB"] = np.abs(electrons.ScEta) < 1.4442
+        electrons["isScEtaEE"] = np.abs(electrons.ScEta) > 1.566
+        events.Electron = electrons
+
         # add veto EE leak branch for photons, could also be used for electrons
         if self.year[dataset_name][0] == "2022postEE":
             events.Photon = veto_EEleak_flag(self, events.Photon)
@@ -176,6 +184,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
         original_photons = events.Photon
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
+        original_electrons = events.Electron
 
         # systematic object variations
         for systematic_name in systematic_names:
@@ -186,7 +195,6 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                         f"Adding systematic {systematic_name} to photons collection of dataset {dataset_name}"
                     )
                     original_photons.add_systematic(
-                        # passing the arguments here explicitly since I want to pass the events to the varying function. If there is a more elegant / flexible way, just change it!
                         name=systematic_name,
                         kind=systematic_dct["args"]["kind"],
                         what=systematic_dct["args"]["what"],
@@ -195,9 +203,22 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                             events=events,
                             year=self.year[dataset_name][0],
                         )
-                        # name=systematic_name, **systematic_dct["args"]
                     )
-                # to be implemented for other objects than photons or jets here
+                elif systematic_dct["object"] == "Electron":
+                    logger.info(
+                        f"Adding systematic {systematic_name} to electrons collection of dataset {dataset_name}"
+                    )
+                    original_electrons.add_systematic(
+                        name=systematic_name,
+                        kind=systematic_dct["args"]["kind"],
+                        what=systematic_dct["args"]["what"],
+                        varying_function=functools.partial(
+                            systematic_dct["args"]["varying_function"],
+                            events=events,
+                            year=self.year[dataset_name][0],
+                        )
+                    )
+                # to be implemented for other objects here
             elif systematic_name in available_weight_systematics:
                 # event weight systematics will be applied after photon preselection / application of further taggers
                 continue
@@ -218,20 +239,25 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                 photons_dct[f"{systematic}_{variation}"] = deepcopy(
                     original_photons.systematics[systematic][variation]
                 )
+        electrons_dct = {}
+        electrons_dct["nominal"] = original_electrons
+        logger.debug(original_electrons.systematics.fields)
+        for systematic in original_electrons.systematics.fields:
+            for variation in original_electrons.systematics[systematic].fields:
+                # no deepcopy here unless we find a case where it's actually needed
+                electrons_dct[f"{systematic}_{variation}"] = original_electrons.systematics[systematic][variation]
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
-        # print("\n", jets_dct, jets_dct.keys(), "\n")
-        # object systematics dictionary
         logger.debug(f"[ jerc systematics ] {jerc_syst_list}")
 
         # Build the flattened array of all possible variations
         variations_combined = []
         variations_combined.append(original_photons.systematics.fields)
+        variations_combined.append(original_electrons.systematics.fields)
         # NOTE: jet jerc systematics are not added with add_systematics
         variations_combined.append(jerc_syst_list)
-        # Flatten
-        variations_flattened = sum(variations_combined, [])  # Begin with empty list and keep concatenating
+        variations_flattened = sum(variations_combined, [])
         # Attach _down and _up
         variations = [item + suffix for item in variations_flattened for suffix in ['_down', '_up']]
         # Add nominal to the list
@@ -241,12 +267,15 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
 
         for variation in variations:
             logger.info(f"Processing {variation} samples.\n")
-            photons, jets = photons_dct["nominal"], events.Jet
+            photons, electrons, jets = photons_dct["nominal"], electrons_dct["nominal"], events.Jet
             if variation == "nominal":
                 pass  # Do nothing since we already get the unvaried, but nominally corrected objets above
             elif variation in [*photons_dct]:  # [*dict] gets the keys of the dict since Python >= 3.5
                 photons = photons_dct[variation]
                 logger.info(f"Replacing nominal photons with variation {variation}.\n")
+            elif variation in [*electrons_dct]:
+                electrons = electrons_dct[variation]
+                logger.info(f"Replacing nominal electrons with variation {variation}.\n")
             elif variation in [*jets_dct]:
                 jets = jets_dct[variation]
                 logger.info(f"Replacing nominal jets with variation {variation}.\n")
@@ -344,13 +373,13 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
 
             electrons = ak.zip(
                 {
-                    "pt": events.Electron.pt,
-                    "eta": events.Electron.eta,
-                    "phi": events.Electron.phi,
-                    "mass": events.Electron.mass,
-                    "charge": events.Electron.charge,
-                    "mvaIso_WP90": events.Electron.mvaIso_WP90,
-                    "mvaIso_WP80": events.Electron.mvaIso_WP80,
+                    "pt": electrons.pt,
+                    "eta": electrons.eta,
+                    "phi": electrons.phi,
+                    "mass": electrons.mass,
+                    "charge": electrons.charge,
+                    "mvaIso_WP90": electrons.mvaIso_WP90,
+                    "mvaIso_WP80": electrons.mvaIso_WP80,
                 }
             )
             electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
@@ -371,15 +400,13 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             muons = ak.with_name(muons, "PtEtaPhiMCandidate")
 
             # lepton cleaning
-            sel_electrons = electrons[
-                select_electrons(self, electrons, diphotons)
-            ]
-            sel_muons = muons[select_muons(self, muons, diphotons)]
+            electrons = electrons[select_electrons(self, electrons, diphotons)]
+            muons = muons[select_muons(self, muons, diphotons)]
+            jets = jets[select_jets(self, jets, diphotons, muons, electrons)]
 
-            # jet selection and pt ordering
-            jets = jets[
-                select_jets(self, jets, diphotons, sel_muons, sel_electrons)
-            ]
+            # ordering in pt since corrections may have changed the order
+            electrons = electrons[ak.argsort(electrons.pt, ascending=False)]
+            muons = muons[ak.argsort(muons.pt, ascending=False)]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
 
             # adding selected jets to events to be used in ctagging SF calculation
@@ -398,14 +425,12 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             diphotons["n_jets"] = n_jets
 
             # Adding a 'generation' field to electrons and muons
-            sel_electrons['generation'] = ak.ones_like(sel_electrons.pt)
-            sel_muons['generation'] = 2 * ak.ones_like(sel_muons.pt)
+            electrons['generation'] = ak.ones_like(electrons.pt)
+            muons['generation'] = 2 * ak.ones_like(muons.pt)
 
             # Combine electrons and muons into a single leptons collection
-            leptons = ak.concatenate([sel_electrons, sel_muons], axis=1)
+            leptons = ak.concatenate([electrons, muons], axis=1)
             leptons = ak.with_name(leptons, "PtEtaPhiMCandidate")
-
-            # Sort leptons by pt in descending order
             leptons = leptons[ak.argsort(leptons.pt, ascending=False)]
 
             n_leptons = ak.num(leptons)
