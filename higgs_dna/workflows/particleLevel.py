@@ -168,6 +168,8 @@ class ParticleLevelProcessor(HggBaseProcessor):
         selection_mask = numpy.ones(len(diphotons), dtype=bool)
         # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
         event_weights = Weights(size=len(events[selection_mask]))
+        # set weights to generator weights
+        event_weights._weight = events["genWeight"][selection_mask]
         # corrections to event weights:
         for correction_name in correction_names:
             if correction_name in available_weight_corrections:
@@ -186,14 +188,7 @@ class ParticleLevelProcessor(HggBaseProcessor):
                     dataset_name=dataset_name,
                     year=self.year[dataset_name][0],
                 )
-        diphotons["weight_central"] = event_weights.weight()  # Here, if diphotons none, then also the weight is None.
-        # That is why this should be treated consistently before and filled or so
-
-        # Multiply weight by genWeight for normalisation in post-processing chain
-        event_weights._weight = (
-            events["genWeight"][selection_mask]
-            * diphotons["weight_central"]
-        )
+        diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]  # Here, if diphotons none, then also the weight is None.
         diphotons["weight"] = event_weights.weight()
 
         if self.output_location is not None:

@@ -125,13 +125,13 @@ def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="Ge
             condition = condition & (np.abs(dataset[selectionVariableName]) >= range_min) & (np.abs(dataset[selectionVariableName]) < range_max)
         else:
             condition = condition & (dataset[selectionVariableName] >= range_min) & (dataset[selectionVariableName] < range_max)
-        
+
         if additionalConditions != "":
             tuple_list = extract_tuples(additionalConditions)
             for additionalCondition in tuple_list:
                 condition = condition & extract_filter(dataset, additionalCondition)
         dataset[diffVariableName] = awkward.where(condition, diffId, dataset_arr[diffVariableName])
-    
+
     return dataset
 
 if (
@@ -202,7 +202,7 @@ for i, source_path in enumerate(source_paths):
             del dataset
             dataset_arr = awkward.from_parquet(target_paths[i] + cat + "_merged.parquet")
             # Add filtering for differentials here
-            
+
             if gen_binning != None:
                 for keys in gen_binning:
                     var_dict = {ast.literal_eval(key): value for key, value in gen_binning[keys].items()}
@@ -210,7 +210,11 @@ for i, source_path in enumerate(source_paths):
 
             # Add column for unnormalised weight
             dataset_arr['weight_nominal'] = dataset_arr['weight']
-            dataset_arr['weight'] = dataset_arr['weight'] / sum_genw_beforesel_arr[i]
+            # normalise nominal and systematics weights by sum of gen weights before selection
+            syst_weight_fields = [field for field in dataset_arr.fields if (("weight_" in field) and ("Up" in field or "Down" in field))]
+            for weight_field in ["weight"] + syst_weight_fields:
+                dataset_arr[weight_field] = dataset_arr[weight_field] / sum_genw_beforesel_arr[i]
+
             awkward.to_parquet(dataset_arr, target_paths[i] + cat + "_merged.parquet")
             logger.info(
                 "Successfully added normalised weight column to dataset"

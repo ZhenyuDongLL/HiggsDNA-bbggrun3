@@ -586,7 +586,8 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                 diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
                 diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
 
-                diphotons['PTH'], diphotons['YH'] = get_higgs_gen_attributes(events)
+                GenPTH, GenYH, GenPhiH = get_higgs_gen_attributes(events)
+                GenPTH = awkward.fill_none(GenPTH, -999.0)
 
             diphotons = awkward.firsts(diphotons)
             diphotons["n_dipho_cand"] = dipho_num
@@ -959,6 +960,8 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             if self.data_kind == "mc":
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
                 event_weights = Weights(size=len(dipho_events[selection_mask]))
+                # set weights to generator weights
+                event_weights._weight = events["genWeight"][selection_mask]
 
                 # corrections to event weights:
                 for correction_name in correction_names:
@@ -1029,7 +1032,8 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                                     year=self.year[dataset_name][0],
                                 )
 
-                diphotons["weight_central"] = event_weights.weight()
+                diphotons["weight"] = event_weights.weight()
+                diphotons["weight_central"] = event_weights.weight() / dipho_events[selection_mask].genWeight
                 diphotons["genWeight"] = dipho_events[selection_mask].genWeight
 
                 # Store variations with respect to central weight
@@ -1042,13 +1046,6 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                         diphotons["weight_" + modifier] = event_weights.weight(
                             modifier=modifier
                         )
-
-                # Multiply weight by genWeight for normalisation in post-processing chain
-                event_weights._weight = (
-                    dipho_events["genWeight"][selection_mask]
-                    * diphotons["weight_central"]
-                )
-                diphotons["weight"] = event_weights.weight()
 
             # Add weight variables (=1) for data for consistent datasets
             else:

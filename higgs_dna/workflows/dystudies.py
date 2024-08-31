@@ -318,6 +318,7 @@ class TagAndProbeProcessor(HggBaseProcessor):
             if self.data_kind == "mc":
 
                 event_weights = Weights(size=len(events[flat_tag_and_probe_mask]))
+                event_weights._weight = numpy.array(events[flat_tag_and_probe_mask].genWeight)
 
                 # corrections to event weights:
                 for correction_name in correction_names:
@@ -379,9 +380,11 @@ class TagAndProbeProcessor(HggBaseProcessor):
                             ) * n_event_tnp_cand)
 
                     # storing the central weights
-                    df["weight_central"] = numpy.hstack(event_weights.weight() * n_event_tnp_cand)
+                    df["weight_central"] = numpy.hstack(
+                        (event_weights.weight() / numpy.array(events[flat_tag_and_probe_mask].genWeight)) * n_event_tnp_cand
+                    )
                     # generated weights * other weights (pile up, SF, etc ...)
-                    df["weight"] = df["tag_weight"] * numpy.hstack(event_weights.weight() * n_event_tnp_cand)
+                    df["weight"] = numpy.hstack(event_weights.weight() * n_event_tnp_cand)
                     df["weight_no_pu"] = df["tag_weight"]
 
                     # dropping the nominal and varitation weights

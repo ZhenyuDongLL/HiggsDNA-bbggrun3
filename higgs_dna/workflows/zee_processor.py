@@ -526,6 +526,8 @@ class ZeeProcessor(HggBaseProcessor):
             if self.data_kind == "mc":
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
                 event_weights = Weights(size=len(events[selection_mask]))
+                # set weights to generator weights
+                event_weights._weight = events["genWeight"][selection_mask]
 
                 # corrections to event weights:
                 for correction_name in correction_names:
@@ -546,7 +548,8 @@ class ZeeProcessor(HggBaseProcessor):
                             year=self.year[dataset_name][0],
                         )
 
-                diphotons["weight_central"] = event_weights.weight()
+                diphotons["weight"] = event_weights.weight()
+                diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
                     if len(event_weights.variations):
@@ -557,13 +560,6 @@ class ZeeProcessor(HggBaseProcessor):
                         diphotons["weight_" + modifier] = event_weights.weight(
                             modifier=modifier
                         )
-
-                # Multiply weight by genWeight for normalisation in post-processing chain
-                event_weights._weight = (
-                    events["genWeight"][selection_mask]
-                    * diphotons["weight_central"]
-                )
-                diphotons["weight"] = event_weights.weight()
 
             # Add weight variables (=1) for data for consistent datasets
             else:
