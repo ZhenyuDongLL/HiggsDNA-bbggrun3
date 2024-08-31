@@ -457,6 +457,8 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             if self.data_kind == "mc":
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
                 event_weights = Weights(size=len(events[selection_mask]),storeIndividual=True)
+                # set weights to generator weights
+                event_weights._weight = ak.to_numpy(events["genWeight"][selection_mask])
 
                 # corrections to event weights:
                 for correction_name in correction_names:
@@ -480,6 +482,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     ak.sum(event_weights.partial_weight(exclude=["bTagSF"]))
                 )
                 diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
+
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
                     for systematic_name in systematic_names:
@@ -533,9 +536,10 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                                     year=self.year[dataset_name][0],
                                 )
 
-                diphotons["weight_central"] = event_weights.weight()
+                diphotons["weight"] = event_weights.weight()
+                diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]
                 metadata["sum_weight_central"] = str(
-                    ak.sum(event_weights.weight())
+                    ak.sum(diphotons["weight_central"])
                 )
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
@@ -551,13 +555,6 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                             metadata["sum_weight_" + modifier] = str(
                                 ak.sum(event_weights.weight(modifier=modifier))
                             )
-
-                # Multiply weight by genWeight for normalisation in post-processing chain
-                event_weights._weight = (
-                    events["genWeight"][selection_mask]
-                    * diphotons["weight_central"]
-                )
-                diphotons["weight"] = event_weights.weight()
 
                 if ak.num(events.LHEReweightingWeight)[0] > 0:
                     diphotons["LHEReweightingWeight"] = events.LHEReweightingWeight[selection_mask]

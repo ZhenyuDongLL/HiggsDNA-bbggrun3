@@ -441,7 +441,7 @@ class ZmmyProcessor(HggBaseProcessor):
             # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
             event_weights = Weights(size=len(events))
             # _weight will correspond to the product of genWeight and the scale factors
-            event_weights._weight = ak.ones_like(events.event)
+            event_weights._weight = events["genWeight"]
 
             # corrections to event weights:
             for correction_name in correction_names:
@@ -457,7 +457,8 @@ class ZmmyProcessor(HggBaseProcessor):
                         logger=logger,
                         year=self.year[dataset][0],
                     )
-            ntuple["weight_central"] = event_weights.weight()
+            ntuple["weight"] = event_weights.weight()
+            ntuple["weight_central"] = event_weights.weight() / events["genWeight"]
 
             # systematic variations of event weights go to nominal output dataframe:
             for systematic_name in systematic_names:
