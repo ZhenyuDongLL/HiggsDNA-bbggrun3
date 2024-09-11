@@ -20,7 +20,7 @@ parser.add_argument(
     dest="target",
     help="Choose the target to download (default: %(default)s)",
     default="GoldenJson",
-    choices=["GoldenJSON", "cTag", "bTag", "PhotonID", "PU", "SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva","LowMass-DiPhotonMVA"],
+    choices=["GoldenJSON", "cTag", "bTag", "PhotonID", "PU", "SS","Et_SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva","LowMass-DiPhotonMVA"],
 )
 
 parser.add_argument(
@@ -610,6 +610,40 @@ def get_scale_and_smearing(logger, target_dir):
 
 
 
+def get_Et_dependent_scale_and_smearing(logger, target_dir):
+    # see https://twiki.cern.ch/twiki/bin/viewauth/CMS/EgammSFandSSRun3#Scale_And_Smearings_Correctionli for Run 3
+    # see https://cms-talk.web.cern.ch/t/pnoton-energy-corrections-in-nanoaod-v11/34327/2 for Run 2, jsons are from https://github.com/cms-egamma/ScaleFactorsJSON/tree/master
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            os.path.dirname(__file__), "../higgs_dna/systematics/JSONs/scaleAndSmearing"
+        )
+
+    from_to_dict = {
+        "2022preEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SAS_HIG-23-014_paper/HggScalesSmearing_2022preEE.v1.json.gz",
+            "to": f"{to_prefix}/HggScalesSmearing_2022preEE.v1.json.gz",
+        },
+        "2022postEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SAS_HIG-23-014_paper/HggScalesSmearing_2022postEE.v1.json.gz",
+            "to": f"{to_prefix}/HggScalesSmearing_2022postEE.v1.json.gz",
+        },
+    }
+    fetch_file("Scale and Smearing", logger, from_to_dict, type="copy")
+
+    unzip_gz_with_zcat(
+        logger,
+        f"{to_prefix}/HggScalesSmearing_2022preEE.v1.json.gz",
+        f"{to_prefix}/HggScalesSmearing_2022preEE.v1.json",
+    )
+
+    unzip_gz_with_zcat(
+        logger,
+        f"{to_prefix}/HggScalesSmearing_2022postEE.v1.json.gz",
+        f"{to_prefix}/HggScalesSmearing_2022postEE.v1.json",
+    )
+
 def get_mass_decorrelation_CDF(logger, target_dir):
     if target_dir is not None:
         to_prefix = target_dir
@@ -844,6 +878,7 @@ if __name__ == "__main__":
         get_goldenjson(logger, args.target_dir)
         get_pileup(logger, args.target_dir)
         get_scale_and_smearing(logger, args.target_dir)
+        get_Et_dependent_scale_and_smearing(logger, args.target_dir)
         get_mass_decorrelation_CDF(logger, args.target_dir)
         get_Flow_files(logger, args.target_dir)
         get_ctag_json(logger, args.target_dir)
@@ -866,6 +901,8 @@ if __name__ == "__main__":
         get_pileup(logger, args.target_dir)
     elif args.target == "SS":
         get_scale_and_smearing(logger, args.target_dir)
+    elif args.target == "Et_SS":
+        get_Et_dependent_scale_and_smearing(logger, args.target_dir)
     elif args.target == "CDFs":
         get_mass_decorrelation_CDF(logger, args.target_dir)
     elif args.target == "Flows":
