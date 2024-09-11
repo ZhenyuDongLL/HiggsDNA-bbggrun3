@@ -331,14 +331,14 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         except KeyError:
             systematic_names = []
 
-        # If --Smear_sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt scpectrum need to be smeared in order to properly calculate the smeared sigma_m_m
+        # If --Smear_sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt spectrum need to be smeared in order to properly calculate the smeared sigma_m_m
         if (
             self.data_kind == "mc"
             and self.Smear_sigma_m
-            and "Smearing" not in correction_names
+            and ("Smearing" not in correction_names and "Et_dependent_Smearing" not in correction_names)
         ):
             warnings.warn(
-                "Smearing should be specified in the corrections field in .json in order to smear the mass!"
+                "Smearing or Et_dependent_Smearing should be specified in the corrections field in .json in order to smear the mass!"
             )
             sys.exit(0)
 
@@ -348,7 +348,10 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
             correction_name = "Smearing"
 
             logger.info(
-                f"\nApplying correction {correction_name} to dataset {dataset_name}\n"
+                f"""
+                \nApplying correction {correction_name} to dataset {dataset_name}\n
+                This is only for the addition of the smearing term to the sigma_m_over_m in data\n
+                """
             )
             varying_function = available_object_corrections[correction_name]
             events = varying_function(events=events, year=self.year[dataset_name][0])

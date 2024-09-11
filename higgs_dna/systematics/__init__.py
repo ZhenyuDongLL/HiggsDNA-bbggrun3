@@ -1,8 +1,10 @@
 from .photon_systematics import (
     photon_pt_scale_dummy,
     Scale,
+    Et_dependent_Scale,
     Smearing,
     energyErrShift,
+    Et_dependent_Smearing,
     FNUF,
     ShowerShape,
     Material,
@@ -55,6 +57,32 @@ object_systematics = {
             "varying_function": partial(Scale, is_correction=False),
         },
     },
+    "Et_dependent_Scale": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Et_dependent_Scale, is_correction=False),
+        },
+    },
+    # in case ET_dependent scale uncertainties should only be applied on barrel photons
+    "Et_dependent_ScaleEB": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Et_dependent_Scale, is_correction=False, restriction="EB"),
+        },
+    },
+    # in case ET_dependent scale uncertainties should only be applied on endcap photons
+    "Et_dependent_ScaleEE": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Et_dependent_Scale, is_correction=False, restriction="EE"),
+        },
+    },
     "Electron_Scale": {
         "object": "Electron",
         "args": {
@@ -87,6 +115,14 @@ object_systematics = {
             "kind": "UpDownSystematic",
             "what": "pt",
             "varying_function": partial(Smearing, is_correction=False),
+        },
+    },
+    "Et_dependent_Smearing": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Et_dependent_Smearing, is_correction=False),
         },
     },
     "Electron_Smearing": {
@@ -159,6 +195,8 @@ object_systematics = {
 # dict containing "name": varying_function
 object_corrections = {
     "Scale": partial(Scale, pt=None, is_correction=True),
+    "Et_dependent_Scale": partial(Et_dependent_Scale, pt=None, is_correction=True),
+    "Et_dependent_Smearing": partial(Et_dependent_Smearing, pt=None, is_correction=True),
     "Electron_Scale": partial(Electron_Scale, pt=None, is_correction=True),
     "Smearing": partial(Smearing, pt=None, is_correction=True),
     "Electron_Smearing": partial(Electron_Smearing, pt=None, is_correction=True),
