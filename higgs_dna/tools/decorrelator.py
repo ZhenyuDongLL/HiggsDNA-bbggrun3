@@ -90,7 +90,7 @@ class decorrelator(object):
     def findGb(self):
 
         self.df['{}_bin'.format(self.dvar)] = pd.cut(self.df[self.dvar].values, bins=self.bins, labels=[str(x) for x in self.xc])
-        self.gb = self.df.groupby('{}_bin'.format(self.dvar))
+        self.gb = self.df.groupby('{}_bin'.format(self.dvar), observed=False)
 
     def doDecorr(self, ref):
 
