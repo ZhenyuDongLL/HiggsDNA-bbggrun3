@@ -98,6 +98,8 @@ if __name__ == "__main__":
         for i, line in enumerate(fp.readlines()):
             if line.strip().startswith("#"):
                 continue
+            if line.strip() == "":
+                continue
             fset.append(tuple(line.strip().split()))
             if len(fset[-1]) != 2:
                 raise Exception(
