@@ -4,6 +4,7 @@ channels:
   - pytorch
 dependencies:
   - python>=3.6
+  - setuptools<71
   - ipython
   - coffea<2023
   - correctionlib<=2.5.0
