@@ -73,7 +73,7 @@ def photon_preselection(
                     photons.pfPhoIso03
                     - (rho * self.EA1_EE1)
                     - (rho * rho * self.EA2_EE1)
-                    < self.max_pho_iso_EB_low_r9
+                    < self.max_pho_iso_EE_low_r9
                 )
             )
             | (
@@ -82,7 +82,7 @@ def photon_preselection(
                     photons.pfPhoIso03
                     - (rho * self.EA1_EE2)
                     - (rho * rho * self.EA2_EE2)
-                    < self.max_pho_iso_EB_low_r9
+                    < self.max_pho_iso_EE_low_r9
                 )
             )
             | (
@@ -91,7 +91,7 @@ def photon_preselection(
                     photons.pfPhoIso03
                     - (rho * self.EA1_EE3)
                     - (rho * rho * self.EA2_EE3)
-                    < self.max_pho_iso_EB_low_r9
+                    < self.max_pho_iso_EE_low_r9
                 )
             )
             | (
@@ -100,7 +100,7 @@ def photon_preselection(
                     photons.pfPhoIso03
                     - (rho * self.EA1_EE4)
                     - (rho * rho * self.EA2_EE4)
-                    < self.max_pho_iso_EB_low_r9
+                    < self.max_pho_iso_EE_low_r9
                 )
             )
             | (
@@ -109,7 +109,7 @@ def photon_preselection(
                     photons.pfPhoIso03
                     - (rho * self.EA1_EE5)
                     - (rho * rho * self.EA2_EE5)
-                    < self.max_pho_iso_EB_low_r9
+                    < self.max_pho_iso_EE_low_r9
                 )
             )
         )
