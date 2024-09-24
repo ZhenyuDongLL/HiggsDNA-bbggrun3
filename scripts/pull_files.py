@@ -446,10 +446,6 @@ def get_btag_json(logger, target_dir):
             "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2018_UL/btagging.json.gz",
             "to": f"{to_prefix}/2018_UL/btagging.json.gz",
         },
-        "2018": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2018_UL/btagging.json.gz",
-            "to": f"{to_prefix}/2018_UL/btagging.json.gz",
-        },
         "2022preEE": {
             "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2022_Summer22/btagging.json.gz",
             "to": f"{to_prefix}/2022_Summer22/btagging.json.gz",
