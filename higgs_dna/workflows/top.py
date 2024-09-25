@@ -407,8 +407,11 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             muons = muons[ak.argsort(muons.pt, ascending=False)]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
 
-            # adding selected jets to events to be used in ctagging SF calculation
+            # adding selected jets, electrons and muons of the specific variation to events to be used in SF calculations
             events["sel_jets"] = jets
+            events["sel_muons"] = muons
+            events["sel_electrons"] = electrons
+
             n_jets = ak.num(jets)
             diphotons["JetHT"] = ak.sum(jets.pt,axis=1)
 
@@ -494,9 +497,10 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                         ]
                         event_weights = varying_function(
                             events=events[selection_mask],
-                            photons=events[f"diphotons_{do_variation}"][
-                                selection_mask
-                            ],
+                            photons=events[f"diphotons_{do_variation}"][selection_mask],
+                            # adding muons and electrons because I don't want to introduce a naming obligation like e.g. "sel_muons" in the syst functions
+                            muons=events["sel_muons"][selection_mask],
+                            electrons=events["sel_electrons"][selection_mask],
                             weights=event_weights,
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
@@ -551,9 +555,10 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                                 ]
                                 event_weights = varying_function(
                                     events=events[selection_mask],
-                                    photons=events[f"diphotons_{do_variation}"][
-                                        selection_mask
-                                    ],
+                                    photons=events[f"diphotons_{do_variation}"][selection_mask],
+                                    # adding muons and electrons because I don't want to introduce a naming obligation like e.g. "sel_muons" in the syst functions
+                                    muons=events["sel_muons"][selection_mask],
+                                    electrons=events["sel_electrons"][selection_mask],
                                     weights=event_weights,
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],
