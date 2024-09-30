@@ -179,9 +179,13 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
             os.path.dirname(__file__),
             "../systematics/JSONs/POG/JME/2022_Summer22EE/jetvetomaps.json.gz",
         ),
-        "2023": os.path.join(
+        "2023preBPix": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2022_Prompt/jetvetomaps.json.gz",
+            "../systematics/JSONs/POG/JME/2023_Summer23/jetvetomaps.json.gz",
+        ),
+        "2023postBPix": os.path.join(
+            os.path.dirname(__file__),
+            "../systematics/JSONs/POG/JME/2023_Summer23BPix/jetvetomaps.json.gz",
         ),
     }
     key_map = {
@@ -191,7 +195,8 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
         "2018": "Summer19UL18_V1",
         "2022preEE": "Summer22_23Sep2023_RunCD_V1",
         "2022postEE": "Summer22EE_23Sep2023_RunEFG_V1",
-        "2023": "Winter22Run3_RunCD_V1",
+        "2023preBPix": "Summer23Prompt23_RunC_V1",
+        "2023postBPix": "Summer23BPixPrompt23_RunD_V1",
     }
 
     logger.debug(
