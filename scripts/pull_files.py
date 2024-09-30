@@ -780,6 +780,20 @@ def get_jetmet_json(logger, target_dir):
                 "../higgs_dna/systematics/JSONs/POG/JME/2022_Summer22EE",
             ),
         },
+        "2023_Summer23": {
+            "from": os.path.join(base_path, "2023_Summer23"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2023_Summer23",
+            ),
+        },
+        "2023_Summer23BPix": {
+            "from": os.path.join(base_path, "2023_Summer23BPix"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2023_Summer23BPix",
+            ),
+        },
     }
 
     fetch_file("JetMET", logger, from_to_dict, type="copy")
