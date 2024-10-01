@@ -707,11 +707,22 @@ def PartonShower(photons, events, weights, dataset_name, **kwargs):
     return weights
 
 
-def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
+def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", **kwargs):
     avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
         print(f"\n WARNING: only scale corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
+
+    if (ShapeSF_name in ["particleNet_shape", "robustParticleTransformer_shape"]) and (year in ["2016preVFP", "2016postVFP", "2017", "2018"]):
+        print(f"\n WARNING: The ShapeSF {ShapeSF_name} is not available for the year {year}. \n Exiting. \n")
+        exit()
+
+    ShapeSF_name_to_discriminant = {
+        "deepJet_shape": "btagDeepFlavB",
+        "particleNet_shape": "btagPNetB",
+        "robustParticleTransformer_shape": "btagRobustParTAK4B"
+    }
+
     btag_systematics = [
         "lf",
         "hf",
@@ -729,56 +740,56 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
             "file": os.path.join(
                 inputFilePath , "2016preVFP_UL/btagging.json.gz"
             ),
-            "method": "deepJet_shape",
+            "method": ShapeSF_name,
             "systs": btag_systematics,
         },
         "2016postVFP": {
             "file": os.path.join(
                 inputFilePath , "2016postVFP_UL/btagging.json.gz"
             ),
-            "method": "deepJet_shape",
+            "method": ShapeSF_name,
             "systs": btag_systematics,
         },
         "2017": {
             "file": os.path.join(
                 inputFilePath , "2017_UL/btagging.json.gz"
             ),
-            "method": "deepJet_shape",
+            "method": ShapeSF_name,
             "systs": btag_systematics,
         },
         "2018": {
             "file": os.path.join(
                 inputFilePath , "2018_UL/btagging.json.gz"
             ),
-            "method": "deepJet_shape",
+            "method": ShapeSF_name,
             "systs": btag_systematics,
         },
         "2022preEE":{
             "file": os.path.join(
                 inputFilePath , "2022_Summer22/btagging.json.gz"
             ),
-            "method": "deepJet_shape",
+            "method": ShapeSF_name,
             "systs": btag_systematics,
         },
         "2022postEE":{
             "file": os.path.join(
                 inputFilePath , "2022_Summer22EE/btagging.json.gz"
             ),
-            "method": "deepJet_shape",
+            "method": ShapeSF_name,
             "systs": btag_systematics,
         },
         "2023preBPix":{
             "file": os.path.join(
                 inputFilePath , "2023_Summer23/btagging.json.gz"
             ),
-            "method": "deepJet_shape",
+            "method": ShapeSF_name,
             "systs": btag_systematics,
         },
         "2023postBPix":{
             "file": os.path.join(
                 inputFilePath , "2023_Summer23BPix/btagging.json.gz"
             ),
-            "method": "deepJet_shape",
+            "method": ShapeSF_name,
             "systs": btag_systematics,
         },
     }
@@ -791,20 +802,25 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
 
     dummy_sf = ak.ones_like(events["event"])
 
+    # Removing jets with eta beyond 2.5 and has negative discriminant score. (No bining exist in input JSON file for such jets)
     relevant_jets = events["sel_jets"][
-        np.abs(events["sel_jets"].eta) < 2.5
+        (np.abs(events["sel_jets"].eta) < 2.5)
+        & (events["sel_jets"][ShapeSF_name_to_discriminant[ShapeSF_name]] >= 0)
     ]
+
     # only calculate correction to nominal weight
     # we will evaluate the scale factors relative to all jets to be multiplied
     jet_pt = relevant_jets.pt
     jet_eta = np.abs(relevant_jets.eta)
     jet_hFlav = relevant_jets.hFlav
-    jet_btagDeepFlavB = relevant_jets.btagDeepFlavB
+    jet_discriminant = relevant_jets[
+        ShapeSF_name_to_discriminant[ShapeSF_name]
+    ]
 
     # Convert the jets in one dimension array and store the orignal structure of the ak array in counts
     flat_jet_pt = ak.flatten(jet_pt)
     flat_jet_eta = ak.flatten(jet_eta)
-    flat_jet_btagDeepFlavB = ak.flatten(jet_btagDeepFlavB)
+    flat_jet_discriminant = ak.flatten(jet_discriminant)
     flat_jet_hFlav = ak.flatten(jet_hFlav)
 
     counts = ak.num(jet_hFlav)
@@ -821,12 +837,12 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
                 flat_jet_hFlav,
                 flat_jet_eta,
                 flat_jet_pt,
-                flat_jet_btagDeepFlavB,
+                flat_jet_discriminant,
             ),
             counts
         )
         # Multiply the scale factore of all jets in a even
-        sf = ak.prod(_sf,axis=1)
+        sf = ak.prod(_sf, axis=1)
 
         sfs_up = [None for _ in btag_systematics]
         sfs_down = [None for _ in btag_systematics]
@@ -841,7 +857,7 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
             flat_jet_hFlav,
             flat_jet_eta,
             flat_jet_pt,
-            flat_jet_btagDeepFlavB,
+            flat_jet_discriminant,
         )
         # Multiply the scale factore of all jets in a even
 
@@ -854,9 +870,9 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
         variations = {}
 
         # Define a condiation based the jet flavour because the json file are defined for the 4(c),5(b),0(lf) flavour jets
-        flavour_condition = np.logical_or(jet_hFlav < 4,jet_hFlav > 5)
+        flavour_condition = np.logical_or(jet_hFlav < 4, jet_hFlav > 5)
         # Replace the flavour to 0 (lf) if the jet flavour is neither 4 nor 5
-        jet_hFlav_JSONrestricted = ak.where(flavour_condition, 0 ,jet_hFlav)
+        jet_hFlav_JSONrestricted = ak.where(flavour_condition, 0, jet_hFlav)
         flat_jet_hFlav_JSONrestricted = ak.flatten(jet_hFlav_JSONrestricted)
         # We need a dmmy sf array set to one to multiply for flavour dependent systentic variation
         flat_dummy_sf = ak.ones_like(flat_jet_hFlav_JSONrestricted)
@@ -878,7 +894,7 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
                     flat_jet_hFlavC_JSONrestricted,
                     flat_jet_eta,
                     flat_jet_pt,
-                    flat_jet_btagDeepFlavB,
+                    flat_jet_discriminant,
                 )
 
                 _Csfdown = evaluator.evaluate(
@@ -886,7 +902,7 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
                     flat_jet_hFlavC_JSONrestricted,
                     flat_jet_eta,
                     flat_jet_pt,
-                    flat_jet_btagDeepFlavB,
+                    flat_jet_discriminant,
                 )
                 _Csfup = ak.where(
                     cjet_masks,
@@ -904,20 +920,20 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
                     _sf_central,
                     flat_dummy_sf,
                 )
-                _sfup = ak.unflatten(np.multiply(_sfcentral_Masked_notC,_Csfup),counts)
-                _sfdown = ak.unflatten(np.multiply(_sfcentral_Masked_notC,_Csfdown),counts)
+                _sfup = ak.unflatten(np.multiply(_sfcentral_Masked_notC, _Csfup), counts)
+                _sfdown = ak.unflatten(np.multiply(_sfcentral_Masked_notC, _Csfdown), counts)
             else:
                 # We to remember which jet is correspond to c(hadron flv 4) jets
                 cjet_masks = flat_jet_hFlav_JSONrestricted == 4
 
-                flat_jet_hFlavNonC_JSONrestricted = ak.where(cjet_masks, 0 ,flat_jet_hFlav_JSONrestricted)
+                flat_jet_hFlavNonC_JSONrestricted = ak.where(cjet_masks, 0, flat_jet_hFlav_JSONrestricted)
 
                 _NonCsfup = evaluator.evaluate(
                     "up_" + syst_name,
                     flat_jet_hFlavNonC_JSONrestricted,
                     flat_jet_eta,
                     flat_jet_pt,
-                    flat_jet_btagDeepFlavB,
+                    flat_jet_discriminant,
                 )
 
                 _NonCsfdown = evaluator.evaluate(
@@ -925,7 +941,7 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
                     flat_jet_hFlavNonC_JSONrestricted,
                     flat_jet_eta,
                     flat_jet_pt,
-                    flat_jet_btagDeepFlavB,
+                    flat_jet_discriminant,
                 )
 
                 _NonCsfup = ak.where(
@@ -944,11 +960,11 @@ def bTagShapeSF(events, weights, is_correction=True, year="2017", **kwargs):
                     _sf_central,
                     flat_dummy_sf,
                 )
-                _sfup = ak.unflatten(np.multiply(_sfcentral_Masked_C,_NonCsfup),counts)
-                _sfdown = ak.unflatten(np.multiply(_sfcentral_Masked_C,_NonCsfdown),counts)
+                _sfup = ak.unflatten(np.multiply(_sfcentral_Masked_C, _NonCsfup), counts)
+                _sfdown = ak.unflatten(np.multiply(_sfcentral_Masked_C, _NonCsfdown), counts)
 
-            sf_up = ak.prod(_sfup,axis=1)
-            sf_down = ak.prod(_sfdown,axis=1)
+            sf_up = ak.prod(_sfup, axis=1)
+            sf_down = ak.prod(_sfdown, axis=1)
             variations[syst_name]["up"] = sf_up
             variations[syst_name]["down"] = sf_down
         # coffea weights.add_multivariation() wants a list of arrays for the multiple up and down variations
