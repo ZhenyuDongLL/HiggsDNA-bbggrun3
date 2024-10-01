@@ -167,6 +167,14 @@ def jerc_jet(
             os.path.dirname(__file__),
             "../systematics/JSONs/POG/JME/2022_Summer22EE/jet_jerc.json.gz",
         ),
+        "2023preBPix": os.path.join(
+            os.path.dirname(__file__),
+            "../systematics/JSONs/POG/JME/2023_Summer23/jet_jerc.json.gz",
+        ),
+        "2023postBPix": os.path.join(
+            os.path.dirname(__file__),
+            "../systematics/JSONs/POG/JME/2023_Summer23BPix/jet_jerc.json.gz",
+        ),
     }
     jec_version = {
         "2016preVFP": {
@@ -208,6 +216,14 @@ def jerc_jet(
             "RunF": "Summer22EE_22Sep2023_RunF_V2_DATA",
             "RunG": "Summer22EE_22Sep2023_RunG_V2_DATA",
             "MC": "Summer22EE_22Sep2023_V2_MC",
+        },
+        "2023preBPix": {
+            "RunC": "Summer23Prompt23_RunCv123_V1_DATA",
+            "MC": "Summer23Prompt23_V1_MC",
+        },
+        "2023postBPix": {
+            "RunD": "Summer23BPixPrompt23_RunD_V1_DATA",
+            "MC": "Summer23BPixPrompt23_V1_MC",
         },
     }
     jec = jec_version[year][era]
@@ -253,6 +269,7 @@ def jerc_jet(
     eval_dict = {
         "JetPt": jets.pt_raw,
         "JetEta": jets.eta,
+        "JetPhi": jets.phi,
         "Rho": jets.rho_value,
         "JetA": jets.area,
     }
@@ -269,7 +286,6 @@ def jerc_jet(
                 f"[ jerc_jet ] No JEC correction: {tag_jec} - Year: {year} - Era: {era} - Level: {level}"
             )
             exit(-1)
-
         inputs = [eval_dict[input.name] for input in sf.inputs]
         sf_value = sf.evaluate(*inputs)
         jets["pt_jec"] = sf_value * jets["pt_raw"]
@@ -288,6 +304,8 @@ def jerc_jet(
             "2018": "Summer19UL18_JRV2_MC",
             "2022preEE": "Summer22_22Sep2023_JRV1_MC",
             "2022postEE": "Summer22EE_22Sep2023_JRV1_MC",
+            "2023preBPix": "Summer23Prompt23_RunCv1234_JRV1_MC",
+            "2023postBPix": "Summer23BPixPrompt23_RunD_JRV1_MC",
         }
         jer = jer_version[year]
         jer_ptres_tag = f"{jer}_PtResolution_{algo}"
@@ -461,6 +479,66 @@ def jerc_jet(
                     "jec_syst_Total": "Total",
                 },
                 "2022postEE": {
+                    "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
+                    "jec_syst_AbsoluteScale": "AbsoluteScale",
+                    "jec_syst_AbsoluteStat": "AbsoluteStat",
+                    "jec_syst_FlavorQCD": "FlavorQCD",
+                    "jec_syst_Fragmentation": "Fragmentation",
+                    "jec_syst_PileUpDataMC": "PileUpDataMC",
+                    "jec_syst_PileUpPtBB": "PileUpPtBB",
+                    "jec_syst_PileUpPtEC1": "PileUpPtEC1",
+                    "jec_syst_PileUpPtEC2": "PileUpPtEC2",
+                    "jec_syst_PileUpPtHF": "PileUpPtHF",
+                    "jec_syst_PileUpPtRef": "PileUpPtRef",
+                    "jec_syst_RelativeFSR": "RelativeFSR",
+                    "jec_syst_RelativeJEREC1": "RelativeJEREC1",
+                    "jec_syst_RelativeJEREC2": "RelativeJEREC2",
+                    "jec_syst_RelativeJERHF": "RelativeJERHF",
+                    "jec_syst_RelativePtBB": "RelativePtBB",
+                    "jec_syst_RelativePtEC1": "RelativePtEC1",
+                    "jec_syst_RelativePtEC2": "RelativePtEC2",
+                    "jec_syst_RelativePtHF": "RelativePtHF",
+                    "jec_syst_RelativeBal": "RelativeBal",
+                    "jec_syst_RelativeSample": "RelativeSample",
+                    "jec_syst_RelativeStatEC": "RelativeStatEC",
+                    "jec_syst_RelativeStatFSR": "RelativeStatFSR",
+                    "jec_syst_RelativeStatHF": "RelativeStatHF",
+                    "jec_syst_SinglePionECAL": "SinglePionECAL",
+                    "jec_syst_SinglePionHCAL": "SinglePionHCAL",
+                    "jec_syst_TimePtEta": "TimePtEta",
+                    "jec_syst_Total": "Total",
+                },
+                "2023preBPix": {
+                    "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
+                    "jec_syst_AbsoluteScale": "AbsoluteScale",
+                    "jec_syst_AbsoluteStat": "AbsoluteStat",
+                    "jec_syst_FlavorQCD": "FlavorQCD",
+                    "jec_syst_Fragmentation": "Fragmentation",
+                    "jec_syst_PileUpDataMC": "PileUpDataMC",
+                    "jec_syst_PileUpPtBB": "PileUpPtBB",
+                    "jec_syst_PileUpPtEC1": "PileUpPtEC1",
+                    "jec_syst_PileUpPtEC2": "PileUpPtEC2",
+                    "jec_syst_PileUpPtHF": "PileUpPtHF",
+                    "jec_syst_PileUpPtRef": "PileUpPtRef",
+                    "jec_syst_RelativeFSR": "RelativeFSR",
+                    "jec_syst_RelativeJEREC1": "RelativeJEREC1",
+                    "jec_syst_RelativeJEREC2": "RelativeJEREC2",
+                    "jec_syst_RelativeJERHF": "RelativeJERHF",
+                    "jec_syst_RelativePtBB": "RelativePtBB",
+                    "jec_syst_RelativePtEC1": "RelativePtEC1",
+                    "jec_syst_RelativePtEC2": "RelativePtEC2",
+                    "jec_syst_RelativePtHF": "RelativePtHF",
+                    "jec_syst_RelativeBal": "RelativeBal",
+                    "jec_syst_RelativeSample": "RelativeSample",
+                    "jec_syst_RelativeStatEC": "RelativeStatEC",
+                    "jec_syst_RelativeStatFSR": "RelativeStatFSR",
+                    "jec_syst_RelativeStatHF": "RelativeStatHF",
+                    "jec_syst_SinglePionECAL": "SinglePionECAL",
+                    "jec_syst_SinglePionHCAL": "SinglePionHCAL",
+                    "jec_syst_TimePtEta": "TimePtEta",
+                    "jec_syst_Total": "Total",
+                },
+                "2023postBPix": {
                     "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
                     "jec_syst_AbsoluteScale": "AbsoluteScale",
                     "jec_syst_AbsoluteStat": "AbsoluteStat",
