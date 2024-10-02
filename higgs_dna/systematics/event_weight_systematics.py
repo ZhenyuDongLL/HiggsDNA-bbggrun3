@@ -1294,3 +1294,62 @@ def Zpt(
         )
 
     return weights
+
+
+def muonSFs(muons, weights, year="2022preEE", SF_name="NUM_TightID_DEN_TrackerMuons", is_correction=True, **kwargs):
+    """
+    Applies muon scale-factors for ID or isolation and corresponding uncertainties.
+    """
+
+    # Run-2 SFs are also available, need to be added to pull_files and here if needed
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    if year not in avail_years:
+        print(f"\n WARNING: only muon corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        exit()
+
+    if year == "2022preEE":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2022_Summer22/muon_Z.json.gz")
+    elif year == "2022postEE":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2022_Summer22EE/muon_Z.json.gz")
+    if year == "2023preBPix":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2023_Summer23/muon_Z.json.gz")
+    elif year == "2023postBPix":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2023_Summer23BPix/muon_Z.json.gz")
+
+    evaluator = correctionlib.CorrectionSet.from_file(json_file)[SF_name]
+
+    # these SFs are for muons above 15 GeV only
+    pt_mask = muons.pt > 15.
+    counts = ak.num(muons.pt[pt_mask])
+
+    muon_pt_flattened = ak.flatten(muons.pt[pt_mask])
+    muon_abseta_flattened = ak.flatten(np.abs(muons.eta[pt_mask]))
+
+    _sf = evaluator.evaluate(muon_abseta_flattened, muon_pt_flattened, "nominal")
+    _sf = ak.unflatten(_sf, counts)
+    _sf = ak.prod(_sf, axis=1)
+
+    if is_correction:
+
+        sf = _sf
+
+        sfup, sfdown = None, None
+
+    else:
+
+        sf = np.ones(len(weights._weight))
+
+        _sf_up = evaluator.evaluate(muon_abseta_flattened, muon_pt_flattened, "systup")
+        _sf_up = ak.unflatten(_sf_up, counts)
+        _sf_up = ak.prod(_sf_up, axis=1)
+
+        _sf_down = evaluator.evaluate(muon_abseta_flattened, muon_pt_flattened, "systdown")
+        _sf_down = ak.unflatten(_sf_down, counts)
+        _sf_down = ak.prod(_sf_down, axis=1)
+
+        sfup = _sf_up / _sf
+        sfdown = _sf_down / _sf
+
+    weights.add(name=SF_name, weight=sf, weightUp=sfup, weightDown=sfdown)
+
+    return weights
