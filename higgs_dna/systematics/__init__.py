@@ -22,6 +22,7 @@ from .event_weight_systematics import (
     cTagSF,
     bTagShapeSF,
     Zpt,
+    muonSFs
 )
 from .jet_systematics import (
     jet_pt_scale_dummy,
@@ -233,6 +234,8 @@ weight_systematics = {
     "LHEScale": None,
     "LHEPdf": None,
     "Zpt": partial(Zpt),
+    "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_TightID_DEN_TrackerMuons", is_correction=False),
+    "MuonIsoTightSF_IdMedium": partial(muonSFs, SF_name="NUM_TightPFIso_DEN_MediumID", is_correction=False),
 }
 
 # functions correcting nominal event weights to be placed here
@@ -248,6 +251,8 @@ weight_corrections = {
     "bTagShapeSF": partial(bTagShapeSF, is_correction=True),
     "NNLOPS": partial(NNLOPS, is_correction=True),
     "Zpt": partial(Zpt, is_correction=True),
+    "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_TightID_DEN_TrackerMuons", is_correction=True),
+    "MuonIsoTightSF_IdMedium": partial(muonSFs, SF_name="NUM_TightPFIso_DEN_MediumID", is_correction=True),
 }
 
 
