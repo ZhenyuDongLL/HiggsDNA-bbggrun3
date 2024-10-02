@@ -6,6 +6,7 @@ from higgs_dna.systematics import weight_corrections as available_weight_correct
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import diphoton_list_to_pandas, dump_pandas
+from higgs_dna.utils.misc_utils import trigger_match, delta_r_with_ScEta
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.flow_corrections import calculate_flow_corrections
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
@@ -277,11 +278,32 @@ class TagAndProbeProcessor(HggBaseProcessor):
             pnt = ak.combinations(photons, 2, fields=["probe", "tag"])
             tnp_candidates = ak.concatenate([tnp, pnt], axis=1)
 
+            # add ScEta to the matched electrons of the tags
+            matched_electrons_tags = tnp_candidates.tag.matched_electron
+            matched_electrons_tags["ScEta"] = matched_electrons_tags.eta + matched_electrons_tags.deltaEtaSC
+
             # check that the e+/e- matched to tag and probe are not the same particle
             if self.data_kind == "mc":
                 tnp_candidates = tnp_candidates[
                     tnp_candidates.tag.genPartIdx != tnp_candidates.probe.genPartIdx
                 ]
+
+            # imply trigger threshold from year
+            year = self.year[dataset_name][0]
+            if "2016" in year:
+                trigger_pt = 27
+            elif "2017" in year or "2018" in year:
+                trigger_pt = 32
+            else:
+                trigger_pt = 30
+
+            # find out if we're running on EGMNano samples. If so, filterbit for Ele*_WPTight_Gsf is 12, otherwise 1
+            try:
+                eledoc = [x for x in events.TrigObj.filterBits.__doc__.split(";") if "for Electron" in x][0]
+            except IndexError:
+                eledoc = ""
+
+            filterbit = 12 if "1e WPTight L1T match" in eledoc else 1
 
             # tag selections
             tag_mask = (
@@ -294,6 +316,11 @@ class TagAndProbeProcessor(HggBaseProcessor):
                 & (
                     tnp_candidates.tag.pfChargedIsoPFPV / tnp_candidates.tag.pt < 0.3
                 )  # was: (tnp_candidates.tag.chargedHadronIso / tnp_candidates.tag.pt < 0.3)
+                & (
+                    trigger_match(
+                        matched_electrons_tags, events.TrigObj, pdgid=11, pt=trigger_pt, filterbit=filterbit, metric=delta_r_with_ScEta, dr=0.1
+                    )
+                )  # match tag with an HLT Ele30 object
             )
 
             # No selection on the probe to not bias it!
