@@ -152,14 +152,14 @@ class ZeeProcessor(HggBaseProcessor):
         except KeyError:
             systematic_names = []
 
-        # If --Smear_sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt scpectrum need to be smeared in order to properly calculate the smeared sigma_m_m
+        # If --Smear_sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt spectrum need to be smeared in order to properly calculate the smeared sigma_m_m
         if (
             self.data_kind == "mc"
             and self.Smear_sigma_m
-            and not ("Smearing" in correction_names)
+            and ("Smearing" not in correction_names and "Et_dependent_Smearing" not in correction_names)
         ):
             warnings.warn(
-                "Smearing should be specified in the corrections field in .json in order to smear the mass!"
+                "Smearing or Et_dependent_Smearing should be specified in the corrections field in .json in order to smear the mass!"
             )
             sys.exit(0)
 
@@ -180,8 +180,13 @@ class ZeeProcessor(HggBaseProcessor):
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
-            # Since we smear sigma_m also in data, we also need to take the smearing term
-            correction_name = "Smearing"
+            if "Smearing" in correction_names:
+                correction_name = "Smearing"
+            elif "Et_dependent_Smearing" in correction_names:
+                correction_name = "Et_dependent_Smearing"
+            else:
+                logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
+                sys.exit(0)
 
             logger.info(
                 f"\nApplying correction {correction_name} to dataset {dataset_name}\n"
@@ -569,7 +574,7 @@ class ZeeProcessor(HggBaseProcessor):
                 diphotons["weight"] = awkward.ones_like(diphotons["event"])
 
             # Compute and store the different variations of sigma_m_over_m
-            diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m)
+            diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m, IsData=(self.data_kind == "data"))
 
             if self.output_location is not None:
                 if self.output_format == "root":

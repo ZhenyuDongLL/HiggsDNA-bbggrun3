@@ -345,7 +345,13 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
-            correction_name = "Smearing"
+            if "Smearing" in correction_names:
+                correction_name = "Smearing"
+            elif "Et_dependent_Smearing" in correction_names:
+                correction_name = "Et_dependent_Smearing"
+            else:
+                logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
+                sys.exit(0)
 
             logger.info(
                 f"""
@@ -899,7 +905,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 diphotons["weight"] = awkward.ones_like(diphotons["event"])
 
             # Compute and store the different variations of sigma_m_over_m
-            diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m)
+            diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m, IsData=(self.data_kind == "data"))
 
             # Decorrelating the mass resolution - Still need to supress the decorrelator noises
             if self.doDeco:
