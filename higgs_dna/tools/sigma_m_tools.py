@@ -15,7 +15,7 @@ def sigma_m_smeared(leading_photon_energyErr, subleading_photon_energyErr, leadi
     return 0.5 * np.sqrt((np.sqrt((leading_photon_energyErr)**2 + (leading_photon_smearing_term * ((leading_photon_energy))) ** 2) / (leading_photon_energy)) ** 2 + (np.sqrt((subleading_photon_energyErr) ** 2 + (subleading_photon_smearing_term * ((subleading_photon_energy))) ** 2) / (subleading_photon_energy)) ** 2)
 
 
-def compute_sigma_m(diphotons, processor='base', flow_corrections=False, smear=True):
+def compute_sigma_m(diphotons, processor='base', flow_corrections=False, smear=True, IsData=False):
     """
     This function computes the sigma_m variable for the diphoton system.
 
@@ -38,7 +38,7 @@ def compute_sigma_m(diphotons, processor='base', flow_corrections=False, smear=T
         # - the corrected + smearing term
 
         # Lets start by the nominal!
-        if flow_corrections:
+        if flow_corrections and not IsData:
             diphotons["sigma_m_over_m"] = sigma_m(diphotons.pho_lead.raw_energyErr, diphotons.pho_sublead.raw_energyErr, diphotons["pho_lead"].pt * np.cosh(diphotons["pho_lead"].eta), diphotons["pho_sublead"].pt * np.cosh(diphotons["pho_sublead"].eta))
             diphotons["sigma_m_over_m_corr"] = sigma_m(diphotons.pho_lead.energyErr, diphotons.pho_sublead.energyErr, diphotons["pho_lead"].pt * np.cosh(diphotons["pho_lead"].eta), diphotons["pho_sublead"].pt * np.cosh(diphotons["pho_sublead"].eta))
             if smear:
@@ -51,7 +51,7 @@ def compute_sigma_m(diphotons, processor='base', flow_corrections=False, smear=T
 
     elif processor == 'tnp':
         # Lets start by the nominal!
-        if flow_corrections:
+        if flow_corrections and not IsData:
             diphotons["sigma_m_over_m"] = sigma_m(diphotons.tag.raw_energyErr, diphotons.probe.raw_energyErr, diphotons["tag"].pt * np.cosh(diphotons["tag"].eta), diphotons["probe"].pt * np.cosh(diphotons["probe"].eta))
             diphotons["sigma_m_over_m_corr"] = sigma_m(diphotons.tag.energyErr, diphotons.probe.energyErr, diphotons["tag"].pt * np.cosh(diphotons["tag"].eta), diphotons["probe"].pt * np.cosh(diphotons["probe"].eta))
             if smear:

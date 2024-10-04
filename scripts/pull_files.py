@@ -618,25 +618,25 @@ def get_Et_dependent_scale_and_smearing(logger, target_dir):
 
     from_to_dict = {
         "2022preEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SAS_HIG-23-014_paper/HggScalesSmearing_2022preEE.v1.json.gz",
-            "to": f"{to_prefix}/HggScalesSmearing_2022preEE.v1.json.gz",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SAS_HIG-23-014_paper/EGMScalesSmearing_Pho_2022PreEE.v1.json.gz",
+            "to": f"{to_prefix}/EGMScalesSmearing_Pho_2022PreEE.v1.json.gz",
         },
         "2022postEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SAS_HIG-23-014_paper/HggScalesSmearing_2022postEE.v1.json.gz",
-            "to": f"{to_prefix}/HggScalesSmearing_2022postEE.v1.json.gz",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SAS_HIG-23-014_paper/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
+            "to": f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
         },
     }
     fetch_file("Scale and Smearing", logger, from_to_dict, type="copy")
 
     unzip_gz_with_zcat(
         logger,
-        f"{to_prefix}/HggScalesSmearing_2022preEE.v1.json.gz",
+        f"{to_prefix}/EGMScalesSmearing_Pho_2022PreEE.v1.json.gz",
         f"{to_prefix}/HggScalesSmearing_2022preEE.v1.json",
     )
 
     unzip_gz_with_zcat(
         logger,
-        f"{to_prefix}/HggScalesSmearing_2022postEE.v1.json.gz",
+        f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
         f"{to_prefix}/HggScalesSmearing_2022postEE.v1.json",
     )
 

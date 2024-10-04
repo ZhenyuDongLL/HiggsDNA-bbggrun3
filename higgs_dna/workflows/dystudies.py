@@ -147,14 +147,26 @@ class TagAndProbeProcessor(HggBaseProcessor):
             systematic_names = []
 
         # If --Smear_sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt scpectrum need to be smeared in order to properly calculate the smeared sigma_m_m
-        if self.data_kind == "mc" and self.Smear_sigma_m and 'Smearing' not in correction_names:
-            warnings.warn("Smearing should be specified in the corrections field in .json in order to smear the mass!")
+        if (
+            self.data_kind == "mc"
+            and self.Smear_sigma_m
+            and ("Smearing" not in correction_names and "Et_dependent_Smearing" not in correction_names)
+        ):
+            warnings.warn(
+                "Smearing or Et_dependent_Smearing should be specified in the corrections field in .json in order to smear the mass!"
+            )
             sys.exit(0)
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
-            correction_name = 'Smearing'
+            if "Smearing" in correction_names:
+                correction_name = "Smearing"
+            elif "Et_dependent_Smearing" in correction_names:
+                correction_name = "Et_dependent_Smearing"
+            else:
+                logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
+                sys.exit(0)
 
             logger.info(
                 f"\nApplying correction {correction_name} to dataset {dataset_name}\n"
@@ -384,7 +396,7 @@ class TagAndProbeProcessor(HggBaseProcessor):
                             )
 
             # Compute and store the different variations of sigma_m_over_m
-            tnp_candidates = compute_sigma_m(tnp_candidates, processor='tnp', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m)
+            tnp_candidates = compute_sigma_m(tnp_candidates, processor='tnp', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m, IsData=(self.data_kind == "data"))
 
             # Adding the tagandprobe pair mass. Based on the expression provided here for a massless pair of particles -> (https://en.wikipedia.org/wiki/Invariant_mass)
             tnp_candidates["mass"] = numpy.sqrt(2 * tnp_candidates["tag"].pt * tnp_candidates["probe"].pt * (numpy.cosh(tnp_candidates["tag"].eta - tnp_candidates["probe"].eta) - numpy.cos(tnp_candidates["tag"].phi - tnp_candidates["probe"].phi)))
