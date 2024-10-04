@@ -183,6 +183,17 @@ def Et_dependent_Scale(pt, events, year="2022postEE", is_correction=True, restri
         correction = evaluator_et.evaluate("scale" , _pt, r9, abs(eta))
         uncertainty = evaluator_et.evaluate("escale", _pt, r9, abs(eta))
 
+        if restriction is not None:
+            if restriction == "EB":
+                uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEB))
+
+            elif restriction == "EE":
+                uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEE))
+
+            uncertainty = np.where(
+                uncMask, uncertainty, np.zeros_like(uncertainty)
+            )
+
         # divide by correction since it is already applied before
         corr_up_variation = (correction + uncertainty) / correction
         corr_down_variation = (correction - uncertainty) / correction
