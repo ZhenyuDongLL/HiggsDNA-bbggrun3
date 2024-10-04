@@ -631,13 +631,13 @@ def get_Et_dependent_scale_and_smearing(logger, target_dir):
     unzip_gz_with_zcat(
         logger,
         f"{to_prefix}/EGMScalesSmearing_Pho_2022PreEE.v1.json.gz",
-        f"{to_prefix}/HggScalesSmearing_2022preEE.v1.json",
+        f"{to_prefix}/EGMScalesSmearing_Pho_2022PreEE.v1.json",
     )
 
     unzip_gz_with_zcat(
         logger,
         f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
-        f"{to_prefix}/HggScalesSmearing_2022postEE.v1.json",
+        f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json",
     )
 
 def get_mass_decorrelation_CDF(logger, target_dir):
