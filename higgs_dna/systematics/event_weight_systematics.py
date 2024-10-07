@@ -718,7 +718,7 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
         exit()
 
     ShapeSF_name_to_discriminant = {
-        "deepJet_shape": "btagDeepFlavB",
+        "deepJet_shape": "btagDeepFlav_B",
         "particleNet_shape": "btagPNetB",
         "robustParticleTransformer_shape": "btagRobustParTAK4B"
     }
@@ -826,9 +826,9 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
     counts = ak.num(jet_hFlav)
 
     logger.info("Warning: you have to normalise b-tag weights afterwards so that they do not change the yield!")
-
+    Weight_Name = ""
     if is_correction:
-
+        Weight_Name = "bTagSF"
         _sf = []
         # Evluate the scale factore per jet and unflatten the scale fatores in original structure
         _sf = ak.unflatten(
@@ -848,6 +848,7 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
         sfs_down = [None for _ in btag_systematics]
 
     else:
+        Weight_Name = "bTagSF_sys"
         # only calculate correction to nominal weight
         # replace by accessing partial weight!
         _sf = []
@@ -973,7 +974,7 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
         sfs_down = [variations[syst_name]["down"] / sf_central for syst_name in btag_systematics]
 
     weights.add_multivariation(
-        name="bTagSF",
+        name=Weight_Name,
         weight=sf,
         modifierNames=btag_systematics,
         weightsUp=sfs_up,

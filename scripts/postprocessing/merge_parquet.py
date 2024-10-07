@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 import argparse
-import json, ast
+import json
+import ast
 import os
 import glob
 import awkward
 from higgs_dna.utils.logger_utils import setup_logger
 import pyarrow.parquet as pq
 import numpy as np
+from Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
 
 parser = argparse.ArgumentParser(
     description="Simple utility script to merge all parquet files in one folder."
@@ -68,7 +70,7 @@ BASEDIR = os.path.dirname(
 if args.genBinning != "":
     if args.abs:
         genBinning_path = args.genBinning
-    else: 
+    else:
         genBinning_path = BASEDIR + '../scripts/postprocessing/sample_gen_binning.json'
     with open(genBinning_path, 'r') as json_file:
         gen_binning = json.load(json_file)
@@ -76,6 +78,7 @@ else:
     gen_binning = None
 
 logger = setup_logger(level="INFO")
+
 
 def extract_tuples(input_string):
     tuples = []
@@ -88,9 +91,10 @@ def extract_tuples(input_string):
         tuples.append(tuple(map(str.strip, tuple_elements)))
     return tuples
 
+
 def extract_filter(dataset, additionalConditionTuple):
     variable, operator, value = additionalConditionTuple
-    
+
     if operator == ">":
         return dataset[variable] > float(value)
     elif operator == ">=":
@@ -105,6 +109,7 @@ def extract_filter(dataset, additionalConditionTuple):
             return dataset[variable] == value
         else:
             return dataset[variable] == float(value)
+
 
 def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="GenPTH", diffVariableName="diffVariable_GenPTH"):
     # Initialize diff variable in the awkward array
@@ -134,6 +139,7 @@ def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="Ge
 
     return dataset
 
+
 if (
     (len(source_paths) != len(target_paths))
     or (args.source == "")
@@ -146,7 +152,7 @@ if (
 if args.cats_dict != "":
     if args.abs:
         cats_path = args.cats_dict
-    else: 
+    else:
         cats_path = BASEDIR + "category.json"
     with open(cats_path) as pf:
         cat_dict = json.load(pf)
@@ -167,6 +173,8 @@ if (not args.is_data) & (not args.skip_normalisation):
     logger.info(
         "Extracting sum of gen weights (before selection) from metadata of files to be merged."
     )
+    IsBtagNorm_sys_arr,WeightSum_preBTag_arr,WeightSum_postBTag_arr,WeightSum_postBTag_sys_arr = Get_WeightSum_Btag(source_paths,logger)
+
     sum_genw_beforesel_arr = []
     for i, source_path in enumerate(source_paths):
         source_files = glob.glob("%s/*.parquet" % source_path)
@@ -214,7 +222,7 @@ for i, source_path in enumerate(source_paths):
             syst_weight_fields = [field for field in dataset_arr.fields if (("weight_" in field) and ("Up" in field or "Down" in field))]
             for weight_field in ["weight"] + syst_weight_fields:
                 dataset_arr[weight_field] = dataset_arr[weight_field] / sum_genw_beforesel_arr[i]
-
+            dataset_arr = Renormalize_BTag_Weights(dataset_arr,target_paths[i],cat,WeightSum_preBTag_arr[i],WeightSum_postBTag_arr[i],WeightSum_postBTag_sys_arr[i],IsBtagNorm_sys_arr[i],logger)
             awkward.to_parquet(dataset_arr, target_paths[i] + cat + "_merged.parquet")
             logger.info(
                 "Successfully added normalised weight column to dataset"

@@ -356,7 +356,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     "charge": ak.zeros_like(jets.pt),
                     "hFlav": jets.hadronFlavour if self.data_kind == "mc" else ak.zeros_like(jets.pt),
                     "btagPNetB": jets.btagPNetB,
-                    "btagDeepFlavB": jets.btagDeepFlavB,
+                    "btagDeepFlav_B": jets.btagDeepFlavB,
                     "btagRobustParTAK4B": jets.btagRobustParTAK4B,
                     "btagRobustParTAK4CvB": jets.btagRobustParTAK4CvB,
                     "btagRobustParTAK4CvL": jets.btagRobustParTAK4CvL,
@@ -416,7 +416,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             diphotons["JetHT"] = ak.sum(jets.pt,axis=1)
 
             num_jets = 8
-            jet_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagDeepFlavB", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
+            jet_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagDeepFlav_B", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
             for i in range(num_jets):
                 for prop in jet_properties:
                     key = f"jet{i+1}_{prop}"
@@ -505,9 +505,6 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
                         )
-                metadata["sum_weight_central_wo_bTagSF"] = str(
-                    ak.sum(event_weights.partial_weight(exclude=["bTagSF"]))
-                )
                 diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
 
                 # systematic variations of event weights go to nominal output dataframe:
@@ -566,9 +563,14 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
 
                 diphotons["weight"] = event_weights.weight()
                 diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]
+
                 metadata["sum_weight_central"] = str(
-                    ak.sum(diphotons["weight_central"])
+                    ak.sum(event_weights.weight())
                 )
+                metadata["sum_weight_central_wo_bTagSF"] = str(
+                    ak.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
+                )
+
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
                     if len(event_weights.variations):
@@ -584,9 +586,10 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                                 ak.sum(event_weights.weight(modifier=modifier))
                             )
 
-                if ak.num(events.LHEReweightingWeight)[0] > 0:
-                    diphotons["LHEReweightingWeight"] = events.LHEReweightingWeight[selection_mask]
-                    diphotons["LHEWeight"] = events.LHEWeight[selection_mask]
+                if ('LHEReweightingWeight' in events.fields):
+                    if ak.num(events.LHEReweightingWeight)[0] > 0:
+                        diphotons["LHEReweightingWeight"] = events.LHEReweightingWeight[selection_mask]
+                        diphotons["LHEWeight"] = events.LHEWeight[selection_mask]
 
             # Add weight variables (=1) for data for consistent datasets
             else:
