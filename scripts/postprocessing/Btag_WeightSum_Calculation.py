@@ -24,7 +24,7 @@ def Get_WeightSum_Btag(source_paths,logger):
                 f"Attampeting Extracting sum of central weights and bweight systematics from metadata of files to be merged from {source_path}"
             )
         else:
-            logger.warn(
+            logger.debug(
                 "Skiping the renormalization of systematic weights. Please check if you have stored the weights for bTag systematic variation. Dont worry if you are not evaluating btaging systematic for now"
             )
         source_files = glob.glob("%s/*.parquet" % source_path)
