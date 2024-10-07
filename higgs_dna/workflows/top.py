@@ -424,6 +424,8 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     # Store the value in the diphotons dictionary
                     diphotons[key] = value
             diphotons["n_jets"] = n_jets
+            diphotons["n_jets_forward"] = ak.num(jets[np.abs(jets.eta) > 2.5])
+            diphotons["n_jets_central"] = ak.num(jets[np.abs(jets.eta) < 2.5])
 
             # Adding a 'generation' field to electrons and muons
             electrons['generation'] = ak.ones_like(electrons.pt)
