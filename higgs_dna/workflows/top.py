@@ -73,7 +73,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             output_format=output_format
         )
 
-        self.el_iso_wp = "WP90"
+        self.el_id_wp = "WP90"
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
@@ -393,6 +393,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     "mediumId": events.Muon.mediumId,
                     "looseId": events.Muon.looseId,
                     "isGlobal": events.Muon.isGlobal,
+                    "pfIsoId": events.Muon.pfIsoId
                 }
             )
             muons = ak.with_name(muons, "PtEtaPhiMCandidate")

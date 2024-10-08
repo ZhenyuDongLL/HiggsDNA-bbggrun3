@@ -92,13 +92,13 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         # muon selection cuts
         self.muon_pt_threshold = 10
         self.muon_max_eta = 2.4
-        self.mu_iso_wp = "medium"
+        self.mu_id_wp = "medium"
         self.global_muon = False
 
         # electron selection cuts
         self.electron_pt_threshold = 15
         self.electron_max_eta = 2.5
-        self.el_iso_wp = "WP80"
+        self.el_id_wp = "WP80"
 
         # jet selection cuts
         self.jet_jetId = "tightLepVeto"  # can be "tightLepVeto" or "tight": https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
@@ -655,6 +655,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                     "mediumId": dipho_events.Muon.mediumId,
                     "looseId": dipho_events.Muon.looseId,
                     "isGlobal": dipho_events.Muon.isGlobal,
+                    "pfIsoId": events.Muon.pfIsoId
                 }
             )
             muons = awkward.with_name(muons, "PtEtaPhiMCandidate")
