@@ -92,13 +92,14 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         # muon selection cuts
         self.muon_pt_threshold = 10
         self.muon_max_eta = 2.4
-        self.mu_iso_wp = "medium"
-        self.global_muon = False
+        self.mu_id_wp = "medium"
+        self.mu_iso_wp = "tight"
+        self.global_muon = True
 
         # electron selection cuts
         self.electron_pt_threshold = 15
         self.electron_max_eta = 2.5
-        self.el_iso_wp = "loose"
+        self.el_id_wp = "loose"  # this includes isolation
 
         # jet selection cuts
         self.jet_jetId = "tightLepVeto"  # can be "tightLepVeto" or "tight": https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
@@ -640,6 +641,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                     "mediumId": events.Muon.mediumId,
                     "looseId": events.Muon.looseId,
                     "isGlobal": events.Muon.isGlobal,
+                    "pfIsoId": events.Muon.pfIsoId
                 }
             )
             muons = awkward.with_name(muons, "PtEtaPhiMCandidate")

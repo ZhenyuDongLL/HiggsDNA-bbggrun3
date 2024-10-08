@@ -452,6 +452,7 @@ class ZeeProcessor(HggBaseProcessor):
                     "mediumId": events.Muon.mediumId,
                     "looseId": events.Muon.looseId,
                     "isGlobal": events.Muon.isGlobal,
+                    "pfIsoId": events.Muon.pfIsoId
                 }
             )
             muons = awkward.with_name(muons, "PtEtaPhiMCandidate")
