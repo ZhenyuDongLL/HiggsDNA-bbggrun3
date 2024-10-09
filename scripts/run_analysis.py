@@ -335,7 +335,7 @@ if __name__ == "__main__":
                 memory=args.memory,
                 disk=args.disk,
                 image_type="singularity",
-                worker_image="/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/batch-team/dask-lxplus/lxdask-cc7:latest",
+                worker_image="/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest",
                 death_timeout="3600",
                 scheduler_options={"port": n_port, "host": socket.gethostname()},
                 job_extra={

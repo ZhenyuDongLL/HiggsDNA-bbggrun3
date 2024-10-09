@@ -35,9 +35,9 @@ build_docker:
       # To push to a specific docker tag other than latest(the default), amend the --destination parameter, e.g. --destination $CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME
       # See https://docs.gitlab.com/ee/ci/variables/predefined_variables.html#variables-reference for available variables
       #IMAGE_DESTINATION: ${CI_REGISTRY_IMAGE}:latest
-      BUILD_ARGS: "FROM_IMAGE=gitlab-registry.cern.ch/batch-team/dask-lxplus/lxdask-cc7:latest CLUSTER=lxplus"
-      IMAGE_DESTINATION: ${CI_REGISTRY_IMAGE}:lxplus-${CI_COMMIT_SHORT_SHA}
-    image: 
+      BUILD_ARGS: "FROM_IMAGE=gitlab-registry.cern.ch/batch-team/dask-lxplus/lxdask-al9:latest CLUSTER=lxplus-el9"
+      IMAGE_DESTINATION: ${CI_REGISTRY_IMAGE}:lxplus-el9-${CI_COMMIT_SHORT_SHA}
+    image:
         # The kaniko debug image is recommended because it has a shell, and a shell is required for an image to be used with GitLab CI/CD.
         name: gcr.io/kaniko-project/executor:debug
         entrypoint: [""]
@@ -55,10 +55,10 @@ build_docker_latest:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_REF_NAME == "master"'
   variables:
-    IMAGE_ORIGIN_TAG: ${CI_REGISTRY_IMAGE}:lxplus-${CI_COMMIT_SHORT_SHA}
+    IMAGE_ORIGIN_TAG: ${CI_REGISTRY_IMAGE}:lxplus-el9-${CI_COMMIT_SHORT_SHA}
      #keep only latest for now as we have only the lxplus one
      #change in the future in case we need more
-    IMAGE_DESTINATION_TAG: ${CI_REGISTRY_IMAGE}:latest
+    IMAGE_DESTINATION_TAG: ${CI_REGISTRY_IMAGE}:lxplus-el9-latest
 
 static_analysis:
   stage: static analysis
