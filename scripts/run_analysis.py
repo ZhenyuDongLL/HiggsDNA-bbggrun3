@@ -318,7 +318,7 @@ if __name__ == "__main__":
             cluster = LPCCondorCluster(
                 transfer_input_files="/srv/workflows/",
                 ship_env=True,
-                env_extra=env_extra,
+                job_script_prologue=env_extra,
             )
         elif "lxplus" in args.executor:
             from dask_lxplus import CernCluster
@@ -348,8 +348,11 @@ if __name__ == "__main__":
                     if args.queue is None
                     else f'"{args.queue}"',
                 },
-                env_extra=env_extra,
-                # shared_temp_directory="/tmp"
+                job_script_prologue=[
+                    "export XRD_RUNFORKHANDLER=1",
+                    f"export X509_USER_PROXY={_x509_path}",
+                    "export PYTHONPATH=$PYTHONPATH:$_CONDOR_SCRATCH_DIR",
+                ],
             )
         elif "slurm" in args.executor:
             cluster = SLURMCluster(
@@ -358,14 +361,14 @@ if __name__ == "__main__":
                 processes=args.workers,
                 memory=args.memory,
                 walltime=args.walltime,
-                env_extra=env_extra,
+                job_script_prologue=env_extra,
             )
         elif "condor" in args.executor:
             cluster = HTCondorCluster(
                 cores=args.workers,
                 memory=args.memory,
                 disk="4GB",
-                env_extra=env_extra,
+                job_script_prologue=env_extra,
             )
 
         if args.executor == "dask/casa":
