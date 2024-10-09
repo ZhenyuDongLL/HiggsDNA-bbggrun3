@@ -94,11 +94,13 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         self.muon_max_eta = 2.4
         self.mu_id_wp = "medium"
         self.mu_iso_wp = "tight"
+        self.muon_photon_min_dr = 0.2
         self.global_muon = True
 
         # electron selection cuts
         self.electron_pt_threshold = 15
         self.electron_max_eta = 2.5
+        self.electron_photon_min_dr = 0.2
         self.el_id_wp = "loose"  # this includes isolation
 
         # jet selection cuts

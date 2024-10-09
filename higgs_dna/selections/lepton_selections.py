@@ -1,4 +1,5 @@
 import awkward
+from higgs_dna.selections.object_selections import delta_r_mask
 
 
 def select_electrons(
@@ -22,7 +23,10 @@ def select_electrons(
     else:
         id_cut = electrons.pt > 0.
 
-    return pt_cut & eta_cut & id_cut
+    dr_phoLead_cut = delta_r_mask(electrons, diphotons.pho_lead, self.electron_photon_min_dr)
+    dr_phoSublead_cut = delta_r_mask(electrons, diphotons.pho_sublead, self.electron_photon_min_dr)
+
+    return pt_cut & eta_cut & id_cut & dr_phoLead_cut & dr_phoSublead_cut
 
 
 def select_muons(
@@ -59,4 +63,7 @@ def select_muons(
     else:
         global_cut = muons.pt > 0
 
-    return pt_cut & eta_cut & id_cut & iso_cut & global_cut
+    dr_phoLead_cut = delta_r_mask(muons, diphotons.pho_lead, self.muon_photon_min_dr)
+    dr_phoSublead_cut = delta_r_mask(muons, diphotons.pho_sublead, self.muon_photon_min_dr)
+
+    return pt_cut & eta_cut & id_cut & iso_cut & dr_phoLead_cut & dr_phoSublead_cut & global_cut
