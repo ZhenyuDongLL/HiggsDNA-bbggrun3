@@ -939,7 +939,12 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
 
                 # decorrelate flow corrected smeared sigma_m_over_m
                 if (self.doFlow_corrections and self.Smear_sigma_m):
-                    diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0])
+                    if self.data_kind == "data" and "Et_dependent_Scale" in correction_names:
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
+                    elif self.data_kind == "mc" and "Et_dependent_Smearing" in correction_names:
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
+                    else:
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0])
 
                 # Instead of the nominal sigma_m_over_m, we will use the smeared version of it -> (https://indico.cern.ch/event/1319585/#169-update-on-the-run-3-mass-r)
                 # else:

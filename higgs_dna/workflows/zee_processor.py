@@ -180,9 +180,9 @@ class ZeeProcessor(HggBaseProcessor):
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
-            if "Smearing" in correction_names:
+            if "Scale" in correction_names:
                 correction_name = "Smearing"
-            elif "Et_dependent_Smearing" in correction_names:
+            elif "Et_dependent_Scale" in correction_names:
                 correction_name = "Et_dependent_Smearing"
             else:
                 logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
