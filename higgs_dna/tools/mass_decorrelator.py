@@ -5,7 +5,7 @@ import numpy as np
 import higgs_dna.tools.decorrelator as decorr
 
 
-def decorrelate_mass_resolution(events: awkward.Array, type: str, year):
+def decorrelate_mass_resolution(events: awkward.Array, type: str, year, IsSAS_ET_Dependent=False):
 
     # type = "nominal","smeared","corr","corr_smeared"
 
@@ -44,9 +44,15 @@ def decorrelate_mass_resolution(events: awkward.Array, type: str, year):
     elif (type == "corr_smeared"):
 
         if (year == "2022postEE"):
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/postEE/sigma_m_smeared_corr_postEE_CDFs.pkl.gz')
+            if IsSAS_ET_Dependent:
+                decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/postEE/Paper_postEE_CDFS_v3.pkl.gz')
+            else:
+                decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/postEE/sigma_m_smeared_corr_postEE_CDFs.pkl.gz')
         else:
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/preEE/sigma_m_smeared_corr_preEE_CDFs.pkl.gz')
+            if IsSAS_ET_Dependent:
+                decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/preEE/Paper_preEE_CDFS_v3.pkl.gz')
+            else:
+                decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/preEE/sigma_m_smeared_corr_preEE_CDFs.pkl.gz')
         df["sigma_m_over_m"] = events.sigma_m_over_m_Smeared_corr.to_numpy()
 
     else:
