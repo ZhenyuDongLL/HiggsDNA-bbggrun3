@@ -582,6 +582,23 @@ class HHbbggProcessor(HggBaseProcessor):
                         diphotons["sublead_bjet_pt"] > -998
                     ]
 
+                    if self.data_kind == "mc":
+                        higgs = events.GenPart[events.GenPart.pdgId == 25]
+
+                        # Enforce Higgs decays to [5, -5] (bb) or [22, 22] (gg)
+                        mask_bb = (awkward.any(higgs.children.pdgId == 5, axis=2)) & (awkward.any(higgs.children.pdgId == -5, axis=2))
+                        mask_gg = (awkward.all(higgs.children.pdgId == 22, axis=2))
+                        mask_two_part = (awkward.num(higgs.children.pdgId, axis=2) == 2)
+
+                        hbb_pt = awkward.fill_none(higgs[mask_bb & mask_two_part].pt, -999.0)
+                        hgg_pt = awkward.fill_none(higgs[mask_gg & mask_two_part].pt, -999.0)
+
+                        # If no H->bb or gg is present, uses a default array filled with -999.0
+                        default_array = awkward.ones_like(events.event, dtype=numpy.float64) * -999.0
+                        # Store gen-level pT for each Higgs.
+                        diphotons["H_Pt_bb"] = awkward.flatten(hbb_pt, axis=1) if awkward.count(hbb_pt) > 0 else default_array
+                        diphotons["H_Pt_gg"] = awkward.flatten(hgg_pt, axis=1) if awkward.count(hgg_pt) > 0 else default_array
+
                     # Add VBF jets information
                     HHbbgg = awkward.with_name(HHbbgg, "PtEtaPhiMCandidate", behavior=candidate.behavior)
                     jets = awkward.with_name(jets, "PtEtaPhiMCandidate", behavior=candidate.behavior)
