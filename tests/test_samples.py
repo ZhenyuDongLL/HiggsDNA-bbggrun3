@@ -1,4 +1,5 @@
-from higgs_dna.samples.fetch import get_dataset_dict
+from higgs_dna.utils.logger_utils import setup_logger
+from higgs_dna.samples.fetch import get_dataset_dict_grid
 import pytest
 from subprocess import getstatusoutput
 
@@ -20,7 +21,9 @@ def test_get_dataset_dict():
         ),
     ]
 
-    samples = get_dataset_dict(lst, "root://cms-xrd-global.cern.ch/", "prod/global")
+    logger = setup_logger(level="INFO")
+
+    samples = get_dataset_dict_grid(lst, "root://cms-xrd-global.cern.ch/", "prod/global", logger)
 
     assert "DoubleEG-Run2017B" in samples
     assert "DYJets-M50" in samples
