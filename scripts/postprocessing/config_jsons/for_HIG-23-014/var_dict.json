@@ -1,12 +1,12 @@
 {
     "var_dict": {
         "NOMINAL": "nominal",
-        "ScaleEBUp": "ScaleEB_up",
-        "ScaleEBDown": "ScaleEB_down",
-        "ScaleEEUp": "ScaleEE_up",
-        "ScaleEEDown": "ScaleEE_down",
-        "SmearingUp": "Smearing_up",
-        "SmearingDown": "Smearing_down",
+        "ScaleEBUp": "Et_dependent_ScaleEB_up",
+        "ScaleEBDown": "Et_dependent_ScaleEB_down",
+        "ScaleEEUp": "Et_dependent_ScaleEE_up",
+        "ScaleEEDown": "Et_dependent_ScaleEE_down",
+        "SmearingUp": "Et_dependent_Smearing_up",
+        "SmearingDown": "Et_dependent_Smearing_down",
         "MaterialUp": "Material_up", 
         "MaterialDown": "Material_down",
         "FNUFUp": "FNUF_up", 
