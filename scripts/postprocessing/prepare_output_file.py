@@ -652,7 +652,7 @@ else:
                             # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                             if opt.apptainer:
                                 submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:latest"\n""")
+                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
                                 submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
@@ -708,7 +708,7 @@ else:
                             # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                             if opt.apptainer:
                                 submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:latest"\n""")
+                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
                                 submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
@@ -770,7 +770,7 @@ else:
                             # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                             if opt.apptainer:
                                 submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:latest"\n""")
+                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
                                 submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
@@ -853,7 +853,7 @@ else:
                         # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                         if opt.apptainer:
                             submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                            submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:latest"\n""")
+                            submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
                             submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                         submit_file.write("max_retries = 3\n")
                         submit_file.write("requirements = Machine =!= LastRemoteHost\n")
@@ -928,7 +928,7 @@ else:
                     # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
                     if opt.apptainer:
                         submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                        submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:latest"\n""")
+                        submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
                         submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                     submit_file.write("max_retries = 3\n")
                     submit_file.write("requirements = Machine =!= LastRemoteHost\n")

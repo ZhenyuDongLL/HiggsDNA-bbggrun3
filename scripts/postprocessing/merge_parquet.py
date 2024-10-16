@@ -8,7 +8,7 @@ import awkward
 from higgs_dna.utils.logger_utils import setup_logger
 import pyarrow.parquet as pq
 import numpy as np
-from Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
+from scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
 
 parser = argparse.ArgumentParser(
     description="Simple utility script to merge all parquet files in one folder."
