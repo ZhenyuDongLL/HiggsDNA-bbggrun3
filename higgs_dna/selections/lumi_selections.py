@@ -28,7 +28,7 @@ def select_lumis(
         ),
         "2023": os.path.join(
             os.path.dirname(__file__),
-            "../metaconditions/CAF/certification/Collisions23/Cert_Collisions2023_366442_370092_Golden.json",
+            "../metaconditions/CAF/certification/Collisions23/Cert_Collisions2023_366442_370790_Golden.json",
         ),
     }
     # Reference
