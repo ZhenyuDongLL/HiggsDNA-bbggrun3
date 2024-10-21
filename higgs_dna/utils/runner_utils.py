@@ -218,8 +218,8 @@ def get_main_parser():
     parser.add_argument(
         "--fiducialCuts",
         default="classical",
-        choices=["classical", "geometric", "none"],
-        help="Apply fiducial cuts at detector level according to standard CMS approach (classical with 1/3 and 1/4 thresholds for scaled pT of lead and sublead), geometric cuts (proposed in 2106.08329), or none at all. Fiducial flags for particle level are handled with utily functions and are unrelated to this argument.",
+        choices=["classical", "geometric", "store_flag", "none"],
+        help="Apply fiducial cuts at detector level according to standard CMS approach (classical with 1/3 and 1/4 thresholds for scaled pT of lead and sublead), geometric cuts (proposed in 2106.08329), 'store_flag' (stores flag for both classical and geometric instead of selection according to a specific one) or none at all. Fiducial flags for particle level are handled with utily functions and are unrelated to this argument.",
     )
     parser.add_argument(
         "--doDeco",

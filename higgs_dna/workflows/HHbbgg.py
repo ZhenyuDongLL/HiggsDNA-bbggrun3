@@ -53,7 +53,7 @@ class HHbbggProcessor(HggBaseProcessor):
         skipCQR: bool = False,
         skipJetVetoMap: bool = False,
         year: Dict[str, List[str]] = None,
-        fiducialCuts: str = "classical",
+        fiducialCuts: str = "store_flag",
         doDeco: bool = False,
         Smear_sigma_m: bool = False,
         doFlow_corrections: bool = False,
@@ -349,6 +349,8 @@ class HHbbggProcessor(HggBaseProcessor):
 
                     # Apply the fiducial cut at detector level with helper function
                     diphotons = apply_fiducial_cut_det_level(self, diphotons)
+                    diphotons = diphotons[(diphotons.pass_fiducial_classical)
+                                          | (diphotons.pass_fiducial_geometric)]
 
                     # baseline modifications to diphotons
                     if self.diphoton_mva is not None:
