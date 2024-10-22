@@ -236,8 +236,9 @@ weight_systematics = {
     "LHEScale": None,
     "LHEPdf": None,
     "Zpt": partial(Zpt),
-    "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_TightID_DEN_TrackerMuons", is_correction=False),
+    "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_MediumID_DEN_TrackerMuons", is_correction=False),
     "MuonIsoTightSF_IdMedium": partial(muonSFs, SF_name="NUM_TightPFIso_DEN_MediumID", is_correction=False),
+    "MuonIsoLooseSF_IdMedium": partial(muonSFs, SF_name="NUM_LoosePFIso_DEN_MediumID", is_correction=False),
 }
 
 # functions correcting nominal event weights to be placed here
@@ -255,8 +256,9 @@ weight_corrections = {
     "ParT_bTagShapeSF": partial(bTagShapeSF, ShapeSF_name="robustParticleTransformer_shape", is_correction=True),
     "NNLOPS": partial(NNLOPS, is_correction=True),
     "Zpt": partial(Zpt, is_correction=True),
-    "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_TightID_DEN_TrackerMuons", is_correction=True),
+    "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_MediumID_DEN_TrackerMuons", is_correction=True),
     "MuonIsoTightSF_IdMedium": partial(muonSFs, SF_name="NUM_TightPFIso_DEN_MediumID", is_correction=True),
+    "MuonIsoLooseSF_IdMedium": partial(muonSFs, SF_name="NUM_LoosePFIso_DEN_MediumID", is_correction=True),
 }
 
 
