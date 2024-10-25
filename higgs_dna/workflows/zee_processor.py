@@ -221,6 +221,8 @@ class ZeeProcessor(HggBaseProcessor):
         photons["eta"] = events.Electron.eta
         photons["phi"] = events.Electron.phi
 
+        photons["ele_charge"] = events.Electron.charge
+
         photons["ele_seedGain"] = events.Electron.seedGain
         photons["ele_r9"] = events.Electron.r9
         photons["ele_pt"] = events.Electron.pt
