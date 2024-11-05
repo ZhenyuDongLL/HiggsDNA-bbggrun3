@@ -118,7 +118,7 @@ if opt.do_fnuf or opt.do_all:
     edges_ = [[0.0, 1.5, 6.0], [0.0, 0.94, 999.0]]
 
     if opt.year == "2016":
-        # FNUF variations fromflashgg: https://github.com/higgs-charm/flashgg/blob/17621e1d0f032e38c20294555359ed4682bd3f3b/Systematics/python/flashggDiPhotonSystematics2016_Legacy_postVFP_cfi.py#L37C1-L46C6
+        # FNUF variations fromflashgg: https://github.com/cms-analysis/flashgg/blob/dev_legacy_runII/Systematics/python/flashggDiPhotonSystematics2016_Legacy_postVFP_cfi.py#L37-L46
         # Based on the updated derivation by N. Schroeder for HIG-19-004. Re-evaluated in coarse Eta-R9 bins
         # 4 bins (2 in eta 2 in r9)
         content_ = {
@@ -128,7 +128,7 @@ if opt.do_fnuf or opt.do_all:
         }
         flow_ = "clamp"
     elif opt.year == "2017":
-        # FNUF variations fromflashgg: https://github.com/cms-analysis/flashgg/blob/58c243d9d1f794d7dca8a94fdcd390aed91cb49c/Systematics/python/flashggDiPhotonSystematics2017_Legacy_cfi.py#L73-L82
+        # FNUF variations fromflashgg: https://github.com/cms-analysis/flashgg/blob/dev_legacy_runII/Systematics/python/flashggDiPhotonSystematics2017_Legacy_cfi.py#L73-L82
         # Based on the updated derivation by N. Schroeder for HIG-19-004. Re-evaluated in coarse Eta-R9 bins
         # 4 bins (2 in eta 2 in r9)
         content_ = {
@@ -138,7 +138,7 @@ if opt.do_fnuf or opt.do_all:
         }
         flow_ = "clamp"
     elif opt.year == "2018":
-        # FNUF variations fromflashgg: https://github.com/higgs-charm/flashgg/blob/17621e1d0f032e38c20294555359ed4682bd3f3b/Systematics/python/flashggDiPhotonSystematics2018_Legacy_cfi.py#L72
+        # FNUF variations fromflashgg: https://github.com/cms-analysis/flashgg/blob/dev_legacy_runII/Systematics/python/flashggDiPhotonSystematics2018_Legacy_cfi.py#L73-L81
         # Based on the updated derivation by N. Schroeder for HIG-19-004. Re-evaluated in coarse Eta-R9 bins
         # 4 bins (2 in eta 2 in r9)
         content_ = {
@@ -492,7 +492,7 @@ if opt.do_Material or opt.do_all:
     edges_ = [[0.0, 1., 1.5, 999.0], [0.0, 0.94, 999.0]]
 
     if "2016" in opt.year:
-        # Material  variations fromflashgg: https://github.com/higgs-charm/flashgg/blob/17621e1d0f032e38c20294555359ed4682bd3f3b/Systematics/python/flashggDiPhotonSystematics2017_Legacy_cfi.py#L388C1-L399C6
+        # Material  variations fromflashgg: https://github.com/cms-analysis/flashgg/blob/dev_legacy_runII/Systematics/python/flashggDiPhotonSystematics2016_Legacy_postVFP_cfi.py#L370-L381
         # 6 bins (3 in SCeta 2 in r9)
         content_ = {
             "nominal": [1., 1., 1., 1., 1., 1.],
@@ -501,7 +501,7 @@ if opt.do_Material or opt.do_all:
         }
         flow_ = "clamp"
     if opt.year == "2017":
-        # Material  variations fromflashgg: https://github.com/cms-analysis/flashgg/blob/ae6563050722bd168545eac2b860ef56cdda7be4/Systematics/python/flashggDiPhotonSystematics2017_Legacy_cfi.py#L280-286
+        # Material  variations fromflashgg: https://github.com/cms-analysis/flashgg/blob/dev_legacy_runII/Systematics/python/flashggDiPhotonSystematics2017_Legacy_cfi.py#L388-L399
         # 6 bins (3 in SCeta 2 in r9)
         content_ = {
             "nominal": [1., 1., 1., 1., 1., 1.],
@@ -510,7 +510,7 @@ if opt.do_Material or opt.do_all:
         }
         flow_ = "clamp"
     elif opt.year == "2018":
-        # Material  variations fromflashgg: https://github.com/higgs-charm/flashgg/blob/17621e1d0f032e38c20294555359ed4682bd3f3b/Systematics/python/flashggDiPhotonSystematics2018_Legacy_cfi.py#L361C1-L383C6
+        # Material  variations fromflashgg: https://github.com/cms-analysis/flashgg/blob/dev_legacy_runII/Systematics/python/flashggDiPhotonSystematics2018_Legacy_cfi.py#L372-L383
         # 6 bins (3 in SCeta 2 in r9)
         # same as 2017
         content_ = {
