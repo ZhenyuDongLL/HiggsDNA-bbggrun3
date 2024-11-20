@@ -662,9 +662,21 @@ def get_Flow_files(logger, target_dir):
         to_prefix = os.path.join(os.path.dirname(__file__), "../higgs_dna/tools/flows")
 
     from_to_dict = {
-        "2022FG": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/flow_corrections/",
-            "to": f"{to_prefix}/",
+        "run3": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/Run3/",
+            "to": f"{to_prefix}/run3_mvaID_models/",
+        },
+        "2022CD": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/Flows/",
+            "to": f"{to_prefix}/preEE/",
+        },
+        "2022EFG": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/Flows/",
+            "to": f"{to_prefix}/postEE/",
+        },
+        "2023": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/Flows/",
+            "to": f"{to_prefix}/2023_model/",
         },
     }
     fetch_file("Flows", logger, from_to_dict, type="copy")
