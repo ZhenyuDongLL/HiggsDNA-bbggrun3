@@ -667,11 +667,11 @@ def get_Flow_files(logger, target_dir):
             "to": f"{to_prefix}/run3_mvaID_models/",
         },
         "2022CD": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/Flows/",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/Flows/preEE/",
             "to": f"{to_prefix}/preEE/",
         },
         "2022EFG": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/Flows/",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/Flows/postEE/",
             "to": f"{to_prefix}/postEE/",
         },
         "2023": {
