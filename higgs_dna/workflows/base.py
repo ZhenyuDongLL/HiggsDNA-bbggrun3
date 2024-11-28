@@ -88,6 +88,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         self.Smear_sigma_m = Smear_sigma_m
         self.doFlow_corrections = doFlow_corrections
         self.output_format = output_format
+        self.name_convention = "Legacy"
 
         # muon selection cuts
         self.muon_pt_threshold = 10
