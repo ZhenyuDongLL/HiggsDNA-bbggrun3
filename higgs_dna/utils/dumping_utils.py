@@ -9,6 +9,34 @@ import pyarrow.parquet as pq
 import uproot
 
 
+def apply_naming_convention(self, events: awkward.Array) -> str:
+    """
+    Apply the correct naming convention.
+    Select which uuid (DAS or uproot (Legacy)) should be included in the parquet name.
+    """
+    DAS_name = events.metadata["filename"]
+    DAS_uuid = DAS_name.split("/")[-1].replace(".root", "")
+    name = events.behavior["__events_factory__"]._partition_key.split("/")
+
+    try:
+        convention = self.name_convention
+    except AttributeError as err:
+        raise AttributeError("Naming convention was not specified.") from err
+
+    # Change the parquet name UUID with DAS UUID
+    if convention == "DAS":
+        name[0] = DAS_uuid
+    # Keep the name unchanged for Legacy convention
+    elif convention == "Legacy":
+        pass
+    else:
+        raise ValueError("Invalid naming convention specified.")
+
+    fname = '_'.join(name) + f".{self.output_format}"
+    fname = (fname.replace("%2F","")).replace("%3B1","")
+    return fname
+
+
 def diphoton_list_to_pandas(self, diphotons: awkward.Array) -> pandas.DataFrame:
     """
     Convert diphoton array to pandas dataframe.

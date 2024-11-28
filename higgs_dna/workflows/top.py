@@ -8,7 +8,7 @@ from higgs_dna.selections.diphoton_selections import apply_fiducial_cut_det_leve
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap
 from higgs_dna.selections.lumi_selections import select_lumis
-from higgs_dna.utils.dumping_utils import diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas, get_obj_syst_dict
+from higgs_dna.utils.dumping_utils import apply_naming_convention, diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas, get_obj_syst_dict
 from higgs_dna.utils.misc_utils import choose_jet
 from higgs_dna.tools.flow_corrections import calculate_flow_corrections
 
@@ -74,6 +74,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
         )
 
         self.el_id_wp = "WP90"
+        self.name_convention = "DAS"
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
@@ -616,12 +617,8 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                         ]
                     ]
 
-                fname = (
-                    events.behavior[
-                        "__events_factory__"
-                    ]._partition_key.replace("/", "_")
-                    + ".%s" % self.output_format
-                )
+                fname = apply_naming_convention(self, events)
+
                 subdirs = []
                 if "dataset" in events.metadata:
                     subdirs.append(events.metadata["dataset"])
