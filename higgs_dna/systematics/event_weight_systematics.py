@@ -534,18 +534,33 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
 
     elif "2022" in year:
 
-        sf_lead_p_lead = evaluator_lead.evaluate(
-            "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt
-        )
-        sf_lead_p_sublead = evaluator_lead.evaluate(
-            "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt
-        )
-        sf_sublead_p_lead = evaluator_sublead.evaluate(
-            "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt
-        )
-        sf_sublead_p_sublead = evaluator_sublead.evaluate(
-            "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt
-        )
+        # If flow corrections are applied, we use the raw (uncorrected) r9 for the trigger SF evaluation
+        if hasattr(photons["pho_lead"], 'raw_r9'):
+            sf_lead_p_lead = evaluator_lead.evaluate(
+                "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].raw_r9, photons["pho_lead"].pt
+            )
+            sf_lead_p_sublead = evaluator_lead.evaluate(
+                "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].raw_r9, photons["pho_sublead"].pt
+            )
+            sf_sublead_p_lead = evaluator_sublead.evaluate(
+                "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].raw_r9, photons["pho_lead"].pt
+            )
+            sf_sublead_p_sublead = evaluator_sublead.evaluate(
+                "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].raw_r9, photons["pho_sublead"].pt
+            )
+        else:
+            sf_lead_p_lead = evaluator_lead.evaluate(
+                "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt
+            )
+            sf_lead_p_sublead = evaluator_lead.evaluate(
+                "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt
+            )
+            sf_sublead_p_lead = evaluator_sublead.evaluate(
+                "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt
+            )
+            sf_sublead_p_sublead = evaluator_sublead.evaluate(
+                "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt
+            )
 
         if is_correction:
             # only calculate correction to nominal weight
