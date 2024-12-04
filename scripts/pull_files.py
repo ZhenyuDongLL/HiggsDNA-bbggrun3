@@ -568,7 +568,6 @@ def get_scale_and_smearing(logger, target_dir):
             "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoE+PromptFG/photonSS.json.gz",
             "to": f"{to_prefix}/SS_RerecoE_PromptFG_2022.json.gz",
         },
-
         "2022preEE_Electrons": {
             "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoBCD/electronSS.json.gz",
             "to": f"{to_prefix}/SS_Electron_Rereco2022BCD.json.gz",
@@ -577,7 +576,6 @@ def get_scale_and_smearing(logger, target_dir):
             "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoE+PromptFG/electronSS.json.gz",
             "to": f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json.gz",
         },
-
     }
     fetch_file("Scale and Smearing", logger, from_to_dict, type="copy")
     # Now, unpack the gz to have the raw JSONs
@@ -625,6 +623,22 @@ def get_Et_dependent_scale_and_smearing(logger, target_dir):
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SAS_HIG-23-014_paper/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
             "to": f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
         },
+        "2023preBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SaS/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
+            "to": f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
+        },
+        "2023postBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SaS/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
+            "to": f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
+        },
+        "2023preBPix_Electrons": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SaS/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
+            "to": f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
+        },
+        "2023postBPix_Electrons": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SaS/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
+            "to": f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
+        },
     }
     fetch_file("Scale and Smearing", logger, from_to_dict, type="copy")
 
@@ -638,6 +652,18 @@ def get_Et_dependent_scale_and_smearing(logger, target_dir):
         logger,
         f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
         f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json",
+    )
+
+    unzip_gz_with_zcat(
+        logger,
+        f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
+        f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json",
+    )
+    
+    unzip_gz_with_zcat(
+        logger,
+        f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
+        f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json",
     )
 
 def get_mass_decorrelation_CDF(logger, target_dir):
