@@ -13,23 +13,22 @@ resource_dir = resources.files("higgs_dna")
 
 
 # ---------------------- A few helping functions  ----------------------
-def unzip_gz_with_zcat(logger, input_file, output_file):
+def unzip_gz_with_gunzip(logger, input_file, output_file):
     try:
-        # Check if zcat is available in the system
+        # Check if gunzip is available in the system
         subprocess.check_call(
-            ["zcat", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            ["gunzip", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        # Run zcat command to unzip the gz file
+        # Run gunzip command to unzip the gz file
         with open(output_file, "wb") as output:
-            subprocess.check_call(["zcat", input_file], stdout=output)
+            with open(input_file, "rb") as input_gz:
+                subprocess.check_call(["gunzip", "-c"], stdin=input_gz, stdout=output)
         logger.info(f"File '{input_file}' successfully unzipped to '{output_file}'.")
         # Remove the gz file after extraction
         os.remove(input_file)
         logger.info(f"File '{input_file}' deleted.")
     except subprocess.CalledProcessError as e:
         logger.error(f"Error: {e}")
-        # exit now blocks downloading other files
-        # sys.exit(1)
     else:
         pass
 
@@ -660,24 +659,24 @@ def get_scale_and_smearing(logger, target_dir, use_xrdcp=False):
     }
     fetch_file("Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
     # Now, unpack the gz to have the raw JSONs
-    unzip_gz_with_zcat(
+    unzip_gz_with_gunzip(
         logger,
         f"{to_prefix}/SS_Rereco2022BCD.json.gz",
         f"{to_prefix}/SS_Rereco2022BCD.json",
     )
-    unzip_gz_with_zcat(
+    unzip_gz_with_gunzip(
         logger,
         f"{to_prefix}/SS_RerecoE_PromptFG_2022.json.gz",
         f"{to_prefix}/SS_RerecoE_PromptFG_2022.json",
     )
 
-    unzip_gz_with_zcat(
+    unzip_gz_with_gunzip(
         logger,
         f"{to_prefix}/SS_Electron_Rereco2022BCD.json.gz",
         f"{to_prefix}/SS_Electron_Rereco2022BCD.json",
     )
 
-    unzip_gz_with_zcat(
+    unzip_gz_with_gunzip(
         logger,
         f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json.gz",
         f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json",
@@ -729,29 +728,42 @@ def get_Et_dependent_scale_and_smearing(logger, target_dir, use_xrdcp=False):
     }
     fetch_file("Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
-    unzip_gz_with_zcat(
+    unzip_gz_with_gunzip(
         logger,
         f"{to_prefix}/EGMScalesSmearing_Pho_2022PreEE.v1.json.gz",
         f"{to_prefix}/EGMScalesSmearing_Pho_2022PreEE.v1.json",
     )
 
-    unzip_gz_with_zcat(
+    unzip_gz_with_gunzip(
         logger,
         f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
         f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json",
     )
 
-    unzip_gz_with_zcat(
+    unzip_gz_with_gunzip(
         logger,
         f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
         f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json",
     )
 
-    unzip_gz_with_zcat(
+    unzip_gz_with_gunzip(
         logger,
         f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
         f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json",
     )
+
+    unzip_gz_with_gunzip(
+        logger,
+        f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
+        f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX.v1.json",
+    )
+
+    unzip_gz_with_gunzip(
+        logger,
+        f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
+        f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX.v1.json",
+    )
+
 
 def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
