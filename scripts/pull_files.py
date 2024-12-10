@@ -772,10 +772,14 @@ def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(resource_dir, "../higgs_dna/tools")
 
     from_to_dict = {
-        "2022FG": {
+        "2022": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/mass_decorrelation/CDFs/21_01_24/",
             "to": f"{to_prefix}/decorrelation_CDFs",
 			"type": "eos",
+        },
+        "2023": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/decorrelation_CDFs/",
+            "to": f"{to_prefix}/decorrelation_CDFs",
         },
     }
     fetch_file("CDFs", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
