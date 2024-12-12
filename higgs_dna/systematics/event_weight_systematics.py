@@ -1,6 +1,7 @@
 import numpy as np
 import json
 import os
+from scipy.interpolate import interp1d
 import correctionlib
 import awkward as ak
 from higgs_dna.utils.misc_utils import choose_jet
@@ -635,16 +636,16 @@ def NNLOPS(
             nnlops_reweight = nnlops_reweight[generator]
 
             # Build linear splines for different njet bins
-            spline_0jet = np.interp(
+            spline_0jet = interp1d(
                 nnlops_reweight["0jet"]["pt"], nnlops_reweight["0jet"]["weight"]
             )
-            spline_1jet = np.interp(
+            spline_1jet = interp1d(
                 nnlops_reweight["1jet"]["pt"], nnlops_reweight["1jet"]["weight"]
             )
-            spline_2jet = np.interp(
+            spline_2jet = interp1d(
                 nnlops_reweight["2jet"]["pt"], nnlops_reweight["2jet"]["weight"]
             )
-            spline_ge3jet = np.interp(
+            spline_ge3jet = interp1d(
                 nnlops_reweight["3jet"]["pt"], nnlops_reweight["3jet"]["weight"]
             )
 
