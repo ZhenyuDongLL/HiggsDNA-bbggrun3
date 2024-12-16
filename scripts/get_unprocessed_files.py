@@ -186,24 +186,40 @@ def parse_sample_json(samples_json: str, convention: str):
 
         # Get list of root files in dataset
         rootf_location = samples[name]
-        # Remove redirector, eg ""root://xrootd-cms.infn.it/"
+        # Remove redirector, eg "root://xrootd-cms.infn.it/"
         rootf_name = ["/store"+ file.split("store")[-1] for file in rootf_location]
 
-        # Here we retrieve the original dataset name
-        dataset =  os.popen(
+        # Get the location of the unique datasets
+        # Retrieve the file location, eg "/store/data/Run2022C/EGamma/NANOAOD/16Dec2023-v1"
+        rootf_directory = [f.split("/")[:-2] for f in rootf_name]
+        rootf_directory = ["/".join(directory) for directory in rootf_directory]
+        # Get the list of unique location
+        unique_rootf_directory = []
+        for directory in rootf_directory:
+            if directory not in unique_rootf_directory:
+                unique_rootf_directory.append(directory)
+        # And get the first root file in each unique location
+        files_from_unique_directories = []
+        for directory in unique_rootf_directory:
+            files_from_unique_directories.append([rootf for rootf in rootf_name if directory in rootf][0])
+
+        # Here we retrieve the original dataset names based on the root file list we just retrieved
+        dataset_list = [os.popen(
                 # use the cvmfs source for dasgoclient because it works for everyone
                 # Both local infrastructures with cvmfs and lxplus!
                 ("/cvmfs/cms.cern.ch/common/dasgoclient -query='dataset file={}'").format(
-                    rootf_name[0]
+                    rootf
                 )
-            ).read()
+            ).read() for rootf in files_from_unique_directories]
 
-        # From the dataset name, we can now retrieve all the root files contained in it
-        file_list = (os.popen(
+        # From the dataset names, we can now retrieve all the root files contained in each dataset
+        nested_file_list = [(os.popen(
                 ("/cvmfs/cms.cern.ch/common/dasgoclient -query='file dataset={} | grep file.name | grep file.nevents'").format(
                     dataset.strip()
                 )
-            ).read()).splitlines()
+            ).read()).splitlines() for dataset in dataset_list]
+        # Flatten the list of all root files
+        file_list = [rootf for file_list in nested_file_list for rootf in file_list]
 
         if convention == "DAS":
             # Retrieve DAS uuid from root file name

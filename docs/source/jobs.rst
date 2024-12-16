@@ -98,7 +98,7 @@ Getting the list of unprocessed samples
 Parquet naming convention
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-By default, the parquet file names include the ``UUID`` contained in the ``ROOT`` file header (`see header format here <https://root.cern/doc/v632/header.html>`_`).
+By default, the parquet file names include the ``UUID`` contained in the ``ROOT`` file header (`see header format <https://root.cern/doc/v632/header.html>`_).
 However, this ``UUID`` differs from the one used in `DAS <https://cmsweb.cern.ch/das/>`_, which can make it difficult to quickly identify which files have successfully been processed.
 To address this, the ``choose_naming_convention`` function allows users to select the naming convention for the output files, either aligning with the DAS ``UUID`` or retaining the legacy format.
 
