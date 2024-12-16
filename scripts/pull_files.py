@@ -1084,6 +1084,34 @@ def get_muon_SFs(logger, target_dir, use_xrdcp=False):
     fetch_file("muonSF", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
+def get_lowmass_dykiller_model(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = resource_dir
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/tools")
+
+    from_to_dict = {
+        "2022postEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/NNMass.onnx",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2022postEE/NNMass.onnx",
+            ),
+            "type": "eos",
+        },
+        "2022preEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/NNMass.onnx",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2022preEE/NNMass.onnx",
+            ),
+            "type": "eos",
+        },
+    }
+
+    fetch_file("LowMass-DYKilller", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Simple utility script to retrieve the needed files for corections, luminostiy mask, systematics uncertainties ..."
@@ -1095,7 +1123,7 @@ def main():
         dest="target",
         help="Choose the target to download (default: %(default)s)",
         default="GoldenJson",
-        choices=["GoldenJSON", "cTag", "bTag", "PhotonID", "PU", "SS","Et_SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva","LowMass-DiPhotonMVA", "muonSF"],
+        choices=["GoldenJSON", "cTag", "bTag", "PhotonID", "PU", "SS","Et_SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva","LowMass-DiPhotonMVA", "muonSF", "LowMass-DYKilller"],
     )
 
     parser.add_argument(
@@ -1166,6 +1194,7 @@ def main():
         get_eveto_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_lowmass_diphotonmva_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_muon_SFs(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_lowmass_dykiller_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "GoldenJSON":
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PU":
@@ -1208,6 +1237,8 @@ def main():
         get_lowmass_diphotonmva_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "muonSF":
         get_muon_SFs(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "LowMass-DYKilller":
+        get_lowmass_dykiller_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     else:
         logger.info("Unknown target, exit now!")
         exit(0)

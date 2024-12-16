@@ -21,6 +21,7 @@ from higgs_dna.tools.diphoton_mva_lowmass import (
     add_diphoton_mva_inputs_for_lowmass,
     eval_diphoton_mva_for_lowmass,
 )
+from higgs_dna.tools.dykiller_lowmass import eval_dykiller_for_lowmass
 
 # from higgs_dna.utils.dumping_utils import diphoton_list_to_pandas, dump_pandas
 from higgs_dna.systematics import object_systematics as available_object_systematics
@@ -785,7 +786,7 @@ class lowmassProcessor(HggBaseProcessor):
                     "mediumId": events.Muon.mediumId,
                     "looseId": events.Muon.looseId,
                     "isGlobal": events.Muon.isGlobal,
-                    "pfIsoId": events.Muon.pfIsoId
+                    "pfIsoId": events.Muon.pfIsoId,
                 }
             )
             muons = awkward.with_name(muons, "PtEtaPhiMCandidate")
@@ -888,13 +889,6 @@ class lowmassProcessor(HggBaseProcessor):
             diphotons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll
             diphotons = dress_branches(diphotons, events.PV, "PV")
             diphotons = dress_branches(diphotons, events.Rho, "Rho")
-            # * evaluate diphoton mva
-            # * after all selection and
-            # * before map pho_lead and pho_sublead with self.prefixes
-            diphotons = eval_diphoton_mva_for_lowmass(
-                diphotons, year=self.year[dataset_name][0]
-            )
-
             # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
             if self.data_kind == "mc":
                 diphotons["genWeight"] = events.genWeight
@@ -921,6 +915,16 @@ class lowmassProcessor(HggBaseProcessor):
             else:
                 selection_mask = ~awkward.is_none(diphotons)
                 diphotons = diphotons[selection_mask]
+
+            # * evaluate diphoton mva and dykiller score
+            # * after all selection and
+            # * before map pho_lead and pho_sublead with self.prefixes
+            diphotons = eval_diphoton_mva_for_lowmass(
+                diphotons, year=self.year[dataset_name][0]
+            )
+            diphotons = eval_dykiller_for_lowmass(
+                diphotons, year=self.year[dataset_name][0]
+            )
 
             # return if there is no surviving events
             if len(diphotons) == 0:
@@ -999,7 +1003,9 @@ class lowmassProcessor(HggBaseProcessor):
                                 )
 
                 diphotons["weight"] = event_weights.weight()
-                diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]
+                diphotons["weight_central"] = (
+                    event_weights.weight() / events["genWeight"][selection_mask]
+                )
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
                     if len(event_weights.variations):
