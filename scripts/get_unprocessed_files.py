@@ -52,6 +52,12 @@ def get_fetcher_args() -> argparse.Namespace:
         help="Path in which to save the unprocessed samples, eg 'Thisdir/myoutput.json'.",
         default="unprocessed_samples.json",
     )
+    parser.add_argument(
+        "--skipbadfiles",
+        help="Skip xrootd bad files when retrieving Legacy UUID",
+        default=False,
+        action='store_true'
+    )
 
     return parser.parse_args()
 
@@ -76,39 +82,46 @@ def check_range(range_list):
 
 # Use xrootd to read the header of a root file.
 # Retrieve the associated UUID from the file header.
-def get_root_uuid_using_xrootd(fpath):
+def get_root_uuid_using_xrootd(fpath, skipbadfiles):
 
     logger.debug(f"Opening {fpath} with xrootd")
 
-    with client.File() as f:
-        # Try to open the file
-        status, _ = f.open(fpath)
-        if not status.ok:
-            raise RuntimeError(f"Failed to open file {fpath}: {status.message}")
+    try:
+        with client.File() as f:
+            # Try to open the file
+            status, _ = f.open(fpath, timeout=30)
+            if not status.ok:
+                raise RuntimeError(f"Failed to open file {fpath}: {status.message}")
 
-        # Read version bytes (offset 4, size 4)
-        status, version_bytes = f.read(offset=4, size=4)
-        if not status.ok:
-            raise RuntimeError(f"Failed to read version from file {fpath}: {status.message}")
-        # Convert version to an integer
-        version = int.from_bytes(version_bytes, "big")
+            # Read version bytes (offset 4, size 4)
+            status, version_bytes = f.read(offset=4, size=4)
+            if not status.ok:
+                raise RuntimeError(f"Failed to read version from file {fpath}: {status.message}")
+            # Convert version to an integer
+            version = int.from_bytes(version_bytes, "big")
 
-        # Determine the offset for UUID based on the version
-        uuid_offset = 59 if version >= 1000000 else 47
-        # Read the UUID bytes
-        status, uuid_bytes = f.read(offset=uuid_offset, size=16)
-        if not status.ok:
-            raise RuntimeError(f"Failed to read UUID from file {fpath}: {status.message}")
-        # Convert UUID bytes to standard UUID format
-        root_uuid = '-'.join([
-            uuid_bytes[0:4].hex(),
-            uuid_bytes[4:6].hex(),
-            uuid_bytes[6:8].hex(),
-            uuid_bytes[8:10].hex(),
-            uuid_bytes[10:16].hex()
-        ])
+            # Determine the offset for UUID based on the version
+            uuid_offset = 59 if version >= 1000000 else 47
+            # Read the UUID bytes
+            status, uuid_bytes = f.read(offset=uuid_offset, size=16)
+            if not status.ok:
+                raise RuntimeError(f"Failed to read UUID from file {fpath}: {status.message}")
+            # Convert UUID bytes to standard UUID format
+            root_uuid = '-'.join([
+                uuid_bytes[0:4].hex(),
+                uuid_bytes[4:6].hex(),
+                uuid_bytes[6:8].hex(),
+                uuid_bytes[8:10].hex(),
+                uuid_bytes[10:16].hex()
+            ])
+    except RuntimeError as e:
+        if skipbadfiles:
+            root_uuid = "00000000-0000-0000-0000-000000000000"
+        else:
+            logger.error(f"An XRootD error was encountered.")
+            raise e
 
-        return root_uuid
+    return root_uuid
 
 
 # Create a dict of form {'dataset':{'uuid':nevent}} from the source directory.
@@ -172,7 +185,7 @@ def create_pq_dict(path, root_dict):
 
 
 # Create a dict of form {'dataset':{'uuid':(nevent,physical_location)}} from the sample.json file.
-def parse_sample_json(samples_json: str, convention: str):
+def parse_sample_json(samples_json: str, convention: str, skipbadfiles):
 
     root_dict = {}
     rootf_uuid = []
@@ -210,7 +223,7 @@ def parse_sample_json(samples_json: str, convention: str):
             rootf_uuid = [file.split("/")[-1].replace(".root","") for file in rootf_name]
         elif convention == "Legacy":
             # Retrieve ROOT uuid from root file location using xrootd
-            rootf_uuid = [get_root_uuid_using_xrootd(file) for file in track(rootf_location, description=f"[blue]Processing files in {name}...")]
+            rootf_uuid = [get_root_uuid_using_xrootd(file, skipbadfiles) for file in track(rootf_location, description=f"[blue]Processing files in {name}...")]
 
         # Construct the output dict for each dataset
         root_dict[name] = {}
@@ -222,10 +235,18 @@ def parse_sample_json(samples_json: str, convention: str):
                 # Find the associated information from the list: uuid and physical file location
                 index = rootf_name.index(fname)
                 associated_rootuuid = rootf_uuid[index]
+                if associated_rootuuid == "00000000-0000-0000-0000-000000000000":
+                    logger.debug(f"{fname} could not be accessed by xrootd.")
+                    associated_rootuuid = "failed_"+fname.split("/")[-1].replace(".root","")
+                    nev = -999
                 associated_rootf_location = rootf_location[index]
                 root_dict[name][associated_rootuuid] = (nev, associated_rootf_location)
 
         logger.debug(f"Successfully retrieved file information for dataset {name}")
+        if any("failed" in uuid for uuid in root_dict[name].keys()):
+                number_of_xrootd_fails = sum('failed' in uuid for uuid in root_dict[name].keys())
+                logger.warning(f"{number_of_xrootd_fails} file(s) in {name} could not be accessed by xrootd and have been automatically marked as unprocessed.")
+
 
     return root_dict
 
@@ -278,7 +299,7 @@ if __name__ == "__main__":
     get_proxy()
 
     # Create dicts from sample.json and parquet directory
-    root_dict = parse_sample_json(args.json, args.convention)
+    root_dict = parse_sample_json(args.json, args.convention, args.skipbadfiles)
     pq_dict = create_pq_dict(args.source, root_dict)
 
     logger.info("Starting creation of output file.")
