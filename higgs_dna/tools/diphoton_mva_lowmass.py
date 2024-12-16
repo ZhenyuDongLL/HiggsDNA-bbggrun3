@@ -2,8 +2,22 @@ import awkward as ak
 import numpy as np
 import pandas as pd
 import vector
-import onnxruntime
 import os
+
+import onnxruntime
+
+_default_session_options = onnxruntime.capi._pybind_state.get_default_session_options()
+
+
+def get_default_session_options_new():
+    _default_session_options.inter_op_num_threads = 1
+    _default_session_options.intra_op_num_threads = 1
+    return _default_session_options
+
+
+onnxruntime.capi._pybind_state.get_default_session_options = (
+    get_default_session_options_new
+)
 
 
 def add_diphoton_mva_inputs_for_lowmass(diphotons, events, mc_flow_corrected=False):
@@ -76,13 +90,6 @@ def add_diphoton_mva_inputs_for_lowmass(diphotons, events, mc_flow_corrected=Fal
     vtx_prob = 2 * sigma_rv / (sigma_rv + sigma_wv)
     diphotons["vtx_prob"] = vtx_prob
 
-    # * PV_dZ1, PV_dZ2
-    # z coordinate of primary vertices other than the main one
-    # padded to have at least 3 entry for each event (useful for slicing)
-    other_PV_z = ak.pad_none(events.OtherPV.z, 2, axis=1)
-    diphotons["PV_dZ1"] = ak.fill_none(np.abs(events.PV.z - other_PV_z[:, 0]), 9999.0)
-    diphotons["PV_dZ2"] = ak.fill_none(np.abs(events.PV.z - other_PV_z[:, 1]), 9999.0)
-
     # * resolution weight
     diphotons["resolution_weight"] = vtx_prob / sigma_rv + (1 - vtx_prob) / sigma_wv
 
@@ -111,7 +118,7 @@ def add_diphoton_mva_inputs_for_lowmass(diphotons, events, mc_flow_corrected=Fal
     return diphotons
 
 
-def eval_diphoton_mva_for_lowmass(diphotons, year="2022postEE"):
+def get_model_path():
     model_dict = {
         "2022preEE": os.path.join(
             os.path.dirname(__file__),
@@ -122,22 +129,43 @@ def eval_diphoton_mva_for_lowmass(diphotons, year="2022postEE"):
             "../tools/lowmass_diphoton_mva/2022postEE/DiphotonXGboost_LM.onnx",
         ),
     }
+    return model_dict
 
+
+def get_variable_list():
+    # * varible list could have:
+    # * - direct variable name, e.g., sigma_wv
+    # * - varible in subfield, e.g., photon_lead.eta
+    variable_list = [
+        "pho_lead.ptom",
+        "pho_sublead.ptom",
+        "pho_lead.eta",
+        "pho_sublead.eta",
+        "pho_lead.mvaID",
+        "pho_sublead.mvaID",
+        "sigma_wv",
+        "cos_dphi",
+    ]
+    return variable_list
+
+
+def eval_diphoton_mva_for_lowmass(diphotons, year="2022postEE"):
+    model_dict = get_model_path()
     # model input variables
+    variable_list = get_variable_list()
     dict_inputs = {
-        "pho_lead_ptom": ak.to_numpy(diphotons["pho_lead"]["ptom"]),
-        "pho_sublead_ptom": ak.to_numpy(diphotons["pho_sublead"]["ptom"]),
-        "pho_lead_eta": ak.to_numpy(diphotons["pho_lead"]["eta"]),
-        "pho_sublead_eta": ak.to_numpy(diphotons["pho_sublead"]["eta"]),
-        "pho_lead_mvaID": ak.to_numpy(diphotons["pho_lead"]["mvaID"]),
-        "pho_sublead_mvaID": ak.to_numpy(diphotons["pho_sublead"]["mvaID"]),
-        "sigma_rv": ak.to_numpy(diphotons["sigma_rv"]),
-        "sigma_wv": ak.to_numpy(diphotons["sigma_wv"]),
-        "vtx_prob": ak.to_numpy(diphotons["vtx_prob"]),
-        "cos_dphi": ak.to_numpy(diphotons["cos_dphi"]),
+        var: ak.to_numpy(diphotons[tuple(var.split(".")) if "." in var else var])
+        for var in variable_list
     }
+
     df_inputs = pd.DataFrame(dict_inputs)
     np_inputs = df_inputs.to_numpy().astype(np.float32)
+
+    # fix issues mentioned here: https://github.com/microsoft/onnxruntime/issues/8313
+    # ort_options = ort_session.SessionOptions()
+    # ort_options = onnxruntime.capi._pybind_state.get_default_session_options()
+    # ort_options.intra_op_num_threads = 1
+    # ort_options.inter_op_num_threads = 1
 
     # create onnx session
     ort_session = onnxruntime.InferenceSession(model_dict[year])
