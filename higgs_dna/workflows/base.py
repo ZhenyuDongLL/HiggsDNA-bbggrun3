@@ -294,11 +294,6 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 logger.info(
                     f"[ lumimask ] Skip now! Unable to find year info of {dataset_name}"
                 )
-        # apply jetvetomap: only retain events that without any jets in the EE leakage region
-        if not self.skipJetVetoMap:
-            events = jetvetomap(
-                events, logger, dataset_name, year=self.year[dataset_name][0]
-            )
         # metadata array to append to higgsdna output
         metadata = {}
 
@@ -382,6 +377,12 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 # may want to throw an error instead, needs to be discussed
                 warnings.warn(f"Could not process correction {correction_name}.")
                 continue
+
+        # apply jetvetomap: only retain events that without any jets in the veto region
+        if not self.skipJetVetoMap:
+            events = jetvetomap(
+                events, logger, dataset_name, year=self.year[dataset_name][0]
+            )
 
         original_photons = events.Photon
         # NOTE: jet jerc systematics are added in the correction functions and handled later
