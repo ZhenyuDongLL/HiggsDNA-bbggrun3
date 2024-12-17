@@ -115,11 +115,14 @@ def Scale(pt, events, year="2022postEE", is_correction=True, restriction=None):
         return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * _pt[:, None]
 
 
-# Et dependent scale (it has to be applied on top of EGamma (only r9 and eta dependent) scale corrections)
 def Et_dependent_Scale(pt, events, year="2022postEE", is_correction=True, restriction=None):
     """
     Applies the photon pt scale corrections (use on data!) and corresponding uncertainties (on MC!).
-    JSONs need to be pulled first with scripts/pull_files.py
+    JSONs need to be pulled first with scripts/pull_files.py.
+    Note: For 2022, the ET-dependent scale corrections are applied on top of the EGamma corrections
+    This is already done in this function, so you only have to specify "Et_dependent_Scale" in the runner JSON, not both.
+    For 2023, the ET-dependent scale corrections already include the equalisation in time.
+    Thus, the 2023 corrections are independent and detached from the Egamma corrections.
     """
 
     # for later unflattening:
