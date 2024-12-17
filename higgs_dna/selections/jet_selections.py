@@ -236,42 +236,67 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
     count = awkward.num(jets_jagged)
     jets = awkward.flatten(jets_jagged)
 
-    input_dict = {
-        "type": "jetvetomap",
-        "eta": jets.eta,
-        "phi": np.clip(jets.phi, low_phi, high_phi),
-    }
-
     cset = correctionlib.CorrectionSet.from_file(json_dict[year])
-    inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
-    vetomap = cset[key_map[year]].evaluate(*(inputs))
 
-    if not year == "2022postEE":
-        flag_eep_jet = (
-            awkward.zeros_like(jets.pt) > 1
-        )  # flag_eep_jet always False for non-2022postEE
-        sel_obj.add("vetomap", np.abs(vetomap) > 0)
+    if year == "2023postBPix":
+        # ref: https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVRun3Analysis#From_JME
+        # and: https://cms-talk.web.cern.ch/t/jet-veto-maps-for-run3/57850/6
+
+        input_dict = {
+            "type": "jetvetomap",
+            "eta": jets.eta,
+            "phi": np.clip(jets.phi, low_phi, high_phi),
+        }
+
+        input_dict_notBPix = {
+            "type": "jetvetomap_bpix",
+            "eta": jets.eta,
+            "phi": np.clip(jets.phi, low_phi, high_phi),
+        }
+
+        input_dict["type"] = "jetvetomap"
+        inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
+
+        input_dict_notBPix["type"] = "jetvetomap_bpix"
+        inputs_notBPix = [input_dict_notBPix[input.name] for input in cset[key_map[year]].inputs]
+
+        vetomap = cset[key_map[year]].evaluate(*(inputs))
+        vetomap_notBPix = cset[key_map[year]].evaluate(*(inputs_notBPix))
+        flag_veto_jet = (np.abs(vetomap) > 0) & ((np.abs(vetomap_notBPix) > 0) == False) & ((jets.pt > 15) & ((jets.jetId == 2) | (jets.jetId == 6)) & ((jets.chEmEF + jets.neEmEF) < 0.9) & (jets.muonIdx1 == -1) & (jets.muonIdx2 == -1))
+        sel_obj.add("vetomap", ((np.abs(vetomap) > 0) & (np.abs(vetomap_notBPix) > 0)) | (flag_veto_jet))
     else:
         # ref: https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVRun3Analysis#From_JME
-        # normal jetvetomap should be applied to all 2022
+        # and: https://cms-talk.web.cern.ch/t/jet-veto-maps-for-run3/57850/6
 
-        # consider the EELeak region
-        input_dict["type"] = "jetvetomap_eep"
+        input_dict = {
+            "type": "jetvetomap",
+            "eta": jets.eta,
+            "phi": np.clip(jets.phi, low_phi, high_phi),
+        }
+
+        input_dict["type"] = "jetvetomap"
         inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
-        vetomap_eep = cset[key_map[year]].evaluate(*(inputs))
-        flag_eep_jet = (np.abs(vetomap_eep) > 0) & (jets.pt > 30)
-        sel_obj.add("vetomap", (np.abs(vetomap) > 0) | (flag_eep_jet))
+        vetomap = cset[key_map[year]].evaluate(*(inputs))
+        flag_veto_jet = (np.abs(vetomap) > 0) & ((jets.pt > 15) & ((jets.jetId == 2) | (jets.jetId == 6)) & ((jets.chEmEF + jets.neEmEF) < 0.9) & (jets.muonIdx1 == -1) & (jets.muonIdx2 == -1))
+        sel_obj.add("vetomap", (np.abs(vetomap) > 0) | (flag_veto_jet))
+
     sel_veto_jet = sel_obj.all(*(sel_obj.names))
     sel_good_jet = ~awkward.Array(sel_veto_jet)
     logger.debug(
         f"[{systematic}] total: {len(sel_good_jet)}, pass: {awkward.sum(sel_good_jet)}"
     )
     sel_good_jet_jagged = awkward.unflatten(sel_good_jet, count)
-    flag_eep_jet_jagged = awkward.unflatten(flag_eep_jet, count)
-    events.Jet = jets_jagged[sel_good_jet_jagged]
-    sel_event_veto = ~awkward.any(flag_eep_jet_jagged, axis=1)
+    flag_veto_jet_jagged = awkward.unflatten(flag_veto_jet, count)
+
+    sel_event_veto = ~awkward.any(flag_veto_jet_jagged, axis=1)
+
+    # Apply the veto mask, preserving all fields
+    filtered_events = events[sel_event_veto]
+
+    filtered_events["Photon"] = events.Photon[sel_event_veto]
+    filtered_events["Jet"] = (jets_jagged[sel_good_jet_jagged])[sel_event_veto]
+
     logger.debug(
         f"[{systematic}] total event: {len(sel_event_veto)}, pass event: {awkward.sum(sel_event_veto)}"
     )
-
-    return events[sel_event_veto]
+    return filtered_events
