@@ -1,5 +1,5 @@
 from higgs_dna.utils.logger_utils import setup_logger
-from higgs_dna.samples.fetch import get_dataset_dict_grid
+from higgs_dna.scripts.samples.fetch_datasets import get_dataset_dict_grid
 import pytest
 from subprocess import getstatusoutput
 

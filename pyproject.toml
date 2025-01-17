@@ -1,11 +1,103 @@
+[build-system]
+requires = ["hatchling>=1.17.1"]
+build-backend = "hatchling.build"
+
+[project]
+name = "higgs_dna"
+version = "0.0.0"
+description = "Tools for running the CMS Higgs to Two Photons Analysis on NanoAOD"
+readme = "README.md"
+license = {text = "BSD-3-Clause"}
+requires-python = ">=3.8"
+authors = [
+  { name = "Hgg Group", email = "higgsdna@cern.ch" },
+]
+maintainers = [
+  { name = "Hgg Group", email = "higgsdna@cern.ch" },
+]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+  "setuptools<71",
+  "coffea<2023",
+  "awkward<2",
+  "vector<=1.4.2",
+  "xgboost",
+  "pyaml",
+  "rich",
+  "dask>=2021.10.0",
+  "distributed",
+  "dask-jobqueue",
+  "correctionlib",
+  "torch",
+  "requests",
+  "zuko",
+  "onnx",
+  "onnxruntime",
+]
+
+[project.urls]
+Documentation = "https://higgs_dna.readthedocs.io/"
+"Bug Tracker" = "https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/issues"
+Discussions = "https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/discussions"
+Changelog = "https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/releases"
+
+[project.optional-dependencies]
+dev = ["pytest>=6"]
+docs = ["Sphinx>=4.0", "myst-parser>=0.13", "sphinx-book-theme>=0.1.0", "sphinx-copybutton"]
+test = ["pytest>=6"]
+
+[project.scripts]
+"run_analysis.py" = "higgs_dna.scripts.run_analysis:main"
+"merge_parquet.py" = "higgs_dna.scripts.postprocessing.merge_parquet:main"
+"convert_parquet_to_root.py" = "higgs_dna.scripts.postprocessing.convert_parquet_to_root:main"
+"prepare_output_file.py" = "higgs_dna.scripts.postprocessing.prepare_output_file:main"
+"make_correction_json.py" = "higgs_dna.scripts.make_correction_json:main"
+"pull_files.py" = "higgs_dna.scripts.pull_files:main"
+"fetch_datasets.py" = "higgs_dna.scripts.samples.fetch_datasets:main"
+"get_unprocessed_files.py" = "higgs_dna.scripts.get_unprocessed_files:main"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "higgs_dna/**",
+    "higgs_dna/metaconditions/*.json",
+    "higgs_dna/systematics/JSONs/*",
+]
+
+[tool.hatch.build.targets.wheel]
+include = [
+    "higgs_dna/**",
+    "higgs_dna/metaconditions/*.json"
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+addopts = [
+  "-rfesxX",
+  "-v",
+]
+log_cli_level = "DEBUG"
+
 [tool.mypy]
 files = "higgs_dna"
 python_version = "3.9"
 warn_unused_configs = true
-
 disallow_any_generics = true
 disallow_subclassing_any = true
-# Error: Call to untyped function "bad" in typed context  [no-untyped-call]
 disallow_untyped_calls = false
 disallow_untyped_defs = false
 disallow_incomplete_defs = true
@@ -14,18 +106,6 @@ disallow_untyped_decorators = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-# https://mypy.readthedocs.io/en/stable/error_code_list2.html#check-that-function-does-not-return-any-value-no-any-return
 warn_return_any = false
 no_implicit_reexport = true
 strict_equality = true
-
-exclude = ["higgs_dna/tools/chained_quantile.py"]
-
-# https://mypy.readthedocs.io/en/stable/config_file.html#using-a-pyproject-toml-file
-[[tool.mypy.overrides]]
-module = [
-    "awkward",
-    "coffea",
-    "pandas"
-]
-ignore_missing_imports = true

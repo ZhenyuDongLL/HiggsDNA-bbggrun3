@@ -296,8 +296,7 @@ def compare_data(root_dict, source_dict):
     return unprocessed_files
 
 
-if __name__ == "__main__":
-
+def main():
     output_dict = {}
 
     args = get_fetcher_args()
@@ -346,3 +345,6 @@ if __name__ == "__main__":
         logger.info(f"Output file will be saved in {args.output}.")
         with open(args.output, 'w') as f:
             json.dump(output_dict, f, indent=4)
+
+if __name__ == "__main__":
+    main()

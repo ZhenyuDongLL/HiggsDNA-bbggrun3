@@ -93,7 +93,7 @@ def run_executor(_args, executor, sample_dict, processor_instance):
         save(output, _args.save)
 
 
-if __name__ == "__main__":
+def main():
     parser = get_main_parser()
     args = parser.parse_args()
 
@@ -402,3 +402,7 @@ if __name__ == "__main__":
             memory=args.memory,
         )
         output = vanilla_submitter.submit()
+
+
+if __name__ == "__main__":
+    main()
