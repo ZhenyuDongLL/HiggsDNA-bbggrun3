@@ -29,7 +29,7 @@ def run_processor(processor_instance, fileset):
     TagAndProbeProcessor,
     HHbbggProcessor,
     # Hpc Cannot be included in a simple way here since the arguments are not defaulted
-    #HplusCharmProcessor, 
+    #HplusCharmProcessor,
     # Unclear to me why low mass does not work here, unit test should also be designed for this processor
     #lowmassProcessor,
     ParticleLevelProcessor,
@@ -42,10 +42,8 @@ def test_processors(processor_class):
     Test that each processor can run over a basic nanoAOD data v11 file without errors.
     """
     # Pull the golden JSON file
-    os.chdir("scripts")
-    subprocess.run("python pull_files.py --target GoldenJSON", shell=True)
-    os.chdir("..")
-    
+    subprocess.run("pull_files.py --target GoldenJSON", shell=True)
+
     # Choose datasets to run over appropriately
     # In the future, should specify datasets on eos instead of local files
     # These should be appropriate for the processor being tested (e.g. muon for Zmmy or DY for T&P)
@@ -98,9 +96,9 @@ def test_processors(processor_class):
         skipJetVetoMap=True,
         output_location="output/basics"
     )
-    
+
     # Run the processor and verify output
     run_processor(processor_instance, fileset)
-    
+
     # Clean up
     subprocess.run("rm -r output", shell=True)
