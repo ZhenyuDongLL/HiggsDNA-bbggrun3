@@ -238,47 +238,20 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
 
     cset = correctionlib.CorrectionSet.from_file(json_dict[year])
 
-    if year == "2023postBPix":
-        # ref: https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVRun3Analysis#From_JME
-        # and: https://cms-talk.web.cern.ch/t/jet-veto-maps-for-run3/57850/6
+    # ref: https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVRun3Analysis#From_JME
+    # and: https://cms-talk.web.cern.ch/t/jet-veto-maps-for-run3/57850/6
 
-        input_dict = {
-            "type": "jetvetomap",
-            "eta": jets.eta,
-            "phi": np.clip(jets.phi, low_phi, high_phi),
-        }
+    input_dict = {
+        "type": "jetvetomap",
+        "eta": jets.eta,
+        "phi": np.clip(jets.phi, low_phi, high_phi),
+    }
 
-        input_dict_notBPix = {
-            "type": "jetvetomap_bpix",
-            "eta": jets.eta,
-            "phi": np.clip(jets.phi, low_phi, high_phi),
-        }
-
-        input_dict["type"] = "jetvetomap"
-        inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
-
-        input_dict_notBPix["type"] = "jetvetomap_bpix"
-        inputs_notBPix = [input_dict_notBPix[input.name] for input in cset[key_map[year]].inputs]
-
-        vetomap = cset[key_map[year]].evaluate(*(inputs))
-        vetomap_notBPix = cset[key_map[year]].evaluate(*(inputs_notBPix))
-        flag_veto_jet = (np.abs(vetomap) > 0) & ((np.abs(vetomap_notBPix) > 0) == False) & ((jets.pt > 15) & ((jets.jetId == 2) | (jets.jetId == 6)) & ((jets.chEmEF + jets.neEmEF) < 0.9) & (jets.muonIdx1 == -1) & (jets.muonIdx2 == -1))
-        sel_obj.add("vetomap", ((np.abs(vetomap) > 0) & (np.abs(vetomap_notBPix) > 0)) | (flag_veto_jet))
-    else:
-        # ref: https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVRun3Analysis#From_JME
-        # and: https://cms-talk.web.cern.ch/t/jet-veto-maps-for-run3/57850/6
-
-        input_dict = {
-            "type": "jetvetomap",
-            "eta": jets.eta,
-            "phi": np.clip(jets.phi, low_phi, high_phi),
-        }
-
-        input_dict["type"] = "jetvetomap"
-        inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
-        vetomap = cset[key_map[year]].evaluate(*(inputs))
-        flag_veto_jet = (np.abs(vetomap) > 0) & ((jets.pt > 15) & ((jets.jetId == 2) | (jets.jetId == 6)) & ((jets.chEmEF + jets.neEmEF) < 0.9) & (jets.muonIdx1 == -1) & (jets.muonIdx2 == -1))
-        sel_obj.add("vetomap", (np.abs(vetomap) > 0) | (flag_veto_jet))
+    input_dict["type"] = "jetvetomap"
+    inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
+    vetomap = cset[key_map[year]].evaluate(*(inputs))
+    flag_veto_jet = (np.abs(vetomap) > 0) & ((jets.pt > 15) & ((jets.jetId == 2) | (jets.jetId == 6)) & ((jets.chEmEF + jets.neEmEF) < 0.9) & (jets.muonIdx1 == -1) & (jets.muonIdx2 == -1))
+    sel_obj.add("vetomap", (np.abs(vetomap) > 0) | (flag_veto_jet))
 
     sel_veto_jet = sel_obj.all(*(sel_obj.names))
     sel_good_jet = ~awkward.Array(sel_veto_jet)
