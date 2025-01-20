@@ -1,6 +1,9 @@
 import os
 import json
 
+import requests
+import zipfile
+
 import pytest
 import subprocess
 
@@ -42,8 +45,17 @@ def test_prepare_output_file():
     """
     Test if preparation of output file with the helper script works
     """
-    os.system("wget https://cernbox.cern.ch/remote.php/dav/public-files/Y9BLGMELVw8AMdD/example_HiggsDNA_output.zip")
-    os.system("unzip example_HiggsDNA_output.zip")
+    # Download and unzip without relying on wget or unzip for slim python CI
+    url = "https://cernbox.cern.ch/remote.php/dav/public-files/Y9BLGMELVw8AMdD/example_HiggsDNA_output.zip"
+    output_file = "example_HiggsDNA_output.zip"
+    response = requests.get(url)
+    with open(output_file, "wb") as f:
+        f.write(response.content)
+    with zipfile.ZipFile(output_file, 'r') as zip_ref:
+        zip_ref.extractall(".")
+    
+    os.remove(output_file) # Clean up
+
     location = os.path.abspath("example_HiggsDNA_output")
     x = os.system("prepare_output_file.py --input example_HiggsDNA_output/data --merge --root --cats --catDict cat_dict_inclusive_data.json")
     x += os.system("prepare_output_file.py --input example_HiggsDNA_output/signal --merge --root --cats --catDict cat_dict_inclusive_MC.json --syst --varDict var_dict.json")
