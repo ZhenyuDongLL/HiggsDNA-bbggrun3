@@ -1,4 +1,4 @@
-image: "python:3.10"
+image: "python:3.10-slim"
 
 stages:
   - build
@@ -25,7 +25,8 @@ variables:
 build:
   stage: build
   script:
-    - pip install -e .[dev]
+    - pip install --no-cache-dir -e .[dev]
+    - rm -rf /root/.cache /tmp/*
 
 build_docker:
     stage: build docker
@@ -65,7 +66,8 @@ static_analysis:
   before_script:
     - pip install flake8
     - pip install mypy --quiet
-    - pip install -e.[dev]
+    - pip install --no-cache-dir -e .[dev]
+    - rm -rf /root/.cache /tmp/*
   script:
     - flake8 higgs_dna/*
     # mypy will pick up what is specified in pyproject.toml
@@ -74,7 +76,8 @@ static_analysis:
 unit_test:
   stage: test
   before_script:
-    - pip install -e .[dev]
+    - pip install --no-cache-dir -e .[dev]
+    - rm -rf /root/.cache /tmp/*
   script:
     - pwd
     - ls -l
