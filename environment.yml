@@ -16,7 +16,7 @@ dependencies:
   - pandas
   - rich
   - matplotlib
-  - vector<=1.4.2
+  - vector<=1.4.3
   - conda-pack
   - tqdm
   - xgboost
