@@ -131,6 +131,17 @@ def main():
     xrd_pfx_len = len(xrootd_pfx)
     with open(samplejson) as f:
         sample_dict = json.load(f)
+
+    # log if a dataset is not in the sample_dict
+    bad_datasets = [key for key in year if key not in sample_dict]
+    if bad_datasets:
+        logger.info(f"The following datasets are present in the analysis but not in the sample json and will be ignored: {bad_datasets}")
+
+    # drop datasets from sample_dict if they are not in the analysis
+    keys_to_delete = [key for key in sample_dict if key not in year]
+    for key in keys_to_delete:
+        del sample_dict[key]
+
     for key in sample_dict.keys():
         sample_dict[key] = sample_dict[key][: args.limit]
     if args.executor == "dask/casa":
@@ -196,7 +207,7 @@ def main():
         if taggers is not None:
             for tagger in taggers:
                 if tagger not in all_taggers.keys():
-                    raise NotImplementedError
+                    raise NotImplementedError(f"Tagger '{tagger}' not implemented")
             wf_taggers = [all_taggers[tagger]() for tagger in taggers]
         with resources.open_text(
             "higgs_dna.metaconditions", all_metaconditions[metaconditions]
@@ -220,7 +231,7 @@ def main():
                 output_format=args.output_format,
             )  # additional args can go here to configure a processor
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"Workflow '{workflow}' not implemented")
 
     if args.executor not in ["futures", "iterative", "dask/lpc", "dask/casa"]:
         """
@@ -299,7 +310,7 @@ def main():
                 ]
             )
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Executor '{args.executor}' not implemented")
 
         dfk = parsl.load(htex_config)
 
