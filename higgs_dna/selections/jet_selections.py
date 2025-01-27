@@ -18,6 +18,7 @@ def select_jets(
     diphotons: awkward.highlevel.Array,
     muons: awkward.highlevel.Array,
     electrons: awkward.highlevel.Array,
+    taus: awkward.highlevel.Array = None,
 ) -> awkward.highlevel.Array:
     # jet id selection: https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
     if self.jet_jetId == "tight":
@@ -73,6 +74,12 @@ def select_jets(
     else:
         dr_muons_cut = jets.pt > -1
 
+    if taus is not None:
+        if (self.clean_jet_tau) & (awkward.num(taus.pt, axis=0) > 0):
+            dr_taus_cut = delta_r_mask(jets, taus, self.jet_tau_min_dr)
+    else:
+        dr_taus_cut = jets.pt > -1
+
     return (
         (jetId_cut)
         & (pt_cut)
@@ -82,6 +89,7 @@ def select_jets(
         & (dr_pho_sublead_cut)
         & (dr_electrons_cut)
         & (dr_muons_cut)
+        & (dr_taus_cut)
     )
 
 

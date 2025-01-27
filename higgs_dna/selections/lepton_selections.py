@@ -67,3 +67,25 @@ def select_muons(
     dr_phoSublead_cut = delta_r_mask(muons, diphotons.pho_sublead, self.muon_photon_min_dr)
 
     return pt_cut & eta_cut & id_cut & iso_cut & dr_phoLead_cut & dr_phoSublead_cut & global_cut
+
+
+def select_taus(
+    self,
+    taus: awkward.highlevel.Array,
+    diphotons: awkward.highlevel.Array
+) -> awkward.highlevel.Array:
+    # Kinematic cuts
+    pt_cut = taus.pt > self.tau_pt_threshold
+    eta_cut = abs(taus.eta) < abs(self.tau_max_eta)
+    dz_cut = abs(taus.dz) < self.tau_max_dz
+
+    # apply the loosest working points for jet and muon discriminators, and the second loosest electron discriminator
+    # as we are using the DeepTau ID we also veto dm 5 and 6, when the code is updated to use particleNet we may want to remove this requirement
+    tau_id = "DeepTau2018v2p5"
+    id_cut = (taus[f"id{tau_id}VSjet"] > 0) & (taus[f"id{tau_id}VSmu"] > 0) & (taus[f"id{tau_id}VSe"] > 1) & (taus.decayMode != 5) & (taus.decayMode != 6)
+
+    # Mask taus that are within 0.2 of a photon
+    dr_phoLead_cut = delta_r_mask(taus, diphotons.pho_lead, self.tau_photon_min_dr)
+    dr_phoSublead_cut = delta_r_mask(taus, diphotons.pho_sublead, self.tau_photon_min_dr)
+
+    return pt_cut & eta_cut & dz_cut & id_cut & dr_phoLead_cut & dr_phoSublead_cut
