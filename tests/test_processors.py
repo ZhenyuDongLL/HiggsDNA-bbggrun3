@@ -3,7 +3,7 @@ import subprocess
 import json
 import pytest
 from importlib import resources
-from higgs_dna.workflows import DYStudiesProcessor, TagAndProbeProcessor, HHbbggProcessor, HplusCharmProcessor, lowmassProcessor, ParticleLevelProcessor, TopProcessor, ZeeProcessor, ZmmyProcessor
+from higgs_dna.workflows import DYStudiesProcessor, TagAndProbeProcessor, HHbbggProcessor, HplusCharmProcessor, lowmassProcessor, ParticleLevelProcessor, TopProcessor, ZeeProcessor, ZmmyProcessor, STXSProcessor
 from coffea import processor
 
 
@@ -35,7 +35,8 @@ def run_processor(processor_instance, fileset):
     ParticleLevelProcessor,
     TopProcessor,
     ZeeProcessor,
-    #ZmmyProcessor
+    #ZmmyProcessor,
+    STXSProcessor,
 ])
 def test_processors(processor_class):
     """
@@ -76,6 +77,9 @@ def test_processors(processor_class):
     elif processor_class == ZmmyProcessor:
         MC = None
         Data = None
+    elif processor_class == STXSProcessor:
+        MC = "./tests/samples/skimmed_nano/ggH_M125_amcatnlo_v13.root"
+        Data = "./tests/samples/skimmed_nano/EGamma_2022E_v13.root"
 
     fileset = {}
 
