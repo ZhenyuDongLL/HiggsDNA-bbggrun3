@@ -77,6 +77,8 @@ def select_jets(
     if taus is not None:
         if (self.clean_jet_tau) & (awkward.num(taus.pt, axis=0) > 0):
             dr_taus_cut = delta_r_mask(jets, taus, self.jet_tau_min_dr)
+        else:
+            dr_taus_cut = jets.pt > -1
     else:
         dr_taus_cut = jets.pt > -1
 
