@@ -12,6 +12,57 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def jetIdFlags_v1213(jets, nano_version):
+    abs_eta = abs(jets.eta)
+
+    if nano_version == 12:
+        # Default tight
+        passJetIdTight = awkward.where(
+            abs_eta <= 2.7,
+            jets.jetId & (1 << 1),  # Tight criteria for abs_eta <= 2.7
+            awkward.where(
+                (abs_eta > 2.7) & (abs_eta <= 3.0),
+                (jets.jetId & (1 << 1)) & (jets.neHEF < 0.99),  # Tight criteria for 2.7 < abs_eta <= 3.0
+                (jets.jetId & (1 << 1)) & (jets.neEmEF < 0.4)  # Tight criteria for 3.0 < abs_eta
+            )
+        )
+
+        # Default tight lepton veto
+        passJetIdTightLepVeto = awkward.where(
+            abs_eta <= 2.7,
+            passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),  # add lepton veto for abs_eta <= 2.7
+            passJetIdTight  # No lepton veto for 2.7 < abs_eta
+        )
+    else:
+        # Default tight for NanoAOD version 13
+        passJetIdTight = awkward.where(
+            abs_eta <= 2.6,
+            (jets.neHEF < 0.99)
+            & (jets.neEmEF < 0.9)
+            & (jets.chMultiplicity + jets.neMultiplicity > 1)
+            & (jets.chHEF > 0.01)
+            & (jets.chMultiplicity > 0),  # Tight criteria for abs_eta <= 2.6
+            awkward.where(
+                (abs_eta > 2.6) & (abs_eta <= 2.7),
+                (jets.neHEF < 0.9) & (jets.neEmEF < 0.99),  # Tight criteria for 2.6 < abs_eta <= 2.7
+                awkward.where(
+                    (abs_eta > 2.7) & (abs_eta <= 3.0),
+                    jets.neHEF < 0.99,  # Tight criteria for 2.7 < abs_eta <= 3.0
+                    (jets.neMultiplicity >= 2) & (jets.neEmEF < 0.4)  # Tight criteria for abs_eta > 3.0
+                )
+            )
+        )
+
+        # Default tight lepton veto
+        passJetIdTightLepVeto = awkward.where(
+            abs_eta <= 2.7,
+            passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),  # add lepton veto for abs_eta <= 2.7
+            passJetIdTight  # No lepton veto for 2.7 < abs_eta
+        )
+
+    return passJetIdTight, passJetIdTightLepVeto
+
+
 def select_jets(
     self,
     jets: awkward.highlevel.Array,
@@ -21,13 +72,25 @@ def select_jets(
     taus: awkward.highlevel.Array = None,
 ) -> awkward.highlevel.Array:
     # jet id selection: https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
-    if self.jet_jetId == "tight":
-        jetId_cut = jets.jetId >= 2
-    elif self.jet_jetId == "tightLepVeto":
-        jetId_cut = jets.jetId == 6
+    if (self.nano_version == 12) or (self.nano_version == 13):
+        passJetIdTight, passJetIdTightLepVeto = jetIdFlags_v1213(jets, self.nano_version)
+        if self.jet_jetId == "tight":  # Select jetId 2 or 6
+            logger.info("Applying jetID recipe of NanoAOD version %s", self.nano_version)
+            jetId_cut = passJetIdTight
+        elif self.jet_jetId == "tightLepVeto":  # Select jetId 6
+            logger.info("Applying jetID recipe of NanoAOD version %s", self.nano_version)
+            jetId_cut = passJetIdTight & passJetIdTightLepVeto
+        else:
+            jetId_cut = awkward.ones_like(jets.pt) > 0
+            logger.warning("[ select_jets ] - No JetId applied")
     else:
-        jetId_cut = awkward.ones_like(jets.pt) > 0
-        logger.warning("[ select_jets ] - No JetId applied")
+        if self.jet_jetId == "tight":
+            jetId_cut = jets.jetId >= 2
+        elif self.jet_jetId == "tightLepVeto":
+            jetId_cut = jets.jetId == 6
+        else:
+            jetId_cut = awkward.ones_like(jets.pt) > 0
+            logger.warning("[ select_jets ] - No JetId applied")
     logger.debug(
         f"[ select_jets ] - Total: {len(awkward.flatten(jetId_cut))} - Pass tight jetId: {awkward.sum(awkward.flatten(jetId_cut))}"
     )

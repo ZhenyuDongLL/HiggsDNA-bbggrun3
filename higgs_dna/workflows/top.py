@@ -41,6 +41,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
         systematics: Dict[str, List[Any]] = None,
         corrections: Dict[str, List[Any]] = None,
         apply_trigger: bool = False,
+        nano_version: int = None,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
         trigger_group=".*DoubleEG.*",
@@ -59,6 +60,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             systematics=systematics,
             corrections=corrections,
             apply_trigger=apply_trigger,
+            nano_version=nano_version,
             output_location=output_location,
             taggers=taggers,
             trigger_group=trigger_group,
@@ -72,6 +74,8 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             doFlow_corrections=doFlow_corrections,
             output_format=output_format
         )
+
+        self.nano_version = nano_version
 
         self.el_id_wp = "WP90"
         self.name_convention = "DAS"

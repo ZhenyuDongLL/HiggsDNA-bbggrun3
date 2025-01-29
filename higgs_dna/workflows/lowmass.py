@@ -327,6 +327,7 @@ class lowmassProcessor(HggBaseProcessor):
         systematics: Dict[str, List[Any]] = None,
         corrections: Dict[str, List[Any]] = None,
         apply_trigger: bool = False,
+        nano_version: int = None,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
         trigger_group: str = ".*DoubleEG.*",
@@ -345,6 +346,7 @@ class lowmassProcessor(HggBaseProcessor):
             systematics=systematics,
             corrections=corrections,
             apply_trigger=apply_trigger,
+            nano_version=nano_version,
             output_location=output_location,
             taggers=taggers,
             trigger_group=trigger_group,
@@ -358,6 +360,9 @@ class lowmassProcessor(HggBaseProcessor):
             doFlow_corrections=doFlow_corrections,
             output_format=output_format,
         )
+
+        self.nano_version = nano_version
+
         # diphoton preselection cuts
         self.min_pt_photon = 18.0
         self.min_pt_lead_photon = 30.0

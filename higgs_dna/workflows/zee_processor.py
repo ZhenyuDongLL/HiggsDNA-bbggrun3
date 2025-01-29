@@ -41,6 +41,7 @@ class ZeeProcessor(HggBaseProcessor):
         systematics: Dict[str, List[Any]] = None,
         corrections: Optional[Dict[str, List[str]]] = None,
         apply_trigger: bool = False,
+        nano_version: int = None,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
         trigger_group: str = ".*DoubleEG.*",
@@ -59,6 +60,7 @@ class ZeeProcessor(HggBaseProcessor):
             systematics=systematics,
             corrections=corrections,
             apply_trigger=apply_trigger,
+            nano_version=nano_version,
             output_location=output_location,
             taggers=taggers,
             trigger_group=".*DoubleEG.*",
@@ -72,6 +74,8 @@ class ZeeProcessor(HggBaseProcessor):
             doFlow_corrections=doFlow_corrections,
             output_format=output_format
         )
+
+        self.nano_version = nano_version
 
         # diphoton preselection cuts - Based on Dielectron trigger
         self.min_pt_photon = 23.0

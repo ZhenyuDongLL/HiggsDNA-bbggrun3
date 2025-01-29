@@ -30,5 +30,13 @@ def test_parser():
     with pytest.raises(SystemExit):
         parser.parse_args(["--fake-arg"])
 
-    args = parser.parse_args(["--json-analysis", "path_to_json.json"])
+    # Test that --nano-version is required
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--json-analysis", "path_to_json.json"])
+
+    args = parser.parse_args([
+        "--json-analysis", "path_to_json.json",
+        "--nano-version", "13"
+    ])
     assert args.json_analysis_file == "path_to_json.json"
+    assert args.nano_version == 13
