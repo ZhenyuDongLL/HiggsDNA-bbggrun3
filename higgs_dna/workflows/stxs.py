@@ -53,6 +53,7 @@ class STXSProcessor(HggBaseProcessor):
         apply_trigger: bool = False,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
+        nano_version: int = None,
         trigger_group: str = ".*DoubleEG.*",
         analysis: str = "mainAnalysis",
         skipCQR: bool = False,
@@ -69,6 +70,7 @@ class STXSProcessor(HggBaseProcessor):
             systematics=systematics,
             corrections=corrections,
             apply_trigger=apply_trigger,
+            nano_version=nano_version,
             output_location=output_location,
             taggers=taggers,
             trigger_group=trigger_group,
@@ -443,14 +445,18 @@ class STXSProcessor(HggBaseProcessor):
                     "charge": awkward.zeros_like(
                         jets.pt
                     ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
-                    "hFlav": jets.hadronFlavour
-                    if self.data_kind == "mc"
-                    else awkward.zeros_like(jets.pt),
+                    "hFlav": jets.hadronFlavour if self.data_kind == "mc" else awkward.zeros_like(jets.pt),
                     "btagDeepFlav_B": jets.btagDeepFlavB,
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
                     "jetId": jets.jetId,
+                    **(
+                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chEmEF": jets.chEmEF, "muEF": jets.muEF} if self.nano_version == 12 else {}
+                    ),
+                    **(
+                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version == 13 else {}
+                    ),
                 }
             )
             jets = awkward.with_name(jets, "PtEtaPhiMCandidate")
