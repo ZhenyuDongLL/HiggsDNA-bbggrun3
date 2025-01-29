@@ -116,7 +116,7 @@ def photon_preselection(
 
     isEB_high_r9 = (photons.isScEtaEB) & (photons.r9 > self.min_full5x5_r9_EB_high_r9)
     isEE_high_r9 = (photons.isScEtaEE) & (photons.r9 > self.min_full5x5_r9_EE_high_r9)
-    iso = photons.pfChargedIsoPFPV if hasattr(photons, "pfChargedIsoPFPV") else photons.trkSumPtHollowConeDR03  # photons.pfChargedIsoPFPV for v11, photons.trkSumPtHollowConeDR03 v12 and above
+    iso = photons.trkSumPtHollowConeDR03 if hasattr(photons, "trkSumPtHollowConeDR03") else photons.pfChargedIsoPFPV  # photons.pfChargedIsoPFPV for v11, photons.trkSumPtHollowConeDR03 v12 and above
     rel_iso = photons.pfRelIso03_chg if hasattr(photons, "pfRelIso03_chg") else photons.pfRelIso03_chg_quadratic  # photons.pfRelIso03_chg for v1?, photons.pfRelIso03_chg_quadratic v12 and above
     isEB_low_r9 = (
         (photons.isScEtaEB)
