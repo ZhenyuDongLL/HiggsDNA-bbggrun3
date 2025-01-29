@@ -22,7 +22,8 @@ def test_processors_creation():
         "--skipJetVetoMap",
         "--executor", "iterative",
         "--limit", "1",
-        "--workers", "1"
+        "--workers", "1",
+        "--nano-version", "13"
     ]
 
     #subprocess.run(command)
@@ -45,7 +46,8 @@ def test_processors_creation():
         "--skipJetVetoMap",
         "--executor", "iterative",
         "--limit", "1",
-        "--workers", "1"
+        "--workers", "1",
+        "--nano-version", "13"
     ]
 
     #subprocess.run(command)

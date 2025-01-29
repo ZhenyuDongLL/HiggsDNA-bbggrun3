@@ -216,6 +216,7 @@ def main():
                 metaconditions=json.load(f),
                 systematics=systematics,
                 corrections=corrections,
+                nano_version=args.nano_version,
                 apply_trigger=args.use_trigger,
                 output_location=args.dump,
                 analysis=args.analysis,

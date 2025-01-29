@@ -60,6 +60,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         systematics: Optional[Dict[str, List[str]]],
         corrections: Optional[Dict[str, List[str]]],
         apply_trigger: bool,
+        nano_version: int,
         output_location: Optional[str],
         taggers: Optional[List[Any]],
         trigger_group: str,
@@ -78,6 +79,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         self.corrections = corrections if corrections is not None else {}
         self.apply_trigger = apply_trigger
         self.output_location = output_location
+        self.nano_version = nano_version
         self.trigger_group = trigger_group
         self.analysis = analysis
         self.skipCQR = skipCQR

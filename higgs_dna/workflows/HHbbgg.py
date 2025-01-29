@@ -46,6 +46,7 @@ class HHbbggProcessor(HggBaseProcessor):
         systematics: Dict[str, List[Any]] = None,
         corrections: Dict[str, List[Any]] = None,
         apply_trigger: bool = False,
+        nano_version: str = None,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
         trigger_group=".*DoubleEG.*",
@@ -63,6 +64,7 @@ class HHbbggProcessor(HggBaseProcessor):
             metaconditions,
             systematics=systematics,
             corrections=corrections,
+            nano_version=nano_version,
             apply_trigger=apply_trigger,
             output_location=output_location,
             taggers=taggers,
@@ -77,6 +79,8 @@ class HHbbggProcessor(HggBaseProcessor):
             doFlow_corrections=doFlow_corrections,
             output_format=output_format
         )
+
+        self.nano_version = nano_version
 
         self.num_fatjets_to_store = 4
         self.num_leptons_to_store = 4

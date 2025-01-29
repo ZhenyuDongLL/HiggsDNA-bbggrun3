@@ -81,6 +81,14 @@ def get_main_parser():
         default=None,
         help="If not None, save the coffea output, e.g., --save run_summary.coffea",
     )
+    parser.add_argument(
+        "--nano-version",
+        dest="nano_version",
+        type=int,
+        default=None,
+        required=True,
+        help="NanoAOD version used in the analysis.",
+    )
 
     # Scale out
     parser.add_argument(
