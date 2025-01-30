@@ -412,12 +412,13 @@ def Et_dependent_Smearing(pt, events, year="2022postEE", is_correction=True):
 
 def energyErrShift(energyErr, events, year="2022postEE", is_correction=True):
     # See also https://indico.cern.ch/event/1131803/contributions/4758593/attachments/2398621/4111806/Hgg_Differentials_Approval_080322.pdf#page=47
+    # 2% with flows justified by https://indico.cern.ch/event/1495536/#20-study-of-the-sigma_mm-mismo
     if is_correction:
         return events
     else:
         _energyErr = ak.flatten(events.Photon.energyErr)
-        uncertainty_up = np.ones(len(_energyErr)) * 1.05
-        uncertainty_dn = np.ones(len(_energyErr)) * 0.95
+        uncertainty_up = np.ones(len(_energyErr)) * 1.02
+        uncertainty_dn = np.ones(len(_energyErr)) * 0.98
         return (
             np.concatenate(
                 (uncertainty_up.reshape(-1, 1), uncertainty_dn.reshape(-1, 1)), axis=1
