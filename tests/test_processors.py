@@ -96,7 +96,6 @@ def test_processors(processor_class):
         year={"Data": ["2022postEE"], "MC": ["2022postEE"]},
         metaconditions=metaconditions,
         apply_trigger=True,
-        skipCQR=True,
         skipJetVetoMap=True,
         output_location="output/basics"
     )

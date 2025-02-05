@@ -222,7 +222,7 @@ def main():
                 analysis=args.analysis,
                 trigger_group=args.triggerGroup,
                 taggers=wf_taggers,
-                skipCQR=args.skipCQR,
+                applyCQR=args.applyCQR,
                 skipJetVetoMap=args.skipJetVetoMap,
                 year=year,
                 fiducialCuts=args.fiducialCuts,
