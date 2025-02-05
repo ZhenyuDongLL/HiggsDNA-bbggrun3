@@ -370,6 +370,12 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
                     "jetId": jets.jetId,
+                    **(
+                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chEmEF": jets.chEmEF, "muEF": jets.muEF} if self.nano_version == 12 else {}
+                    ),
+                    **(
+                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version == 13 else {}
+                    ),
                 }
             )
             jets = ak.with_name(jets, "PtEtaPhiMCandidate")
