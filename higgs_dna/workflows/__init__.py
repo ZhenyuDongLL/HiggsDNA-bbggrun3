@@ -14,7 +14,7 @@ from higgs_dna.workflows.stxs import STXSProcessor
 
 workflows = {}
 
-workflows["dystudies"] = DYStudiesProcessor
+workflows["base"] = DYStudiesProcessor
 workflows["tagandprobe"] = TagAndProbeProcessor
 workflows["HHbbgg"] = HHbbggProcessor
 workflows["particleLevel"] = ParticleLevelProcessor

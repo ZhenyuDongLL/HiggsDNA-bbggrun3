@@ -232,6 +232,8 @@ def main():
                 output_format=args.output_format,
             )  # additional args can go here to configure a processor
     else:
+        if workflow == "dystudies":
+            logger.error("You selected the workflow 'dystudies', but it has been renamed to base. Exiting.")
         raise NotImplementedError(f"Workflow '{workflow}' not implemented")
 
     if args.executor not in ["futures", "iterative", "dask/lpc", "dask/casa"]:
