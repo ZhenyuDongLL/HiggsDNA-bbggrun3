@@ -65,7 +65,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         taggers: Optional[List[Any]],
         trigger_group: str,
         analysis: str,
-        skipCQR: bool,
+        applyCQR: bool,
         skipJetVetoMap: bool,
         year: Optional[Dict[str, List[str]]],
         fiducialCuts: str,
@@ -82,7 +82,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         self.nano_version = nano_version
         self.trigger_group = trigger_group
         self.analysis = analysis
-        self.skipCQR = skipCQR
+        self.applyCQR = applyCQR
         self.skipJetVetoMap = skipJetVetoMap
         self.year = year if year is not None else {}
         self.fiducialCuts = fiducialCuts
@@ -184,7 +184,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             logger.info("Performing Mass resolution decorrelation as required")
 
         # build the chained quantile regressions
-        if not self.skipCQR:
+        if self.applyCQR:
             try:
                 self.chained_quantile: Optional[
                     ChainedQuantileRegression

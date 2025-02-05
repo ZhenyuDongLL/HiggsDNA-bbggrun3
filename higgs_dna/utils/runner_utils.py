@@ -206,10 +206,10 @@ def get_main_parser():
         help="Max number of chunks to run in total",
     )
     parser.add_argument(
-        "--skipCQR",
-        default=False,
+        "--applyCQR",
         action="store_true",
-        help="Do not apply chained quantile regression (CQR) corrections",
+        default=False,
+        help="Apply chained quantile regression (CQR) corrections",
     )
     parser.add_argument(
         "--skipJetVetoMap",
