@@ -1122,7 +1122,7 @@ def main():
         "--target",
         dest="target",
         help="Choose the target to download (default: %(default)s)",
-        default="GoldenJson",
+        default="GoldenJSON",
         choices=["GoldenJSON", "cTag", "bTag", "PhotonID", "PU", "SS","Et_SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva","LowMass-DiPhotonMVA", "muonSF", "LowMass-DYKilller"],
     )
 
@@ -1255,4 +1255,4 @@ if __name__ == "__main__":
 # python pull_files.py --all
 # python pull_files.py --target GoldenJSON
 # python pull_files.py --target cTag
-# python pull_files.py --target GoldenJson --target_dir ./test_json --log_dir ./json-log --analysis goldenjson_test
+# python pull_files.py --target GoldenJSON --target_dir ./test_json --log_dir ./json-log --analysis goldenjson_test
