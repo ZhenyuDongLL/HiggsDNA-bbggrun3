@@ -35,6 +35,73 @@ def activate_final_fit(path, command):
         f"eval `scram runtime -sh` && source {path}/flashggFinalFit/setup.sh && cd {path}/flashggFinalFit/Trees2WS && {command} "
     )
     os.chdir(current_path)
+    
+def decompose_string(input_string, era_flag=False):
+    """
+    Decomposes the input string into process, mass, and era components based on underscores.
+
+    Args:
+        input_string (str): The string to be decomposed.
+        era_flag (bool): If True, include the era in the output. If False, exclude the era.
+
+    Returns:
+        str: The formatted string in the style process + _ + mass (+ _ + era if era_flag is True).
+    """
+    # Map known processes to their keywords
+    process_map = {
+        "GluGluHtoGG": "ggh",
+        "GluGluHto2G": "ggh",
+        "ggh": "ggh",
+        "ttHtoGG": "tth",
+        "ttHto2G": "tth",
+        "tth": "tth",
+        "VHtoGG": "vh",
+        "VHto2G": "vh",
+        "vh": "vh",
+        "VBFHtoGG": "vbf",
+        "VBFHto2G": "vbf",
+        "vbf": "vbf",
+        "bbHtoGG": "bbh",
+        "bbHto2G": "bbh",
+        "DYto2L": "dy",
+        "GG-Box": "ggbox",
+        "GJet": "gjet"
+    }
+
+    parts = input_string.split("_")
+
+    # Extract the process by matching known keywords
+    process = "unknown"
+    for key, value in process_map.items():
+        if key in parts[0]:
+            process = value
+            break
+
+    # Extract the mass component
+    mass = next((part[2:] for part in parts if part.startswith("M-") and part[2:].isdigit()), "")
+
+    # Find the era (if it exists) and strip the year if included.
+    era = ""
+    for part in parts:
+        if "pre" in part or "post" in part:
+            era = part
+            if part[:4].isdigit():
+                era = part[4:]
+            break
+
+    # Assemble the output.
+    if mass:
+        if era_flag and era:
+            return f"{process}_{mass}_{era}"
+        elif era_flag:
+            return f"{process}_{mass}"
+        else:
+            return f"{process}_{mass}"
+    else:
+        if era_flag and era:
+            return f"{process}_{era}"
+        else:
+            return process
 
 
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -178,6 +245,13 @@ def main():
         default=False,
         help="Run HTCondor with Docker image of HiggsDNA's current master branch.",
     )
+    parser.add_option(
+        "--eraFlag",
+        dest="eraFlag",
+        action="store_true",
+        default=False,
+        help="Returns era flag in the process dictionary to allow distinction.",
+    )
     (opt, args) = parser.parse_args()
 
     if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
@@ -205,195 +279,6 @@ def main():
         f"find {folder_for_dirlist} -mindepth 1 -maxdepth 1 -type d | grep -v '^.$' | grep -v .coffea | grep -v '/merged$' | grep -v '/root$' |"
         + "awk -F'/' '{print $NF}' > dirlist.txt"
         )
-
-    process_dict = {
-        "GluGluHtoGG": "ggh",
-        "VBFHtoGG": "vbf",
-        "VHtoGG": "vh",
-        "ttHtoGG": "tth",
-        # Definitions for legacy naming conventions (GG instead of 2G and without year string)
-        "GluGluHtoGG_M-120_preEE": "ggh_120",
-        "GluGluHtoGG_M-120_postEE": "ggh_120",
-        "GluGluHtoGG_M-125_preEE": "ggh_125",
-        "GluGluHtoGG_M-125_postEE": "ggh_125",
-        "GluGluHtoGG_M-130_preEE": "ggh_130",
-        "GluGluHtoGG_M-130_postEE": "ggh_130",
-        "VBFHtoGG_M-120_preEE": "vbf_120",
-        "VBFHtoGG_M-120_postEE": "vbf_120",
-        "VBFHtoGG_M-125_preEE": "vbf_125",
-        "VBFHtoGG_M-125_postEE": "vbf_125",
-        "VBFHtoGG_M-130_preEE": "vbf_130",
-        "VBFHtoGG_M-130_postEE": "vbf_130",
-        "VHtoGG_M-120_preEE": "vh_120",
-        "VHtoGG_M-120_postEE": "vh_120",
-        "VHtoGG_M-125_preEE": "vh_125",
-        "VHtoGG_M-125_postEE": "vh_125",
-        "VHtoGG_M-130_preEE": "vh_130",
-        "VHtoGG_M-130_postEE": "vh_130",
-        "ttHtoGG_M-120_preEE": "tth_120",
-        "ttHtoGG_M-120_postEE": "tth_120",
-        "ttHtoGG_M-125_preEE": "tth_125",
-        "ttHtoGG_M-125_postEE": "tth_125",
-        "ttHtoGG_M-130_preEE": "tth_130",
-        "ttHtoGG_M-130_postEE": "tth_130",
-        # Definitions for old convention of GG but with year string
-        # Both for 2022 and 2023
-        "GluGluHtoGG_M-120_2022preEE": "ggh_120",
-        "GluGluHtoGG_M-120_2022postEE": "ggh_120",
-        "GluGluHtoGG_M-125_2022preEE": "ggh_125",
-        "GluGluHtoGG_M-125_2022postEE": "ggh_125",
-        "GluGluHtoGG_M-130_2022preEE": "ggh_130",
-        "GluGluHtoGG_M-130_2022postEE": "ggh_130",
-        "VBFHtoGG_M-120_2022preEE": "vbf_120",
-        "VBFHtoGG_M-120_2022postEE": "vbf_120",
-        "VBFHtoGG_M-125_2022preEE": "vbf_125",
-        "VBFHtoGG_M-125_2022postEE": "vbf_125",
-        "VBFHtoGG_M-130_2022preEE": "vbf_130",
-        "VBFHtoGG_M-130_2022postEE": "vbf_130",
-        "VHtoGG_M-120_2022preEE": "vh_120",
-        "VHtoGG_M-120_2022postEE": "vh_120",
-        "VHtoGG_M-125_2022preEE": "vh_125",
-        "VHtoGG_M-125_2022postEE": "vh_125",
-        "VHtoGG_M-130_2022preEE": "vh_130",
-        "VHtoGG_M-130_2022postEE": "vh_130",
-        "ttHtoGG_M-120_2022preEE": "tth_120",
-        "ttHtoGG_M-120_2022postEE": "tth_120",
-        "ttHtoGG_M-125_2022preEE": "tth_125",
-        "ttHtoGG_M-125_2022postEE": "tth_125",
-        "ttHtoGG_M-130_2022preEE": "tth_130",
-        "ttHtoGG_M-130_2022postEE": "tth_130",
-        "GluGluHtoGG_M-120_2023preBPix": "ggh_120",
-        "GluGluHtoGG_M-120_2023postBPix": "ggh_120",
-        "GluGluHtoGG_M-125_2023preBPix": "ggh_125",
-        "GluGluHtoGG_M-125_2023postBPix": "ggh_125",
-        "GluGluHtoGG_M-130_2023preBPix": "ggh_130",
-        "GluGluHtoGG_M-130_2023postBPix": "ggh_130",
-        "VBFHtoGG_M-120_2023preBPix": "vbf_120",
-        "VBFHtoGG_M-120_2023postBPix": "vbf_120",
-        "VBFHtoGG_M-125_2023preBPix": "vbf_125",
-        "VBFHtoGG_M-125_2023postBPix": "vbf_125",
-        "VBFHtoGG_M-130_2023preBPix": "vbf_130",
-        "VBFHtoGG_M-130_2023postBPix": "vbf_130",
-        "VHtoGG_M-120_2023preBPix": "vh_120",
-        "VHtoGG_M-120_2023postBPix": "vh_120",
-        "VHtoGG_M-125_2023preBPix": "vh_125",
-        "VHtoGG_M-125_2023postBPix": "vh_125",
-        "VHtoGG_M-130_2023preBPix": "vh_130",
-        "VHtoGG_M-130_2023postBPix": "vh_130",
-        "ttHtoGG_M-120_2023preBPix": "tth_120",
-        "ttHtoGG_M-120_2023postBPix": "tth_120",
-        "ttHtoGG_M-125_2023preBPix": "tth_125",
-        "ttHtoGG_M-125_2023postBPix": "tth_125",
-        "ttHtoGG_M-130_2023preBPix": "tth_130",
-        "ttHtoGG_M-130_2023postBPix": "tth_130",
-        # Definitions for the new convention of 2G instead of GG but without year string
-        "GluGluHto2G_M-120_preEE": "ggh_120",
-        "GluGluHto2G_M-120_postEE": "ggh_120",
-        "GluGluHto2G_M-125_preEE": "ggh_125",
-        "GluGluHto2G_M-125_postEE": "ggh_125",
-        "GluGluHto2G_M-130_preEE": "ggh_130",
-        "GluGluHto2G_M-130_postEE": "ggh_130",
-        "VBFHto2G_M-120_preEE": "vbf_120",
-        "VBFHto2G_M-120_postEE": "vbf_120",
-        "VBFHto2G_M-125_preEE": "vbf_125",
-        "VBFHto2G_M-125_postEE": "vbf_125",
-        "VBFHto2G_M-130_preEE": "vbf_130",
-        "VBFHto2G_M-130_postEE": "vbf_130",
-        "VHto2G_M-120_preEE": "vh_120",
-        "VHto2G_M-120_postEE": "vh_120",
-        "VHto2G_M-125_preEE": "vh_125",
-        "VHto2G_M-125_postEE": "vh_125",
-        "VHto2G_M-130_preEE": "vh_130",
-        "VHto2G_M-130_postEE": "vh_130",
-        "ttHto2G_M-120_preEE": "tth_120",
-        "ttHto2G_M-120_postEE": "tth_120",
-        "ttHto2G_M-125_preEE": "tth_125",
-        "ttHto2G_M-125_postEE": "tth_125",
-        "ttHto2G_M-130_preEE": "tth_130",
-        "ttHto2G_M-130_postEE": "tth_130",
-        # Definitions for the new convention of 2G instead of GG and with year string
-        # Both for 2022 and 2023
-        "GluGluHto2G_M-120_2022preEE": "ggh_120",
-        "GluGluHto2G_M-120_2022postEE": "ggh_120",
-        "GluGluHto2G_M-125_2022preEE": "ggh_125",
-        "GluGluHto2G_M-125_2022postEE": "ggh_125",
-        "GluGluHto2G_M-130_2022preEE": "ggh_130",
-        "GluGluHto2G_M-130_2022postEE": "ggh_130",
-        "VBFHto2G_M-120_2022preEE": "vbf_120",
-        "VBFHto2G_M-120_2022postEE": "vbf_120",
-        "VBFHto2G_M-125_2022preEE": "vbf_125",
-        "VBFHto2G_M-125_2022postEE": "vbf_125",
-        "VBFHto2G_M-130_2022preEE": "vbf_130",
-        "VBFHto2G_M-130_2022postEE": "vbf_130",
-        "VHto2G_M-120_2022preEE": "vh_120",
-        "VHto2G_M-120_2022postEE": "vh_120",
-        "VHto2G_M-125_2022preEE": "vh_125",
-        "VHto2G_M-125_2022postEE": "vh_125",
-        "VHto2G_M-130_2022preEE": "vh_130",
-        "VHto2G_M-130_2022postEE": "vh_130",
-        "ttHto2G_M-120_2022preEE": "tth_120",
-        "ttHto2G_M-120_2022postEE": "tth_120",
-        "ttHto2G_M-125_2022preEE": "tth_125",
-        "ttHto2G_M-125_2022postEE": "tth_125",
-        "ttHto2G_M-130_2022preEE": "tth_130",
-        "ttHto2G_M-130_2022postEE": "tth_130",
-        "GluGluHto2G_M-120_2023preBPix": "ggh_120",
-        "GluGluHto2G_M-120_2023postBPix": "ggh_120",
-        "GluGluHto2G_M-125_2023preBPix": "ggh_125",
-        "GluGluHto2G_M-125_2023postBPix": "ggh_125",
-        "GluGluHto2G_M-130_2023preBPix": "ggh_130",
-        "GluGluHto2G_M-130_2023postBPix": "ggh_130",
-        "VBFHto2G_M-120_2023preBPix": "vbf_120",
-        "VBFHto2G_M-120_2023postBPix": "vbf_120",
-        "VBFHto2G_M-125_2023preBPix": "vbf_125",
-        "VBFHto2G_M-125_2023postBPix": "vbf_125",
-        "VBFHto2G_M-130_2023preBPix": "vbf_130",
-        "VBFHto2G_M-130_2023postBPix": "vbf_130",
-        "VHto2G_M-120_2023preBPix": "vh_120",
-        "VHto2G_M-120_2023postBPix": "vh_120",
-        "VHto2G_M-125_2023preBPix": "vh_125",
-        "VHto2G_M-125_2023postBPix": "vh_125",
-        "VHto2G_M-130_2023preBPix": "vh_130",
-        "VHto2G_M-130_2023postBPix": "vh_130",
-        "ttHto2G_M-120_2023preBPix": "tth_120",
-        "ttHto2G_M-120_2023postBPix": "tth_120",
-        "ttHto2G_M-125_2023preBPix": "tth_125",
-        "ttHto2G_M-125_2023postBPix": "tth_125",
-        "ttHto2G_M-130_2023preBPix": "tth_130",
-        "ttHto2G_M-130_2023postBPix": "tth_130",
-        # Shorter conventions
-        "ggh_M-120_preEE": "ggh_120",
-        "ggh_M-120_postEE": "ggh_120",
-        "ggh_M-125_preEE": "ggh_125",
-        "ggh_M-125_postEE": "ggh_125",
-        "ggh_M-130_preEE": "ggh_130",
-        "ggh_M-130_postEE": "ggh_130",
-        "vbf_M-120_preEE": "vbf_120",
-        "vbf_M-120_postEE": "vbf_120",
-        "vbf_M-125_preEE": "vbf_125",
-        "vbf_M-125_postEE": "vbf_125",
-        "vbf_M-130_preEE": "vbf_130",
-        "vbf_M-130_postEE": "vbf_130",
-        "vh_M-120_preEE": "vh_120",
-        "vh_M-120_postEE": "vh_120",
-        "vh_M-125_preEE": "vh_125",
-        "vh_M-125_postEE": "vh_125",
-        "vh_M-130_preEE": "vh_130",
-        "vh_M-130_postEE": "vh_130",
-        "tth_M-120_preEE": "tth_120",
-        "tth_M-120_postEE": "tth_120",
-        "tth_M-125_preEE": "tth_125",
-        "tth_M-125_postEE": "tth_125",
-        "tth_M-130_preEE": "tth_130",
-        "tth_M-130_postEE": "tth_130",
-        "DYto2L_2Jets": "dy",
-        "GG-Box-3Jets_MGG-80_postEE": "ggbox",
-        "GG-Box-3Jets_MGG-80_preEE": "ggbox",
-        "GJet_PT-20to40_DoubleEMEnriched_MGG-80_postEE": "gjet",
-        "GJet_PT-20to40_DoubleEMEnriched_MGG-80_preEE": "gjet",
-        "GJet_PT-40_DoubleEMEnriched_MGG-80_postEE": "gjet",
-        "GJet_PT-40_DoubleEMEnriched_MGG-80_preEE": "gjet"
-    }
 
 # the key of the var_dict entries is also used as a key for the related root tree branch
 # to be consistent with FinalFit naming scheme you shoud use SystNameUp and SystNameDown,
@@ -605,7 +490,7 @@ def main():
                 files = fl.readlines()
                 for file in files:
                     file = file.split("\n")[0]
-                    if "data" not in file.lower() and file in process_dict:
+                    if "data" not in file.lower() and (not "unknown" in decompose_string(file, era_flag=opt.eraFlag)):
                         if os.path.exists(f"{OUT_PATH}/root/{file}"):
                             raise Exception(
                                 f"The selected target path: {OUT_PATH}/root/{file} already exists"
@@ -618,7 +503,7 @@ def main():
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         os.system(
-                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict} --vars variation.json {genBinning_str}"
+                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict} --vars variation.json {genBinning_str}"
                         )
                     elif "data" in file.lower():
                         if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
@@ -671,7 +556,7 @@ def main():
                 for dir in files:
                     dir = dir.split("\n")[0]
                     # if MC
-                    if "data" not in dir.lower() and dir in process_dict:
+                    if "data" not in dir.lower() and (not "unknown" in decompose_string(dir, era_flag=opt.eraFlag)):
                         if os.listdir(f"{IN_PATH}/root/{dir}/"):
                             filename = subprocess.check_output(
                                 f"find {IN_PATH}/root/{dir} -name *.root -type f",
@@ -685,7 +570,7 @@ def main():
                         doNOTAG = ""
                         if ("NOTAG" in cat_file.keys()):
                             doNOTAG = "--doNOTAG"
-                        command = f"python trees2ws.py {doNOTAG} --inputConfig {opt.config} --productionMode {process_dict[dir]} --year 2017 {doSystematics} --inputTreeFile {filename}"
+                        command = f"python trees2ws.py {doNOTAG} --inputConfig {opt.config} --productionMode {decompose_string(file)} --year 2017 {doSystematics} --inputTreeFile {filename}"
                         activate_final_fit(opt.final_fit, command)
                     elif "data" in dir.lower() and not data_done:
                         if os.listdir(f"{IN_PATH}/root/Data/"):
@@ -931,7 +816,7 @@ def main():
                 files = fl.readlines()
                 for file in files:
                     file = file.split("\n")[0]
-                    if "data" not in file.lower() and file in process_dict:
+                    if "data" not in file.lower() and (not "unknown" in decompose_string(file, era_flag=opt.eraFlag)):
                         if opt.condor_logs != "":
                             job_file_executable = os.path.join(CONDOR_PATH, f"{file}_root.sh")
                         else:
@@ -968,7 +853,7 @@ def main():
                             MKDIRP(f"{OUT_PATH}/root/{file}")
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {process_dict[file]} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
+                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                         os.system(f"chmod 775 {job_file_executable}")
