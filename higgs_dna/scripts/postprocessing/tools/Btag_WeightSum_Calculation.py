@@ -14,7 +14,6 @@ def Get_WeightSum_Btag(source_paths,logger):
 
     for i, source_path in enumerate(source_paths):
         # create array to store the sum of the weights for all systematic vartions
-
         dataset_check_fields = awkward.from_parquet(glob.glob("%s/*.parquet" % source_path)[0])
         # check if systamtic vatiation are stored by acessing one field of the parquet file
         flag_bWeight_sys = "weight_bTagSF_sys_jesDown" in dataset_check_fields.fields
@@ -24,8 +23,8 @@ def Get_WeightSum_Btag(source_paths,logger):
                 f"Attampeting Extracting sum of central weights and bweight systematics from metadata of files to be merged from {source_path}"
             )
         else:
-            logger.debug(
-                "Skiping the renormalization of systematic weights. Please check if you have stored the weights for bTag systematic variation. Dont worry if you are not evaluating btaging systematic for now"
+            logger.info(
+                "Skiping the renormalization of b-tagging systematic weights. Please check if you have stored the weights for bTag systematic variation. Dont worry if you are not evaluating btaging systematic for now"
             )
         source_files = glob.glob("%s/*.parquet" % source_path)
         sum_weight_central,sum_weight_central_wo_bTagSF = 0,0
@@ -42,9 +41,11 @@ def Get_WeightSum_Btag(source_paths,logger):
                 sum_weight_central += float(pq.read_table(f).schema.metadata[b'sum_weight_central'])
                 sum_weight_central_wo_bTagSF += float(pq.read_table(f).schema.metadata[b'sum_weight_central_wo_bTagSF'])
             except:
-                logger.warn(
+                logger.info(
                     "Skiping the renormalization of weights from b-tagging systematics. Please check if you have stored sum of the weights after applying the b-weight systematics in the metadata with proper naming. Example: sum_weight_bTagSF_jesUp, sum_weight_bTagSF_jesDown."
                 )
+                # return sum of the weights before and after b-weight to 1 so that the ration will be one  and merge_parquet.py will not process renormalization
+                sum_weight_central,sum_weight_central_wo_bTagSF = 1.0,1.0 
             if (flag_bWeight_sys):
                 for numSys in range(0, len(bTag_sys_variation)):
                     try:
@@ -52,7 +53,7 @@ def Get_WeightSum_Btag(source_paths,logger):
                         sum_weight_bTagSF_sys_dct["sum_weight_bTagSF_" + bTag_sys_variation[numSys] + "Up"] += float(pq.read_table(f).schema.metadata[bytes('sum_weight_bTagSF_sys_' + bTag_sys_variation[numSys] + 'Up',encoding='utf8')])
                         sum_weight_bTagSF_sys_dct["sum_weight_bTagSF_" + bTag_sys_variation[numSys] + "Down"] += float(pq.read_table(f).schema.metadata[bytes('sum_weight_bTagSF_sys_' + bTag_sys_variation[numSys] + 'Down',encoding='utf8')])
                     except:
-                        logger.warn(
+                        logger.info(
                             "Skiping the renormalization of weights from btagging systematics. Please check if you have stored sum of the weights after appling the bweight systematics in the metadata with proper nameing : example: sum_weight_bTagSF_jesUp, sum_weight_bTagSF_jesDown"
                         )
                         flag_bWeight_sys = False
@@ -88,7 +89,7 @@ def Renormalize_BTag_Weights(dataset,target_path,cat,WeightSum_preBTag,WeightSum
             f"Successfully renormalised weights wrt no b-tag SF from {target_path}{cat}_merged.parquet"
         )
     else:
-        logger.warn(
+        logger.info(
             f"Skipping weights renormalisation wrt No bTagSF from {target_path}{cat}_merged.parquet"
         )
     if (IsBtagNorm_sys):
@@ -99,7 +100,7 @@ def Renormalize_BTag_Weights(dataset,target_path,cat,WeightSum_preBTag,WeightSum
             f"Successfully renormalised weights wrt no b-tag SF from {target_path}{cat}_merged.parquet"
                 )
     else:
-        logger.warn(
+        logger.info(
             f"Skipping systematic weights renormalisation wrt no b-tag SF from {target_path}{cat}_merged.parquet"
         )
     return dataset
