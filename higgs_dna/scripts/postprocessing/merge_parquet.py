@@ -9,7 +9,7 @@ from higgs_dna.utils.logger_utils import setup_logger
 import pyarrow.parquet as pq
 import numpy as np
 from importlib import resources
-from higgs_dna.scripts.postprocessing.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
+from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
 
 
 def extract_tuples(input_string):
@@ -121,6 +121,12 @@ def main():
         default="",
         help="Optional: Path to the JSON containing the binning at gen-level.",
     )
+    parser.add_argument(
+    "--do-b-weight-normalisation",
+    default=False,
+    action="store_true",
+    help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
+   )
 
     args = parser.parse_args()
     source_paths = args.source.split(",")
@@ -174,7 +180,7 @@ def main():
         logger.info(
             "Extracting sum of gen weights (before selection) from metadata of files to be merged."
         )
-        IsBtagNorm_sys_arr,WeightSum_preBTag_arr,WeightSum_postBTag_arr,WeightSum_postBTag_sys_arr = Get_WeightSum_Btag(source_paths,logger)
+        if(args.do_b_weight_normalisation): IsBtagNorm_sys_arr,WeightSum_preBTag_arr,WeightSum_postBTag_arr,WeightSum_postBTag_sys_arr = Get_WeightSum_Btag(source_paths,logger)
 
         sum_genw_beforesel_arr = []
         for i, source_path in enumerate(source_paths):
@@ -223,7 +229,9 @@ def main():
                 syst_weight_fields = [field for field in dataset_arr.fields if (("weight_" in field) and ("Up" in field or "Down" in field))]
                 for weight_field in ["weight"] + syst_weight_fields:
                     dataset_arr[weight_field] = dataset_arr[weight_field] / sum_genw_beforesel_arr[i]
-                dataset_arr = Renormalize_BTag_Weights(dataset_arr,target_paths[i],cat,WeightSum_preBTag_arr[i],WeightSum_postBTag_arr[i],WeightSum_postBTag_sys_arr[i],IsBtagNorm_sys_arr[i],logger)
+                if(args.do_b_weight_normalisation):
+                    if((WeightSum_preBTag_arr[i]/WeightSum_postBTag_arr[i])!=1):
+                        dataset_arr = Renormalize_BTag_Weights(dataset_arr,target_paths[i],cat,WeightSum_preBTag_arr[i],WeightSum_postBTag_arr[i],WeightSum_postBTag_sys_arr[i],IsBtagNorm_sys_arr[i],logger)
                 awkward.to_parquet(dataset_arr, target_paths[i] + cat + "_merged.parquet")
                 logger.info(
                     "Successfully added normalised weight column to dataset"
