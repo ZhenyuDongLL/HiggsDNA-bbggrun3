@@ -9,6 +9,7 @@ import shutil
 import subprocess
 from distutils.dir_util import copy_tree
 import importlib.resources as resources
+
 resource_dir = resources.files("higgs_dna")
 
 
@@ -37,11 +38,13 @@ def copy_xrdcp(logger, target_name, ikey, from_path, to_path):
     fs = "root://eoscms.cern.ch/"
     try:
         # Check the file exists
-        res = subprocess.run(['xrdfs', fs, 'stat', from_path], text=True, capture_output=True)
+        res = subprocess.run(
+            ["xrdfs", fs, "stat", from_path], text=True, capture_output=True
+        )
         if res.returncode != 0:
             logger.error(res)
-            raise Exception(f'Could not stat {from_path}, {res.stderr}')
-        is_dir = 'IsDir' in res.stdout
+            raise Exception(f"Could not stat {from_path}, {res.stderr}")
+        is_dir = "IsDir" in res.stdout
 
         # copy
         if is_dir:
@@ -50,12 +53,15 @@ def copy_xrdcp(logger, target_name, ikey, from_path, to_path):
             p.mkdir(parents=True, exist_ok=True)
 
             # Copy everything
-            res = subprocess.run(['xrdcp', '-r', '-f', '-s', fs + from_path, to_path])
+            res = subprocess.run(["xrdcp", "-r", "-f", "-s", fs + from_path, to_path])
 
             # Emulate the copy_tree function for remote directories
             items = os.listdir(to_path)
-            top_dirs = [os.path.join(to_path, item) for item in items
-                        if os.path.isdir(os.path.join(to_path, item))]
+            top_dirs = [
+                os.path.join(to_path, item)
+                for item in items
+                if os.path.isdir(os.path.join(to_path, item))
+            ]
             if len(top_dirs) == 0:
                 logger.debug(f"No top directories found in {to_path}")
             else:
@@ -73,10 +79,10 @@ def copy_xrdcp(logger, target_name, ikey, from_path, to_path):
                         shutil.move(src_path, dest_path)
                     os.rmdir(top_dir)
         else:
-            res = subprocess.run(['xrdcp', '-f', '-s', fs + from_path, to_path])
+            res = subprocess.run(["xrdcp", "-f", "-s", fs + from_path, to_path])
         if res.returncode != 0:
             logger.error(res)
-            raise Exception(f'Could not copy {from_path} to {to_path}, {res.stderr}')
+            raise Exception(f"Could not copy {from_path} to {to_path}, {res.stderr}")
         logger.info(
             "[ {} ] {}: xrdcp from {} to {}".format(
                 target_name,
@@ -87,10 +93,9 @@ def copy_xrdcp(logger, target_name, ikey, from_path, to_path):
         )
     except Exception as e:
         logger.error(
-            "[ {} ] {}: Can't xrdcp from {}: {}".format(
-                target_name, ikey, from_path, e
-            )
+            "[ {} ] {}: Can't xrdcp from {}: {}".format(target_name, ikey, from_path, e)
         )
+
 
 def fetch_file(target_name, logger, from_to_dict, use_xrdcp=False, type="url"):
     if type == "url":
@@ -99,7 +104,9 @@ def fetch_file(target_name, logger, from_to_dict, use_xrdcp=False, type="url"):
                 with urllib.request.urlopen(from_to_dict[ikey]["from"]) as f:
                     json_object = f.read().decode("utf-8")
             except:
-                logger.info("INFO: urllib did not work, falling back to requests to fetch file from URL...")
+                logger.info(
+                    "INFO: urllib did not work, falling back to requests to fetch file from URL..."
+                )
                 pass
             try:
                 response = requests.get(from_to_dict[ikey]["from"], verify=True)
@@ -129,7 +136,9 @@ def fetch_file(target_name, logger, from_to_dict, use_xrdcp=False, type="url"):
         for ikey in from_to_dict.keys():
             try:
                 # Check if the type of file system is specified
-                assert from_to_dict[ikey].get("type") is not None, "Type of file system must be specified"
+                assert (
+                    from_to_dict[ikey].get("type") is not None
+                ), "Type of file system must be specified"
 
                 # create the folder
                 p = pathlib.Path(from_to_dict[ikey]["to"])
@@ -137,12 +146,20 @@ def fetch_file(target_name, logger, from_to_dict, use_xrdcp=False, type="url"):
                 p.mkdir(parents=True, exist_ok=True)
                 # copy
                 if from_to_dict[ikey]["type"] == "eos" and use_xrdcp:
-                    copy_xrdcp(logger, target_name, ikey, from_to_dict[ikey]["from"], from_to_dict[ikey]["to"])
+                    copy_xrdcp(
+                        logger,
+                        target_name,
+                        ikey,
+                        from_to_dict[ikey]["from"],
+                        from_to_dict[ikey]["to"],
+                    )
                 else:
                     if os.path.isdir(from_to_dict[ikey]["from"]):
                         copy_tree(from_to_dict[ikey]["from"], from_to_dict[ikey]["to"])
                     else:
-                        shutil.copy(from_to_dict[ikey]["from"], from_to_dict[ikey]["to"])
+                        shutil.copy(
+                            from_to_dict[ikey]["from"], from_to_dict[ikey]["to"]
+                        )
                     logger.info(
                         "[ {} ] {}: Copy from {} to {}".format(
                             target_name,
@@ -157,13 +174,13 @@ def fetch_file(target_name, logger, from_to_dict, use_xrdcp=False, type="url"):
                         target_name, ikey, from_to_dict[ikey]["from"], e
                     )
                 )
+
+
 def get_jec_files(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
     else:
-        to_prefix = os.path.join(
-            resource_dir, "../higgs_dna/systematics/data/"
-        )
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/data/")
 
     from_to_dict = {
         "2017": {
@@ -185,9 +202,7 @@ def get_jer_files(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
     else:
-        to_prefix = os.path.join(
-            resource_dir, "../higgs_dna/systematics/data/"
-        )
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/data/")
 
     from_to_dict = {
         "2017": {
@@ -239,7 +254,7 @@ def get_material_json(logger, target_dir, use_xrdcp=False):
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/2018/Material_2018.json",
             "to": f"{to_prefix}/2018/Material_2018.json",
             "type": "eos",
-        }
+        },
     }
     fetch_file("Material", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -248,9 +263,7 @@ def get_fnuf_json(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
     else:
-        to_prefix = os.path.join(
-            resource_dir, "../higgs_dna/systematics/JSONs/FNUF"
-        )
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/FNUF")
 
     from_to_dict = {
         "2016": {
@@ -268,12 +281,11 @@ def get_fnuf_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2018/FNUF_2018.json",
             "type": "eos",
         },
-        "2022":
-        {
+        "2022": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/JSONs/FNUF_2022.json",
             "to": f"{to_prefix}/2022/FNUF_2022.json",
             "type": "eos",
-        }
+        },
     }
     fetch_file("FNUF", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -301,7 +313,7 @@ def get_shower_shape_json(logger, target_dir, use_xrdcp=False):
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/2018/ShowerShape_2018.json",
             "to": f"{to_prefix}/2018/ShowerShape_2018.json",
             "type": "eos",
-        }
+        },
     }
     fetch_file("ShowerShape", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -329,7 +341,7 @@ def get_loose_mva_json(logger, target_dir, use_xrdcp=False):
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/2018/LooseMvaSF_2018.json",
             "to": f"{to_prefix}/2018/LooseMvaSF_2018.json",
             "type": "eos",
-        }
+        },
     }
     fetch_file("LooseMva", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -471,7 +483,7 @@ def get_eveto_json(logger, target_dir, use_xrdcp=False):
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/postEE_CSEV_SFcorrections.json",
             "to": f"{to_prefix}/2022/postEE_CSEV_SFcorrections.json",
             "type": "eos",
-        }
+        },
     }
     fetch_file("eVetoSF", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -480,9 +492,7 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
     else:
-        to_prefix = os.path.join(
-            resource_dir, "../higgs_dna/systematics/JSONs/bTagSF/"
-        )
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/bTagSF/")
 
     from_to_dict = {
         "2016preVFP": {
@@ -533,9 +543,7 @@ def get_ctag_json(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
     else:
-        to_prefix = os.path.join(
-            resource_dir, "../higgs_dna/systematics/JSONs/cTagSF/"
-        )
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/cTagSF/")
 
     from_to_dict = {
         "2016preVFP": {
@@ -657,7 +665,9 @@ def get_scale_and_smearing(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
     }
-    fetch_file("Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+    fetch_file(
+        "Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
+    )
     # Now, unpack the gz to have the raw JSONs
     unzip_gz_with_gunzip(
         logger,
@@ -681,7 +691,6 @@ def get_scale_and_smearing(logger, target_dir, use_xrdcp=False):
         f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json.gz",
         f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json",
     )
-
 
 
 def get_Et_dependent_scale_and_smearing(logger, target_dir, use_xrdcp=False):
@@ -726,7 +735,9 @@ def get_Et_dependent_scale_and_smearing(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
     }
-    fetch_file("Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+    fetch_file(
+        "Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
+    )
 
     unzip_gz_with_gunzip(
         logger,
@@ -793,7 +804,7 @@ def get_Flow_files(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(resource_dir, "../higgs_dna/tools/flows")
 
     from_to_dict = {
-        "run3": {
+        "Run3": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/Run3/",
             "to": f"{to_prefix}/run3_mvaID_models/",
             "type": "eos",
@@ -961,9 +972,7 @@ def get_pileup(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
     else:
-        to_prefix = os.path.join(
-            resource_dir, "../higgs_dna/systematics/JSONs/pileup/"
-        )
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/pileup/")
 
     from_to_dict = {
         "2016preVFP": {
@@ -1037,7 +1046,9 @@ def get_lowmass_diphotonmva_model(logger, target_dir, use_xrdcp=False):
         },
     }
 
-    fetch_file("LowMass-DiPhotonMVA", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+    fetch_file(
+        "LowMass-DiPhotonMVA", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
+    )
 
 
 def get_muon_SFs(logger, target_dir, use_xrdcp=False):
@@ -1110,7 +1121,96 @@ def get_lowmass_dykiller_model(logger, target_dir, use_xrdcp=False):
         },
     }
 
-    fetch_file("LowMass-DYKilller", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+    fetch_file(
+        "LowMass-DYKilller", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
+    )
+
+
+def get_cqr_weights(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = resource_dir
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/metaconditions/corrections"
+        )
+
+    from_to_dict = {
+        "2017": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/cqr_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        }
+    }
+
+    fetch_file("CQR", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
+def get_hgg_photon_id_mva_weights(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = resource_dir
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/metaconditions/photon_id_mva_weights"
+        )
+
+    from_to_dict = {
+        "2017": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/hgg_photon_id_mva_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        }
+    }
+
+    fetch_file("PhotonIDMVA", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
+def get_diphoton_id_mva_weights(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = resource_dir
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/metaconditions/diphoton")
+
+    from_to_dict = {
+        "2017": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/diphoton_id_mva_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        }
+    }
+
+    fetch_file("DiphotonIDMVA", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
+def get_hpc_bdt_weights(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = resource_dir
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/metaconditions/hpc_bdt")
+
+    from_to_dict = {
+        "2016": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/hpc_bdt_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        },
+        "2017": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/hpc_bdt_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        },
+        "2018": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2018/hpc_bdt_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        },
+    }
+
+    fetch_file("HPCBDT", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -1123,7 +1223,34 @@ def main():
         dest="target",
         help="Choose the target to download (default: %(default)s)",
         default="GoldenJSON",
-        choices=["GoldenJSON", "cTag", "bTag", "PhotonID", "PU", "SS","Et_SS", "JetMET", "CDFs", "JEC", "JER", "Material", "TriggerSF", "PreselSF", "eVetoSF", "Flows", "FNUF", "ShowerShape", "LooseMva","LowMass-DiPhotonMVA", "muonSF", "LowMass-DYKilller"],
+        choices=[
+            "GoldenJSON",
+            "cTag",
+            "bTag",
+            "PhotonID",
+            "PU",
+            "SS",
+            "Et_SS",
+            "JetMET",
+            "CDFs",
+            "JEC",
+            "JER",
+            "Material",
+            "TriggerSF",
+            "PreselSF",
+            "eVetoSF",
+            "Flows",
+            "FNUF",
+            "ShowerShape",
+            "LooseMva",
+            "LowMass-DiPhotonMVA",
+            "muonSF",
+            "LowMass-DYKilller",
+            "CQR",
+            "HggPhotonIDMVA",
+            "DiphotonIDMVA",
+            "HPCBDT",
+        ],
     )
 
     parser.add_argument(
@@ -1176,7 +1303,9 @@ def main():
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_pileup(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_scale_and_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
-        get_Et_dependent_scale_and_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_Et_dependent_scale_and_smearing(
+            logger, args.target_dir, use_xrdcp=args.use_xrdcp
+        )
         get_mass_decorrelation_CDF(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_Flow_files(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_ctag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
@@ -1195,6 +1324,10 @@ def main():
         get_lowmass_diphotonmva_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_muon_SFs(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_lowmass_dykiller_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_cqr_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_hgg_photon_id_mva_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_diphoton_id_mva_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_hpc_bdt_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "GoldenJSON":
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PU":
@@ -1202,7 +1335,9 @@ def main():
     elif args.target == "SS":
         get_scale_and_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "Et_SS":
-        get_Et_dependent_scale_and_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_Et_dependent_scale_and_smearing(
+            logger, args.target_dir, use_xrdcp=args.use_xrdcp
+        )
     elif args.target == "CDFs":
         get_mass_decorrelation_CDF(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "Flows":
@@ -1239,6 +1374,14 @@ def main():
         get_muon_SFs(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "LowMass-DYKilller":
         get_lowmass_dykiller_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "CQR":
+        get_cqr_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "HggPhotonIDMVA":
+        get_hgg_photon_id_mva_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "DiphotonIDMVA":
+        get_diphoton_id_mva_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "HPCBDT":
+        get_hpc_bdt_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     else:
         logger.info("Unknown target, exit now!")
         exit(0)

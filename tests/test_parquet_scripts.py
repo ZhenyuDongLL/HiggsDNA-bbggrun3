@@ -53,7 +53,7 @@ def test_prepare_output_file():
         f.write(response.content)
     with zipfile.ZipFile(output_file, 'r') as zip_ref:
         zip_ref.extractall(".")
-    
+
     os.remove(output_file) # Clean up
 
     location = os.path.abspath("example_HiggsDNA_output")
@@ -117,7 +117,7 @@ def test_prepare_output_file():
                 assert f.keys() == expected_trees
 
     # clean up
-    os.system(f"rm -r {location}/data/merged")
-    os.system(f"rm -r {location}/data/root")
-    os.system(f"rm -r {location}/signal/merged")
-    os.system(f"rm -r {location}/signal/root")
+    os.system(f"rm -r {location}")
+    os.system("rm cat_dict_inclusive_data.json")
+    os.system("rm cat_dict_inclusive_MC.json")
+    os.system("rm var_dict.json")
