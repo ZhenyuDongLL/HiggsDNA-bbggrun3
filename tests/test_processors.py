@@ -3,7 +3,7 @@ import subprocess
 import json
 import pytest
 from importlib import resources
-from higgs_dna.workflows import DYStudiesProcessor, TagAndProbeProcessor, HHbbggProcessor, HplusCharmProcessor, lowmassProcessor, ParticleLevelProcessor, TopProcessor, ZeeProcessor, ZmmyProcessor, STXSProcessor
+from higgs_dna.workflows import DYStudiesProcessor, TagAndProbeProcessor, HHbbggProcessor, HplusCharmProcessor, lowmassProcessor, ParticleLevelProcessor, TopProcessor, ZeeProcessor, ZmmyProcessor, STXSProcessor, BTaggingEfficienciesProcessor
 from coffea import processor
 
 
@@ -36,6 +36,7 @@ def run_processor(processor_instance, fileset):
     TopProcessor,
     ZeeProcessor,
     #ZmmyProcessor,
+    BTaggingEfficienciesProcessor,
     STXSProcessor,
 ])
 def test_processors(processor_class):
@@ -44,6 +45,9 @@ def test_processors(processor_class):
     """
     # Pull the golden JSON file
     subprocess.run("pull_files.py --target GoldenJSON", shell=True)
+
+    # Pull the btagging SF files
+    subprocess.run("pull_files.py --target bTag", shell=True)
 
     # Choose datasets to run over appropriately
     # In the future, should specify datasets on eos instead of local files
@@ -77,6 +81,9 @@ def test_processors(processor_class):
     elif processor_class == ZmmyProcessor:
         MC = None
         Data = None
+    elif processor_class == BTaggingEfficienciesProcessor:
+        MC = "./tests/samples/skimmed_nano/ggH_M125_amcatnlo_v13.root"
+        Data = None
     elif processor_class == STXSProcessor:
         MC = "./tests/samples/skimmed_nano/ggH_M125_amcatnlo_v13.root"
         Data = "./tests/samples/skimmed_nano/EGamma_2022E_v13.root"
@@ -95,6 +102,7 @@ def test_processors(processor_class):
     processor_instance = processor_class(
         year={"Data": ["2022postEE"], "MC": ["2022postEE"]},
         metaconditions=metaconditions,
+        nano_version=13,
         apply_trigger=True,
         skipJetVetoMap=True,
         output_location="output/basics"

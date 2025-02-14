@@ -74,6 +74,9 @@ static_analysis:
     #- mypy
 
 unit_test:
+  # Provide access to CMVFS for BTagging SF
+  tags: 
+    - k8s-cvmfs
   stage: test
   before_script:
     - pip install --no-cache-dir -e .[dev]

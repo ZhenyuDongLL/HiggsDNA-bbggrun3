@@ -11,7 +11,7 @@ from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
-from higgs_dna.selections.jet_selections import select_jets, jetvetomap
+from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTagMVACut
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import (
     diphoton_ak_array,
@@ -63,6 +63,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         output_location: Optional[str],
         taggers: Optional[List[Any]],
         nano_version: int,
+        bTagEffFileName: Optional[str],
         trigger_group: str,
         analysis: str,
         applyCQR: bool,
@@ -80,6 +81,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         self.apply_trigger = apply_trigger
         self.output_location = output_location
         self.nano_version = nano_version
+        self.bTagEffFileName = bTagEffFileName
         self.trigger_group = trigger_group
         self.analysis = analysis
         self.applyCQR = applyCQR
@@ -114,6 +116,8 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         self.jet_muo_min_dr = 0.4
         self.jet_pt_threshold = 20
         self.jet_max_eta = 4.7
+        self.bjet_mva = "particleNet"  # Possible choices: particleNet, deepJet, robustParticleTransformer
+        self.bjet_wp = "T"  # Possible choices: L, M, T, XT, XXT
 
         self.clean_jet_dipho = False
         self.clean_jet_pho = True
@@ -166,6 +170,10 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         self.e_veto = 0.5
 
         logger.debug(f"Setting up processor with metaconditions: {self.meta}")
+
+        if (self.bjet_mva != "deepJet") and (self.nano_version < 12):
+            logger.error(f"\n {self.bjet_mva} is only supported for nanoAOD v12 and above. Please change the bjet_mva to deepJet. Exiting...\n")
+            exit()
 
         self.taggers = []
         if taggers is not None:
@@ -547,6 +555,21 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
                 gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
 
+                # B-Jets
+                # Following the recommendations of https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideBTagMCTools for hadronFlavour
+                # and the Run 2 recommendations for the bjets
+                genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 2.5)
+                genBJetCondition = genJetCondition & (genJets.hadronFlavour == 5)
+                genJets = awkward.with_field(genJets, genBJetCondition, "GenIsBJet")
+                num_bjets = awkward.sum(genJets["GenIsBJet"], axis=-1)
+                diphotons["GenNBJet"] = num_bjets
+
+                gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
+                diphotons["GenPTbJ1"] = gen_first_bjet_pt
+
+                gen_first_jet_hFlav = choose_jet(genJets.hadronFlavour, 0, -999.0)
+                diphotons["GenJ1hFlav"] = gen_first_jet_hFlav
+
                 with numpy.errstate(divide='ignore', invalid='ignore'):
                     GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
 
@@ -597,6 +620,12 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
             events, process_extra = self.process_extra(events)
             histos_etc.update(process_extra)
 
+            btagMVA_selection = {
+                "deepJet": {"btagDeepFlavB": jets.btagDeepFlavB},  # Always available
+                "particleNet": {"btagPNetB": jets.btagPNetB} if self.nano_version >= 12 else {},
+                "robustParticleTransformer": {"btagRobustParTAK4B": jets.btagRobustParTAK4B} if self.nano_version >= 12 else {},
+            }
+
             # jet_variables
             jets = awkward.zip(
                 {
@@ -606,9 +635,9 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                     "mass": jets.mass,
                     "charge": awkward.zeros_like(
                         jets.pt
-                    ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
+                    ),
+                    **btagMVA_selection.get(self.bjet_mva, {}),
                     "hFlav": jets.hadronFlavour if self.data_kind == "mc" else awkward.zeros_like(jets.pt),
-                    "btagDeepFlav_B": jets.btagDeepFlavB,
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
@@ -672,6 +701,21 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
             events["sel_jets"] = jets
             n_jets = awkward.num(jets)
             Njets2p5 = awkward.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 2.5)])
+
+            # B-Jets
+            btag_WP = getBTagMVACut(mva_name=self.bjet_mva,
+                                    mva_wp=self.bjet_wp,
+                                    year=self.year[dataset_name][0])
+
+            btag_mva_column = list(btagMVA_selection[self.bjet_mva].keys())[0]
+
+            bJetCondition = (jets.pt > 30) & (abs(jets.eta) < 2.5) & (jets[btag_mva_column] >= btag_WP)
+            jets = awkward.with_field(jets, bJetCondition, f"{self.bjet_mva}_IsBJet")
+            num_bjets = awkward.sum(jets[f"{self.bjet_mva}_IsBJet"], axis=-1)
+            diphotons[f"{self.bjet_mva}_NBJet"] = num_bjets
+
+            first_bjet_pt = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True].pt, 0, -999.0)
+            diphotons[f"{self.bjet_mva}_PTbJ1"] = first_bjet_pt
 
             first_jet_pt = choose_jet(jets.pt, 0, -999.0)
             first_jet_eta = choose_jet(jets.eta, 0, -999.0)
@@ -814,6 +858,13 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 selection_mask = ~awkward.is_none(diphotons)
                 diphotons = diphotons[selection_mask]
 
+            bTagFixedWP_present = any("bTagFixedWP" in item for item in systematic_names) + any("bTagFixedWP" in item for item in correction_names)
+            PNet_present = any("bTagFixedWP_PNet" in item for item in systematic_names) + any("bTagFixedWP_PNet" in item for item in correction_names)
+
+            if PNet_present and (self.nano_version < 12):
+                logger.error("\n B-Tagging systematics and corrections using Particle Net are only available for NanoAOD v12 or higher. Exiting! \n")
+                exit()
+
             # return if there is no surviving events
             if len(diphotons) == 0:
                 logger.debug("No surviving events in this run, return now!")
@@ -830,18 +881,19 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                         logger.info(
                             f"Adding correction {correction_name} to weight collection of dataset {dataset_name}"
                         )
-                        varying_function = available_weight_corrections[
-                            correction_name
-                        ]
-                        event_weights = varying_function(
-                            events=events[selection_mask],
-                            photons=events[f"diphotons_{do_variation}"][
-                                selection_mask
-                            ],
-                            weights=event_weights,
-                            dataset_name=dataset_name,
-                            year=self.year[dataset_name][0],
-                        )
+                        common_args = {
+                            "events": events[selection_mask],
+                            "photons": events[f"diphotons_{do_variation}"][selection_mask],
+                            "weights": event_weights,
+                            "dataset_name": dataset_name,
+                            "year": self.year[dataset_name][0],
+                        }
+
+                        if any("bTagFixedWP" in item for item in correction_names):
+                            common_args["bTagEffFileName"] = self.bTagEffFileName
+
+                        varying_function = available_weight_corrections[correction_name]
+                        event_weights = varying_function(**common_args)
 
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
@@ -883,42 +935,71 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                                         f"No {systematic_name} Weights in dataset {dataset_name}"
                                     )
                             else:
-                                varying_function = available_weight_systematics[
-                                    systematic_name
-                                ]
-                                event_weights = varying_function(
-                                    events=events[selection_mask],
-                                    photons=events[f"diphotons_{do_variation}"][
-                                        selection_mask
-                                    ],
-                                    weights=event_weights,
-                                    dataset_name=dataset_name,
-                                    year=self.year[dataset_name][0],
-                                )
+                                common_args = {
+                                    "events": events[selection_mask],
+                                    "photons": events[f"diphotons_{do_variation}"][selection_mask],
+                                    "weights": event_weights,
+                                    "dataset_name": dataset_name,
+                                    "year": self.year[dataset_name][0],
+                                }
 
-                diphotons["weight"] = event_weights.weight()
-                diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]
+                                if any("bTagFixedWP" in item for item in systematic_names):
+                                    common_args["bTagEffFileName"] = self.bTagEffFileName
+
+                                varying_function = available_weight_systematics[systematic_name]
+                                event_weights = varying_function(**common_args)
+
+                diphotons["weight"] = event_weights.weight() / (
+                    event_weights.partial_weight(include=["bTagFixedWP"])
+                    if bTagFixedWP_present
+                    else 1
+                )
+                diphotons["weight_central"] = event_weights.weight() / (
+                    (event_weights.partial_weight(include=["bTagFixedWP"]) * events["genWeight"][selection_mask])
+                    if bTagFixedWP_present
+                    else events["genWeight"][selection_mask]
+                )
+
+                if bTagFixedWP_present:
+                    diphotons["weight_bTagFixedWP"] = event_weights.partial_weight(include=["bTagFixedWP"])
 
                 metadata["sum_weight_central"] = str(
-                    awkward.sum(event_weights.weight())
+                    awkward.sum(
+                        event_weights.weight()
+                        / (
+                            event_weights.partial_weight(include=["bTagFixedWP"])
+                            if bTagFixedWP_present
+                            else 1
+                        )
+                    )
                 )
                 metadata["sum_weight_central_wo_bTagSF"] = str(
-                    awkward.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
+                    awkward.sum(
+                        event_weights.weight()
+                        / (
+                            (event_weights.partial_weight(include=["bTagSF"]) * event_weights.partial_weight(include=["bTagFixedWP"]))
+                            if bTagFixedWP_present
+                            else event_weights.partial_weight(include=["bTagSF"])
+                        )
+                    )
                 )
 
-                # Store variations with respect to central weight
+                # Handle variations
                 if do_variation == "nominal":
-                    if len(event_weights.variations):
+                    if event_weights.variations:
                         logger.info(
                             "Adding systematic weight variations to nominal output file."
                         )
                     for modifier in event_weights.variations:
-                        diphotons["weight_" + modifier] = event_weights.weight(
-                            modifier=modifier
-                        )
-                        if ("bTagSF" in modifier):
+                        diphotons["weight_" + modifier] = event_weights.weight(modifier=modifier)
+                        if "bTagSF" in modifier:
                             metadata["sum_weight_" + modifier] = str(
                                 awkward.sum(event_weights.weight(modifier=modifier))
+                                / (
+                                    event_weights.partial_weight(include=["bTagFixedWP"])
+                                    if bTagFixedWP_present
+                                    else 1
+                                )
                             )
 
             # Add weight variables (=1) for data for consistent datasets
