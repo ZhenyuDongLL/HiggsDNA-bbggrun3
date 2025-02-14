@@ -110,12 +110,13 @@ def main():
     with open(args.json_analysis_file) as f:
         analysis = json.load(f)
     workflow = analysis["workflow"]
-    taggers = analysis["taggers"] if analysis["taggers"] else None
+    taggers = analysis.get("taggers", None)
     metaconditions = analysis["metaconditions"]
     samplejson = analysis["samplejson"]
     systematics = analysis["systematics"]
     corrections = analysis["corrections"]
     year = analysis["year"]
+    bTagEffFileName = analysis.get("bTagEffFileName", None)
     logger.info(f"Corrections: {corrections}")
     logger.info(f"Systematics: {systematics}")
     logger.info(f"Year: {year}")
@@ -217,6 +218,7 @@ def main():
                 systematics=systematics,
                 corrections=corrections,
                 nano_version=args.nano_version,
+                bTagEffFileName=bTagEffFileName,
                 apply_trigger=args.use_trigger,
                 output_location=args.dump,
                 analysis=args.analysis,

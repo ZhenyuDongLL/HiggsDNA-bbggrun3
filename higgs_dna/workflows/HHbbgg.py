@@ -47,6 +47,7 @@ class HHbbggProcessor(HggBaseProcessor):
         corrections: Dict[str, List[Any]] = None,
         apply_trigger: bool = False,
         nano_version: str = None,
+        bTagEffFileName: Optional[str] = None,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
         trigger_group=".*DoubleEG.*",
@@ -67,6 +68,7 @@ class HHbbggProcessor(HggBaseProcessor):
             nano_version=nano_version,
             apply_trigger=apply_trigger,
             output_location=output_location,
+            bTagEffFileName=bTagEffFileName,
             taggers=taggers,
             trigger_group=trigger_group,
             analysis=analysis,
@@ -388,6 +390,12 @@ class HHbbggProcessor(HggBaseProcessor):
                             "PNetRegPtRawRes": Jets.PNetRegPtRawRes,
                             "btagRobustParTAK4B": Jets.btagRobustParTAK4B,
                             "jetId": Jets.jetId,
+                            **(
+                                {"neHEF": Jets.neHEF, "neEmEF": Jets.neEmEF, "chEmEF": Jets.chEmEF, "muEF": Jets.muEF} if self.nano_version == 12 else {}
+                            ),
+                            **(
+                                {"neHEF": Jets.neHEF, "neEmEF": Jets.neEmEF, "chMultiplicity": Jets.chMultiplicity, "neMultiplicity": Jets.neMultiplicity, "chEmEF": Jets.chEmEF, "chHEF": Jets.chHEF, "muEF": Jets.muEF} if self.nano_version == 13 else {}
+                            ),
                         }
                     )
                     jets = awkward.with_name(jets, "PtEtaPhiMCandidate")

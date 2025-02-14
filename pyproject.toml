@@ -70,6 +70,7 @@ test = ["pytest>=6"]
 "fetch_datasets.py" = "higgs_dna.scripts.samples.fetch_datasets:main"
 "download_files.py" = "higgs_dna.scripts.samples.download_files:main"
 "get_unprocessed_files.py" = "higgs_dna.scripts.get_unprocessed_files:main"
+"btagging_eff.py" = "higgs_dna.scripts.btagging_eff:main"
 
 [tool.hatch.build.targets.sdist]
 include = [

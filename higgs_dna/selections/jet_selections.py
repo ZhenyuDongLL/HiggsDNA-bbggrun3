@@ -63,6 +63,50 @@ def jetIdFlags_v1213(jets, nano_version):
     return passJetIdTight, passJetIdTightLepVeto
 
 
+def getBTagMVACut(mva_name, mva_wp, year):
+    mva_name_to_btag_wp_name = {
+        "particleNet": "particleNet_wp_values",
+        "deepJet": "deepJet_wp_values",
+        "robustParticleTransformer": "robustParticleTransformer_wp_values"
+    }
+
+    # Based on recommendations for the tight QCD WP seen here: https://btv-wiki.docs.cern.ch/PerformanceCalibration/#working-points
+    btag_correction_configs = {
+        "2016preVFP": {
+            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2016preVFP_UL/btagging.json.gz")
+        },
+        "2016postVFP": {
+            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2016postVFP_UL/btagging.json.gz")
+        },
+        "2017": {
+            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2017_UL/btagging.json.gz")
+        },
+        "2018": {
+            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2018_UL/btagging.json.gz")
+        },
+        "2022preEE":{
+            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2022_Summer22/btagging.json.gz")
+        },
+        "2022postEE":{
+            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2022_Summer22EE/btagging.json.gz")
+        },
+        "2023preBPix":{
+            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2023_Summer23/btagging.json.gz")
+        },
+        "2023postBPix":{
+            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2023_Summer23BPix/btagging.json.gz")
+        },
+    }
+    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    if year not in avail_years:
+        logger.error(f"\n BTV correctionlib for {year} not found! \n Exiting. \n")
+        exit()
+
+    mva_cut_value = correctionlib.CorrectionSet.from_file(btag_correction_configs[year]['file'])[mva_name_to_btag_wp_name[mva_name]].evaluate(mva_wp)
+
+    return mva_cut_value
+
+
 def select_jets(
     self,
     jets: awkward.highlevel.Array,

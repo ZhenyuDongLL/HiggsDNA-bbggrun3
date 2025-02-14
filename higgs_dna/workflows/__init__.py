@@ -10,6 +10,7 @@ from higgs_dna.workflows.Zmmy import ZmmyProcessor, ZmmyHist, ZmmyZptHist
 from higgs_dna.workflows.hpc_processor import HplusCharmProcessor
 from higgs_dna.workflows.zee_processor import ZeeProcessor
 from higgs_dna.workflows.lowmass import lowmassProcessor
+from higgs_dna.workflows.btagging import BTaggingEfficienciesProcessor
 from higgs_dna.workflows.stxs import STXSProcessor
 
 workflows = {}
@@ -25,6 +26,7 @@ workflows["zmmyZptHist"] = ZmmyZptHist
 workflows["hpc"] = HplusCharmProcessor
 workflows["zee"] = ZeeProcessor
 workflows["lowmass"] = lowmassProcessor
+workflows["BTagging"] = BTaggingEfficienciesProcessor
 workflows["stxs"] = STXSProcessor
 
 __all__ = ["workflows", "taggers", "DYStudiesProcessor"]

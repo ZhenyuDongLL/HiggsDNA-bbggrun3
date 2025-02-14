@@ -13,6 +13,9 @@ def test_processors_creation():
     # Pulling golden json
     subprocess.run("pull_files.py --target GoldenJSON", shell=True)
 
+    # Pull the btagging SF files
+    subprocess.run("pull_files.py --target bTag", shell=True)
+
     # Lets test tag and probe processor
     command = [
         "run_analysis.py",
@@ -61,4 +64,3 @@ def test_processors_creation():
 
     # Asserting directly if you prefer a more pytest-like approach
     assert result.returncode == 0, f"Script failed with stderr: {result.stderr}"
-

@@ -1,55 +1,76 @@
+###############################################################################
+#                                                                             #
+#  This is just an EXAMPLE btagging file made for the phase space of the      #
+#  intermediate Run3 analysis of the cross sections.                          #
+#                                                                             #
+#  In case you want to compute the btagging efficiencies for your analysis,   #
+#  insert all your selections on the jets before the calling of select_jets.  #
+#  Then run the btagging processor. Do NOT change the MANDATORY PART.         #
+#                                                                             #
+###############################################################################
+
 from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.tools.diphoton_mva import calculate_diphoton_mva
+from higgs_dna.tools.photonid_mva import calculate_photonid_mva
+from higgs_dna.tools.photonid_mva import calculate_photonid_mva_run3, load_photonid_mva_run3
+from higgs_dna.tools.SC_eta import add_photon_SC_eta
+from higgs_dna.tools.EELeak_region import veto_EEleak_flag
+from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
+from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higgs_gen_attributes
+from higgs_dna.selections.photon_selections import photon_preselection
+from higgs_dna.selections.diphoton_selections import apply_fiducial_cut_det_level
+from higgs_dna.selections.lepton_selections import select_electrons, select_muons
+from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTagMVACut
+from higgs_dna.selections.lumi_selections import select_lumis
+from higgs_dna.utils.dumping_utils import (
+    get_obj_syst_dict,
+)
+from higgs_dna.utils.misc_utils import choose_jet
+from higgs_dna.tools.flow_corrections import calculate_flow_corrections
+
+# from higgs_dna.utils.dumping_utils import diphoton_list_to_pandas, dump_pandas
 from higgs_dna.systematics import object_systematics as available_object_systematics
 from higgs_dna.systematics import object_corrections as available_object_corrections
 from higgs_dna.systematics import weight_systematics as available_weight_systematics
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
-from higgs_dna.selections.photon_selections import photon_preselection
-from higgs_dna.selections.lumi_selections import select_lumis
-from higgs_dna.tools.SC_eta import add_photon_SC_eta
-from higgs_dna.tools.flow_corrections import calculate_flow_corrections
-from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
-from higgs_dna.tools.sigma_m_tools import compute_sigma_m
+
+import functools
+import operator
+import os
+import warnings
 from typing import Any, Dict, List, Optional
 import awkward
-import logging
-import functools
-import warnings
 import numpy
 import sys
-from coffea.analysis_tools import Weights
-from higgs_dna.selections.lepton_selections import select_electrons, select_muons
-from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTagMVACut
-from higgs_dna.tools.EELeak_region import veto_EEleak_flag
+import vector
 from copy import deepcopy
-from higgs_dna.utils.misc_utils import choose_jet
+import pathlib
+import pickle
 
-from higgs_dna.utils.dumping_utils import (
-    diphoton_ak_array,
-    dump_ak_array,
-    diphoton_list_to_pandas,
-    dump_pandas,
-    get_obj_syst_dict,
-)
+
+import logging
 
 logger = logging.getLogger(__name__)
 
+vector.register_awkward()
 
-class ZeeProcessor(HggBaseProcessor):
+
+class BTaggingEfficienciesProcessor(HggBaseProcessor):
     def __init__(
         self,
         metaconditions: Dict[str, Any],
         systematics: Dict[str, List[Any]] = None,
-        corrections: Optional[Dict[str, List[str]]] = None,
+        corrections: Dict[str, List[Any]] = None,
         apply_trigger: bool = False,
-        nano_version: int = None,
-        bTagEffFileName: Optional[str] = None,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
+        nano_version: int = None,
+        bTagEffFileName: Optional[str] = None,
         trigger_group: str = ".*DoubleEG.*",
         analysis: str = "mainAnalysis",
         applyCQR: bool = False,
         skipJetVetoMap: bool = False,
-        year: Optional[Dict[str, List[str]]] = None,
+        year: Dict[str, List[str]] = None,
         fiducialCuts: str = "classical",
         doDeco: bool = False,
         Smear_sigma_m: bool = False,
@@ -65,31 +86,17 @@ class ZeeProcessor(HggBaseProcessor):
             bTagEffFileName=bTagEffFileName,
             output_location=output_location,
             taggers=taggers,
-            trigger_group=".*DoubleEG.*",
-            analysis="Dielectron",
+            trigger_group=trigger_group,
+            analysis=analysis,
             applyCQR=applyCQR,
             skipJetVetoMap=skipJetVetoMap,
-            year=year if year is not None else {},
+            year=year,
             fiducialCuts=fiducialCuts,
             doDeco=doDeco,
             Smear_sigma_m=Smear_sigma_m,
             doFlow_corrections=doFlow_corrections,
             output_format=output_format
         )
-
-        self.nano_version = nano_version
-
-        # B Jets
-        self.bTagEffFileName = bTagEffFileName
-        self.bjet_mva = "particleNet"  # Possible choices: particleNet, deepJet, robustParticleTransformer
-        self.bjet_wp = "T"  # Possible choices: L, M, T, XT, XXT
-
-        # diphoton preselection cuts - Based on Dielectron trigger
-        self.min_pt_photon = 23.0
-        self.min_pt_lead_photon = 12.0
-
-    def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
-        pass
 
     def process(self, events: awkward.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
@@ -129,11 +136,6 @@ class ZeeProcessor(HggBaseProcessor):
                 logger.info(
                     f"[ lumimask ] Skip now! Unable to find year info of {dataset_name}"
                 )
-        # apply jetvetomap: only retain events that without any jets in the EE leakage region
-        if not self.skipJetVetoMap:
-            events = jetvetomap(
-                events, logger, dataset_name, year=self.year[dataset_name][0]
-            )
         # metadata array to append to higgsdna output
         metadata = {}
 
@@ -152,6 +154,13 @@ class ZeeProcessor(HggBaseProcessor):
 
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+
+        # add veto EE leak branch for photons, could also be used for electrons
+        if (
+            self.year[dataset_name][0] == "2022EE"
+            or self.year[dataset_name][0] == "2022postEE"
+        ):
+            events.Photon = veto_EEleak_flag(self, events.Photon)
 
         # read which systematics and corrections to process
         try:
@@ -174,20 +183,6 @@ class ZeeProcessor(HggBaseProcessor):
             )
             sys.exit(0)
 
-        # Matching photons eta and phi to electrons and making basic selection
-        events["Photon"] = events.Photon[events.Photon.electronIdx > -1]
-        events = events[awkward.num(events.Photon) >= 2]
-
-        # Need to add ScEta for scale and smear corrections
-        matched_electrons = events.Electron[events.Photon.electronIdx]
-        matched_electrons["ScEta"] = matched_electrons.eta + matched_electrons.deltaEtaSC
-
-        # Adding these entries as they are used inside the Scale and smearing calculations
-        matched_electrons["isScEtaEB"] = numpy.abs(matched_electrons.ScEta) < 1.4442
-        matched_electrons["isScEtaEE"] = numpy.abs(matched_electrons.ScEta) > 1.566
-
-        events.Electron = matched_electrons
-
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
@@ -200,7 +195,10 @@ class ZeeProcessor(HggBaseProcessor):
                 sys.exit(0)
 
             logger.info(
-                f"\nApplying correction {correction_name} to dataset {dataset_name}\n"
+                f"""
+                \nApplying correction {correction_name} to dataset {dataset_name}\n
+                This is only for the addition of the smearing term to the sigma_m_over_m in data\n
+                """
             )
             varying_function = available_object_corrections[correction_name]
             events = varying_function(events=events, year=self.year[dataset_name][0])
@@ -222,37 +220,13 @@ class ZeeProcessor(HggBaseProcessor):
                 warnings.warn(f"Could not process correction {correction_name}.")
                 continue
 
-        photons = events.Photon
-
-        # Keeping the photon eta and phi
-        photons["phoeta"] = photons.eta
-        photons["phophi"] = photons.phi
-
-        # Substituting the photon eta and phi with the matched electron eta and phi
-        photons["eta"] = events.Electron.eta
-        photons["phi"] = events.Electron.phi
-
-        photons["ele_charge"] = events.Electron.charge
-
-        photons["ele_seedGain"] = events.Electron.seedGain
-        photons["ele_r9"] = events.Electron.r9
-        photons["ele_pt"] = events.Electron.pt
-        photons["ele_energy"] = events.Electron.energy
-        photons["ele_ecalEnergy"] = events.Electron.ecalEnergy
-        photons["ele_ecalEnergyError"] = events.Electron.ecalEnergyError
-        photons["ele_ScEta"] = events.Electron.eta + events.Electron.deltaEtaSC
-
-        events.Photon = photons
-
-        # add veto EE leak branch for photons, could also be used for electrons
-        if (
-            self.year[dataset_name][0] == "2022EE"
-            or self.year[dataset_name][0] == "2022postEE"
-        ):
-            events.Photon = veto_EEleak_flag(self, events.Photon)
+        # apply jetvetomap: only retain events that without any jets in the veto region
+        if not self.skipJetVetoMap:
+            events = jetvetomap(
+                events, logger, dataset_name, year=self.year[dataset_name][0]
+            )
 
         original_photons = events.Photon
-        original_electrons = events.Electron
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
 
@@ -294,22 +268,6 @@ class ZeeProcessor(HggBaseProcessor):
                         # name=systematic_name, **systematic_dct["args"]
                     )
                 # to be implemented for other objects here
-                if systematic_dct["object"] == "Electron":
-                    logger.info(
-                        f"Adding systematic {systematic_name} to electrons collection of dataset {dataset_name}"
-                    )
-                    original_electrons.add_systematic(
-                        # passing the arguments here explicitly since I want to pass the events to the varying function. If there is a more elegant / flexible way, just change it!
-                        name=systematic_name,
-                        kind=systematic_dct["args"]["kind"],
-                        what=systematic_dct["args"]["what"],
-                        varying_function=functools.partial(
-                            systematic_dct["args"]["varying_function"],
-                            events=events,
-                            year=self.year[dataset_name][0],
-                        )
-                        # name=systematic_name, **systematic_dct["args"]
-                    )
             elif systematic_name in available_weight_systematics:
                 # event weight systematics will be applied after photon preselection / application of further taggers
                 continue
@@ -331,16 +289,6 @@ class ZeeProcessor(HggBaseProcessor):
                     original_photons.systematics[systematic][variation]
                 )
 
-        electrons_dct = {}
-        electrons_dct["nominal"] = original_electrons
-        logger.debug(original_electrons.systematics.fields)
-        for systematic in original_electrons.systematics.fields:
-            for variation in original_electrons.systematics[systematic].fields:
-                # deepcopy to allow for independent calculations on photon variables with CQR
-                electrons_dct[f"{systematic}_{variation}"] = deepcopy(
-                    original_electrons.systematics[systematic][variation]
-                )
-
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
         # object systematics dictionary
@@ -349,7 +297,6 @@ class ZeeProcessor(HggBaseProcessor):
         # Build the flattened array of all possible variations
         variations_combined = []
         variations_combined.append(original_photons.systematics.fields)
-        variations_combined.append(original_electrons.systematics.fields)
         # NOTE: jet jerc systematics are not added with add_systematics
         variations_combined.append(jerc_syst_list)
         # Flatten
@@ -377,7 +324,7 @@ class ZeeProcessor(HggBaseProcessor):
                 photons = self.add_photonid_mva(photons, events)
 
             # photon preselection
-            photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0], apply_electron_veto=False, IsFlag=True)
+            photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
 
             # sort photons in each event descending in pt
             # make descending-pt combinations of photons
@@ -415,6 +362,112 @@ class ZeeProcessor(HggBaseProcessor):
                 awkward.argsort(diphotons.pt, ascending=False)
             ]
 
+            # Apply the fiducial cut at detector level with helper function
+            diphotons = apply_fiducial_cut_det_level(self, diphotons)
+
+            if self.data_kind == "mc":
+                # Add the fiducial flags for particle level
+                diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
+                diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
+
+                GenPTH, GenYH, GenPhiH = get_higgs_gen_attributes(events)
+
+                GenPTH = awkward.fill_none(GenPTH, -999.0)
+                diphotons['GenPTH'] = GenPTH
+
+                genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
+                diphotons['GenNJ'] = awkward.num(genJets)
+                GenPTJ0 = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
+                diphotons['GenPTJ0'] = GenPTJ0
+
+                gen_first_jet_eta = choose_jet(genJets.eta, 0, -999.0)
+                gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
+                gen_first_jet_phi = choose_jet(genJets.phi, 0, -999.0)
+
+                genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 2.5)
+                genBJetCondition = genJetCondition & (genJets.hadronFlavour == 5)
+                genJets = awkward.with_field(genJets, genBJetCondition, "GenIsBJet")
+                num_bjets = awkward.sum(genJets["GenIsBJet"], axis=-1)
+                diphotons["GenNBJet"] = num_bjets
+
+                gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
+                diphotons["GenBJetPT"] = gen_first_bjet_pt
+
+                gen_first_jet_hFlav = choose_jet(genJets.hadronFlavour, 0, -999.0)
+                diphotons["GenJ1hFlav"] = gen_first_jet_hFlav
+
+                gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
+                gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
+
+                # B-Jets
+                # Following the recommendations of https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideBTagMCTools for hadronFlavour
+                # and the Run 2 recommendations for the bjets
+                genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 2.5)
+                genBJetCondition = genJetCondition & (genJets.hadronFlavour == 5)
+                genJets = awkward.with_field(genJets, genBJetCondition, "GenIsBJet")
+                genCJetCondition = genJetCondition & (genJets.hadronFlavour == 4)
+                genJets = awkward.with_field(genJets, genCJetCondition, "GenIsCJet")
+                genLJetCondition = genJetCondition & (genJets.hadronFlavour == 0)
+                genJets = awkward.with_field(genJets, genLJetCondition, "GenIsLJet")
+                num_bjets = awkward.sum(genJets["GenIsBJet"], axis=-1)
+                diphotons["GenNBJet"] = num_bjets
+
+                gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
+                diphotons["GenBJetPT"] = gen_first_bjet_pt
+
+                gen_first_jet_hFlav = choose_jet(genJets.hadronFlavour, 0, -999.0)
+                diphotons["GenJ1hFlav"] = gen_first_jet_hFlav
+
+                with numpy.errstate(divide='ignore', invalid='ignore'):
+                    GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
+
+                GenYJ0 = awkward.fill_none(GenYJ0, -999)
+                GenYJ0 = awkward.where(numpy.isnan(GenYJ0), -999, GenYJ0)
+                diphotons['GenYJ0'] = GenYJ0
+
+                GenYH = awkward.fill_none(GenYH, -999)
+                GenYH = awkward.where(numpy.isnan(GenYH), -999, GenYH)
+                diphotons['GenYH'] = GenYH
+
+                GenAbsPhiHJ0 = numpy.abs(gen_first_jet_phi - GenPhiH)
+
+                # Set all entries above 2*pi to -999
+                GenAbsPhiHJ0 = awkward.where(
+                    GenAbsPhiHJ0 > 2 * numpy.pi,
+                    -999,
+                    GenAbsPhiHJ0
+                )
+                GenAbsPhiHJ0_pi_array = awkward.full_like(GenAbsPhiHJ0, 2 * numpy.pi)
+
+                # Select the smallest angle
+                GenAbsPhiHJ0 = awkward.where(
+                    GenAbsPhiHJ0 > numpy.pi,
+                    GenAbsPhiHJ0_pi_array - GenAbsPhiHJ0,
+                    GenAbsPhiHJ0
+                )
+                GenAbsPhiHJ0 = awkward.fill_none(GenAbsPhiHJ0, -999.0)
+
+                diphotons["GenDPhiHJ0"] = GenAbsPhiHJ0
+
+                GenAbsYHJ0 = numpy.abs(GenYJ0 - GenYH)
+
+                # Set all entries above 500 to -999
+                GenAbsYHJ0 = awkward.where(
+                    GenAbsYHJ0 > 500,
+                    -999,
+                    GenAbsYHJ0
+                )
+
+                diphotons["GenDYHJ0"] = GenAbsYHJ0
+
+            # baseline modifications to diphotons
+            if self.diphoton_mva is not None:
+                diphotons = self.add_diphoton_mva(diphotons, events)
+
+            # workflow specific processing
+            events, process_extra = self.process_extra(events)
+            histos_etc.update(process_extra)
+
             btagMVA_selection = {
                 "deepJet": {"btagDeepFlavB": jets.btagDeepFlavB},  # Always available
                 "particleNet": {"btagPNetB": jets.btagPNetB} if self.nano_version >= 12 else {},
@@ -430,11 +483,9 @@ class ZeeProcessor(HggBaseProcessor):
                     "mass": jets.mass,
                     "charge": awkward.zeros_like(
                         jets.pt
-                    ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
+                    ),
                     **btagMVA_selection.get(self.bjet_mva, {}),
-                    "hFlav": jets.hadronFlavour
-                    if self.data_kind == "mc"
-                    else awkward.zeros_like(jets.pt),
+                    "hFlav": jets.hadronFlavour if self.data_kind == "mc" else awkward.zeros_like(jets.pt),
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
@@ -496,170 +547,77 @@ class ZeeProcessor(HggBaseProcessor):
 
             # adding selected jets to events to be used in ctagging SF calculation
             events["sel_jets"] = jets
-            n_jets = awkward.num(jets)
-            Njets2p5 = awkward.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 2.5)])
 
-            # B-Jets
+            #################################################################################
+            #################################################################################
+            #################################################################################
+            #                                                                               #
+            #  The full jet selection for your analysis has to be made up to this point.    #
+            #                                                                               #
+            #                  B E G I N   O F   M A N D A T O R Y   P A R T                #
+            #                                                                               #
+            #################################################################################
+            #################################################################################
+            #################################################################################
+
+            # Based on recommendations for the tight QCD WP seen here: https://btv-wiki.docs.cern.ch/PerformanceCalibration/#working-points
             btag_WP = getBTagMVACut(mva_name=self.bjet_mva,
                                     mva_wp=self.bjet_wp,
                                     year=self.year[dataset_name][0])
 
             btag_mva_column = list(btagMVA_selection[self.bjet_mva].keys())[0]
 
+            # B-Jets
             bJetCondition = (jets.pt > 30) & (abs(jets.eta) < 2.5) & (jets[btag_mva_column] >= btag_WP)
-            jets = awkward.with_field(jets, bJetCondition, f"{self.bjet_mva}_IsBJet")
-            num_bjets = awkward.sum(jets[f"{self.bjet_mva}_IsBJet"], axis=-1)
-            diphotons[f"{self.bjet_mva}_NBJet"] = num_bjets
+            jets = awkward.with_field(jets, bJetCondition, "IsBJet")
+            num_bjets = awkward.sum(jets["IsBJet"], axis=-1)
+            diphotons["NBJet"] = num_bjets
 
-            first_bjet_pt = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True].pt, 0, -999.0)
-            diphotons[f"{self.bjet_mva}_PTbJ1"] = first_bjet_pt
+            # Efficiency variables
+            selected_bjets = jets[jets.hFlav == 5]
 
-            first_bjet_mva = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True][btag_mva_column], 0, -999.0)
-            diphotons[f"{self.bjet_mva}_ScorebJ1"] = first_bjet_mva
+            bJetCondition_bjet = (selected_bjets.pt > 30) & (numpy.abs(selected_bjets.eta) < 2.5) & (selected_bjets[btag_mva_column] >= btag_WP)
+            jetCondition_bjet = (selected_bjets.pt > 30) & (numpy.abs(selected_bjets.eta) < 2.5)
+            num_bjets_bjet = awkward.num(selected_bjets[bJetCondition_bjet])
+            diphotons["NBJet_GenBJet"] = num_bjets_bjet
+            num_jets_bjet = awkward.num(selected_bjets[jetCondition_bjet])
+            diphotons["NJet_GenBJet"] = num_jets_bjet
 
-            first_bjet_mva = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True][btag_mva_column], 0, -999.0)
-            diphotons[f"{self.bjet_mva}_ScorebJ1"] = first_bjet_mva
+            genBJets_selected_bjets_pt_list = awkward.flatten(selected_bjets[bJetCondition_bjet].pt.to_list())
+            genJets_selected_bjets_pt_list = awkward.flatten(selected_bjets[jetCondition_bjet].pt.to_list())
 
-            first_jet_pt = choose_jet(jets.pt, 0, -999.0)
-            first_jet_eta = choose_jet(jets.eta, 0, -999.0)
-            first_jet_phi = choose_jet(jets.phi, 0, -999.0)
-            first_jet_mass = choose_jet(jets.mass, 0, -999.0)
-            first_jet_charge = choose_jet(jets.charge, 0, -999.0)
+            selected_cjets = jets[jets.hFlav == 4]
+            bJetCondition_cjet = (selected_cjets.pt > 30) & (numpy.abs(selected_cjets.eta) < 2.5) & (selected_cjets[btag_mva_column] >= btag_WP)
+            jetCondition_cjet = (selected_cjets.pt > 30) & (numpy.abs(selected_cjets.eta) < 2.5)
+            num_bjets_cjet = awkward.num(selected_cjets[bJetCondition_cjet])
+            diphotons["NBJet_GenCJet"] = num_bjets_cjet
+            num_jets_cjet = awkward.num(selected_cjets[jetCondition_cjet])
+            diphotons["NJet_GenCJet"] = num_jets_cjet
 
-            second_jet_pt = choose_jet(jets.pt, 1, -999.0)
-            second_jet_eta = choose_jet(jets.eta, 1, -999.0)
-            second_jet_phi = choose_jet(jets.phi, 1, -999.0)
-            second_jet_mass = choose_jet(jets.mass, 1, -999.0)
-            second_jet_charge = choose_jet(jets.charge, 1, -999.0)
+            genCJets_selected_cjets_pt_list = awkward.flatten(selected_cjets[bJetCondition_cjet].pt.to_list())
+            genJets_selected_cjets_pt_list = awkward.flatten(selected_cjets[jetCondition_cjet].pt.to_list())
 
-            diphotons["first_jet_pt"] = first_jet_pt
-            diphotons["first_jet_eta"] = first_jet_eta
-            diphotons["first_jet_phi"] = first_jet_phi
-            diphotons["first_jet_mass"] = first_jet_mass
-            diphotons["first_jet_charge"] = first_jet_charge
+            selected_ljets = jets[jets.hFlav == 0]
+            bJetCondition_ljet = (selected_ljets.pt > 30) & (numpy.abs(selected_ljets.eta) < 2.5) & (selected_ljets[btag_mva_column] >= btag_WP)
+            jetCondition_ljet = (selected_ljets.pt > 30) & (numpy.abs(selected_ljets.eta) < 2.5)
+            num_bjets_ljet = awkward.num(selected_ljets[bJetCondition_ljet])
+            diphotons["NBJet_GenLJet"] = num_bjets_ljet
+            num_jets_ljet = awkward.num(selected_ljets[jetCondition_ljet])
+            diphotons["NJet_GenLJet"] = num_jets_ljet
 
-            diphotons["second_jet_pt"] = second_jet_pt
-            diphotons["second_jet_eta"] = second_jet_eta
-            diphotons["second_jet_phi"] = second_jet_phi
-            diphotons["second_jet_mass"] = second_jet_mass
-            diphotons["second_jet_charge"] = second_jet_charge
+            genLJets_selected_ljets_pt_list = awkward.flatten(selected_ljets[bJetCondition_ljet].pt.to_list())
+            genJets_selected_ljets_pt_list = awkward.flatten(selected_ljets[jetCondition_ljet].pt.to_list())
 
-            diphotons["n_jets"] = n_jets
-            diphotons["Njets2p5"] = Njets2p5
-
-            diphotons = awkward.firsts(diphotons)
-            # set diphotons as part of the event record
-            events[f"diphotons_{do_variation}"] = diphotons
-            # annotate diphotons with event information
-            diphotons["event"] = events.event
-            diphotons["lumi"] = events.luminosityBlock
-            diphotons["run"] = events.run
-            # nPV just for validation of pileup reweighting
-            diphotons["nPV"] = events.PV.npvs
-            diphotons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll
-            # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
-            if self.data_kind == "mc":
-                diphotons["genWeight"] = events.genWeight
-                diphotons["dZ"] = events.GenVtx.z - events.PV.z
-            # Fill zeros for data because there is no GenVtx for data, obviously
-            else:
-                diphotons["dZ"] = awkward.zeros_like(events.PV.z)
-
-            # drop events without a preselected diphoton candidate
-            # drop events without a tag, if there are tags
-
-            selection_mask = ~awkward.is_none(diphotons)
-            diphotons = diphotons[selection_mask]
-
-            # return if there is no surviving events
-            if len(diphotons) == 0:
-                logger.debug("No surviving events in this run, return now!")
-                return histos_etc
-            if self.data_kind == "mc":
-                # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
-                event_weights = Weights(size=len(events[selection_mask]),storeIndividual=True)
-                # set weights to generator weights
-                event_weights._weight = awkward.to_numpy(events["genWeight"][selection_mask])
-
-                # corrections to event weights:
-                for correction_name in correction_names:
-                    if correction_name in available_weight_corrections:
-                        logger.info(
-                            f"Adding correction {correction_name} to weight collection of dataset {dataset_name}"
-                        )
-                        varying_function = available_weight_corrections[
-                            correction_name
-                        ]
-                        common_args = {
-                            "events": events[selection_mask],
-                            "photons": events[f"diphotons_{do_variation}"][selection_mask],
-                            "weights": event_weights,
-                            "dataset_name": dataset_name,
-                            "year": self.year[dataset_name][0],
-                        }
-
-                        if any("bTagFixedWP" in item for item in correction_names):
-                            common_args["bTagEffFileName"] = self.bTagEffFileName
-
-                        varying_function = available_weight_corrections[correction_name]
-                        event_weights = varying_function(**common_args)
-
-                bTagFixedWP_present = any("bTagFixedWP" in item for item in systematic_names) + any("bTagFixedWP" in item for item in correction_names)
-                PNet_present = any("bTagFixedWP_PNet" in item for item in systematic_names) + any("bTagFixedWP_PNet" in item for item in correction_names)
-
-                if PNet_present and (self.nano_version < 12):
-                    logger.error("\n B-Tagging systematics and corrections using Particle Net are only available for NanoAOD v12 or higher. Exiting! \n")
-                    exit()
-
-                diphotons["weight"] = event_weights.weight() / (
-                    event_weights.partial_weight(include=["bTagFixedWP"])
-                    if bTagFixedWP_present
-                    else 1
-                )
-                diphotons["weight_central"] = event_weights.weight() / (
-                    (event_weights.partial_weight(include=["bTagFixedWP"]) * events["genWeight"][selection_mask])
-                    if bTagFixedWP_present
-                    else events["genWeight"][selection_mask]
-                )
-
-                if bTagFixedWP_present:
-                    diphotons["weight_BtagPNetFixedWP"] = event_weights.partial_weight(include=["bTagFixedWP"])
-                # Store variations with respect to central weight
-                if do_variation == "nominal":
-                    if len(event_weights.variations):
-                        logger.info(
-                            "Adding systematic weight variations to nominal output file."
-                        )
-                    for modifier in event_weights.variations:
-                        diphotons["weight_" + modifier] = event_weights.weight(
-                            modifier=modifier
-                        )
-
-            # Add weight variables (=1) for data for consistent datasets
-            else:
-                diphotons["weight_central"] = awkward.ones_like(
-                    diphotons["event"]
-                )
-                diphotons["weight"] = awkward.ones_like(diphotons["event"])
-
-            # Compute and store the different variations of sigma_m_over_m
-            diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m, IsData=(self.data_kind == "data"))
+            selected_jets_pt_dict = {
+                "genBJet_recoBJet": genBJets_selected_bjets_pt_list,
+                "genBJet_recoJet": genJets_selected_bjets_pt_list,
+                "genCJet_recoBJet": genCJets_selected_cjets_pt_list,
+                "genCJet_recoJet": genJets_selected_cjets_pt_list,
+                "genLJet_recoBJet": genLJets_selected_ljets_pt_list,
+                "genLJet_recoJet": genJets_selected_ljets_pt_list,
+            }
 
             if self.output_location is not None:
-                if self.output_format == "root":
-                    df = diphoton_list_to_pandas(self, diphotons)
-                else:
-                    akarr = diphoton_ak_array(self, diphotons)
-
-                    # Remove fixedGridRhoAll from photons to avoid having event-level info per photon
-                    akarr = akarr[
-                        [
-                            field
-                            for field in akarr.fields
-                            if "lead_fixedGridRhoAll" not in field
-                        ]
-                    ]
-
                 fname = (
                     events.behavior[
                         "__events_factory__"
@@ -670,11 +628,131 @@ class ZeeProcessor(HggBaseProcessor):
                 if "dataset" in events.metadata:
                     subdirs.append(events.metadata["dataset"])
                 subdirs.append(do_variation)
-                if self.output_format == "root":
-                    dump_pandas(self, df, fname, self.output_location, subdirs)
-                else:
-                    dump_ak_array(
-                        self, akarr, fname, self.output_location, metadata, subdirs,
-                    )
+
+                # Create output directory
+                output_dir = os.path.join(self.output_location, os.path.sep.join(subdirs))
+                pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+                # Output pt lists
+                output_pkl = os.path.join(self.output_location, os.path.sep.join(subdirs), fname).replace("parquet", "pkl")
+                with open(output_pkl, 'wb') as pickle_file:
+                    pickle.dump(selected_jets_pt_dict, pickle_file)
+
+            #################################################################################
+            #################################################################################
+            #################################################################################
+            #                                                                               #
+            #                   E N D    O F    M A N D A T O R Y    P A R T.               #
+            #                                                                               #
+            #################################################################################
+            #################################################################################
+            #################################################################################
 
         return histos_etc
+
+    def apply_filters_and_triggers(self, events: awkward.Array) -> awkward.Array:
+        # met filters
+        met_filters = self.meta["flashggMetFilters"][self.data_kind]
+        filtered = functools.reduce(
+            operator.and_,
+            (events.Flag[metfilter.split("_")[-1]] for metfilter in met_filters),
+        )
+
+        triggered = awkward.ones_like(filtered)
+        if self.apply_trigger:
+            trigger_names = []
+            triggers = self.meta["TriggerPaths"][self.trigger_group][self.analysis]
+            hlt = events.HLT
+            for trigger in triggers:
+                actual_trigger = trigger.replace("HLT_", "").replace("*", "")
+                for field in hlt.fields:
+                    if field.startswith(actual_trigger):
+                        trigger_names.append(field)
+            triggered = functools.reduce(
+                operator.or_, (hlt[trigger_name] for trigger_name in trigger_names)
+            )
+
+        return events[filtered & triggered]
+
+    def add_diphoton_mva(
+        self, diphotons: awkward.Array, events: awkward.Array
+    ) -> awkward.Array:
+        return calculate_diphoton_mva(
+            (self.diphoton_mva, self.meta["flashggDiPhotonMVA"]["inputs"]),
+            diphotons,
+            events,
+        )
+
+    def add_photonid_mva(
+        self, photons: awkward.Array, events: awkward.Array
+    ) -> awkward.Array:
+        photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll * awkward.ones_like(
+            photons.pt
+        )
+        counts = awkward.num(photons, axis=-1)
+        photons = awkward.flatten(photons)
+        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        mva_EB = calculate_photonid_mva(
+            (self.photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]), photons
+        )
+        mva_EE = calculate_photonid_mva(
+            (self.photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]), photons
+        )
+        mva = awkward.where(isEB, mva_EB, mva_EE)
+        photons["mvaID"] = mva
+
+        return awkward.unflatten(photons, counts)
+
+    def add_photonid_mva_run3(
+        self, photons: awkward.Array, events: awkward.Array
+    ) -> awkward.Array:
+
+        preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
+        photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
+
+        rho = events.Rho.fixedGridRhoAll * awkward.ones_like(photons.pt)
+        rho = awkward.flatten(rho)
+
+        photons = awkward.flatten(photons)
+
+        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        mva_EB = calculate_photonid_mva_run3(
+            [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]], photons , rho
+        )
+        mva_EE = calculate_photonid_mva_run3(
+            [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]], photons, rho
+        )
+        mva = awkward.where(isEB, mva_EB, mva_EE)
+        photons["mvaID_run3"] = mva
+
+        return mva
+
+    def add_corr_photonid_mva_run3(
+        self, photons: awkward.Array, events: awkward.Array
+    ) -> awkward.Array:
+
+        preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
+        photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
+
+        rho = events.Rho.fixedGridRhoAll * awkward.ones_like(photons.pt)
+        rho = awkward.flatten(rho)
+
+        photons = awkward.flatten(photons)
+
+        # Now calculating the corrected mvaID
+        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        corr_mva_EB = calculate_photonid_mva_run3(
+            [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB_corr"]], photons, rho
+        )
+        corr_mva_EE = calculate_photonid_mva_run3(
+            [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE_corr"]], photons, rho
+        )
+        corr_mva = awkward.where(isEB, corr_mva_EB, corr_mva_EE)
+
+        return corr_mva
+
+    def process_extra(self, events: awkward.Array) -> awkward.Array:
+        return events, {}
+
+    def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
+        pass
