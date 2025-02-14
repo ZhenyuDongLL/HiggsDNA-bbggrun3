@@ -1,14 +1,16 @@
 from higgs_dna.workflows.base import HggBaseProcessor
 from higgs_dna.tools.chained_quantile import ChainedQuantileRegression
 from higgs_dna.tools.diphoton_mva import calculate_retrained_diphoton_mva as calculate_diphoton_mva
-from higgs_dna.tools.hpc_mva import calculate_ch_vs_ggh_mva, calculate_ch_vs_cb_mva
+from higgs_dna.tools.hpc_mva import calculate_ch_vs_ggh_mva, calculate_ch_vs_cb_mva, calculate_ggh_vs_hb_mva
 from higgs_dna.tools.xgb_loader import load_bdt
 from higgs_dna.tools.photonid_mva import calculate_photonid_mva, load_photonid_mva
 from higgs_dna.tools.photonid_mva import calculate_photonid_mva_run3, load_photonid_mva_run3
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
-from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attributes
+from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higgs_gen_attributes
+from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.selections.photon_selections import photon_preselection
+from higgs_dna.selections.diphoton_selections import apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap
 from higgs_dna.selections.sv_selections import match_sv
@@ -20,7 +22,7 @@ from higgs_dna.utils.dumping_utils import (
     dump_pandas,
     get_obj_syst_dict,
 )
-from higgs_dna.utils.misc_utils import choose_jet
+from higgs_dna.utils.misc_utils import choose_jet, add_pnet_prob
 from higgs_dna.tools.flow_corrections import calculate_flow_corrections
 
 from higgs_dna.tools.mass_decorrelator import decorrelate_mass_resolution
@@ -57,39 +59,42 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
     def __init__(
         self,
         metaconditions: Dict[str, Any],
-        systematics: Optional[Dict[str, List[str]]],
-        corrections: Optional[Dict[str, List[str]]],
-        apply_trigger: bool,
-        nano_version: int,
-        output_location: Optional[str],
-        taggers: Optional[List[Any]],
-        trigger_group: str,
-        analysis: str,
-        applyCQR: bool,
-        skipJetVetoMap: bool,
-        year: Optional[Dict[str, List[str]]],
-        fiducialCuts: str,
-        doDeco: bool,
-        Smear_sigma_m: bool,
-        doFlow_corrections: bool,
-        output_format: str,
+        systematics: Optional[Dict[str, List[str]]] = None,
+        corrections: Optional[Dict[str, List[str]]] = None,
+        apply_trigger: bool = False,
+        nano_version: int = 13,
+        output_location: Optional[str] = None,
+        taggers: Optional[List[Any]] = None,
+        trigger_group: str = ".*DoubleEG.*",
+        analysis: str = "mainAnalysis",
+        applyCQR: bool = False,
+        skipJetVetoMap: bool = False,
+        year: Dict[str, List[str]] = None,
+        fiducialCuts: str = "simple",
+        doDeco: bool = False,
+        Smear_sigma_m: bool = False,
+        doFlow_corrections: bool = False,
+        output_format: str = "parquet",
     ) -> None:
-        self.meta = metaconditions
-        self.systematics = systematics if systematics is not None else {}
-        self.corrections = corrections if corrections is not None else {}
-        self.apply_trigger = apply_trigger
-        self.output_location = output_location
-        self.nano_version = nano_version
-        self.trigger_group = trigger_group
-        self.analysis = analysis
-        self.applyCQR = applyCQR
-        self.skipJetVetoMap = skipJetVetoMap
-        self.year = year if year is not None else {}
-        self.fiducialCuts = fiducialCuts
-        self.doDeco = doDeco
-        self.Smear_sigma_m = Smear_sigma_m
-        self.doFlow_corrections = doFlow_corrections
-        self.output_format = output_format
+        super().__init__(
+            metaconditions,
+            systematics=systematics,
+            corrections=corrections,
+            apply_trigger=apply_trigger,
+            nano_version=nano_version,
+            output_location=output_location,
+            taggers=taggers,
+            trigger_group=trigger_group,
+            analysis=analysis,
+            applyCQR=applyCQR,
+            skipJetVetoMap=skipJetVetoMap,
+            year=year,
+            fiducialCuts=fiducialCuts,
+            doDeco=doDeco,
+            Smear_sigma_m=Smear_sigma_m,
+            doFlow_corrections=doFlow_corrections,
+            output_format=output_format
+        )
 
         # muon selection cuts
         self.muon_pt_threshold = 10
@@ -243,7 +248,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             warnings.warn(f"Could not instantiate diphoton MVA: {e}")
             self.diphoton_mva = None
 
-        # initialize ch vs ggh mva
+        # initialize ch vs ggh mva, only useful for run 2 cH yukawa analysis
         hpc_weight_dir = os.path.dirname(hpc_mva_dir.__file__)
         logger.debug(
             f"Base path to look for cH vs ggH MVA weight files: {hpc_weight_dir}"
@@ -279,6 +284,23 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         except Exception as e:
             warnings.warn(f"Could not instantiate hpc MVA ch vs cb: {e}")
             self.ch_vs_cb_mva = None
+
+        # initialize ggh vs hb mva
+        self.ggh_vs_hb_mva = [None, None]
+        try:
+            self.ggh_vs_hb_mva[0] = load_bdt(
+                os.path.join(
+                    hpc_weight_dir, self.meta["hpcMVA_ggh_vs_hb"]["weightFile"][0]
+                )
+            )
+            self.ggh_vs_hb_mva[1] = load_bdt(
+                os.path.join(
+                    hpc_weight_dir, self.meta["hpcMVA_ggh_vs_hb"]["weightFile"][1]
+                )
+            )
+        except Exception as e:
+            warnings.warn(f"Could not instantiate hpc MVA ggh vs hb: {e}")
+            self.ggh_vs_hb_mva = None
 
     def process_extra(self, events: awkward.Array) -> awkward.Array:
         raise NotImplementedError
@@ -355,7 +377,6 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
 
         if self.data_kind == "mc":
             logger.info("processing MC dataset")
-            logger.debug(f'genWeight: {events["genWeight"]}')
             # Add sum of gen weights before selection for normalisation in postprocessing
             metadata["sum_genw_presel"] = str(awkward.sum(events.genWeight))
         else:
@@ -389,20 +410,29 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         if (
             self.data_kind == "mc"
             and self.Smear_sigma_m
-            and "Smearing" not in correction_names
+            and ("Smearing" not in correction_names and "Et_dependent_Smearing" not in correction_names)
         ):
             warnings.warn(
-                "Smearing should be specified in the corrections field in .json in order to smear the mass!"
+                "Smearing or Et_dependent_Smearing should be specified in the corrections field in .json in order to smear the mass!"
             )
             sys.exit(0)
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
-            correction_name = "Smearing"
+            if "Scale" in correction_names:
+                correction_name = "Smearing"
+            elif "Et_dependent_Scale" in correction_names:
+                correction_name = "Et_dependent_Smearing"
+            else:
+                logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
+                sys.exit(0)
 
             logger.info(
-                f"\nApplying correction {correction_name} to dataset {dataset_name}\n"
+                f"""
+                \nApplying correction {correction_name} to dataset {dataset_name}\n
+                This is only for the addition of the smearing term to the sigma_m_over_m in data\n
+                """
             )
             varying_function = available_object_corrections[correction_name]
             events = varying_function(events=events, year=self.year[dataset_name][0])
@@ -424,6 +454,12 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                 warnings.warn(f"Could not process correction {correction_name}.")
                 continue
 
+        # apply jetvetomap: only retain events that without any jets in the veto region
+        if not self.skipJetVetoMap:
+            events = jetvetomap(
+                events, logger, dataset_name, year=self.year[dataset_name][0]
+            )
+
         original_photons = events.Photon
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
@@ -442,7 +478,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             for i in range(len(var_list)):
                 original_photons["raw_" + str(var_list[i])] = original_photons[str(var_list[i])]
                 original_photons[str(var_list[i])] = awkward.unflatten(corrected_inputs[:,i] , counts)
-            # FIXME !!!
+
             original_photons["mvaID"] = awkward.unflatten(self.add_photonid_mva_run3(original_photons, events), counts)
 
         # systematic object variations
@@ -514,12 +550,14 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             elif variation in [*jets_dct]:
                 jets = jets_dct[variation]
             do_variation = variation  # We can also simplify this a bit but for now it works
-            logger.debug("Variation: {}".format(do_variation))
+
             if self.chained_quantile is not None:
                 photons = self.chained_quantile.apply(photons, events)
+
             # recompute photonid_mva on the fly
-            # if self.photonid_mva_EB and self.photonid_mva_EE:
-            #    photons = self.add_photonid_mva(photons, events)
+            # NOTE: this does not work properly at the moment, need to fix and in the meantime we use the EGamma ID
+            if self.photonid_mva_EB and self.photonid_mva_EE and self.applyCQR:
+                photons = self.add_photonid_mva(photons, events)
 
             # photon preselection
             photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
@@ -560,23 +598,8 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                 awkward.argsort(diphotons.pt, ascending=False)
             ]
 
-            # Determine if event passes fiducial Hgg cuts at detector-level
-            if hasattr(diphotons.pho_lead, "pfRelIso03_all_quadratic"):
-                iso_cut = (diphotons.pho_lead.pfRelIso03_all_quadratic * diphotons.pho_lead.pt < 10) & (diphotons.pho_sublead.pfRelIso03_all_quadratic * diphotons.pho_sublead.pt < 10)
-            else:
-                iso_cut = (diphotons.pho_lead.pfRelIso03_chg * diphotons.pho_lead.pt < 10) & ((diphotons.pho_sublead.pfRelIso03_chg * diphotons.pho_sublead.pt) < 10)
-
-            if self.fiducialCuts == 'classical':
-                fid_det_passed = (diphotons.pho_lead.pt / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (iso_cut) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
-            elif self.fiducialCuts == 'geometric':
-                fid_det_passed = (numpy.sqrt(diphotons.pho_lead.pt * diphotons.pho_sublead.pt) / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (diphotons.pho_lead.pfRelIso03_all_quadratic * diphotons.pho_lead.pt < 10) & (iso_cut) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
-            elif self.fiducialCuts == 'none':
-                fid_det_passed = diphotons.pho_lead.pt > -10  # This is a very dummy way but I do not know how to make a true array of outer shape of diphotons
-            else:
-                warnings.warn("You chose %s the fiducialCuts mode, but this is currently not supported. You should check your settings. For this run, no fiducial selection at detector level is applied." % self.fiducialCuts)
-                fid_det_passed = diphotons.pho_lead.pt > -10
-
-            diphotons = diphotons[fid_det_passed]
+            # Apply the fiducial cut at detector level with helper function
+            diphotons = apply_fiducial_cut_det_level(self, diphotons)
 
             # preselection, require at least one candidate
             dipho_presel_cut = awkward.num(diphotons["mass"]) >= 1
@@ -590,6 +613,12 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
 
                 GenPTH, GenYH, GenPhiH = get_higgs_gen_attributes(events)
                 GenPTH = awkward.fill_none(GenPTH, -999.0)
+                diphotons['GenPTH'] = GenPTH
+
+                genJets = get_genJets(self, events, pt_cut=20., eta_cut=2.5)
+                diphotons['GenNJ'] = awkward.num(genJets)
+                GenPTJ0 = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
+                diphotons['GenPTJ0'] = GenPTJ0
 
             diphotons = awkward.firsts(diphotons)
             diphotons["n_dipho_cand"] = dipho_num
@@ -605,32 +634,72 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
 
             logger.info(f"selected number of events  after diphoton preselection {len(dipho_events)}")
 
-            # jet_variables
-            jets = awkward.zip(
-                {
-                    "pt": jets.pt,
-                    "eta": jets.eta,
-                    "phi": jets.phi,
-                    "mass": jets.mass,
-                    "charge": jets.chEmEF,
-                    "hFlav": jets.hadronFlavour if self.data_kind == "mc" else awkward.ones_like(jets.pt) * -1.,
-                    "particleNetAK4_CvsL": jets.particleNetAK4_CvsL if hasattr(jets, "particleNetAK4_CvsL") else awkward.ones_like(jets.pt) * -1.,
-                    "particleNetAK4_CvsB": jets.particleNetAK4_CvsB if hasattr(jets, "particleNetAK4_CvsB") else awkward.ones_like(jets.pt) * -1.,
-                    "particleNetAK4_B": jets.particleNetAK4_B if hasattr(jets, "particleNetAK4_B") else awkward.ones_like(jets.pt) * -1.,
-                    "btagDeepFlav_B": jets.btagDeepFlavB,
-                    "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
-                    "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
-                    "btagDeepFlav_QG": jets.btagDeepFlavQG,
-                    "jetId": jets.jetId,
-                    "n_sv": jets.nSVs if hasattr(jets, "nSVs") else awkward.ones_like(jets.pt) * -1.,
-                    "n_muons": jets.nMuons if hasattr(jets, "nMuons") else awkward.ones_like(jets.pt) * -1.,
-                    "n_electrons": jets.nElectrons if hasattr(jets, "nElectrons") else awkward.ones_like(jets.pt) * -1.,
-                    "n_const": jets.nConstituents if hasattr(jets, "nConstituents") else awkward.ones_like(jets.pt) * -1.,
-                }
-            )
+            # NOTE: all this circus is needed because the PNet score name changed from one nanoAOD version to the next
+            # to still catch all the possible samples I have I need to do this ugly switches
+            if hasattr(jets, "particleNetAK4_B"):
+                # jet_variables
+                jets = awkward.zip(
+                    {
+                        "pt": jets.pt,
+                        "eta": jets.eta,
+                        "phi": jets.phi,
+                        "mass": jets.mass,
+                        "charge": jets.chEmEF,
+                        "hFlav": jets.hadronFlavour if self.data_kind == "mc" else awkward.ones_like(jets.pt) * -1.,
+                        "particleNetAK4_CvsL": jets.particleNetAK4_CvsL,
+                        "particleNetAK4_CvsB": jets.particleNetAK4_CvsB,
+                        "particleNetAK4_B": jets.particleNetAK4_B,
+                        "particleNetAK4_QvsG": jets.particleNetAK4_QvsG,
+                        "btagDeepFlav_B": jets.btagDeepFlavB,
+                        "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
+                        "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
+                        "btagDeepFlav_QG": jets.btagDeepFlavQG,
+                        "jetId": jets.jetId,
+                        "n_sv": jets.nSVs if hasattr(jets, "nSVs") else awkward.ones_like(jets.pt) * -1.,
+                        "n_muons": jets.nMuons if hasattr(jets, "nMuons") else awkward.ones_like(jets.pt) * -1.,
+                        "n_electrons": jets.nElectrons if hasattr(jets, "nElectrons") else awkward.ones_like(jets.pt) * -1.,
+                        "nConst": jets.nConstituents if hasattr(jets, "nConstituents") else awkward.ones_like(jets.pt) * -1.,
+                        "neHEF": jets.neHEF if hasattr(jets, "neHEF") else awkward.ones_like(jets.pt) * -1.,
+                        "neEmEF": jets.neEmEF if hasattr(jets, "neEmEF") else awkward.ones_like(jets.pt) * -1.,
+                        "chHEF": jets.chHEF if hasattr(jets, "chHEF") else awkward.ones_like(jets.pt) * -1.,
+                        "chEmEF": jets.neHEF if hasattr(jets, "chEmEF") else awkward.ones_like(jets.pt) * -1.,
+                    }
+                )
+            else:
+                # jet_variables
+                jets = awkward.zip(
+                    {
+                        "pt": jets.pt,
+                        "eta": jets.eta,
+                        "phi": jets.phi,
+                        "mass": jets.mass,
+                        "charge": jets.chEmEF,
+                        "hFlav": jets.hadronFlavour if self.data_kind == "mc" else awkward.ones_like(jets.pt) * -1.,
+                        "particleNetAK4_CvsL": jets.btagPNetCvL if hasattr(jets, "btagPNetCvL") else awkward.ones_like(jets.pt) * -1.,
+                        "particleNetAK4_CvsB": jets.btagPNetCvB if hasattr(jets, "btagPNetCvB") else awkward.ones_like(jets.pt) * -1.,
+                        "particleNetAK4_B": jets.btagPNetB if hasattr(jets, "btagPNetB") else awkward.ones_like(jets.pt) * -1.,
+                        "particleNetAK4_QvsG": jets.btagPNetQvG if hasattr(jets, "btagPNetQvG") else awkward.ones_like(jets.pt) * -1.,
+                        "btagDeepFlav_B": jets.btagDeepFlavB,
+                        "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
+                        "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
+                        "btagDeepFlav_QG": jets.btagDeepFlavQG,
+                        "jetId": jets.jetId,
+                        "n_sv": jets.nSVs if hasattr(jets, "nSVs") else awkward.ones_like(jets.pt) * -1.,
+                        "n_muons": jets.nMuons if hasattr(jets, "nMuons") else awkward.ones_like(jets.pt) * -1.,
+                        "n_electrons": jets.nElectrons if hasattr(jets, "nElectrons") else awkward.ones_like(jets.pt) * -1.,
+                        "nConst": jets.nConstituents if hasattr(jets, "nConstituents") else awkward.ones_like(jets.pt) * -1.,
+                        "neHEF": jets.neHEF if hasattr(jets, "neHEF") else awkward.ones_like(jets.pt) * -1.,
+                        "neEmEF": jets.neEmEF if hasattr(jets, "neEmEF") else awkward.ones_like(jets.pt) * -1.,
+                        "chHEF": jets.chHEF if hasattr(jets, "chHEF") else awkward.ones_like(jets.pt) * -1.,
+                        "chEmEF": jets.neHEF if hasattr(jets, "chEmEF") else awkward.ones_like(jets.pt) * -1.,
+                    }
+                )
             jets = awkward.with_name(jets, "PtEtaPhiMCandidate")
             if not hasattr(jets, "particleNetAK4_CvsL"):
                 logger.info("your jet collection doesn't have the PNet score fields")
+            else:
+                logger.info(f"your jet collection has the PNet score fields {jets.particleNetAK4_CvsL}")
+                jets = add_pnet_prob(self, jets)
 
             electrons = awkward.zip(
                 {
@@ -657,7 +726,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                     "mediumId": dipho_events.Muon.mediumId,
                     "looseId": dipho_events.Muon.looseId,
                     "isGlobal": dipho_events.Muon.isGlobal,
-                    "pfIsoId": events.Muon.pfIsoId
+                    "pfIsoId": dipho_events.Muon.pfIsoId
                 }
             )
             muons = awkward.with_name(muons, "PtEtaPhiMCandidate")
@@ -696,12 +765,34 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             ]
 
             # sort diphotons by pT
-            jets = jets[awkward.argsort(jets.pt, ascending=False, axis=1)]
+            pt_jets = jets[awkward.argsort(jets.pt, ascending=False, axis=1)]
             # sort diphotons by CvsL
             # jets = jets[awkward.argsort(jets.btagDeepFlav_CvL, ascending=False, axis=1)]
-            # jets = jets[awkward.argsort(jets.particleNetAK4_CvsL, ascending=False, axis=1)]
+            jets = jets[awkward.argsort(jets.particleNetAK4_CvsL, ascending=False, axis=1)]
 
             n_jets = awkward.num(jets)
+            n_b_jets_medium = awkward.num(jets[jets.btagDeepFlav_B > 0.3033])  # medium wp 2017
+            n_b_jets_loose = awkward.num(jets[jets.btagDeepFlav_B > 0.0521])  # loose wp 2017
+
+            # now I create the dijet system
+            dijets = awkward.combinations(
+                pt_jets, 2, fields=["j_lead", "j_sublead"]
+            )
+
+            # now turn the dijets into candidates with four momenta and such
+            dijets_4mom = dijets["j_lead"] + dijets["j_sublead"]
+            dijets["pt"] = dijets_4mom.pt
+            dijets["eta"] = dijets_4mom.eta
+            dijets["phi"] = dijets_4mom.phi
+            dijets["mass"] = dijets_4mom.mass
+            dijets["charge"] = dijets_4mom.charge
+
+            dijets = awkward.with_name(dijets, "PtEtaPhiMCandidate")
+
+            # sort diphotons by pT
+            dijets = dijets[
+                awkward.argsort(dijets.pt, ascending=False)
+            ]
 
             # sv selection
             sv = sv[
@@ -718,8 +809,18 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             electrons = electrons[ge_1j_cut]
             muons = muons[ge_1j_cut]
             jets = jets[ge_1j_cut]
+            genJets = genJets[ge_1j_cut]
+            pt_jets = pt_jets[ge_1j_cut]
+            dijets = dijets[ge_1j_cut]
             sv = sv[ge_1j_cut]
             n_jets = n_jets[ge_1j_cut]
+            n_b_jets_medium = n_b_jets_medium[ge_1j_cut]
+            n_b_jets_loose = n_b_jets_loose[ge_1j_cut]
+
+            dijet_pt = choose_jet(dijets.pt, 0, -999.0)
+            dijet_eta = choose_jet(dijets.eta, 0, -999.0)
+            dijet_phi = choose_jet(dijets.phi, 0, -999.0)
+            dijet_mass = choose_jet(dijets.mass, 0, -999.0)
 
             first_jet_pt = choose_jet(jets.pt, 0, -999.0)
             first_jet_eta = choose_jet(jets.eta, 0, -999.0)
@@ -729,8 +830,30 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             first_jet_hFlav = choose_jet(jets.hFlav, 0, -999.0)
             first_jet_DeepFlavour_CvsL = choose_jet(jets.btagDeepFlav_CvL, 0, -999.0)
             first_jet_DeepFlavour_CvsB = choose_jet(jets.btagDeepFlav_CvB, 0, -999.0)
+            first_jet_DeepFlavour_B = choose_jet(jets.btagDeepFlav_B, 0, -999.0)
+            first_jet_DeepFlavour_QG = choose_jet(jets.btagDeepFlav_QG, 0, -999.0)
+
+            first_pt_jet_pt = choose_jet(pt_jets.pt, 0, -999.0)
+            first_pt_jet_eta = choose_jet(pt_jets.eta, 0, -999.0)
+            first_pt_jet_phi = choose_jet(pt_jets.phi, 0, -999.0)
+            first_pt_jet_mass = choose_jet(pt_jets.mass, 0, -999.0)
+            first_pt_jet_charge = choose_jet(pt_jets.charge, 0, -999.0)
+            first_pt_jet_hFlav = choose_jet(pt_jets.hFlav, 0, -999.0)
+            first_pt_jet_DeepFlavour_CvsL = choose_jet(pt_jets.btagDeepFlav_CvL, 0, -999.0)
+            first_pt_jet_DeepFlavour_CvsB = choose_jet(pt_jets.btagDeepFlav_CvB, 0, -999.0)
+            first_pt_jet_DeepFlavour_B = choose_jet(pt_jets.btagDeepFlav_B, 0, -999.0)
+            first_pt_jet_DeepFlavour_QG = choose_jet(pt_jets.btagDeepFlav_QG, 0, -999.0)
+
+            first_jet_jet_pn_b = choose_jet(jets.pn_b, 0, -1.0)
+            first_jet_jet_pn_c = choose_jet(jets.pn_c, 0, -1.0)
+            first_jet_jet_pn_uds = choose_jet(jets.pn_uds, 0, -1.0)
+            first_jet_jet_pn_g = choose_jet(jets.pn_g, 0, -1.0)
+            first_jet_jet_pn_b_plus_c = choose_jet(jets.pn_b_plus_c, 0, -1.0)
+            first_jet_jet_pn_b_vs_c = choose_jet(jets.pn_b_vs_c, 0, -1.0)
             first_jet_particleNetAK4_CvsL = choose_jet(jets.particleNetAK4_CvsL, 0, -999.0)
             first_jet_particleNetAK4_CvsB = choose_jet(jets.particleNetAK4_CvsB, 0, -999.0)
+            first_jet_particleNetAK4_QvsG = choose_jet(jets.particleNetAK4_QvsG, 0, -999.0)
+            first_jet_particleNetAK4_B = choose_jet(jets.particleNetAK4_B, 0, -999.0)
             first_jet_n_sv = choose_jet(jets.n_sv, 0, -999.0)
             first_jet_n_muons = choose_jet(jets.n_muons, 0, -999.0)
             first_jet_n_electrons = choose_jet(jets.n_electrons, 0, -999.0)
@@ -743,9 +866,30 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             second_jet_hFlav = choose_jet(jets.hFlav, 1, -999.0)
             second_jet_DeepFlavour_CvsL = choose_jet(jets.btagDeepFlav_CvL, 1, -999.0)
             second_jet_DeepFlavour_CvsB = choose_jet(jets.btagDeepFlav_CvB, 1, -999.0)
+            second_jet_DeepFlavour_B = choose_jet(jets.btagDeepFlav_B, 1, -999.0)
+            second_jet_DeepFlavour_QG = choose_jet(jets.btagDeepFlav_QG, 1, -999.0)
             second_jet_particleNetAK4_CvsL = choose_jet(jets.particleNetAK4_CvsL, 1, -999.0)
             second_jet_particleNetAK4_CvsB = choose_jet(jets.particleNetAK4_CvsB, 1, -999.0)
+            second_jet_particleNetAK4_B = choose_jet(jets.particleNetAK4_B, 1, -999.0)
             second_jet_n_sv = choose_jet(jets.n_sv, 1, -999.0)
+
+            second_pt_jet_pt = choose_jet(pt_jets.pt, 1, -999.0)
+            second_pt_jet_eta = choose_jet(pt_jets.eta, 1, -999.0)
+            second_pt_jet_phi = choose_jet(pt_jets.phi, 1, -999.0)
+            second_pt_jet_mass = choose_jet(pt_jets.mass, 1, -999.0)
+            second_pt_jet_charge = choose_jet(pt_jets.charge, 1, -999.0)
+            second_pt_jet_hFlav = choose_jet(pt_jets.hFlav, 1, -999.0)
+            second_pt_jet_DeepFlavour_CvsL = choose_jet(pt_jets.btagDeepFlav_CvL, 1, -999.0)
+            second_pt_jet_DeepFlavour_CvsB = choose_jet(pt_jets.btagDeepFlav_CvB, 1, -999.0)
+            second_pt_jet_DeepFlavour_B = choose_jet(pt_jets.btagDeepFlav_B, 1, -999.0)
+            second_pt_jet_DeepFlavour_QG = choose_jet(pt_jets.btagDeepFlav_QG, 1, -999.0)
+
+            third_jet_pt = choose_jet(jets.pt, 2, -999.0)
+            third_jet_eta = choose_jet(jets.eta, 2, -999.0)
+            third_jet_phi = choose_jet(jets.phi, 2, -999.0)
+            third_jet_mass = choose_jet(jets.mass, 2, -999.0)
+            third_jet_charge = choose_jet(jets.charge, 2, -999.0)
+            third_jet_hFlav = choose_jet(jets.hFlav, 2, -999.0)
 
             first_sv_pt = choose_jet(sv.pt, 0, -999.0)
             first_sv_eta = choose_jet(sv.eta, 0, -999.0)
@@ -764,22 +908,23 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             first_sv_ndof = choose_jet(sv.ndof, 0, -999.0)
             first_sv_ntracks = choose_jet(sv.ntracks, 0, -999.0)
 
-            second_sv_pt = choose_jet(sv.pt, 1, -999.0)
-            second_sv_eta = choose_jet(sv.eta, 1, -999.0)
-            second_sv_phi = choose_jet(sv.phi, 1, -999.0)
-            second_sv_mass = choose_jet(sv.mass, 1, -999.0)
-            second_sv_charge = choose_jet(sv.charge, 1, -999.0)
-            second_sv_dlen = choose_jet(sv.dlen, 1, -999.0)
-            second_sv_dlenSig = choose_jet(sv.dlenSig, 1, -999.0)
-            second_sv_dxy = choose_jet(sv.dxy, 1, -999.0)
-            second_sv_dxySig = choose_jet(sv.dxySig, 1, -999.0)
-            second_sv_pAngle = choose_jet(sv.pAngle, 1, -999.0)
-            second_sv_chi2 = choose_jet(sv.chi2, 1, -999.0)
-            second_sv_x = choose_jet(sv.x, 1, -999.0)
-            second_sv_y = choose_jet(sv.y, 1, -999.0)
-            second_sv_z = choose_jet(sv.z, 1, -999.0)
-            second_sv_ndof = choose_jet(sv.ndof, 1, -999.0)
-            second_sv_ntracks = choose_jet(sv.ntracks, 1, -999.0)
+            first_muon_pt = choose_jet(muons.pt, 0, -999.0)
+            first_muon_eta = choose_jet(muons.eta, 0, -999.0)
+            first_muon_phi = choose_jet(muons.phi, 0, -999.0)
+            first_muon_mass = choose_jet(muons.mass, 0, -999.0)
+            first_muon_charge = choose_jet(muons.charge, 0, -999.0)
+
+            first_electron_pt = choose_jet(electrons.pt, 0, -999.0)
+            first_electron_eta = choose_jet(electrons.eta, 0, -999.0)
+            first_electron_phi = choose_jet(electrons.phi, 0, -999.0)
+            first_electron_mass = choose_jet(electrons.mass, 0, -999.0)
+            first_electron_charge = choose_jet(electrons.charge, 0, -999.0)
+
+            if self.data_kind == "mc":
+                gen_first_jet_eta = choose_jet(genJets.eta, 0, -999.0)
+                gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
+                gen_first_jet_phi = choose_jet(genJets.phi, 0, -999.0)
+                gen_first_jet_hflav = choose_jet(genJets.hadronFlavour, 0, -999.0)
 
             diphotons["first_jet_pt"] = first_jet_pt
             diphotons["first_jet_eta"] = first_jet_eta
@@ -789,11 +934,32 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             diphotons["first_jet_hFlav"] = first_jet_hFlav
             diphotons["first_jet_DeepFlavour_CvsL"] = first_jet_DeepFlavour_CvsL
             diphotons["first_jet_DeepFlavour_CvsB"] = first_jet_DeepFlavour_CvsB
+            diphotons["first_jet_DeepFlavour_B"] = first_jet_DeepFlavour_B
+            diphotons["first_jet_DeepFlavour_QG"] = first_jet_DeepFlavour_QG
             diphotons["first_jet_particleNetAK4_CvsL"] = first_jet_particleNetAK4_CvsL
             diphotons["first_jet_particleNetAK4_CvsB"] = first_jet_particleNetAK4_CvsB
+            diphotons["first_jet_particleNetAK4_QvsG"] = first_jet_particleNetAK4_QvsG
+            diphotons["first_jet_particleNetAK4_B"] = first_jet_particleNetAK4_B
+            diphotons["first_jet_jet_pn_b"] = first_jet_jet_pn_b
+            diphotons["first_jet_jet_pn_c"] = first_jet_jet_pn_c
+            diphotons["first_jet_jet_pn_uds"] = first_jet_jet_pn_uds
+            diphotons["first_jet_jet_pn_g"] = first_jet_jet_pn_g
+            diphotons["first_jet_jet_pn_b_plus_c"] = first_jet_jet_pn_b_plus_c
+            diphotons["first_jet_jet_pn_b_vs_c"] = first_jet_jet_pn_b_vs_c
             diphotons["first_jet_n_sv"] = first_jet_n_sv
             diphotons["first_jet_n_muons"] = first_jet_n_muons
             diphotons["first_jet_n_electrons"] = first_jet_n_electrons
+
+            diphotons["first_pt_jet_pt"] = first_pt_jet_pt
+            diphotons["first_pt_jet_eta"] = first_pt_jet_eta
+            diphotons["first_pt_jet_phi"] = first_pt_jet_phi
+            diphotons["first_pt_jet_mass"] = first_pt_jet_mass
+            diphotons["first_pt_jet_charge"] = first_pt_jet_charge
+            diphotons["first_pt_jet_hFlav"] = first_pt_jet_hFlav
+            diphotons["first_pt_jet_DeepFlavour_CvsL"] = first_pt_jet_DeepFlavour_CvsL
+            diphotons["first_pt_jet_DeepFlavour_CvsB"] = first_pt_jet_DeepFlavour_CvsB
+            diphotons["first_pt_jet_DeepFlavour_B"] = first_pt_jet_DeepFlavour_B
+            diphotons["first_pt_jet_DeepFlavour_QG"] = first_pt_jet_DeepFlavour_QG
 
             diphotons["second_jet_pt"] = second_jet_pt
             diphotons["second_jet_eta"] = second_jet_eta
@@ -803,9 +969,35 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             diphotons["second_jet_hFlav"] = second_jet_hFlav
             diphotons["second_jet_DeepFlavour_CvsL"] = second_jet_DeepFlavour_CvsL
             diphotons["second_jet_DeepFlavour_CvsB"] = second_jet_DeepFlavour_CvsB
+            diphotons["second_jet_DeepFlavour_B"] = second_jet_DeepFlavour_B
+            diphotons["second_jet_DeepFlavour_QG"] = second_jet_DeepFlavour_QG
             diphotons["second_jet_particleNetAK4_CvsL"] = second_jet_particleNetAK4_CvsL
             diphotons["second_jet_particleNetAK4_CvsB"] = second_jet_particleNetAK4_CvsB
+            diphotons["second_jet_particleNetAK4_B"] = second_jet_particleNetAK4_B
             diphotons["second_jet_n_sv"] = second_jet_n_sv
+
+            diphotons["second_pt_jet_pt"] = second_pt_jet_pt
+            diphotons["second_pt_jet_eta"] = second_pt_jet_eta
+            diphotons["second_pt_jet_phi"] = second_pt_jet_phi
+            diphotons["second_pt_jet_mass"] = second_pt_jet_mass
+            diphotons["second_pt_jet_charge"] = second_pt_jet_charge
+            diphotons["second_pt_jet_hFlav"] = second_pt_jet_hFlav
+            diphotons["second_pt_jet_DeepFlavour_CvsL"] = second_pt_jet_DeepFlavour_CvsL
+            diphotons["second_pt_jet_DeepFlavour_CvsB"] = second_pt_jet_DeepFlavour_CvsB
+            diphotons["second_pt_jet_DeepFlavour_B"] = second_pt_jet_DeepFlavour_B
+            diphotons["second_pt_jet_DeepFlavour_QG"] = second_pt_jet_DeepFlavour_QG
+
+            diphotons["third_jet_pt"] = third_jet_pt
+            diphotons["third_jet_eta"] = third_jet_eta
+            diphotons["third_jet_phi"] = third_jet_phi
+            diphotons["third_jet_mass"] = third_jet_mass
+            diphotons["third_jet_charge"] = third_jet_charge
+            diphotons["third_jet_hFlav"] = third_jet_hFlav
+
+            diphotons["gen_first_jet_eta"] = gen_first_jet_eta
+            diphotons["gen_first_jet_mass"] = gen_first_jet_mass
+            diphotons["gen_first_jet_phi"] = gen_first_jet_phi
+            diphotons["gen_first_jet_hflav"] = gen_first_jet_hflav
 
             diphotons["first_sv_pt"] = first_sv_pt
             diphotons["first_sv_eta"] = first_sv_eta
@@ -824,29 +1016,41 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             diphotons["first_sv_ndof"] = first_sv_ndof
             diphotons["first_sv_ntracks"] = first_sv_ntracks
 
-            diphotons["second_sv_pt"] = second_sv_pt
-            diphotons["second_sv_eta"] = second_sv_eta
-            diphotons["second_sv_phi"] = second_sv_phi
-            diphotons["second_sv_mass"] = second_sv_mass
-            diphotons["second_sv_charge"] = second_sv_charge
-            diphotons["second_sv_dlen"] = second_sv_dlen
-            diphotons["second_sv_dlenSig"] = second_sv_dlenSig
-            diphotons["second_sv_dxy"] = second_sv_dxy
-            diphotons["second_sv_dxySig"] = second_sv_dxySig
-            diphotons["second_sv_pAngle"] = second_sv_pAngle
-            diphotons["second_sv_chi2"] = second_sv_chi2
-            diphotons["second_sv_x"] = second_sv_x
-            diphotons["second_sv_y"] = second_sv_y
-            diphotons["second_sv_z"] = second_sv_z
-            diphotons["second_sv_ndof"] = second_sv_ndof
-            diphotons["second_sv_ntracks"] = second_sv_ntracks
+            diphotons["first_muon_pt"] = first_muon_pt
+            diphotons["first_muon_eta"] = first_muon_eta
+            diphotons["first_muon_phi"] = first_muon_phi
+            diphotons["first_muon_mass"] = first_muon_mass
+            diphotons["first_muon_charge"] = first_muon_charge
+
+            diphotons["first_electron_pt"] = first_electron_pt
+            diphotons["first_electron_eta"] = first_electron_eta
+            diphotons["first_electron_phi"] = first_electron_phi
+            diphotons["first_electron_mass"] = first_electron_mass
+            diphotons["first_electron_charge"] = first_electron_charge
 
             diphotons["n_jets"] = n_jets
+            diphotons["n_b_jets_medium"] = n_b_jets_medium
+            diphotons["n_b_jets_loose"] = n_b_jets_loose
+
+            diphotons["dijet_pt"] = dijet_pt
+            diphotons["dijet_eta"] = dijet_eta
+            diphotons["dijet_phi"] = dijet_phi
+            diphotons["dijet_mass"] = dijet_mass
 
             diphotons["LeadPhoton_pt"] = diphotons.pho_lead.pt
             diphotons["SubleadPhoton_pt"] = diphotons.pho_sublead.pt
             diphotons["LeadPhoton_energy"] = diphotons.pho_lead.energy
             diphotons["SubleadPhoton_energy"] = diphotons.pho_sublead.energy
+
+            diphotons["LeadPhoton_r9"] = diphotons.pho_lead.r9
+            diphotons["LeadPhoton_s4"] = diphotons.pho_lead.s4
+            diphotons["LeadPhoton_sieie"] = diphotons.pho_lead.sieie
+            diphotons["LeadPhoton_sieip"] = diphotons.pho_lead.sieip
+            diphotons["LeadPhoton_etaWidth"] = diphotons.pho_lead.etaWidth
+            diphotons["LeadPhoton_phiWidth"] = diphotons.pho_lead.phiWidth
+            diphotons["LeadPhoton_pfChargedIsoPFPV"] = diphotons.pho_lead.pfChargedIsoPFPV
+            diphotons["LeadPhoton_pfChargedIsoWorstVtx"] = diphotons.pho_lead.pfChargedIsoWorstVtx
+            diphotons["LeadPhoton_pfPhoIso03"] = diphotons.pho_lead.pfPhoIso03
 
             # run taggers on the events list with added diphotons
             # the shape here is ensured to be broadcastable
@@ -896,6 +1100,16 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
             diphotons["nPV"] = dipho_events.PV.npvs if not self.data_kind else awkward.ones_like(dipho_events.event)
             diphotons["nPU"] = dipho_events.Pileup.nPU if not self.data_kind else awkward.ones_like(dipho_events.event)
             diphotons["rho"] = dipho_events.Rho.fixedGridRhoAll
+
+            # global variables for ggH vs RB BDT
+            diphotons["nTau"] = dipho_events.nTau if hasattr(dipho_events, "nTau") else awkward.num(dipho_events.Tau)
+            diphotons["nMuon"] = dipho_events.nMuon if hasattr(dipho_events, "nMuon") else awkward.num(dipho_events.Muon)
+            diphotons["nElectron"] = dipho_events.nElectron if hasattr(dipho_events, "nElectron") else awkward.num(dipho_events.Electron)
+            diphotons["MET_pt"] = dipho_events.MET.pt
+            diphotons["MET_phi"] = dipho_events.MET.phi
+            diphotons["MET_sumEt"] = dipho_events.MET.sumEt
+            diphotons["MET_significance"] = dipho_events.MET.significance
+
             # SV info
             diphotons["SV_ntracks"] = dipho_events.SV.ntracks
             diphotons["SV_pt"] = dipho_events.SV.pt
@@ -928,6 +1142,9 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
 
             if self.ch_vs_cb_mva is not None:
                 diphotons, dipho_events = self.add_ch_vs_cb_mva(diphotons, dipho_events)
+
+            if self.ggh_vs_hb_mva is not None:
+                diphotons, dipho_events = self.add_ggh_vs_hb_mva(diphotons, dipho_events)
 
             # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
             if self.data_kind == "mc":
@@ -962,9 +1179,9 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                 return histos_etc
             if self.data_kind == "mc":
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
-                event_weights = Weights(size=len(dipho_events[selection_mask]))
+                event_weights = Weights(size=len(dipho_events[selection_mask]), storeIndividual=True)
                 # set weights to generator weights
-                event_weights._weight = events["genWeight"][selection_mask]
+                event_weights._weight = awkward.to_numpy(events["genWeight"][selection_mask])
 
                 # corrections to event weights:
                 for correction_name in correction_names:
@@ -1039,6 +1256,13 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                 diphotons["weight_central"] = event_weights.weight() / dipho_events[selection_mask].genWeight
                 diphotons["genWeight"] = dipho_events[selection_mask].genWeight
 
+                metadata["sum_weight_central"] = str(
+                    awkward.sum(event_weights.weight())
+                )
+                metadata["sum_weight_central_wo_bTagSF"] = str(
+                    awkward.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
+                )
+
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
                     if len(event_weights.variations):
@@ -1049,6 +1273,10 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                         diphotons["weight_" + modifier] = event_weights.weight(
                             modifier=modifier
                         )
+                        if ("bTagSF" in modifier):
+                            metadata["sum_weight_" + modifier] = str(
+                                awkward.sum(event_weights.weight(modifier=modifier))
+                            )
 
             # Add weight variables (=1) for data for consistent datasets
             else:
@@ -1058,144 +1286,13 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                 diphotons["weight"] = awkward.ones_like(diphotons["event"])
                 diphotons["genWeight"] = awkward.ones_like(diphotons["event"])
 
-            ### Add mass resolution uncertainty
-            # Note that pt*cosh(eta) is equal to the energy of a four vector
-            # Note that you need to call it slightly different than in the output of HiggsDNA as pho_lead -> lead is only done in dumping utils
-            if (self.data_kind == "mc" and self.doFlow_corrections):
-                diphotons["sigma_m_over_m"] = 0.5 * numpy.sqrt(
-                    (
-                        diphotons["pho_lead"].raw_energyErr
-                        / (
-                            diphotons["pho_lead"].pt
-                            * numpy.cosh(diphotons["pho_lead"].eta)
-                        )
-                    )
-                    ** 2
-                    + (
-                        diphotons["pho_sublead"].raw_energyErr
-                        / (
-                            diphotons["pho_sublead"].pt
-                            * numpy.cosh(diphotons["pho_sublead"].eta)
-                        )
-                    )
-                    ** 2
-                )
-
-                diphotons["sigma_m_over_m_corr"] = 0.5 * numpy.sqrt(
-                    (
-                        diphotons["pho_lead"].energyErr
-                        / (
-                            diphotons["pho_lead"].pt
-                            * numpy.cosh(diphotons["pho_lead"].eta)
-                        )
-                    )
-                    ** 2
-                    + (
-                        diphotons["pho_sublead"].energyErr
-                        / (
-                            diphotons["pho_sublead"].pt
-                            * numpy.cosh(diphotons["pho_sublead"].eta)
-                        )
-                    )
-                    ** 2
-                )
-
-            else:
-                diphotons["sigma_m_over_m"] = 0.5 * numpy.sqrt(
-                    (
-                        diphotons["pho_lead"].energyErr
-                        / (
-                            diphotons["pho_lead"].pt
-                            * numpy.cosh(diphotons["pho_lead"].eta)
-                        )
-                    )
-                    ** 2
-                    + (
-                        diphotons["pho_sublead"].energyErr
-                        / (
-                            diphotons["pho_sublead"].pt
-                            * numpy.cosh(diphotons["pho_sublead"].eta)
-                        )
-                    )
-                    ** 2
-                )
-
-            # This is the mass SigmaM/M value including the smearing term from the Scale and smearing
-            # The implementation follows the flashGG implementation -> https://github.com/cms-analysis/flashgg/blob/4edea8897e2a4b0518dca76ba6c9909c20c40ae7/DataFormats/src/Photon.cc#L293
-            # adittional flashGG link when the smearing of the SigmaE/E smearing is called -> https://github.com/cms-analysis/flashgg/blob/4edea8897e2a4b0518dca76ba6c9909c20c40ae7/Systematics/plugins/PhotonSigEoverESmearingEGMTool.cc#L83C40-L83C45
-            # Just a reminder, the pt/energy of teh data is not smearing, but the smearing term is added to the data sigma_m_over_m
-            if (self.Smear_sigma_m):
-
-                if (self.doFlow_corrections and self.data_kind == "mc"):
-                    # Adding the smeared BDT error to the ntuples!
-                    diphotons["pho_lead","energyErr_Smeared"] = numpy.sqrt((diphotons["pho_lead"].raw_energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                    diphotons["pho_sublead","energyErr_Smeared"] = numpy.sqrt((diphotons["pho_sublead"].raw_energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-
-                    diphotons["sigma_m_over_m_Smeared"] = 0.5 * numpy.sqrt(
-                        (
-                            numpy.sqrt((diphotons["pho_lead"].raw_energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_lead"].pt
-                                * numpy.cosh(diphotons["pho_lead"].eta)
-                            )
-                        )
-                        ** 2
-                        + (
-                            numpy.sqrt((diphotons["pho_sublead"].raw_energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_sublead"].pt
-                                * numpy.cosh(diphotons["pho_sublead"].eta)
-                            )
-                        )
-                        ** 2
-                    )
-
-                    diphotons["sigma_m_over_m_Smeared_corr"] = 0.5 * numpy.sqrt(
-                        (
-                            numpy.sqrt((diphotons["pho_lead"].energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_lead"].pt
-                                * numpy.cosh(diphotons["pho_lead"].eta)
-                            )
-                        )
-                        ** 2
-                        + (
-                            numpy.sqrt((diphotons["pho_sublead"].energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_sublead"].pt
-                                * numpy.cosh(diphotons["pho_sublead"].eta)
-                            )
-                        )
-                        ** 2
-                    )
-
-                else:
-                    # Adding the smeared BDT error to the ntuples!
-                    diphotons["pho_lead","energyErr_Smeared"] = numpy.sqrt((diphotons["pho_lead"].energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                    diphotons["pho_sublead","energyErr_Smeared"] = numpy.sqrt((diphotons["pho_sublead"].energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-
-                    diphotons["sigma_m_over_m_Smeared"] = 0.5 * numpy.sqrt(
-                        (
-                            numpy.sqrt((diphotons["pho_lead"].energyErr)**2 + (diphotons["pho_lead"].rho_smear * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_lead"].pt
-                                * numpy.cosh(diphotons["pho_lead"].eta)
-                            )
-                        )
-                        ** 2
-                        + (
-                            numpy.sqrt((diphotons["pho_sublead"].energyErr) ** 2 + (diphotons["pho_sublead"].rho_smear * ((diphotons["pho_sublead"].pt * numpy.cosh(diphotons["pho_sublead"].eta)))) ** 2)
-                            / (
-                                diphotons["pho_sublead"].pt
-                                * numpy.cosh(diphotons["pho_sublead"].eta)
-                            )
-                        )
-                        ** 2
-                    )
+            # Compute and store the different variations of sigma_m_over_m
+            diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m, IsData=(self.data_kind == "data"))
 
             diphotons["CMS_hgg_mass"] = diphotons.mass
             # Decorrelating the mass resolution - Still need to supress the decorrelator noises
             if self.doDeco:
+
                 # Decorrelate nominal sigma_m_over_m
                 diphotons["sigma_m_over_m_nominal_decorr"] = decorrelate_mass_resolution(diphotons, type="nominal", year=self.year[dataset_name][0])
 
@@ -1209,7 +1306,14 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
 
                 # decorrelate flow corrected smeared sigma_m_over_m
                 if (self.doFlow_corrections and self.Smear_sigma_m):
-                    diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0])
+                    if self.data_kind == "data" and "Et_dependent_Scale" in correction_names:
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
+                    elif self.data_kind == "mc" and "Et_dependent_Smearing" in correction_names:
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
+                    else:
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0])
+
+                # Instead of the nominal sigma_m_over_m, we will use the smeared version of it -> (https://indico.cern.ch/event/1319585/#169-update-on-the-run-3-mass-r)
                 # else:
                 #    warnings.warn("Smeamering need to be applied in order to decorrelate the (Smeared) mass resolution. -- Exiting!")
                 #    sys.exit(0)
@@ -1229,6 +1333,10 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                         "pt",
                         "eta",
                         "phi",
+                        "dijet_pt",
+                        "dijet_eta",
+                        "dijet_phi",
+                        "dijet_mass",
                         "LeadPhoton_pt_mgg",
                         "LeadPhoton_eta",
                         "LeadPhoton_mvaID",
@@ -1241,12 +1349,13 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                         "SubleadPhoton_energy",
                         "Diphoton_cos_dPhi",
                         "sigmaMrv",
-                        "sigmaMwv",
                         "PV_score",
                         "nPV",
                         "nPU",
                         "rho",
                         "n_jets",
+                        "n_b_jets_loose",
+                        "n_b_jets_medium",
                         "first_jet_pt",
                         "first_jet_eta",
                         "first_jet_phi",
@@ -1254,11 +1363,30 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                         "first_jet_hFlav",
                         "first_jet_DeepFlavour_CvsL",
                         "first_jet_DeepFlavour_CvsB",
+                        "first_jet_DeepFlavour_B",
+                        "first_jet_DeepFlavour_QG",
                         "first_jet_particleNetAK4_CvsL",
                         "first_jet_particleNetAK4_CvsB",
+                        "first_jet_particleNetAK4_QvsG",
+                        "first_jet_particleNetAK4_B",
+                        "first_jet_jet_pn_b",
+                        "first_jet_jet_pn_c",
+                        "first_jet_jet_pn_uds",
+                        "first_jet_jet_pn_g",
+                        "first_jet_jet_pn_b_plus_c",
+                        "first_jet_jet_pn_b_vs_c",
                         "first_jet_n_sv",
                         "first_jet_n_muons",
                         "first_jet_n_electrons",
+                        "first_pt_jet_pt",
+                        "first_pt_jet_eta",
+                        "first_pt_jet_phi",
+                        "first_pt_jet_mass",
+                        "first_pt_jet_hFlav",
+                        "first_pt_jet_DeepFlavour_CvsL",
+                        "first_pt_jet_DeepFlavour_CvsB",
+                        "first_pt_jet_DeepFlavour_B",
+                        "first_pt_jet_DeepFlavour_QG",
                         "second_jet_pt",
                         "second_jet_eta",
                         "second_jet_phi",
@@ -1266,13 +1394,34 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                         "second_jet_hFlav",
                         "second_jet_DeepFlavour_CvsL",
                         "second_jet_DeepFlavour_CvsB",
+                        "second_jet_DeepFlavour_B",
+                        "second_jet_DeepFlavour_QG",
                         "second_jet_particleNetAK4_CvsL",
                         "second_jet_particleNetAK4_CvsB",
+                        "second_jet_particleNetAK4_B",
                         "second_jet_n_sv",
+                        "second_pt_jet_pt",
+                        "second_pt_jet_eta",
+                        "second_pt_jet_phi",
+                        "second_pt_jet_mass",
+                        "second_pt_jet_hFlav",
+                        "second_pt_jet_DeepFlavour_CvsL",
+                        "second_pt_jet_DeepFlavour_CvsB",
+                        "second_pt_jet_DeepFlavour_B",
+                        "second_pt_jet_DeepFlavour_QG",
+                        "third_jet_pt",
+                        "third_jet_eta",
+                        "third_jet_phi",
+                        "third_jet_mass",
+                        "third_jet_hFlav",
                         "DeltaPhi_gamma1_cjet",
                         "DeltaPhi_gamma2_cjet",
                         "ch_vs_ggh_bdt_score",
                         "ch_vs_cb_bdt_score",
+                        "ggh_vs_hb_bdt_sig_score",
+                        "ggh_vs_hb_bdt_tth_score",
+                        "ggh_vs_hb_bdt_vh_score",
+                        "ggh_vs_hb_bdt_vbf_score",
                         "first_sv_pt",
                         "first_sv_eta",
                         "first_sv_phi",
@@ -1289,22 +1438,32 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                         "first_sv_z",
                         "first_sv_ndof",
                         "first_sv_ntracks",
-                        "second_sv_pt",
-                        "second_sv_eta",
-                        "second_sv_phi",
-                        "second_sv_mass",
-                        "second_sv_charge",
-                        "second_sv_dlen",
-                        "second_sv_dlenSig",
-                        "second_sv_dxy",
-                        "second_sv_dxySig",
-                        "second_sv_pAngle",
-                        "second_sv_chi2",
-                        "second_sv_x",
-                        "second_sv_y",
-                        "second_sv_z",
-                        "second_sv_ndof",
-                        "second_sv_ntracks",
+                        "nTau",
+                        "nMuon",
+                        "nElectron",
+                        "MET_pt",
+                        "MET_phi",
+                        "MET_sumEt",
+                        "MET_significance",
+                        "first_muon_pt",
+                        "first_muon_eta",
+                        "first_muon_phi",
+                        "first_muon_mass",
+                        "first_muon_charge",
+                        "first_electron_pt",
+                        "first_electron_eta",
+                        "first_electron_phi",
+                        "first_electron_mass",
+                        "first_electron_charge",
+                        "LeadPhoton_r9",
+                        "LeadPhoton_s4",
+                        "LeadPhoton_sieie",
+                        "LeadPhoton_sieip",
+                        "LeadPhoton_etaWidth",
+                        "LeadPhoton_phiWidth",
+                        "LeadPhoton_pfChargedIsoPFPV",
+                        "LeadPhoton_pfChargedIsoWorstVtx",
+                        "LeadPhoton_pfPhoIso03"
                     ]
                     for f in diphotons.fields:
                         if "weight" in f:
@@ -1317,6 +1476,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
                     ]._partition_key.replace("/", "_")
                     + ".%s" % self.output_format
                 )
+                fname = (fname.replace("%2F","")).replace("%3B1","")
                 subdirs = []
                 if "dataset" in events.metadata:
                     subdirs.append(events.metadata["dataset"])
@@ -1359,6 +1519,16 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         return calculate_ch_vs_cb_mva(
             self,
             (self.ch_vs_cb_mva, self.meta["hpcMVA_ch_vs_cb"]["inputs"]),
+            diphotons,
+            events,
+        )
+
+    def add_ggh_vs_hb_mva(
+        self, diphotons: awkward.Array, events: awkward.Array
+    ) -> awkward.Array:
+        return calculate_ggh_vs_hb_mva(
+            self,
+            (self.ggh_vs_hb_mva, self.meta["hpcMVA_ggh_vs_hb"]["inputs"]),
             diphotons,
             events,
         )
