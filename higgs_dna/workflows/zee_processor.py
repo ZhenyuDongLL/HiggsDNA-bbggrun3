@@ -377,7 +377,7 @@ class ZeeProcessor(HggBaseProcessor):
                 photons = self.add_photonid_mva(photons, events)
 
             # photon preselection
-            photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0], apply_electron_veto=False, IsFlag=True)
+            photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0], electron_veto=False, revert_electron_veto=True, IsFlag=True)
 
             # sort photons in each event descending in pt
             # make descending-pt combinations of photons

@@ -167,7 +167,6 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         self.EA2_EE4 = -8.10369e-05
         self.EA1_EE5 = 0.0369417
         self.EA2_EE5 = -2.76885e-05
-        self.e_veto = 0.5
 
         logger.debug(f"Setting up processor with metaconditions: {self.meta}")
 

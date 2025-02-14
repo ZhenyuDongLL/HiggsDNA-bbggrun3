@@ -9,7 +9,8 @@ def photon_preselection(
     self,
     photons: awkward.Array,
     events: awkward.Array,
-    apply_electron_veto=True,
+    electron_veto=True,
+    revert_electron_veto=False,
     year="2023",
     IsFlag=False
 ) -> awkward.Array:
@@ -140,12 +141,17 @@ def photon_preselection(
         & (photons.sieie < self.max_sieie_EE_low_r9)
         & (pass_phoIso_rho_corr_EE)
     )
-    # not apply electron veto for for TnP workflow
-    e_veto = self.e_veto if apply_electron_veto else -1
+
+    if electron_veto:
+        e_veto_cut = (photons.electronVeto == 1)
+    elif revert_electron_veto:
+        e_veto_cut = (photons.electronVeto == 0)
+    else:
+        e_veto_cut = awkward.ones_like(photons.electronVeto, dtype=bool)
 
     if IsFlag:
         photons["PassPresel"] = (
-            (photons.electronVeto > e_veto)
+            e_veto_cut
             & (photons.pt > self.min_pt_photon)
             & (photons.isScEtaEB | photons.isScEtaEE)
             & (photons.mvaID > self.min_mvaid)
@@ -162,7 +168,7 @@ def photon_preselection(
         return photons
     else:
         return photons[
-            (photons.electronVeto > e_veto)
+            e_veto_cut
             & (photons.pt > self.min_pt_photon)
             & (photons.isScEtaEB | photons.isScEtaEE)
             & (photons.mvaID > self.min_mvaid)
