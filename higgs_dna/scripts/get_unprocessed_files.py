@@ -301,6 +301,7 @@ def main():
 
     args = get_fetcher_args()
 
+    global logger
     logger = setup_logger(level=args.log)
 
     if ".json" not in args.output:
