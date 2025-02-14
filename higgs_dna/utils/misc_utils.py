@@ -23,6 +23,55 @@ def choose_jet(jets_variable, n, fill_value):
     return leading_jets_variable
 
 
+def add_pnet_prob(
+    self,
+    jets: ak.highlevel.Array
+):
+    """
+    this helper function is used to add to the jets from the probability of PNet
+    calculated starting from the standard scores contained in the JetMET nAODs
+    """
+
+    jet_pn_b = jets.particleNetAK4_B
+
+    jet_pn_c = jets.particleNetAK4_B * jets.particleNetAK4_CvsB / (ak.ones_like(jets.particleNetAK4_B) - jets.particleNetAK4_CvsB)
+    jet_pn_c = ak.where(
+        (jets.particleNetAK4_CvsB >= 0) & (jets.particleNetAK4_CvsB < 1),
+        jet_pn_c,
+        -1
+    )
+
+    # Use ak.where to constrain the values within [0, 1]
+    pn_uds_base = ak.ones_like(jet_pn_b) - jet_pn_b - jet_pn_c
+    pn_uds_clipped = ak.where(pn_uds_base < 0, 0, ak.where(pn_uds_base > 1, 1, pn_uds_base))
+    jet_pn_uds = pn_uds_clipped * jets.particleNetAK4_QvsG
+    jet_pn_uds = ak.where(
+        (jets.particleNetAK4_QvsG >= 0) & (jets.particleNetAK4_QvsG < 1),
+        jet_pn_uds,
+        -1
+    )
+
+    jet_pn_g_base = ak.ones_like(jet_pn_b) - jet_pn_b - jet_pn_c - jet_pn_uds
+    jet_pn_g = ak.where(jet_pn_g_base < 0, 0, ak.where(jet_pn_g_base > 1, 1, jet_pn_g_base))
+    jet_pn_g = ak.where(
+        (jets.particleNetAK4_QvsG >= 0) & (jets.particleNetAK4_QvsG < 1),
+        jet_pn_g,
+        -1
+    )
+
+    jet_pn_b_plus_c = jet_pn_b + jet_pn_c
+    jet_pn_b_vs_c = jet_pn_b / jet_pn_b_plus_c
+
+    jets["pn_b"] = jet_pn_b
+    jets["pn_c"] = jet_pn_c
+    jets["pn_uds"] = jet_pn_uds
+    jets["pn_g"] = jet_pn_g
+    jets["pn_b_plus_c"] = jet_pn_b_plus_c
+    jets["pn_b_vs_c"] = jet_pn_b_vs_c
+
+    return jets
+
+
 @numba.vectorize(
     [
         numba.float32(numba.float32, numba.float32),
