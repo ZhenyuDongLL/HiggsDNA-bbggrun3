@@ -47,7 +47,7 @@ def get_fetcher_args() -> argparse.Namespace:
 # Function to safely create a directory
 def safe_mkdir(path):
     try:
-        os.makedirs(path)
+        os.makedirs(path, exist_ok=True)
     except OSError as exception:
         if exception.errno != errno.EEXIST:
             raise
@@ -135,6 +135,10 @@ def main():
     outputDir_era_dict = {
         "preEE": "2022_Summer22",
         "postEE": "2022_Summer22EE",
+        "2022preEE": "2022_Summer22",
+        "2022postEE": "2022_Summer22EE",
+        "preBPix": "2023_Summer23",
+        "postBPix": "2023_Summer23BPix",
         "2023preBPix": "2023_Summer23",
         "2023postBPix": "2023_Summer23BPix",
     }
@@ -257,7 +261,7 @@ def main():
         # Write the correctionlib data to the output file
         try:
             with gzip.open(os.path.join(output_dir, outputDir_era_dict[current_era], args.output_name + ".json.gz"), "wt") as fout:
-                fout.write(cset.model_dump_json(exclude_unset=True))
+                fout.write(cset.json(exclude_unset=True))
 
             logger.info("Successfully wrote data to the correctionlib.")
         except Exception as e:
