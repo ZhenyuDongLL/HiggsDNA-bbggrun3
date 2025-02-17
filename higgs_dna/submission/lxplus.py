@@ -133,7 +133,8 @@ class LXPlusVanillaSubmitter:
                             original_analysis_path, json_file
                         ).replace(" vanilla_lxplus", " iterative")
                         executable_file.write(f"if [ $1 -eq {i} ]; then\n")
-                        executable_file.write(f"    /usr/bin/env {sys.prefix}/bin/run_analysis.py {arguments}\n")
+                        executable_file.write(f"    /usr/bin/env {sys.prefix}/bin/run_analysis.py {arguments} || exit 107\n")
+                        executable_file.write("exit 0\n")
                         executable_file.write("fi\n")
                 os.system(f"chmod 775 {job_file_executable}")
                 with open(job_file_submit, "w") as submit_file:
@@ -146,6 +147,8 @@ class LXPlusVanillaSubmitter:
                     submit_file.write("getenv = True\n")
                     submit_file.write(f'+JobFlavour = "{self.queue}"\n')
                     submit_file.write('on_exit_remove = (ExitBySignal == False) && (ExitCode == 0)\n')
+                    submit_file.write('on_exit_hold = (ExitBySignal == True) && (ExitCode != 0)\n')
+                    submit_file.write('periodic_release = (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n')
                     submit_file.write('max_retries = 3\n')
                     submit_file.write('requirements = Machine =!= LastRemoteHost\n')
                     submit_file.write(f"queue {n_jobs}\n")
@@ -165,7 +168,7 @@ class LXPlusVanillaSubmitter:
                         ).replace(" vanilla_lxplus", " iterative")
                         submit_file.write("executable = /usr/bin/env\n")
                         submit_file.write(
-                            f"arguments = {sys.prefix}/bin/run_analysis.py {arguments}\n"
+                            f"arguments = {sys.prefix}/bin/run_analysis.py {arguments} || exit 107\n"
                         )
                         submit_file.write(f"output = {job_file_out}\n")
                         submit_file.write(f"error = {job_file_err}\n")
@@ -173,6 +176,8 @@ class LXPlusVanillaSubmitter:
                         submit_file.write("getenv = True\n")
                         submit_file.write(f'+JobFlavour = "{self.queue}"\n')
                         submit_file.write('on_exit_remove = (ExitBySignal == False) && (ExitCode == 0)\n')
+                        submit_file.write('on_exit_hold = (ExitBySignal == True) && (ExitCode != 0)\n')
+                        submit_file.write('periodic_release = (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n')
                         submit_file.write('max_retries = 3\n')
                         submit_file.write('requirements = Machine =!= LastRemoteHost\n')
                         submit_file.write("queue 1\n")
