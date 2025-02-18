@@ -880,6 +880,13 @@ def get_goldenjson(logger, target_dir, use_xrdcp=False):
                 "Collisions23/Cert_Collisions2023_366442_370790_Golden.json",
             ),
         },
+        "2024": {
+            "from": "https://cms-service-dqmdc.web.cern.ch/CAF/certification/Collisions24/Cert_Collisions2024_378981_386951_Golden.json",
+            "to": os.path.join(
+                prefix,
+                "Collisions24/Cert_Collisions2024_378981_386951_Golden.json",
+            ),
+        },
     }
 
     fetch_file("GoldenJSON", logger, from_to_dict, type="url")
