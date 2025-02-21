@@ -159,6 +159,13 @@ def get_main_parser():
         help="The maximum number of nodes to adapt the cluster to. (default: %(default)s)",
     )
     parser.add_argument(
+        "--timeout",
+        dest="timeout",
+        type=int,
+        default=60,
+        help="Timeout for file opening with xrootd in seconds. (default: %(default)s)",
+    )
+    parser.add_argument(
         "-q",
         "--queue",
         type=str,

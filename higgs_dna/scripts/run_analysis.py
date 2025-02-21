@@ -80,6 +80,7 @@ def run_executor(_args, executor, sample_dict, processor_instance):
         maxchunks=_args.max,
         format=_args.format,
         skipbadfiles=_args.skipbadfiles,
+        xrootdtimeout=_args.timeout,
     )
 
     output = run(
