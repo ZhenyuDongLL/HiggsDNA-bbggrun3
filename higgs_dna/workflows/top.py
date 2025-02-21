@@ -614,6 +614,9 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                 )
                 diphotons["weight"] = ak.ones_like(diphotons["event"])
 
+            # select events within standard HGG mass window only, after all corrections & systematics were applied
+            diphotons = diphotons[(diphotons.mass > 100) & (diphotons.mass < 180)]
+
             if self.output_location is not None:
                 if self.output_format == "root":
                     df = diphoton_list_to_pandas(self, diphotons)
