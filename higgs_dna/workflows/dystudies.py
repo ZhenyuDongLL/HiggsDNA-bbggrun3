@@ -280,12 +280,6 @@ class TagAndProbeProcessor(HggBaseProcessor):
                 # keep only photons matched to gen e+ or e-
                 photons = photons[photons.genPartFlav == 11]
 
-                # make sure that the matched e+/e- comes from a Z
-                gen_particles = events.GenPart
-                gen_indices = photons.genPartIdx[photons.genPartIdx != -1]
-                gen_particles = gen_particles[gen_indices]
-                gen_particles = gen_particles[gen_particles.genPartIdxMother == 23]
-
             # other event related variables need to be added before the tag&probe combination
             # nPV just for validation of pileup reweighting
             photons["nPV"] = events.PV.npvs
@@ -297,6 +291,13 @@ class TagAndProbeProcessor(HggBaseProcessor):
             tnp = ak.combinations(photons, 2, fields=["tag", "probe"])
             pnt = ak.combinations(photons, 2, fields=["probe", "tag"])
             tnp_candidates = ak.concatenate([tnp, pnt], axis=1)
+
+            # Ensure gen matching in MC for origin from gamma star Z (equivalent when it comes to PDG ID assigment in CMS MC)
+            # This means a) parent of tag and probe is the same b) parent is a Z
+            if self.data_kind == "mc":
+                logger.info("Matching to Z boson")
+                mask = (tnp_candidates.tag.matched_gen.distinctParentIdxG == tnp_candidates.probe.matched_gen.distinctParentIdxG) & (tnp_candidates.tag.matched_gen.distinctParent.pdgId == 23) & (tnp_candidates.probe.matched_gen.distinctParent.pdgId == 23)
+                tnp_candidates = tnp_candidates[mask]
 
             # add ScEta to the matched electrons of the tags
             matched_electrons_tags = tnp_candidates.tag.matched_electron
