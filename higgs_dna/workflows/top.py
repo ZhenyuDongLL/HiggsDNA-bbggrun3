@@ -6,7 +6,7 @@ from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrysta
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
-from higgs_dna.selections.jet_selections import select_jets, jetvetomap
+from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTagMVACut
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import apply_naming_convention, diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas, get_obj_syst_dict
 from higgs_dna.utils.misc_utils import choose_jet
@@ -81,6 +81,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
 
         self.el_id_wp = "WP90"
         self.name_convention = "DAS"
+        self.bjet_mva = "robustParticleTransformer"
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
@@ -363,14 +364,15 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     "charge": ak.zeros_like(jets.pt),
                     "hFlav": jets.hadronFlavour if self.data_kind == "mc" else ak.zeros_like(jets.pt),
                     "btagPNetB": jets.btagPNetB,
-                    "btagDeepFlav_B": jets.btagDeepFlavB,
                     "btagRobustParTAK4B": jets.btagRobustParTAK4B,
                     "btagRobustParTAK4CvB": jets.btagRobustParTAK4CvB,
                     "btagRobustParTAK4CvL": jets.btagRobustParTAK4CvL,
                     "btagRobustParTAK4QG": jets.btagRobustParTAK4QG,
-                    "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
-                    "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
-                    "btagDeepFlav_QG": jets.btagDeepFlavQG,
+                    "btagPNetCvB": jets.btagPNetCvB,
+                    "btagPNetCvL": jets.btagPNetCvL,
+                    "btagPNetQvG": jets.btagPNetQvG,
+                    "btagPNetTauVJet": jets.btagPNetTauVJet,
+
                     "jetId": jets.jetId,
                     **(
                         {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chEmEF": jets.chEmEF, "muEF": jets.muEF} if self.nano_version == 12 else {}
@@ -426,11 +428,22 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             events["sel_muons"] = muons
             events["sel_electrons"] = electrons
 
+            n_bjets_loose = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva,mva_wp='L',year=self.year[dataset_name][0])])
+            n_bjets_medium = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva,mva_wp='M',year=self.year[dataset_name][0])])
+            n_bjets_tight = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva,mva_wp='T',year=self.year[dataset_name][0])])
+
             n_jets = ak.num(jets)
             diphotons["JetHT"] = ak.sum(jets.pt,axis=1)
 
+            btag_score = jets.btagRobustParTAK4B
+            max_bTag_score = ak.max(btag_score,axis=1)
+            diphotons["max_btag_score"] = ak.fill_none(max_bTag_score,-999.0)
+            btag_score = ak.where(btag_score == max_bTag_score[:,None],-999.0,btag_score)
+            diphotons["secondmax_bTag_score"] = ak.fill_none(ak.max(btag_score,axis=1),-999.0)
+            del btag_score
+
             num_jets = 8
-            jet_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagDeepFlav_B", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
+            jet_properties = ["pt", "eta", "phi", "mass","charge", "btagPNetB", "btagPNetCvB","btagPNetCvL","btagPNetQvG","btagPNetTauVJet", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
             for i in range(num_jets):
                 for prop in jet_properties:
                     key = f"jet{i+1}_{prop}"
@@ -438,23 +451,31 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     # Store the value in the diphotons dictionary
                     diphotons[key] = value
             diphotons["n_jets"] = n_jets
+            diphotons["n_bjets_loose"] = n_bjets_loose
+            diphotons["n_bjets_medium"] = n_bjets_medium
+            diphotons["n_bjets_tight"] = n_bjets_tight
             diphotons["n_jets_forward"] = ak.num(jets[np.abs(jets.eta) > 2.5])
             diphotons["n_jets_central"] = ak.num(jets[np.abs(jets.eta) < 2.5])
 
             # Adding a 'generation' field to electrons and muons
             electrons['generation'] = ak.ones_like(electrons.pt)
+            electrons['ElectronMvaIso_WP80_MuonTightID'] = ak.ones_like(electrons.mvaIso_WP80)
             muons['generation'] = 2 * ak.ones_like(muons.pt)
+            muons['ElectronMvaIso_WP80_MuonTightID'] = ak.ones_like(muons.tightId)
 
             # Combine electrons and muons into a single leptons collection
             leptons = ak.concatenate([electrons, muons], axis=1)
             leptons = ak.with_name(leptons, "PtEtaPhiMCandidate")
             leptons = leptons[ak.argsort(leptons.pt, ascending=False)]
-
             n_leptons = ak.num(leptons)
+            leptons_tight = ak.concatenate([electrons[electrons.mvaIso_WP80], muons[muons.tightId]], axis=1)
+            n_leptons_tight = ak.num(leptons_tight)
+
+            diphotons["n_leptons_tight"] = n_leptons_tight
             diphotons["n_leptons"] = n_leptons
 
             # Annotate diphotons with selected leptons properties
-            lepton_properties = ["pt", "eta", "phi", "mass", "charge", "generation"]
+            lepton_properties = ["pt", "eta", "phi", "mass", "charge", "generation", "ElectronMvaIso_WP80_MuonTightID"]
             num_leptons = 2  # Number of leptons to select
             for i in range(num_leptons):
                 for prop in lepton_properties:
