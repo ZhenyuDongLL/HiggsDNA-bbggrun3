@@ -20,11 +20,15 @@ def SF_photon_ID(
     Take action yourself or contact us if you need those!
     """
     # era/year defined as parameter of the function
-    avail_years = ["2022preEE", "2022postEE"]
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
-        print(f"\n WARNING: only scale corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
-        print("If you need the SFs for the central Egamma MVA ID for Run 2 UL, take action yourself or contact us!")
+        logger.warning(f"\n WARNING: only photon ID SFs for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        logger.warning("If you need the SFs for the central Egamma MVA ID for Run 2 UL, take action yourself or contact us!")
         exit()
+
+    if "2023" in year:
+        logger.warning("2023 SFs are not yet available, using 2022postEE SFs instead. Do not consider these results as final!")
+        year = "2022postEE"
 
     if year == "2022preEE":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2022/PhotonIDMVA_2022PreEE.json")
@@ -263,12 +267,15 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
-        print(f"\n WARNING: only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        logger.warning(f"\n WARNING: only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
     elif "2016" in year:
         year = "2016"
+    elif "2023" in year:
+        logger.warning("2023 SFs are not yet available, using 2022postEE SFs instead. Do not consider these results as final!")
+        year = "2022postEE"
 
     if year in ["2016", "2017", "2018"]:
         # 2017 file should be renamed with the year in its name...
@@ -319,6 +326,8 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/preEE_CSEV_SFcorrections.json")
         if year == "2022postEE":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/postEE_CSEV_SFcorrections.json")
+        if "2023" in year:
+            json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/postEE_CSEV_SFcorrections.json")
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["CSEV_SFs"]
 
         if is_correction:
@@ -368,12 +377,15 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
-        print(f"\n WARNING: only PreselSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        logger.warning(f"\n WARNING: only PreselSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
     elif "2016" in year:
         year = "2016"
+    elif "2023" in year:
+        logger.warning("2023 SFs are not yet available, using 2022postEE SFs instead. Do not consider these results as final!")
+        year = "2022postEE"
 
     if year in ["2016", "2017", "2018"]:
         json_file = os.path.join(os.path.dirname(__file__), f"JSONs/Preselection/{year}/PreselSF_{year}.json")
@@ -482,15 +494,20 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
-        print(f"\n WARNING: only TriggerSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        logger.warning(f"\n WARNING: only TriggerSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
     elif "2016" in year:
         year = "2016"
+    elif "2023" in year:
+        logger.warning("2023 SFs are not yet available, using 2022postEE SFs instead. Do not consider these results as final!")
+        year = "2022postEE"
 
-    json_file_lead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_lead_{year}.json")
-    json_file_sublead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_sublead_{year}.json")
+    if year in ["2016", "2017", "2018", "2022preEE", "2022postEE"]:
+        json_file_lead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_lead_{year}.json")
+        json_file_sublead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_sublead_{year}.json")
+
     evaluator_lead = correctionlib.CorrectionSet.from_file(json_file_lead)["TriggerSF"]
     evaluator_sublead = correctionlib.CorrectionSet.from_file(json_file_sublead)["TriggerSF"]
 
