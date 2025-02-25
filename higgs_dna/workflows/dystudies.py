@@ -297,7 +297,7 @@ class TagAndProbeProcessor(HggBaseProcessor):
             if self.data_kind == "mc":
                 logger.info("Matching to Z boson")
                 mask = (tnp_candidates.tag.matched_gen.distinctParentIdxG == tnp_candidates.probe.matched_gen.distinctParentIdxG) & (tnp_candidates.tag.matched_gen.distinctParent.pdgId == 23) & (tnp_candidates.probe.matched_gen.distinctParent.pdgId == 23)
-                tnp_candidates = tnp_candidates[mask]
+                tnp_candidates = tnp_candidates[ak.fill_none(mask, False)]
 
             # add ScEta to the matched electrons of the tags
             matched_electrons_tags = tnp_candidates.tag.matched_electron
