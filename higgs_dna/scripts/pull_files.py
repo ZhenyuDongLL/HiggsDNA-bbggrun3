@@ -1111,18 +1111,18 @@ def get_lowmass_dykiller_model(logger, target_dir, use_xrdcp=False):
 
     from_to_dict = {
         "2022postEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/NNMass.onnx",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/NN.onnx",
             "to": os.path.join(
                 to_prefix,
-                "lowmass_dykiller/2022postEE/NNMass.onnx",
+                "lowmass_dykiller/2022postEE/NN.onnx",
             ),
             "type": "eos",
         },
         "2022preEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/NNMass.onnx",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/NN.onnx",
             "to": os.path.join(
                 to_prefix,
-                "lowmass_dykiller/2022preEE/NNMass.onnx",
+                "lowmass_dykiller/2022preEE/NN.onnx",
             ),
             "type": "eos",
         },
