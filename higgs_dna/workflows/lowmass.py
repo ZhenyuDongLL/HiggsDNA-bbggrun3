@@ -744,6 +744,12 @@ class lowmassProcessor(HggBaseProcessor):
             events, process_extra = self.process_extra(events)
             histos_etc.update(process_extra)
 
+            btagMVA_selection = {
+                "deepJet": {"btagDeepFlavB": jets.btagDeepFlavB},  # Always available
+                "particleNet": {"btagPNetB": jets.btagPNetB} if self.nano_version >= 12 else {},
+                "robustParticleTransformer": {"btagRobustParTAK4B": jets.btagRobustParTAK4B} if self.nano_version >= 12 else {},
+            }
+
             # jet_variables
             jets = awkward.zip(
                 {
@@ -754,6 +760,7 @@ class lowmassProcessor(HggBaseProcessor):
                     "charge": awkward.zeros_like(
                         jets.pt
                     ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
+                    **btagMVA_selection.get(self.bjet_mva, {}),
                     "hFlav": (
                         jets.hadronFlavour
                         if self.data_kind == "mc"
@@ -764,6 +771,12 @@ class lowmassProcessor(HggBaseProcessor):
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
                     "jetId": jets.jetId,
+                    **(
+                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chEmEF": jets.chEmEF, "muEF": jets.muEF} if self.nano_version == 12 else {}
+                    ),
+                    **(
+                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version == 13 else {}
+                    ),
                 }
             )
             jets = awkward.with_name(jets, "PtEtaPhiMCandidate")

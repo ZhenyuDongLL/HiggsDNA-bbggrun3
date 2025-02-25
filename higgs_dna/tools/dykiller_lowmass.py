@@ -24,11 +24,11 @@ def get_model_path():
     model_dict = {
         "2022preEE": os.path.join(
             os.path.dirname(__file__),
-            "../tools/lowmass_dykiller/2022preEE/NNMass.onnx",
+            "../tools/lowmass_dykiller/2022preEE/NN.onnx",
         ),
         "2022postEE": os.path.join(
             os.path.dirname(__file__),
-            "../tools/lowmass_dykiller/2022postEE/NNMass.onnx",
+            "../tools/lowmass_dykiller/2022postEE/NN.onnx",
         ),
     }
     return model_dict
@@ -39,16 +39,14 @@ def get_variable_list():
     # * - direct variable name, e.g., sigma_wv
     # * - varible in subfield, e.g., photon_lead.eta
     variable_list = [
-        "eta",
-        "phi",
-        "pt",
+        "ptom",
         "pho_lead.s4",
         "pho_lead.sieip",
         "pho_lead.sipip",
         "pho_lead.sieie",
         "pho_lead.phi",
         "pho_lead.phiWidth",
-        "pho_lead.pt",
+        "pho_lead.ptom",
         "pho_lead.r9",
         "pho_lead.mvaID",
         "pho_sublead.s4",
@@ -57,7 +55,7 @@ def get_variable_list():
         "pho_sublead.sieie",
         "pho_sublead.phi",
         "pho_sublead.phiWidth",
-        "pho_sublead.pt",
+        "pho_sublead.ptom",
         "pho_sublead.r9",
         "pho_sublead.mvaID",
         "PV_log_score",
@@ -68,7 +66,8 @@ def get_variable_list():
 def eval_dykiller_for_lowmass(diphotons, year="2022postEE"):
     model_dict = get_model_path()
 
-    # add log PV_score
+    # add ptom, log PV_score
+    diphotons["ptom"] = diphotons["pt"] / diphotons["mass"]
     diphotons["PV_log_score"] = np.log(diphotons["PV_score"])
     # model input variables
     variable_list = get_variable_list()
@@ -88,21 +87,18 @@ def eval_dykiller_for_lowmass(diphotons, year="2022postEE"):
         np.finfo(np.float32).min + 1, np.finfo(np.float32).max - 1
     )
 
-    # ! NNMass score
+    # ! NN score
     ort_session = onnxruntime.InferenceSession(f"{model_dict[year]}")
     input_name = ort_session.get_inputs()[0].name
 
-    # * add mass
-    for i in np.linspace(60, 110, 11):
-        df_inputs["mass_test"] = i
-        # evaluation
-        predictions = ort_session.run(
-            None, {input_name: df_inputs.to_numpy(dtype=np.float32)}
-        )
-        # sigmoid function
-        preds = 1 / (1 + np.exp(-predictions[0]))
+    # * eval NN
+    predictions = ort_session.run(
+        None, {input_name: df_inputs.to_numpy(dtype=np.float32)}
+    )
+    # sigmoid function
+    preds = 1 / (1 + np.exp(-predictions[0]))
 
-        # add dykiller score
-        diphotons[f"dykiller_m{int(i)}"] = ak.Array(ak.flatten(preds))
+    # add dykiller score
+    diphotons["dykiller_nn"] = ak.Array(ak.flatten(preds))
 
     return diphotons
