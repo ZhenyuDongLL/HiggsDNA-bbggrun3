@@ -12,6 +12,7 @@ from higgs_dna.workflows.zee_processor import ZeeProcessor
 from higgs_dna.workflows.lowmass import lowmassProcessor
 from higgs_dna.workflows.btagging import BTaggingEfficienciesProcessor
 from higgs_dna.workflows.stxs import STXSProcessor
+from higgs_dna.workflows.diphoton_training import DiphoTrainingProcessor
 
 workflows = {}
 
@@ -28,5 +29,6 @@ workflows["zee"] = ZeeProcessor
 workflows["lowmass"] = lowmassProcessor
 workflows["BTagging"] = BTaggingEfficienciesProcessor
 workflows["stxs"] = STXSProcessor
+workflows["diphotonID"] = DiphoTrainingProcessor
 
 __all__ = ["workflows", "taggers", "DYStudiesProcessor"]

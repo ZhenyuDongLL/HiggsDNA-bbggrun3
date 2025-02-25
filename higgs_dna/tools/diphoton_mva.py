@@ -103,6 +103,14 @@ def calculate_retrained_diphoton_mva(
     diphotons: awkward.Array,
     events: awkward.Array,
 ) -> awkward.Array:
+
+    if self.analysis != "tagAndProbe":
+        pho_lead = "pho_lead"
+        pho_sublead = "pho_sublead"
+    else:
+        pho_lead = "tag"
+        pho_sublead = "probe"
+
     """
     Calculate DiphotonID bdt scores for diphoton using retrained bdt that avoids flashgg inputs.
     To calculate the score I need some extra variables.
@@ -120,12 +128,12 @@ def calculate_retrained_diphoton_mva(
     events_bdt = events
 
     # changed naming to match one used in retraining of the bdt
-    events_bdt["LeadPhoton_mvaID"] = diphotons.pho_lead.mvaID
-    events_bdt["SubleadPhoton_mvaID"] = diphotons.pho_sublead.mvaID
-    events_bdt["LeadPhoton_eta"] = diphotons.pho_lead.eta
-    events_bdt["SubleadPhoton_eta"] = diphotons.pho_sublead.eta
-    events_bdt["LeadPhoton_pt_mgg"] = diphotons.pho_lead.pt / diphotons.mass
-    events_bdt["SubleadPhoton_pt_mgg"] = diphotons.pho_sublead.pt / diphotons.mass
+    events_bdt["LeadPhoton_mvaID"] = diphotons[pho_lead].mvaID
+    events_bdt["SubleadPhoton_mvaID"] = diphotons[pho_sublead].mvaID
+    events_bdt["LeadPhoton_eta"] = diphotons[pho_lead].eta
+    events_bdt["SubleadPhoton_eta"] = diphotons[pho_sublead].eta
+    events_bdt["LeadPhoton_pt_mgg"] = diphotons[pho_lead].pt / diphotons.mass
+    events_bdt["SubleadPhoton_pt_mgg"] = diphotons[pho_sublead].pt / diphotons.mass
 
     def calc_displacement(
         photons: awkward.Array, events: awkward.Array
@@ -138,14 +146,14 @@ def calculate_retrained_diphoton_mva(
         z = photons.z_calo - events.PV.z
         return awkward.zip({"x": x, "y": y, "z": z}, with_name="Vector3D")
 
-    v_lead = calc_displacement(diphotons.pho_lead, events)
-    v_sublead = calc_displacement(diphotons.pho_sublead, events)
+    v_lead = calc_displacement(diphotons[pho_lead], events)
+    v_sublead = calc_displacement(diphotons[pho_sublead], events)
 
-    p_lead = v_lead.unit() * diphotons.pho_lead.energy
-    p_lead["energy"] = diphotons.pho_lead.energy
+    p_lead = v_lead.unit() * diphotons[pho_lead].energy
+    p_lead["energy"] = diphotons[pho_lead].energy
     p_lead = awkward.with_name(p_lead, "Momentum4D")
-    p_sublead = v_sublead.unit() * diphotons.pho_sublead.energy
-    p_sublead["energy"] = diphotons.pho_sublead.energy
+    p_sublead = v_sublead.unit() * diphotons[pho_sublead].energy
+    p_sublead["energy"] = diphotons[pho_sublead].energy
     p_sublead = awkward.with_name(p_sublead, "Momentum4D")
 
     sech_lead = 1.0 / numpy.cosh(p_lead.eta)
@@ -170,8 +178,8 @@ def calculate_retrained_diphoton_mva(
         * (numerator_lead / v_lead.mag + numerator_sublead / v_sublead.mag)
     )
 
-    dEnorm_lead = diphotons.pho_lead.energyErr / diphotons.pho_lead.energy
-    dEnorm_sublead = diphotons.pho_sublead.energyErr / diphotons.pho_sublead.energy
+    dEnorm_lead = diphotons[pho_lead].energyErr / diphotons[pho_lead].energy
+    dEnorm_sublead = diphotons[pho_sublead].energyErr / diphotons[pho_sublead].energy
 
     sigma_m = 0.5 * numpy.sqrt(dEnorm_lead**2 + dEnorm_sublead**2)
     sigma_wv = numpy.sqrt(add_reso**2 + sigma_m**2)
