@@ -27,7 +27,7 @@ We save this file as ``runnerJSON.json`` (for example in the root directory of H
 
     {
         "samplejson": "<path_to_sampleJSON.json>",
-        "workflow": "dystudies", 
+        "workflow": "base", 
         "metaconditions": "Era2017_legacy_xgb_v1",
         "taggers": [],
         "systematics": {
@@ -37,8 +37,6 @@ We save this file as ``runnerJSON.json`` (for example in the root directory of H
             "GJet": ["SF_photon_ID"]
         }
     }
-
-For unknown reasons, the workflow has to be specified with the key `dystudies`. This nomenclature might be changed in the future.
 
 Finally, we have the runner command:
 

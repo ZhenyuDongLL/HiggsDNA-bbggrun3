@@ -40,7 +40,7 @@ An example to do ``JEC`` and ``JER`` with considering their systematics is provi
 
     {
         "samplejson": "samples_nanov12_EE_v0.json",
-        "workflow": "dystudies",
+        "workflow": "base",
         "metaconditions": "Era2022_v1",
         "taggers": [],
         "year": {
@@ -114,7 +114,7 @@ Now, for Run3, only ``total`` uncertainty or ``full splitted JEC systematics`` a
 
     {
         "samplejson": "samples_nanov12_dy_v0.json",
-        "workflow": "dystudies",
+        "workflow": "base",
         "metaconditions": "Era2022_v1",
         "taggers": [],
         "year": {
@@ -215,7 +215,7 @@ The example json configuration is
 
     {
         "samplejson": "samples_nanov9_v0.json",
-        "workflow": "dystudies",
+        "workflow": "base",
         "metaconditions": "Era2018_legacy_v1",
         "taggers": [],
         "year": {
