@@ -10,7 +10,7 @@ from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTag
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import apply_naming_convention, diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas, get_obj_syst_dict
 from higgs_dna.utils.misc_utils import choose_jet
-from higgs_dna.tools.flow_corrections import calculate_flow_corrections
+from higgs_dna.tools.flow_corrections import apply_flow_corrections_to_photons
 
 from higgs_dna.systematics import object_systematics as available_object_systematics
 from higgs_dna.systematics import object_corrections as available_object_corrections
@@ -196,20 +196,14 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
-
-            logger.info("Calculating normalizing flow corrections to photon MVA ID inputs")
-            counts = ak.num(original_photons)
-            corrected_inputs,var_list = calculate_flow_corrections(original_photons, events, self.meta["flashggPhotons"]["flow_inputs"], self.meta["flashggPhotons"]["Isolation_transform_order"], year=self.year[dataset_name][0])
-
-            # Store the raw nanoAOD value and update photon ID MVA value for preselection
-            original_photons["mvaID_nano"] = original_photons["mvaID"]
-
-            # Store the raw values of the inputs and update the input values with the corrections since some variables used in the preselection
-            for i in range(len(var_list)):
-                original_photons["raw_" + str(var_list[i])] = original_photons[str(var_list[i])]
-                original_photons[str(var_list[i])] = ak.unflatten(corrected_inputs[:,i] , counts)
-
-            original_photons["mvaID"] = ak.unflatten(self.add_photonid_mva_run3(original_photons, events), counts)
+            original_photons = apply_flow_corrections_to_photons(
+                original_photons,
+                events,
+                self.meta,
+                self.year[dataset_name][0],
+                self.add_photonid_mva_run3,
+                logger
+            )
 
         # systematic object variations
         for systematic_name in systematic_names:

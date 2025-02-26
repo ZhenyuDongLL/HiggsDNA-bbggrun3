@@ -6,6 +6,50 @@ import sys
 import os
 
 
+def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_mva_run3, logger=None):
+    """
+    Apply normalizing flow corrections to the photon collection and update the photonID MVA.
+
+    Parameters:
+        photons (awkward.Array): The photon collection.
+        events (awkward.Array): The events collection.
+        meta (dict): Metadata containing correction inputs".
+        year (str): The dataset year identifier.
+        add_photonid_mva_run3 (callable): Function to recompute the photonID MVA.
+        logger (logging.Logger, optional).
+
+    Returns:
+        awkward.Array: The updated photon collection with flow corrections applied.
+    """
+    if logger is not None:
+        logger.info("Calculating normalizing flow corrections to photon MVA ID inputs")
+
+    # Get counts to be used for unflattening the corrected inputs.
+    counts = photons.num() if hasattr(photons, "num") else awkward.num(photons)
+
+    # Calculate corrected inputs
+    corrected_inputs, var_list = calculate_flow_corrections(
+        photons,
+        events,
+        meta["flashggPhotons"]["flow_inputs"],
+        meta["flashggPhotons"]["Isolation_transform_order"],
+        year=year
+    )
+
+    # Preserve the original photonID MVA before applying corrections.
+    photons["mvaID_nano"] = photons["mvaID"]
+
+    # For each variable, store the raw value and update with the corrected value.
+    for i, var in enumerate(var_list):
+        photons["raw_" + str(var)] = photons[str(var)]
+        photons[str(var)] = awkward.unflatten(corrected_inputs[:, i], counts)
+
+    # Update the photonID MVA using the new, corrected inputs.
+    photons["mvaID"] = awkward.unflatten(add_photonid_mva_run3(photons, events), counts)
+
+    return photons
+
+
 # Function responsible for applyting the flow and calculate the per photon corrections in the mvaID inputs and in the sigma_E/E
 def calculate_flow_corrections(photon: awkward.Array, events, inputs_list, isolation_indexes , year="2022postEE"):
 
