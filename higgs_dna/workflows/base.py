@@ -9,7 +9,7 @@ from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrysta
 from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higgs_gen_attributes
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.selections.photon_selections import photon_preselection
-from higgs_dna.selections.diphoton_selections import apply_fiducial_cut_det_level
+from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTagMVACut
 from higgs_dna.selections.lumi_selections import select_lumis
@@ -493,41 +493,7 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
             # photon preselection
             photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
 
-            # sort photons in each event descending in pt
-            # make descending-pt combinations of photons
-            photons = photons[awkward.argsort(photons.pt, ascending=False)]
-            photons["charge"] = awkward.zeros_like(
-                photons.pt
-            )  # added this because charge is not a property of photons in nanoAOD v11. We just assume every photon has charge zero...
-            diphotons = awkward.combinations(
-                photons, 2, fields=["pho_lead", "pho_sublead"]
-            )
-
-            # the remaining cut is to select the leading photons
-            # the previous sort assures the order
-            diphotons = diphotons[
-                diphotons["pho_lead"].pt > self.min_pt_lead_photon
-            ]
-
-            # now turn the diphotons into candidates with four momenta and such
-            diphoton_4mom = diphotons["pho_lead"] + diphotons["pho_sublead"]
-            diphotons["pt"] = diphoton_4mom.pt
-            diphotons["eta"] = diphoton_4mom.eta
-            diphotons["phi"] = diphoton_4mom.phi
-            diphotons["mass"] = diphoton_4mom.mass
-            diphotons["charge"] = diphoton_4mom.charge
-
-            diphoton_pz = diphoton_4mom.z
-            diphoton_e = diphoton_4mom.energy
-
-            diphotons["rapidity"] = 0.5 * numpy.log((diphoton_e + diphoton_pz) / (diphoton_e - diphoton_pz))
-
-            diphotons = awkward.with_name(diphotons, "PtEtaPhiMCandidate")
-
-            # sort diphotons by pT
-            diphotons = diphotons[
-                awkward.argsort(diphotons.pt, ascending=False)
-            ]
+            diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 
             # Apply the fiducial cut at detector level with helper function
             diphotons = apply_fiducial_cut_det_level(self, diphotons)

@@ -6,6 +6,7 @@ from higgs_dna.selections.photon_selections_lowmass import photon_preselection_l
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap
 from higgs_dna.selections.lumi_selections import select_lumis
+from higgs_dna.selections.diphoton_selections import build_diphoton_candidates
 from higgs_dna.utils.dumping_utils import (
     diphoton_ak_array,
     dump_ak_array,
@@ -658,15 +659,8 @@ class lowmassProcessor(HggBaseProcessor):
                 self, photons, events, year=self.year[dataset_name][0]
             )
 
-            # sort photons in each event descending in pt
-            # make descending-pt combinations of photons
-            photons = photons[awkward.argsort(photons.pt, ascending=False)]
-            photons["charge"] = awkward.zeros_like(
-                photons.pt
-            )  # added this because charge is not a property of photons in nanoAOD v11. We just assume every photon has charge zero...
-            diphotons = awkward.combinations(
-                photons, 2, fields=["pho_lead", "pho_sublead"]
-            )
+            diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
+
             # ! only keep both pass/single pass/none pass pairs
             # presel: both photons don't have pixelSeed
             # single_invert: one photon has pixelSeed, another doesn't have pixelSeed
@@ -696,26 +690,6 @@ class lowmassProcessor(HggBaseProcessor):
                 logger.error(
                     f"[lowmass processor] '{self.e_veto}' is not allowed, please use presel/single_invert/double_invert"
                 )
-            # the remaining cut is to select the leading photons
-            # the previous sort assures the order
-            diphotons = diphotons[diphotons["pho_lead"].pt > self.min_pt_lead_photon]
-
-            # now turn the diphotons into candidates with four momenta and such
-            diphoton_4mom = diphotons["pho_lead"] + diphotons["pho_sublead"]
-            diphotons["pt"] = diphoton_4mom.pt
-            diphotons["eta"] = diphoton_4mom.eta
-            diphotons["phi"] = diphoton_4mom.phi
-            diphotons["mass"] = diphoton_4mom.mass
-            diphotons["charge"] = diphoton_4mom.charge
-
-            diphoton_pz = diphoton_4mom.z
-            diphoton_e = diphoton_4mom.energy
-
-            diphotons["rapidity"] = 0.5 * numpy.log(
-                (diphoton_e + diphoton_pz) / (diphoton_e - diphoton_pz)
-            )
-
-            diphotons = awkward.with_name(diphotons, "PtEtaPhiMCandidate")
 
             # sort diphotons by pT
             diphotons = diphotons[awkward.argsort(diphotons.pt, ascending=False)]

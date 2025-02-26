@@ -4,6 +4,7 @@ from higgs_dna.systematics import object_corrections as available_object_correct
 from higgs_dna.systematics import weight_systematics as available_weight_systematics
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.selections.photon_selections import photon_preselection
+from higgs_dna.selections.diphoton_selections import build_diphoton_candidates
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.flow_corrections import calculate_flow_corrections
@@ -379,41 +380,7 @@ class ZeeProcessor(HggBaseProcessor):
             # photon preselection
             photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0], electron_veto=False, revert_electron_veto=True, IsFlag=True)
 
-            # sort photons in each event descending in pt
-            # make descending-pt combinations of photons
-            photons = photons[awkward.argsort(photons.pt, ascending=False)]
-            photons["charge"] = awkward.zeros_like(
-                photons.pt
-            )  # added this because charge is not a property of photons in nanoAOD v11. We just assume every photon has charge zero...
-            diphotons = awkward.combinations(
-                photons, 2, fields=["pho_lead", "pho_sublead"]
-            )
-
-            # the remaining cut is to select the leading photons
-            # the previous sort assures the order
-            diphotons = diphotons[
-                diphotons["pho_lead"].pt > self.min_pt_lead_photon
-            ]
-
-            # now turn the diphotons into candidates with four momenta and such
-            diphoton_4mom = diphotons["pho_lead"] + diphotons["pho_sublead"]
-            diphotons["pt"] = diphoton_4mom.pt
-            diphotons["eta"] = diphoton_4mom.eta
-            diphotons["phi"] = diphoton_4mom.phi
-            diphotons["mass"] = diphoton_4mom.mass
-            diphotons["charge"] = diphoton_4mom.charge
-
-            diphoton_pz = diphoton_4mom.z
-            diphoton_e = diphoton_4mom.energy
-
-            diphotons["rapidity"] = 0.5 * numpy.log((diphoton_e + diphoton_pz) / (diphoton_e - diphoton_pz))
-
-            diphotons = awkward.with_name(diphotons, "PtEtaPhiMCandidate")
-
-            # sort diphotons by pT
-            diphotons = diphotons[
-                awkward.argsort(diphotons.pt, ascending=False)
-            ]
+            diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 
             btagMVA_selection = {
                 "deepJet": {"btagDeepFlavB": jets.btagDeepFlavB},  # Always available
