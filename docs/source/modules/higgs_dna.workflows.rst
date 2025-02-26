@@ -20,6 +20,14 @@ higgs\_dna.workflows.base module
    :undoc-members:
    :show-inheritance:
 
+higgs\_dna.workflows.btagging module
+--------------------------------
+
+.. automodule:: higgs_dna.workflows.btagging
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 higgs\_dna.workflows.dystudies module
 -------------------------------------
 
