@@ -136,7 +136,7 @@ def select_jets(
             jetId_cut = awkward.ones_like(jets.pt) > 0
             logger.warning("[ select_jets ] - No JetId applied")
     logger.debug(
-        f"[ select_jets ] - Total: {len(awkward.flatten(jetId_cut))} - Pass tight jetId: {awkward.sum(awkward.flatten(jetId_cut))}"
+        f"[ select_jets ] - Total: {awkward.sum(awkward.flatten((awkward.ones_like(jets.pt) > 0)))} - Pass tight jetId: {awkward.sum(awkward.flatten(jetId_cut))}"
     )
     pt_cut = jets.pt > self.jet_pt_threshold
     eta_cut = abs(jets.eta) < self.jet_max_eta
