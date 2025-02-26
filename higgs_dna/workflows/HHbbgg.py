@@ -46,7 +46,7 @@ class HHbbggProcessor(HggBaseProcessor):
         systematics: Dict[str, List[Any]] = None,
         corrections: Dict[str, List[Any]] = None,
         apply_trigger: bool = False,
-        nano_version: str = None,
+        nano_version: int = None,
         bTagEffFileName: Optional[str] = None,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
