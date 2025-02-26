@@ -3,6 +3,47 @@ import numpy
 import warnings
 
 
+def build_diphoton_candidates(photons, min_pt_lead_photon):
+    """
+    Build diphoton candidates from a collection of photons.
+
+    Parameters:
+        photons (awkward.Array): The input photon collection.
+        min_pt_lead_photon (float): The minimum pT required for the leading photon.
+
+    Returns:
+        awkward.Array: The diphoton candidate collection with calculated kinematic properties.
+    """
+    # Sort photons in descending order of pT
+    sorted_photons = photons[awkward.argsort(photons.pt, ascending=False)]
+    # Ensure a 'charge' field exists; default to zero if not provided
+    sorted_photons["charge"] = awkward.zeros_like(sorted_photons.pt)
+
+    # Create all possible pairs of photons (combinations) with fields "pho_lead" and "pho_sublead"
+    diphotons = awkward.combinations(sorted_photons, 2, fields=["pho_lead", "pho_sublead"])
+
+    # Apply the cut on the leading photon's pT
+    diphotons = diphotons[diphotons["pho_lead"].pt > min_pt_lead_photon]
+
+    # Combine four-momenta of the two photons
+    diphoton_4mom = diphotons["pho_lead"] + diphotons["pho_sublead"]
+    diphotons["pt"] = diphoton_4mom.pt
+    diphotons["eta"] = diphoton_4mom.eta
+    diphotons["phi"] = diphoton_4mom.phi
+    diphotons["mass"] = diphoton_4mom.mass
+    diphotons["charge"] = diphoton_4mom.charge
+
+    # Calculate rapidity
+    diphoton_pz = diphoton_4mom.z
+    diphoton_e = diphoton_4mom.energy
+    diphotons["rapidity"] = 0.5 * numpy.log((diphoton_e + diphoton_pz) / (diphoton_e - diphoton_pz))
+
+    # Sort diphoton candidates by pT in descending order
+    diphotons = diphotons[awkward.argsort(diphotons.pt, ascending=False)]
+
+    return diphotons
+
+
 def apply_fiducial_cut_det_level(
     self,
     diphotons: awkward.Array,
