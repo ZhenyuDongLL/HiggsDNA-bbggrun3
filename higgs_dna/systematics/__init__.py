@@ -226,8 +226,8 @@ object_systematics = {
 # functions correcting nominal object quantities to be placed here
 # dict containing "name": varying_function
 object_corrections = {
-    "Scale": partial(Scale_Trad, pt=None, is_correction=True),
-    "Smearing": partial(Smearing_Trad, pt=None, is_correction=True),
+    "Scale_Trad": partial(Scale_Trad, pt=None, is_correction=True),
+    "Smearing_Trad": partial(Smearing_Trad, pt=None, is_correction=True),
     "Scale_IJazZ": partial(Scale_IJazZ, pt=None, is_correction=True, gaussians="1G"),
     "Smearing_IJazZ": partial(Smearing_IJazZ, pt=None, is_correction=True, gaussians="1G"),
     "Scale2G_IJazZ": partial(Scale_IJazZ, pt=None, is_correction=True, gaussians="2G"),
