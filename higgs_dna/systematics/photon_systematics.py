@@ -2,6 +2,7 @@ import numpy as np
 import awkward as ak
 import correctionlib
 import os
+import sys
 from copy import deepcopy
 import logging
 
@@ -49,8 +50,8 @@ def Scale_Trad(pt, events, year="2022postEE", is_correction=True, restriction=No
         path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/SS_RerecoE_PromptFG_2022.json')
         evaluator = correctionlib.CorrectionSet.from_file(path_json)["2022Re-recoE+PromptFG_ScaleJSON"]
     else:
-        logger.info("WARNING: there are only scale corrections for the year strings [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\"]! \n Exiting. \n")
-        exit()
+        logger.error("There are only scale corrections for the year strings [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\"]! \n Exiting. \n")
+        sys.exit(1)
 
     if is_correction:
         # scale is a residual correction on data to match MC calibration. Check if is MC, throw error in this case.
@@ -140,8 +141,8 @@ def Smearing_Trad(pt, events, year="2022postEE", is_correction=True):
     elif year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
         logger.info("the systematic variations are taken directly from the dedicated nAOD branches Photon.dEsigmaUp and Photon.dEsigmaDown")
     else:
-        logger.info("WARNING: the correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\"] \n Exiting. \n")
-        exit()
+        logger.error("The correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\"] \n Exiting. \n")
+        sys.exit(1)
 
     if is_correction:
 
@@ -234,8 +235,8 @@ def Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians="1G
     elif gaussians == "2G":
         gaussian_postfix = "2G"
     else:
-        logger.info("WARNING: the selected number of gaussians is not implemented yet! Valid options are [\"1G\", \"2G\"] \n Exiting. \n")
-        exit()
+        logger.error("The selected number of gaussians is not implemented yet! Valid options are [\"1G\", \"2G\"] \n Exiting. \n")
+        sys.exit(1)
 
     valid_years_paths = {
         "2022preEE": "EGMScalesSmearing_Pho_2022preEE",
@@ -247,15 +248,16 @@ def Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians="1G
     ending = ".v1.json"
 
     if year not in valid_years_paths and year not in ["2016preVFP", "2016postVFP", "2017", "2018"]:
-        logger.info("WARNING: the correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"] \n Exiting. \n")
-        exit()
+        logger.error("The correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"] \n Exiting. \n")
+        sys.exit(1)
 
     if year in valid_years_paths:
         path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing', valid_years_paths[year] + gaussian_postfix + ending)
         try:
             cset = correctionlib.CorrectionSet.from_file(path_json)
         except:
-            logger.info(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
+            logger.error(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
+            sys.exit(1)
         # Convention of Fabrice and Paul: Capitalise IX (for some reason)
         if "BPix" in year:
             year = year.replace("BPix", "BPIX")
@@ -337,8 +339,8 @@ def Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians=
     elif gaussians == "2G":
         gaussian_postfix = "2G"
     else:
-        logger.info("WARNING: the selected number of gaussians is not implemented yet! Valid options are [\"1G\", \"2G\"] \n Exiting. \n")
-        exit()
+        logger.error("The selected number of gaussians is not implemented yet! Valid options are [\"1G\", \"2G\"] \n Exiting. \n")
+        sys.exit(1)
 
     valid_years_paths = {
         "2022preEE": "EGMScalesSmearing_Pho_2022preEE",
@@ -350,15 +352,16 @@ def Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians=
     ending = ".v1.json"
 
     if year not in valid_years_paths and year not in ["2016preVFP", "2016postVFP", "2017", "2018"]:
-        logger.info("WARNING: the correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"] \n Exiting. \n")
-        exit()
+        logger.error("The correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"] \n Exiting. \n")
+        sys.exit(1)
 
     if year in valid_years_paths:
         path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing', valid_years_paths[year] + gaussian_postfix + ending)
         try:
             cset = correctionlib.CorrectionSet.from_file(path_json)
         except:
-            logger.info(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
+            logger.error(f"Tthe JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
+            sys.exit(1)
         # Convention of Fabrice and Paul: Capitalise IX (for some reason)
         if "BPix" in year:
             year_ = year.replace("BPix", "BPIX")
@@ -404,7 +407,8 @@ def Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians=
             try:
                 cset = correctionlib.CorrectionSet.from_file(path_json)
             except:
-                logger.info(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
+                logger.error(f"The JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
+                sys.exit(1)
             if "BPix" in year:
                 year = year.replace("BPix", "BPIX")
             smear_and_syst_evaluator_for_rho_corr = cset[f"EGMSmearAndSyst_PhoPTsplit_{year}"]
@@ -492,10 +496,10 @@ def FNUF(pt, events, year="2017", is_correction=True):
     # era/year defined as parameter of the function
     avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
-        logger.info(f"WARNING: only FNUF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
-        exit()
+        logger.error(f"Only FNUF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        sys.exit(1)
     elif "2022" or "2023" in year:
-        logger.info(f"""WARNING: You selected the year_string {year}, which is a 2022 era.
+        logger.warning(f"""You selected the year_string {year}, which is a 2022 era.
                         FNUF was not re-derived for Run 3 yet, but we fall back to the Run 2 2018 values.
                         These values only constitute up/down variations, no correction is applied.
                         The values are the averaged corrections from Run 2, turned into a systematic and inflated by 25%.
@@ -556,8 +560,8 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
     # era/year defined as parameter of the function
     avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]
     if year not in avail_years:
-        logger.info(f"WARNING: only ShowerShape corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
-        exit()
+        logger.error(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        sys.exit(1)
     elif "2016" in year:
         year = "2016"
 
@@ -610,13 +614,13 @@ def Material(pt, events, year="2017", is_correction=True):
     # era/year defined as parameter of the function, only 2017 is implemented up to now
     avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
-        logger.info(f"WARNING: only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
-        exit()
+        logger.error(f"Only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        sys.exit(1)
     elif "2016" in year:
         year = "2016"
     # use Run 2 files also for Run 3, preliminary
     elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
-        logger.info(f"""WARNING: You selected the year_string {year}, which is a Run 3 era.
+        logger.warning(f"""You selected the year_string {year}, which is a Run 3 era.
                   Material was not rederived for Run 3 yet, but we fall back to the Run 2 2018 values.
                   Please make sure that this is what you want. You have been warned.""")
         year = "2018"

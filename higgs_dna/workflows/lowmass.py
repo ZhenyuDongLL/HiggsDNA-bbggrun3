@@ -507,6 +507,16 @@ class lowmassProcessor(HggBaseProcessor):
             )
             sys.exit(0)
 
+        # save raw pt if we use scale/smearing corrections
+        # These needs to be before the smearing of the mass resolution in order to have the raw pt for the function
+        s_or_s_applied = False
+        for correction in correction_names:
+            logger.info("There is a correction: " + correction)
+            if "scale" or "smearing" in correction.lower():
+                s_or_s_applied = True
+        if s_or_s_applied:
+            events.Photon["pt_raw"] = awkward.copy(events.Photon.pt)
+
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
@@ -525,14 +535,6 @@ class lowmassProcessor(HggBaseProcessor):
             )
             varying_function = available_object_corrections[correction_name]
             events = varying_function(events=events, year=self.year[dataset_name][0])
-
-        # save raw pt if we use scale/smearing corrections
-        s_or_s_applied = False
-        for correction in correction_names:
-            if "scale" or "smearing" in correction.lower():
-                s_or_s_applied = True
-        if s_or_s_applied:
-            events.Photon["pt_raw"] = awkward.copy(events.Photon.pt)
 
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():
