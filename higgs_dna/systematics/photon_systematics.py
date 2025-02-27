@@ -15,7 +15,7 @@ def photon_pt_scale_dummy(pt, **kwargs):
 
 # Not nice but working: if the functions are called in the base processor by Photon.add_systematic(... "what"="pt"...), the pt is passed to the function as first argument.
 # I need the full events here, so I pass in addition the events. Seems to only work if it is explicitly a function of pt, but I might be missing something. Open for better solutions.
-def Scale(pt, events, year="2022postEE", is_correction=True, restriction=None):
+def Scale_Trad(pt, events, year="2022postEE", is_correction=True, restriction=None):
     """
     Applies the photon pt scale corrections (use on data!) and corresponding uncertainties (on MC!).
     JSONs need to be pulled first with scripts/pull_files.py
@@ -115,115 +115,7 @@ def Scale(pt, events, year="2022postEE", is_correction=True, restriction=None):
         return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * _pt[:, None]
 
 
-def Et_dependent_Scale(pt, events, year="2022postEE", is_correction=True, restriction=None):
-    """
-    Applies the photon pt scale corrections (use on data!) and corresponding uncertainties (on MC!).
-    JSONs need to be pulled first with scripts/pull_files.py.
-    Note: For 2022, the ET-dependent scale corrections are applied on top of the EGamma corrections
-    This is already done in this function, so you only have to specify "Et_dependent_Scale" in the runner JSON, not both.
-    For 2023, the ET-dependent scale corrections already include the equalisation in time.
-    Thus, the 2023 corrections are independent and detached from the Egamma corrections.
-    """
-
-    # for later unflattening:
-    counts = ak.num(events.Photon.pt)
-
-    run = ak.flatten(ak.broadcast_arrays(events.run, events.Photon.pt)[0])
-    gain = ak.flatten(events.Photon.seedGain)
-    eta = ak.flatten(events.Photon.ScEta)
-    r9 = ak.flatten(events.Photon.r9)
-    _pt = ak.flatten(events.Photon.pt)
-
-    if year == "2022preEE":
-
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/SS_Rereco2022BCD.json')
-        Egamma_evaluator = correctionlib.CorrectionSet.from_file(path_json)["2022Re-recoBCD_ScaleJSON"]
-
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2022PreEE.v1.json')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["EGMScale_PhoEtaR9_2022PreEE"]
-
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2022PreEE.v1.json')
-        evaluator_et = correctionlib.CorrectionSet.from_file(path_json)["EGMScale_PhoPT_2022"]
-    elif year == "2022postEE":
-
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/SS_RerecoE_PromptFG_2022.json')
-        Egamma_evaluator = correctionlib.CorrectionSet.from_file(path_json)["2022Re-recoE+PromptFG_ScaleJSON"]
-
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2022PostEE.v1.json')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["EGMScale_PhoEtaR9_2022PostEE"]
-
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2022PostEE.v1.json')
-        evaluator_et = correctionlib.CorrectionSet.from_file(path_json)["EGMScale_PhoPT_2022"]
-    elif year == "2023preBPix":
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2023preBPIX.v1.json')
-        compound_correction = correctionlib.CorrectionSet.from_file(path_json).compound["EGMScale_Compound_Pho_2023preBPIX"]
-    elif year == "2023postBPix":
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2023postBPIX.v1.json')
-        compound_correction = correctionlib.CorrectionSet.from_file(path_json).compound["EGMScale_Compound_Pho_2023postBPIX"]
-    else:
-        logger.info("WARNING: Et dependent SAS corrections are avaliable only to 2022 dataset! \n Exiting. \n")
-        exit()
-
-    if is_correction:
-        # scale is a residual correction on data to match MC calibration. Check if is MC, throw error in this case.
-        if hasattr(events, "GenPart"):
-            raise ValueError("Scale corrections should only be applied to data!")
-
-        # I dont know why but in the JSON the (eta,r9) correction uses ScEta while (pt,eta,r9) uses abs(ScEta)
-        full_correction = 0
-        if (year == "2022postEE" or year == "2022preEE"):
-            Egamma_correction = Egamma_evaluator.evaluate("total_correction", gain, run, eta, r9, _pt)
-            correction = evaluator.evaluate(eta, r9)
-            correction_et = evaluator_et.evaluate("scale", _pt, r9, abs(eta))
-            full_correction = Egamma_correction * correction * correction_et
-        elif (year == "2023preBPix" or year == "2023postBPix"):
-            correction = compound_correction.evaluate("scale", run, eta, r9, np.abs(eta), _pt, gain)
-            full_correction = correction
-
-        pt_corr = _pt * full_correction
-        corrected_photons = deepcopy(events.Photon)
-        pt_corr = ak.unflatten(pt_corr, counts)
-        corrected_photons["pt"] = pt_corr
-
-        events.Photon = corrected_photons
-
-        return events
-
-    else:
-        if not hasattr(events, "GenPart"):
-            raise ValueError("Scale uncertainties should only be applied to MC!")
-
-        correction = 1
-        if (year == "2022postEE" or year == "2022preEE"):
-            correction = evaluator_et.evaluate("scale" , _pt, r9, abs(eta))
-            uncertainty = evaluator_et.evaluate("escale", _pt, r9, abs(eta))
-        elif (year == "2023preBPix" or year == "2023postBPix"):
-            correction = compound_correction.evaluate("scale", run, eta, r9, np.abs(eta), _pt, gain)
-            uncertainty = compound_correction.evaluate("escale", run, eta, r9, np.abs(eta), _pt, gain)
-        else:
-            logger.info("WARNING: the correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\"] \n Exiting. \n")
-            exit()
-
-        if restriction is not None:
-            if restriction == "EB":
-                uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEB))
-
-            elif restriction == "EE":
-                uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEE))
-
-            uncertainty = np.where(
-                uncMask, uncertainty, np.zeros_like(uncertainty)
-            )
-
-        # divide by correction since it is already applied before
-        corr_up_variation = (correction + uncertainty) / correction
-        corr_down_variation = (correction - uncertainty) / correction
-
-        # Coffea does the unflattenning step itself and sets this value as pt of the up/down variations
-        return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * _pt[:, None]
-
-
-def Smearing(pt, events, year="2022postEE", is_correction=True):
+def Smearing_Trad(pt, events, year="2022postEE", is_correction=True):
     """
     Applies the photon smearing corrections and corresponding uncertainties (on MC!).
     JSON needs to be pulled first with scripts/pull_files.py
@@ -318,7 +210,113 @@ def Smearing(pt, events, year="2022postEE", is_correction=True):
         return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * _pt[:, None]
 
 
-def Et_dependent_Smearing(pt, events, year="2022postEE", is_correction=True):
+def Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians="1G", restriction=None):
+    """
+    Applies the IJazZ photon pt scale corrections (use on data!) and corresponding uncertainties (on MC!).
+    JSONs need to be pulled first with scripts/pull_files.py.
+    The IJazZ corrections are independent and detached from the Egamma corrections.
+    """
+
+    # for later unflattening:
+    counts = ak.num(events.Photon.pt)
+
+    run = ak.flatten(ak.broadcast_arrays(events.run, events.Photon.pt)[0])
+    gain = ak.flatten(events.Photon.seedGain)
+    eta = ak.flatten(events.Photon.ScEta)
+    AbsScEta = abs(eta)
+    r9 = ak.flatten(events.Photon.r9)
+    # scale uncertainties are applied on the smeared pt but computed from the raw pt
+    pt_raw = ak.flatten(events.Photon.pt_raw)
+    _pt = ak.flatten(events.Photon.pt)
+
+    if gaussians == "1G":
+        gaussian_postfix = ""
+    elif gaussians == "2G":
+        gaussian_postfix = "2G"
+    else:
+        logger.info("WARNING: the selected number of gaussians is not implemented yet! Valid options are [\"1G\", \"2G\"] \n Exiting. \n")
+        exit()
+
+    valid_years_paths = {
+        "2022preEE": "EGMScalesSmearing_Pho_2022preEE",
+        "2022postEE": "EGMScalesSmearing_Pho_2022postEE",
+        "2023preBPix": "EGMScalesSmearing_Pho_2023preBPIX",
+        "2023postBPix": "EGMScalesSmearing_Pho_2023postBPIX"
+    }
+
+    ending = ".v1.json"
+
+    if year not in valid_years_paths and year not in ["2016preVFP", "2016postVFP", "2017", "2018"]:
+        logger.info("WARNING: the correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"] \n Exiting. \n")
+        exit()
+
+    if year in valid_years_paths:
+        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing', valid_years_paths[year] + gaussian_postfix + ending)
+        try:
+            cset = correctionlib.CorrectionSet.from_file(path_json)
+        except:
+            logger.info(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
+        # Convention of Fabrice and Paul: Capitalise IX (for some reason)
+        if "BPix" in year:
+            year = year.replace("BPix", "BPIX")
+        scale_evaluator = cset.compound[f"EGMScale_Compound_Pho_{year}{gaussian_postfix}"]
+        smear_and_syst_evaluator = cset[f"EGMSmearAndSyst_PhoPTsplit_{year}{gaussian_postfix}"]
+    else:
+        logger.info("the systematic variations are taken directly from the dedicated nAOD branches Photon.dEsigmaUp and Photon.dEsigmaDown")
+
+    if is_correction:
+        # scale is a residual correction on data to match MC calibration. Check if is MC, throw error in this case.
+        if hasattr(events, "GenPart"):
+            raise ValueError("Scale corrections should only be applied to data!")
+
+        correction = scale_evaluator.evaluate("scale", run, eta, r9, AbsScEta, pt_raw, gain)
+        pt_corr = pt_raw * correction
+        corrected_photons = deepcopy(events.Photon)
+        pt_corr = ak.unflatten(pt_corr, counts)
+        corrected_photons["pt"] = pt_corr
+
+        events.Photon = corrected_photons
+
+        return events
+
+    else:
+        # Note the conventions in the JSON, both `scale_up`/`scale_down` and `escale` are available.
+        # scale_up = 1 + escale
+        if not hasattr(events, "GenPart"):
+            raise ValueError("Scale uncertainties should only be applied to MC!")
+
+        corr_up_variation = smear_and_syst_evaluator.evaluate('scale_up', pt_raw, r9, AbsScEta)
+        corr_down_variation = smear_and_syst_evaluator.evaluate('scale_down', pt_raw, r9, AbsScEta)
+
+        if restriction is not None:
+            if restriction == "EB":
+                uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEB))
+
+            elif restriction == "EE":
+                uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEE))
+
+            corr_up_variation = np.where(
+                uncMask, corr_up_variation, np.zeros_like(corr_up_variation)
+            )
+
+            corr_down_variation = np.where(
+                uncMask, corr_down_variation, np.zeros_like(corr_down_variation)
+            )
+
+        # Coffea does the unflattenning step itself and sets this value as pt of the up/down variations
+        # scale uncertainties are applied on the smeared pt
+        return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * _pt[:, None]
+
+
+def double_smearing(std_normal, std_flat, mu, sigma1, sigma2, frac):
+    # compute the two smearing scales from the gaussian draws
+    scales = np.array([1 + sigma1 * std_normal, mu * (1 + sigma2 * std_normal)])
+    # select the gaussian based on the relative fraction and the flat draw
+    binom = (std_flat > frac).astype(int)
+    return scales[binom, np.arange(len(mu))]
+
+
+def Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians="1G"):
     """
     Applies the photon smearing corrections and corresponding uncertainties (on MC!).
     JSON needs to be pulled first with scripts/pull_files.py
@@ -328,50 +326,91 @@ def Et_dependent_Smearing(pt, events, year="2022postEE", is_correction=True):
     counts = ak.num(events.Photon.pt)
 
     eta = ak.flatten(events.Photon.ScEta)
+    AbsScEta = abs(eta)
     r9 = ak.flatten(events.Photon.r9)
-    _pt = ak.flatten(events.Photon.pt)
+    pt_raw = ak.flatten(events.Photon.pt_raw)
+    # Need some broadcasting to make the event numbers match
+    event_number = ak.flatten(ak.broadcast_arrays(events.event, events.Photon.pt)[0])
 
-    # we need reproducible random numbers since in the systematics call, the previous correction needs to be cancelled out
-    rng = np.random.default_rng(seed=125)
-
-    if year == "2022preEE":
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2022PreEE.v1.json')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["EGMSmearAndSyst_PhoPT_2022"]
-    elif year == "2022postEE":
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2022PostEE.v1.json')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["EGMSmearAndSyst_PhoPT_2022"]
-    elif year == "2023preBPix":
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2023preBPIX.v1.json')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["EGMSmearAndSyst_PhoPTsplit_2023preBPIX"]
-    elif year == "2023postBPix":
-        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing/EGMScalesSmearing_Pho_2023postBPIX.v1.json')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["EGMSmearAndSyst_PhoPTsplit_2023postBPIX"]
-
-    elif year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
-        logger.info("the systematic variations are taken directly from the dedicated nAOD branches Photon.dEsigmaUp and Photon.dEsigmaDown")
+    if gaussians == "1G":
+        gaussian_postfix = ""
+    elif gaussians == "2G":
+        gaussian_postfix = "2G"
     else:
+        logger.info("WARNING: the selected number of gaussians is not implemented yet! Valid options are [\"1G\", \"2G\"] \n Exiting. \n")
+        exit()
+
+    valid_years_paths = {
+        "2022preEE": "EGMScalesSmearing_Pho_2022preEE",
+        "2022postEE": "EGMScalesSmearing_Pho_2022postEE",
+        "2023preBPix": "EGMScalesSmearing_Pho_2023preBPIX",
+        "2023postBPix": "EGMScalesSmearing_Pho_2023postBPIX"
+    }
+
+    ending = ".v1.json"
+
+    if year not in valid_years_paths and year not in ["2016preVFP", "2016postVFP", "2017", "2018"]:
         logger.info("WARNING: the correction for the selected year is not implemented yet! Valid year tags are [\"2016preVFP\", \"2016postVFP\", \"2017\", \"2018\", \"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"] \n Exiting. \n")
         exit()
 
-    if is_correction:
-
-        # In theory, the energy should be smeared and not the pT, see: https://mattermost.web.cern.ch/cmseg/channels/egm-ss/6mmucnn8rjdgt8x9k5zaxbzqyh
-        # However, there is a linear proportionality between pT and E: E = pT * cosh(eta)
-        # Because of that, applying the correction to pT and E is equivalent (since eta does not change)
-        # Energy is provided as a LorentzVector mixin, so we choose to correct pT
-        # Also holds true for the scale part
-
-        if "2023" in year.lower():
-            # Taking the resolutionModel from the correctionlib JSON
-            rho = evaluator.evaluate("smear", _pt, r9, abs(eta))
-            smearing = 1 + evaluator.evaluate("stdnormal", _pt, r9, abs(eta)) * rho
+    if year in valid_years_paths:
+        path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing', valid_years_paths[year] + gaussian_postfix + ending)
+        try:
+            cset = correctionlib.CorrectionSet.from_file(path_json)
+        except:
+            logger.info(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
+        # Convention of Fabrice and Paul: Capitalise IX (for some reason)
+        if "BPix" in year:
+            year_ = year.replace("BPix", "BPIX")
         else:
-            rho = evaluator.evaluate('smear', _pt, r9, abs(eta))  # in usual s&s, this is: evaluator.evaluate("rho", eta, r9)
-            smearing = rng.normal(loc=1., scale=rho)
-        pt_corr = _pt * smearing
+            year_ = year
+        smear_and_syst_evaluator = cset[f"EGMSmearAndSyst_PhoPTsplit_{year_}{gaussian_postfix}"]
+        random_generator = cset['EGMRandomGenerator']
+    else:
+        logger.info("the systematic variations are taken directly from the dedicated nAOD branches Photon.dEsigmaUp and Photon.dEsigmaDown")
+
+    # In theory, the energy should be smeared and not the pT, see: https://mattermost.web.cern.ch/cmseg/channels/egm-ss/6mmucnn8rjdgt8x9k5zaxbzqyh
+    # However, there is a linear proportionality between pT and E: E = pT * cosh(eta)
+    # Because of that, applying the correction to pT and E is equivalent (since eta does not change)
+    # Energy is provided as a LorentzVector mixin, so we choose to correct pT
+    # Also holds true for the scale part
+
+    # Calculate upfront since it is needed for both correction and uncertainty
+    smearing = smear_and_syst_evaluator.evaluate('smear', pt_raw, r9, AbsScEta)
+    random_numbers = random_generator.evaluate('stdnormal', pt_raw, r9, AbsScEta, event_number)
+
+    if gaussians == "1G":
+        correction = (1 + smearing * random_numbers)
+    # Else can only be "2G" due to the checks above
+    # Have to use else here to satisfy that correction is always defined in all possible branches of the code
+    else:
+        correction = double_smearing(
+            random_numbers,
+            random_generator.evaluate('stdflat', pt_raw, r9, AbsScEta, event_number),
+            smear_and_syst_evaluator.evaluate('mu', pt_raw, r9, AbsScEta),
+            smearing,
+            smear_and_syst_evaluator.evaluate('reso2', pt_raw, r9, AbsScEta),
+            smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta)
+        )
+
+    if is_correction:
+        pt_corr = pt_raw * correction
         corrected_photons = deepcopy(events.Photon)
         pt_corr = ak.unflatten(pt_corr, counts)
-        rho_corr = ak.unflatten(rho, counts)
+        # For the 2G case, also take the rho_corr from the 1G case as advised by Fabrice
+        # Otherwise, the sigma_m/m will be lower on average, new CDFs will be needed etc. not worth the hassle
+        if gaussians == "2G":
+            path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing', valid_years_paths[year] + ending)
+            try:
+                cset = correctionlib.CorrectionSet.from_file(path_json)
+            except:
+                logger.info(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
+            if "BPix" in year:
+                year = year.replace("BPix", "BPIX")
+            smear_and_syst_evaluator_for_rho_corr = cset[f"EGMSmearAndSyst_PhoPTsplit_{year}"]
+            rho_corr = ak.unflatten(smear_and_syst_evaluator_for_rho_corr.evaluate('smear', pt_raw, r9, AbsScEta), counts)
+        else:
+            rho_corr = ak.unflatten(smearing, counts)
 
         # If it is data, dont perform the pt smearing, only save the std of the gaussian for each event!
         try:
@@ -381,33 +420,39 @@ def Et_dependent_Smearing(pt, events, year="2022postEE", is_correction=True):
             pass
 
         corrected_photons["rho_smear"] = rho_corr
-
         events.Photon = corrected_photons
 
         return events
 
     else:
+        # Note the conventions in the JSON, both `smear_up`/`smear_down` and `esmear` are available.
+        # smear_up = smear + esmear
+        if gaussians == "1G":
+            corr_up_variation = 1 + smear_and_syst_evaluator.evaluate('smear_up', pt_raw, r9, AbsScEta) * random_numbers
+            corr_down_variation = 1 + smear_and_syst_evaluator.evaluate('smear_down', pt_raw, r9, AbsScEta) * random_numbers
 
-        if "2023" in year.lower():
-            smearing = 1 + evaluator.evaluate("smear", _pt, r9, abs(eta)) * evaluator.evaluate("stdnormal", _pt, r9, abs(eta))
-            smearing_up = 1 + evaluator.evaluate('smear_up', _pt, r9, abs(eta)) * evaluator.evaluate("stdnormal", _pt, r9, abs(eta))
-            smearing_down = 1 + evaluator.evaluate('smear_down', _pt, r9, abs(eta)) * evaluator.evaluate("stdnormal", _pt, r9, abs(eta))
-
-            corr_up_variation = smearing_up / smearing
-            corr_down_variation = smearing_down / smearing
         else:
-            rho = evaluator.evaluate('smear', _pt, r9, abs(eta))  # in usual s&s, this is: evaluator.evaluate("rho", eta, r9)
-            smearing = rng.normal(loc=1., scale=rho)
-            rho_up = evaluator.evaluate("smear_up", _pt, r9, abs(eta))
-            rho_down = evaluator.evaluate("smear_down", _pt, r9, abs(eta))
-            smearing_up = rng.normal(loc=1., scale=rho_up)
-            smearing_down = rng.normal(loc=1., scale=np.clip(rho_down, a_min=0, a_max=None))
-            # divide by correction since it is already applied before
-            corr_up_variation = smearing_up / smearing
-            corr_down_variation = smearing_down / smearing
+            corr_up_variation = double_smearing(
+                random_numbers,
+                random_generator.evaluate('stdflat', pt_raw, r9, AbsScEta, event_number),
+                smear_and_syst_evaluator.evaluate('mu', pt_raw, r9, AbsScEta),
+                smear_and_syst_evaluator.evaluate('smear_up', pt_raw, r9, AbsScEta),
+                smear_and_syst_evaluator.evaluate('reso2', pt_raw, r9, AbsScEta),
+                smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta)
+            )
+
+            corr_down_variation = double_smearing(
+                random_numbers,
+                random_generator.evaluate('stdflat', pt_raw, r9, AbsScEta, event_number),
+                smear_and_syst_evaluator.evaluate('mu', pt_raw, r9, AbsScEta),
+                smear_and_syst_evaluator.evaluate('smear_down', pt_raw, r9, AbsScEta),
+                smear_and_syst_evaluator.evaluate('reso2', pt_raw, r9, AbsScEta),
+                smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta)
+            )
 
         # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
-        return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * _pt[:, None]
+        # smearing uncertainties are applied on the raw pt because the smearing is redone from scratch
+        return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * pt_raw[:, None]
 
 
 def energyErrShift(energyErr, events, year="2022postEE", is_correction=True):

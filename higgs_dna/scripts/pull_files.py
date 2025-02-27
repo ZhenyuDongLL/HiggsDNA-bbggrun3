@@ -14,20 +14,40 @@ resource_dir = resources.files("higgs_dna")
 
 
 # ---------------------- A few helping functions  ----------------------
-def unzip_gz_with_gunzip(logger, input_file, output_file):
+
+
+def unzip_gz_with_gunzip(logger, input_path, output_path=None):
     try:
         # Check if gunzip is available in the system
         subprocess.check_call(
             ["gunzip", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-        # Run gunzip command to unzip the gz file
-        with open(output_file, "wb") as output:
-            with open(input_file, "rb") as input_gz:
-                subprocess.check_call(["gunzip", "-c"], stdin=input_gz, stdout=output)
-        logger.info(f"File '{input_file}' successfully unzipped to '{output_file}'.")
-        # Remove the gz file after extraction
-        os.remove(input_file)
-        logger.info(f"File '{input_file}' deleted.")
+
+        if os.path.isdir(input_path):
+            # If input_path is a directory, process all .gz files in the directory
+            for root, _, files in os.walk(input_path):
+                for file in files:
+                    if file.endswith(".gz"):
+                        input_file = os.path.join(root, file)
+                        output_file = os.path.join(root, file[:-3])  # Remove .gz extension
+                        with open(output_file, "wb") as output:
+                            with open(input_file, "rb") as input_gz:
+                                subprocess.check_call(["gunzip", "-c"], stdin=input_gz, stdout=output)
+                        logger.info(f"File '{input_file}' successfully unzipped to '{output_file}'.")
+                        # Remove the gz file after extraction
+                        os.remove(input_file)
+                        logger.info(f"File '{input_file}' deleted.")
+        else:
+            # If input_path is a file, process the single file
+            if output_path is None:
+                output_path = input_path[:-3]  # Remove .gz extension
+            with open(output_path, "wb") as output:
+                with open(input_path, "rb") as input_gz:
+                    subprocess.check_call(["gunzip", "-c"], stdin=input_gz, stdout=output)
+            logger.info(f"File '{input_path}' successfully unzipped to '{output_path}'.")
+            # Remove the gz file after extraction
+            os.remove(input_path)
+            logger.info(f"File '{input_path}' deleted.")
     except subprocess.CalledProcessError as e:
         logger.error(f"Error: {e}")
     else:
@@ -98,82 +118,69 @@ def copy_xrdcp(logger, target_name, ikey, from_path, to_path):
 
 
 def fetch_file(target_name, logger, from_to_dict, use_xrdcp=False, type="url"):
-    if type == "url":
-        for ikey in from_to_dict.keys():
-            try:
-                with urllib.request.urlopen(from_to_dict[ikey]["from"]) as f:
-                    json_object = f.read().decode("utf-8")
-            except:
-                logger.info(
-                    "INFO: urllib did not work, falling back to requests to fetch file from URL..."
-                )
-                pass
-            try:
-                response = requests.get(from_to_dict[ikey]["from"], verify=True)
-                response.raise_for_status()  # Raise an exception for HTTP errors
-                json_object = response.text
-                # create the folder
-                p = pathlib.Path(from_to_dict[ikey]["to"])
-                p = pathlib.Path(*p.parts[:-1])  # remove file name
-                p.mkdir(parents=True, exist_ok=True)
-                with open(from_to_dict[ikey]["to"], "w") as f:
-                    f.write(json_object)
-                logger.info(
-                    "[ {} ] {}: Download from {} to {}".format(
-                        target_name,
-                        ikey,
-                        from_to_dict[ikey]["from"],
-                        from_to_dict[ikey]["to"],
-                    )
-                )
-            except:
-                logger.error(
-                    "[ {} ] {}: Can't download from {}".format(
-                        target_name, ikey, from_to_dict[ikey]["from"]
-                    )
-                )
-    elif type == "copy":
-        for ikey in from_to_dict.keys():
-            try:
-                # Check if the type of file system is specified
-                assert (
-                    from_to_dict[ikey].get("type") is not None
-                ), "Type of file system must be specified"
+    for ikey in from_to_dict.keys():
+        # Wrap the source and destination into lists if needed.
+        src = from_to_dict[ikey]["from"]
+        dest = from_to_dict[ikey]["to"]
+        srcs = src if isinstance(src, list) else [src]
+        dests = dest if isinstance(dest, list) else [dest]
 
-                # create the folder
-                p = pathlib.Path(from_to_dict[ikey]["to"])
-                p = pathlib.Path(*p.parts[:-1])  # remove file name
-                p.mkdir(parents=True, exist_ok=True)
-                # copy
-                if from_to_dict[ikey]["type"] == "eos" and use_xrdcp:
-                    copy_xrdcp(
-                        logger,
-                        target_name,
-                        ikey,
-                        from_to_dict[ikey]["from"],
-                        from_to_dict[ikey]["to"],
-                    )
-                else:
-                    if os.path.isdir(from_to_dict[ikey]["from"]):
-                        copy_tree(from_to_dict[ikey]["from"], from_to_dict[ikey]["to"])
-                    else:
-                        shutil.copy(
-                            from_to_dict[ikey]["from"], from_to_dict[ikey]["to"]
-                        )
+        if len(srcs) != len(dests):
+            logger.error(
+                f"[ {target_name} ] {ikey}: Mismatch in number of sources and destinations."
+            )
+            continue
+
+        if type == "url":
+            # For each pair of source URL and destination file.
+            for s, d in zip(srcs, dests):
+                try:
+                    with urllib.request.urlopen(s) as f:
+                        json_object = f.read().decode("utf-8")
+                except Exception:
                     logger.info(
-                        "[ {} ] {}: Copy from {} to {}".format(
-                            target_name,
-                            ikey,
-                            from_to_dict[ikey]["from"],
-                            from_to_dict[ikey]["to"],
-                        )
+                        "INFO: urllib did not work, falling back to requests to fetch file from URL..."
                     )
-            except Exception as e:
-                logger.error(
-                    "[ {} ] {}: Can't copy from {}: {}".format(
-                        target_name, ikey, from_to_dict[ikey]["from"], e
+                    pass
+                try:
+                    response = requests.get(s, verify=True)
+                    response.raise_for_status()  # Raise an exception for HTTP errors
+                    json_object = response.text
+                    # Create the destination directory
+                    p = pathlib.Path(d).parent
+                    p.mkdir(parents=True, exist_ok=True)
+                    with open(d, "w") as f:
+                        f.write(json_object)
+                    logger.info(
+                        f"[ {target_name} ] {ikey}: Download from {s} to {d}"
                     )
-                )
+                except Exception as ex:
+                    logger.error(
+                        f"[ {target_name} ] {ikey}: Can't download from {s}: {ex}"
+                    )
+        elif type == "copy":
+            for s, d in zip(srcs, dests):
+                try:
+                    # Check that the type of the file system is specified
+                    assert from_to_dict[ikey].get("type") is not None, "Type of file system must be specified"
+                    # Create the destination directory
+                    p = pathlib.Path(d).parent
+                    p.mkdir(parents=True, exist_ok=True)
+                    # Proceed with copy
+                    if from_to_dict[ikey]["type"] == "eos" and use_xrdcp:
+                        copy_xrdcp(logger, target_name, ikey, s, d)
+                    else:
+                        if os.path.isdir(s):
+                            copy_tree(s, d)
+                        else:
+                            shutil.copy(s, d)
+                    logger.info(
+                        f"[ {target_name} ] {ikey}: Copy from {s} to {d}"
+                    )
+                except Exception as ex:
+                    logger.error(
+                        f"[ {target_name} ] {ikey}: Can't copy from {s}: {ex}"
+                    )
 
 
 def get_jec_files(logger, target_dir, use_xrdcp=False):
@@ -693,7 +700,8 @@ def get_scale_and_smearing(logger, target_dir, use_xrdcp=False):
     )
 
 
-def get_Et_dependent_scale_and_smearing(logger, target_dir, use_xrdcp=False):
+
+def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
     # see https://twiki.cern.ch/twiki/bin/viewauth/CMS/EgammSFandSSRun3#Scale_And_Smearings_Correctionli for Run 3
     # see https://cms-talk.web.cern.ch/t/pnoton-energy-corrections-in-nanoaod-v11/34327/2 for Run 2, jsons are from https://github.com/cms-egamma/ScaleFactorsJSON/tree/master
     if target_dir is not None:
@@ -705,23 +713,31 @@ def get_Et_dependent_scale_and_smearing(logger, target_dir, use_xrdcp=False):
 
     from_to_dict = {
         "2022preEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SAS_HIG-23-014_paper/EGMScalesSmearing_Pho_2022PreEE.v1.json.gz",
-            "to": f"{to_prefix}/EGMScalesSmearing_Pho_2022PreEE.v1.json.gz",
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ/preEE/EGMScalesSmearing_Pho_2022preEE.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ/preEE/EGMScalesSmearing_Pho_2022preEE2G.v1.json.gz"],
+            "to":   [f"{to_prefix}/EGMScalesSmearing_Pho_2022preEE.v1.json.gz",
+                     f"{to_prefix}/EGMScalesSmearing_Pho_2022preEE2G.v1.json.gz"],
             "type": "eos",
         },
         "2022postEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SAS_HIG-23-014_paper/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
-            "to": f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ/postEE/EGMScalesSmearing_Pho_2022postEE.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ/postEE/EGMScalesSmearing_Pho_2022postEE2G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2022postEE.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Pho_2022postEE2G.v1.json.gz"],
             "type": "eos",
         },
         "2023preBPix": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SaS/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
-            "to": f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/preBPix/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/preBPix/EGMScalesSmearing_Pho_2023preBPIX2G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX2G.v1.json.gz"],
             "type": "eos",
         },
         "2023postBPix": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SaS/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
-            "to": f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/postBPix/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/postBPix/EGMScalesSmearing_Pho_2023postBPIX2G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX2G.v1.json.gz"],
             "type": "eos",
         },
         "2023preBPix_Electrons": {
@@ -739,41 +755,8 @@ def get_Et_dependent_scale_and_smearing(logger, target_dir, use_xrdcp=False):
         "Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
     )
 
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/EGMScalesSmearing_Pho_2022PreEE.v1.json.gz",
-        f"{to_prefix}/EGMScalesSmearing_Pho_2022PreEE.v1.json",
-    )
-
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json.gz",
-        f"{to_prefix}/EGMScalesSmearing_Pho_2022PostEE.v1.json",
-    )
-
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
-        f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json",
-    )
-
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
-        f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json",
-    )
-
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
-        f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX.v1.json",
-    )
-
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
-        f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX.v1.json",
-    )
+    # Unzip everything everywhere, all at once (did you understand that reference?)
+    unzip_gz_with_gunzip(logger, to_prefix)
 
 
 def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
@@ -784,7 +767,7 @@ def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
 
     from_to_dict = {
         "2022": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/mass_decorrelation/CDFs/21_01_24/",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/decorrelation_CDFs/",
             "to": f"{to_prefix}/decorrelation_CDFs",
             "type": "eos",
         },
@@ -1310,9 +1293,7 @@ def main():
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_pileup(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_scale_and_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
-        get_Et_dependent_scale_and_smearing(
-            logger, args.target_dir, use_xrdcp=args.use_xrdcp
-        )
+        get_scale_and_smearing_IJazZ(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_mass_decorrelation_CDF(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_Flow_files(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_ctag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
@@ -1341,10 +1322,8 @@ def main():
         get_pileup(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "SS":
         get_scale_and_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
-    elif args.target == "Et_SS":
-        get_Et_dependent_scale_and_smearing(
-            logger, args.target_dir, use_xrdcp=args.use_xrdcp
-        )
+    elif args.target == "SS-IJazZ":
+        get_scale_and_smearing_IJazZ(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "CDFs":
         get_mass_decorrelation_CDF(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "Flows":

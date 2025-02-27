@@ -500,23 +500,39 @@ class lowmassProcessor(HggBaseProcessor):
         if (
             self.data_kind == "mc"
             and self.Smear_sigma_m
-            and "Smearing" not in correction_names
+            and ("Smearing_Trad" not in correction_names and "Smearing_IJazZ" not in correction_names and "Smearing2G_IJazZ" not in correction_names)
         ):
             warnings.warn(
-                "Smearing should be specified in the corrections field in .json in order to smear the mass!"
+                "Smearing_Trad or  Smearing_IJazZ or Smearing2G_IJazZ should be specified in the corrections field in .json in order to smear the mass!"
             )
             sys.exit(0)
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
-            correction_name = "Smearing"
+            if "Scale_Trad" in correction_names:
+                correction_name = "Smearing_Trad"
+            elif "Scale_IJazZ" in correction_names:
+                correction_name = "Smearing_IJazZ"
+            elif "Scale2G_IJazZ" in correction_names:
+                correction_name = "Smearing2G_IJazZ"
+            else:
+                logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
+                sys.exit(0)
 
             logger.info(
                 f"\nApplying correction {correction_name} to dataset {dataset_name}\n"
             )
             varying_function = available_object_corrections[correction_name]
             events = varying_function(events=events, year=self.year[dataset_name][0])
+
+        # save raw pt if we use scale/smearing corrections
+        s_or_s_applied = False
+        for correction in correction_names:
+            if "scale" or "smearing" in correction.lower():
+                s_or_s_applied = True
+        if s_or_s_applied:
+            events.Photon["pt_raw"] = awkward.copy(events.Photon.pt)
 
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():

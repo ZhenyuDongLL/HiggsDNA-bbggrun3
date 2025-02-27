@@ -191,6 +191,14 @@ class ZmmyProcessor(HggBaseProcessor):
         except KeyError:
             systematic_names = []
 
+        # save raw pt if we use scale/smearing corrections
+        s_or_s_applied = False
+        for correction in correction_names:
+            if "scale" or "smearing" in correction.lower():
+                s_or_s_applied = True
+        if s_or_s_applied:
+            events.Photon["pt_raw"] = ak.copy(events.Photon.pt)
+
         # object corrections:
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():
