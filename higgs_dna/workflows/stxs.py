@@ -182,20 +182,22 @@ class STXSProcessor(HggBaseProcessor):
         if (
             self.data_kind == "mc"
             and self.Smear_sigma_m
-            and ("Smearing" not in correction_names and "Et_dependent_Smearing" not in correction_names)
+            and ("Smearing_Trad" not in correction_names and "Smearing_IJazZ" not in correction_names and "Smearing2G_IJazZ" not in correction_names)
         ):
             warnings.warn(
-                "Smearing or Et_dependent_Smearing should be specified in the corrections field in .json in order to smear the mass!"
+                "Smearing_Trad or  Smearing_IJazZ or Smearing2G_IJazZ should be specified in the corrections field in .json in order to smear the mass!"
             )
             sys.exit(0)
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
-            if "Scale" in correction_names:
-                correction_name = "Smearing"
-            elif "Et_dependent_Scale" in correction_names:
-                correction_name = "Et_dependent_Smearing"
+            if "Scale_Trad" in correction_names:
+                correction_name = "Smearing_Trad"
+            elif "Scale_IJazZ" in correction_names:
+                correction_name = "Smearing_IJazZ"
+            elif "Scale2G_IJazZ" in correction_names:
+                correction_name = "Smearing2G_IJazZ"
             else:
                 logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
                 sys.exit(0)
@@ -208,6 +210,14 @@ class STXSProcessor(HggBaseProcessor):
             )
             varying_function = available_object_corrections[correction_name]
             events = varying_function(events=events, year=self.year[dataset_name][0])
+
+        # save raw pt if we use scale/smearing corrections
+        s_or_s_applied = False
+        for correction in correction_names:
+            if "scale" or "smearing" in correction.lower():
+                s_or_s_applied = True
+        if s_or_s_applied:
+            events.Photon["pt_raw"] = awkward.copy(events.Photon.pt)
 
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():
@@ -832,9 +842,9 @@ class STXSProcessor(HggBaseProcessor):
 
                 # decorrelate flow corrected smeared sigma_m_over_m
                 if (self.doFlow_corrections and self.Smear_sigma_m):
-                    if self.data_kind == "data" and "Et_dependent_Scale" in correction_names:
+                    if self.data_kind == "data" and "Scale_IJazZ" in correction_names:
                         diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
-                    elif self.data_kind == "mc" and "Et_dependent_Smearing" in correction_names:
+                    elif self.data_kind == "mc" and "Smearing_IJazZ" in correction_names:
                         diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
                     else:
                         diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0])

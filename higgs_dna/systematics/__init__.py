@@ -1,10 +1,10 @@
 from .photon_systematics import (
     photon_pt_scale_dummy,
-    Scale,
-    Et_dependent_Scale,
-    Smearing,
+    Scale_Trad,
+    Smearing_Trad,
+    Scale_IJazZ,
+    Smearing_IJazZ,
     energyErrShift,
-    Et_dependent_Smearing,
     FNUF,
     ShowerShape,
     Material,
@@ -51,38 +51,102 @@ object_systematics = {
             "varying_function": photon_pt_scale_dummy,
         },
     },
-    "Scale": {
+    # Traditional EGM scale and smearing
+    "Scale_Trad": {
         "object": "Photon",
         "args": {
             "kind": "UpDownSystematic",
             "what": "pt",
-            "varying_function": partial(Scale, is_correction=False),
+            "varying_function": partial(Scale_Trad, is_correction=False),
         },
     },
-    "Et_dependent_Scale": {
+    "ScaleEB_Trad": {
         "object": "Photon",
         "args": {
             "kind": "UpDownSystematic",
             "what": "pt",
-            "varying_function": partial(Et_dependent_Scale, is_correction=False),
+            "varying_function": partial(Scale_Trad, is_correction=False, restriction="EB"),
         },
     },
-    # in case ET_dependent scale uncertainties should only be applied on barrel photons
-    "Et_dependent_ScaleEB": {
+    "ScaleEE_Trad": {
         "object": "Photon",
         "args": {
             "kind": "UpDownSystematic",
             "what": "pt",
-            "varying_function": partial(Et_dependent_Scale, is_correction=False, restriction="EB"),
+            "varying_function": partial(Scale_Trad, is_correction=False, restriction="EE"),
         },
     },
-    # in case ET_dependent scale uncertainties should only be applied on endcap photons
-    "Et_dependent_ScaleEE": {
+    "Smearing_Trad": {
         "object": "Photon",
         "args": {
             "kind": "UpDownSystematic",
             "what": "pt",
-            "varying_function": partial(Et_dependent_Scale, is_correction=False, restriction="EE"),
+            "varying_function": partial(Smearing_Trad, is_correction=False),
+        },
+    },
+    # IJazZ (Fabrice et al Saclay) scale and smearing
+    "Scale_IJazZ": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Scale_IJazZ, is_correction=False, gaussians="1G", restriction=None),
+        },
+    },
+    "ScaleEB_IJazZ": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Scale_IJazZ, is_correction=False, gaussians="1G", restriction="EB"),
+        },
+    },
+    "ScaleEE_IJazZ": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Scale_IJazZ, is_correction=False, gaussians="1G", restriction="EE"),
+        },
+    },
+    "Smearing_IJazZ": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Smearing_IJazZ, is_correction=False, gaussians="1G"),
+        },
+    },
+    "Scale2G_IJazZ": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Scale_IJazZ, is_correction=False, gaussians="2G", restriction=None),
+        },
+    },
+    "ScaleEB2G_IJazZ": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Scale_IJazZ, is_correction=False, gaussians="2G", restriction="EB"),
+        },
+    },
+    "ScaleEE2G_IJazZ": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Scale_IJazZ, is_correction=False, gaussians="2G", restriction="EE"),
+        },
+    },
+    "Smearing2G_IJazZ": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Smearing_IJazZ, is_correction=False, gaussians="2G"),
         },
     },
     "Electron_Scale": {
@@ -91,40 +155,6 @@ object_systematics = {
             "kind": "UpDownSystematic",
             "what": "pt",
             "varying_function": partial(Electron_Scale, is_correction=False),
-        },
-    },
-    # in case scale uncertainties should only be applied on barrel photons
-    "ScaleEB": {
-        "object": "Photon",
-        "args": {
-            "kind": "UpDownSystematic",
-            "what": "pt",
-            "varying_function": partial(Scale, is_correction=False, restriction="EB"),
-        },
-    },
-    # in case scale uncertainties should only be applied on endcap photons
-    "ScaleEE": {
-        "object": "Photon",
-        "args": {
-            "kind": "UpDownSystematic",
-            "what": "pt",
-            "varying_function": partial(Scale, is_correction=False, restriction="EE"),
-        },
-    },
-    "Smearing": {
-        "object": "Photon",
-        "args": {
-            "kind": "UpDownSystematic",
-            "what": "pt",
-            "varying_function": partial(Smearing, is_correction=False),
-        },
-    },
-    "Et_dependent_Smearing": {
-        "object": "Photon",
-        "args": {
-            "kind": "UpDownSystematic",
-            "what": "pt",
-            "varying_function": partial(Et_dependent_Smearing, is_correction=False),
         },
     },
     "Electron_Smearing": {
@@ -196,11 +226,13 @@ object_systematics = {
 # functions correcting nominal object quantities to be placed here
 # dict containing "name": varying_function
 object_corrections = {
-    "Scale": partial(Scale, pt=None, is_correction=True),
-    "Et_dependent_Scale": partial(Et_dependent_Scale, pt=None, is_correction=True),
-    "Et_dependent_Smearing": partial(Et_dependent_Smearing, pt=None, is_correction=True),
+    "Scale": partial(Scale_Trad, pt=None, is_correction=True),
+    "Smearing": partial(Smearing_Trad, pt=None, is_correction=True),
+    "Scale_IJazZ": partial(Scale_IJazZ, pt=None, is_correction=True, gaussians="1G"),
+    "Smearing_IJazZ": partial(Smearing_IJazZ, pt=None, is_correction=True, gaussians="1G"),
+    "Scale2G_IJazZ": partial(Scale_IJazZ, pt=None, is_correction=True, gaussians="2G"),
+    "Smearing2G_IJazZ": partial(Smearing_IJazZ, pt=None, is_correction=True, gaussians="2G"),
     "Electron_Scale": partial(Electron_Scale, pt=None, is_correction=True),
-    "Smearing": partial(Smearing, pt=None, is_correction=True),
     "Electron_Smearing": partial(Electron_Smearing, pt=None, is_correction=True),
     "energyErrShift": partial(energyErrShift, energyErr=None, is_correction=True),
     "FNUF": partial(FNUF, pt=None, is_correction=True),
