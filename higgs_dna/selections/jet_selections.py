@@ -19,11 +19,11 @@ def jetIdFlags_v1213(jets, nano_version):
         # Default tight
         passJetIdTight = awkward.where(
             abs_eta <= 2.7,
-            jets.jetId & (1 << 1),  # Tight criteria for abs_eta <= 2.7
+            (jets.jetId & (1 << 1)) > 0,  # Tight criteria for abs_eta <= 2.7
             awkward.where(
                 (abs_eta > 2.7) & (abs_eta <= 3.0),
-                (jets.jetId & (1 << 1)) & (jets.neHEF < 0.99),  # Tight criteria for 2.7 < abs_eta <= 3.0
-                (jets.jetId & (1 << 1)) & (jets.neEmEF < 0.4)  # Tight criteria for 3.0 < abs_eta
+                ((jets.jetId & (1 << 1)) > 0) & (jets.neHEF < 0.99),  # Tight criteria for 2.7 < abs_eta <= 3.0
+                ((jets.jetId & (1 << 1)) > 0) & (jets.neEmEF < 0.4)  # Tight criteria for 3.0 < abs_eta
             )
         )
 
