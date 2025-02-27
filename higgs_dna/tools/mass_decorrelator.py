@@ -1,4 +1,5 @@
 import os
+import sys
 import awkward
 import pandas
 import numpy as np
@@ -27,7 +28,7 @@ def decorrelate_mass_resolution(events: awkward.Array, type: str, year, IsSAS_ET
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/nominal_sigma_m_preBPix_CDFs.pkl.gz')
         else:
             print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix")
-            exit()
+            sys.exit(1)
         df["sigma_m_over_m"] = events.sigma_m_over_m.to_numpy()
 
     elif type == "smeared":
@@ -41,7 +42,7 @@ def decorrelate_mass_resolution(events: awkward.Array, type: str, year, IsSAS_ET
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_smeared_preBPix_CDFs.pkl.gz')
         else:
             print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix")
-            exit()
+            sys.exit(1)
         df["sigma_m_over_m"] = events.sigma_m_over_m_Smeared.to_numpy()
 
     elif type == "corr":
@@ -55,33 +56,33 @@ def decorrelate_mass_resolution(events: awkward.Array, type: str, year, IsSAS_ET
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_corr_preBPix_CDFs.pkl.gz')
         else:
             print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix")
-            exit()
+            sys.exit(1)
         df["sigma_m_over_m"] = events.sigma_m_over_m_corr.to_numpy()
 
     elif type == "corr_smeared":
+        if not IsSAS_ET_Dependent:
+            print(
+                "Currently, we do not support the decorrelation for the corr_smeared for 2022 and 2023 "
+                "if you use the non-SAS ET dependent corrections. Exiting..."
+            )
+
+            sys.exit(1)
         if year == "2022postEE":
-            if IsSAS_ET_Dependent:
-                decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/Paper_postEE_CDFS_v3.pkl.gz')
-            else:
-                decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/sigma_m_smeared_corr_postEE_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/sigma_m_smeared_corr_postEE_CDFs.pkl.gz')
         elif year == "2022preEE":
-            if IsSAS_ET_Dependent:
-                decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/Paper_preEE_CDFS_v3.pkl.gz')
-            else:
-                decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/sigma_m_smeared_corr_preEE_CDFs.pkl.gz')
-        # For 2023, we only have ET-dependent
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/sigma_m_smeared_corr_preEE_CDFs.pkl.gz')
         elif year == "2023postBPix":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_smeared_corr_postBPix_CDFs.pkl.gz')
         elif year == "2023preBPix":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_smeared_corr_preBPix_CDFs.pkl.gz')
         else:
             print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix")
-            exit()
+            sys.exit(1)
         df["sigma_m_over_m"] = events.sigma_m_over_m_Smeared_corr.to_numpy()
 
     else:
         print("Specify a valid type: nominal,smeared,corr,corr_smeared")
-        exit()
+        sys.exit(1)
 
     # Reading directly the smeared sigma_m_over_m
     df["mass"] = events.mass.to_numpy()

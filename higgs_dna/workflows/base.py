@@ -354,7 +354,6 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         # These needs to be before the smearing of the mass resolution in order to have the raw pt for the function
         s_or_s_applied = False
         for correction in correction_names:
-            logger.info("There is a correction: " + correction)
             if "scale" or "smearing" in correction.lower():
                 s_or_s_applied = True
         if s_or_s_applied:
