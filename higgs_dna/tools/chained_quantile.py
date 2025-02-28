@@ -5,7 +5,7 @@ import json
 from importlib import resources
 import os
 from typing import Any, Dict, List, Optional
-import awkward
+import awkward as ak
 import numpy
 import xgboost
 
@@ -136,11 +136,11 @@ class ChainedQuantileRegression:
 
     def apply_shower_shapes(
         self,
-        photons: awkward.Array,
-        rho: awkward.Array,
+        photons: ak.Array,
+        rho: ak.Array,
         isEB: numpy.ndarray,
         isEE: numpy.ndarray,
-    ) -> awkward.Array:
+    ) -> ak.Array:
         xforms = self.transforms["shower_shapes"]
         photons["uncorr_r9"] = photons.r9
         photons["uncorr_s4"] = photons.s4
@@ -152,17 +152,17 @@ class ChainedQuantileRegression:
         # Now for the xgboosty bits.
         # r9
         irho = self.ssvs.index("fixedGridRhoAll")
-        stack_vars = [awkward.to_numpy(photons[name]) for name in self.ssvs[:irho]]
-        stack_vars.append(awkward.to_numpy(rho))
+        stack_vars = [ak.to_numpy(photons[name]) for name in self.ssvs[:irho]]
+        stack_vars.append(ak.to_numpy(rho))
         stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in self.ssvs[irho + 1 :]]
+            [ak.to_numpy(photons[name]) for name in self.ssvs[irho + 1 :]]
         )
         eval_vars = numpy.column_stack(stack_vars)
         eval_vars_eb = eval_vars[isEB]
         eval_vars_ee = eval_vars[~isEB]
 
         for var, xform in xforms.items():
-            npy = awkward.to_numpy(photons[var])
+            npy = ak.to_numpy(photons[var])
             npy[isEB] = npy[isEB] + xform["EB"](eval_vars_eb)
             npy[isEE] = npy[isEE] + xform["EE"](eval_vars_ee)
             photons[var] = npy
@@ -171,11 +171,11 @@ class ChainedQuantileRegression:
 
     def apply_photon_isolation(
         self,
-        photons: awkward.Array,
-        rho: awkward.Array,
+        photons: ak.Array,
+        rho: ak.Array,
         isEB: numpy.ndarray,
         isEE: numpy.ndarray,
-    ) -> awkward.Array:
+    ) -> ak.Array:
         xforms = self.transforms["isolations"]["phoIso"]
 
         clf_mc = xforms["peak_tail_clfs_mc"]
@@ -188,10 +188,10 @@ class ChainedQuantileRegression:
         # clfs (input variables are the same)
         clf_vars = clf_mc["EB"].variables
         irho = clf_vars.index("fixedGridRhoAll")
-        clf_stack_vars = [awkward.to_numpy(photons[name]) for name in clf_vars[:irho]]
-        clf_stack_vars.append(awkward.to_numpy(rho))
+        clf_stack_vars = [ak.to_numpy(photons[name]) for name in clf_vars[:irho]]
+        clf_stack_vars.append(ak.to_numpy(rho))
         clf_stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in clf_vars[irho + 1 :]]
+            [ak.to_numpy(photons[name]) for name in clf_vars[irho + 1 :]]
         )
         clf_eval_vars = numpy.column_stack(clf_stack_vars)
         # conversion from T[-1,1] to probability [0,1]
@@ -215,7 +215,7 @@ class ChainedQuantileRegression:
         p_peak_mc = 1 - p_tail_mc
 
         migration = numpy.random.uniform(size=clf_eval_vars.shape[0])
-        pfPhoIso = awkward.to_numpy(photons.pfPhoIso03)
+        pfPhoIso = ak.to_numpy(photons.pfPhoIso03)
 
         p_move_to_tail = (p_tail_data - p_tail_mc) / p_peak_mc
         p_move_to_peak = (p_peak_data - p_peak_mc) / p_tail_mc
@@ -231,17 +231,17 @@ class ChainedQuantileRegression:
         p2t_vars = p2t["EB"].variables
         irho = p2t_vars.index("fixedGridRhoAll")
         irnd = p2t_vars.index("peak2tail_rnd")
-        p2t_stack_vars = [awkward.to_numpy(photons[name]) for name in p2t_vars[:irho]]
-        p2t_stack_vars.append(awkward.to_numpy(rho))
+        p2t_stack_vars = [ak.to_numpy(photons[name]) for name in p2t_vars[:irho]]
+        p2t_stack_vars.append(ak.to_numpy(rho))
         p2t_stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in p2t_vars[irho + 1 : irnd]]
+            [ak.to_numpy(photons[name]) for name in p2t_vars[irho + 1 : irnd]]
         )
         # https://github.com/cms-analysis/flashgg/blob/dev_legacy_runII/Taggers/plugins/DifferentialPhoIdInputsCorrector.cc#L301
         p2t_stack_vars.append(
             numpy.random.uniform(low=0.01, high=0.99, size=clf_eval_vars.shape[0])
         )
         p2t_stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in p2t_vars[irnd + 1 :]]
+            [ak.to_numpy(photons[name]) for name in p2t_vars[irnd + 1 :]]
         )
 
         p2t_eval_vars = numpy.column_stack(p2t_stack_vars)
@@ -259,11 +259,11 @@ class ChainedQuantileRegression:
         morph_vars = morphing["EB"].variables
         irho = morph_vars.index("fixedGridRhoAll")
         morph_stack_vars = [
-            awkward.to_numpy(photons[name]) for name in morph_vars[:irho]
+            ak.to_numpy(photons[name]) for name in morph_vars[:irho]
         ]
-        morph_stack_vars.append(awkward.to_numpy(rho))
+        morph_stack_vars.append(ak.to_numpy(rho))
         morph_stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in morph_vars[irho + 1 :]]
+            [ak.to_numpy(photons[name]) for name in morph_vars[irho + 1 :]]
         )
 
         morph_eval_vars = numpy.column_stack(morph_stack_vars)
@@ -280,11 +280,11 @@ class ChainedQuantileRegression:
 
     def apply_charged_isolation(
         self,
-        photons: awkward.Array,
-        rho: awkward.Array,
+        photons: ak.Array,
+        rho: ak.Array,
         isEB: numpy.ndarray,
         isEE: numpy.ndarray,
-    ) -> awkward.Array:
+    ) -> ak.Array:
         xforms = self.transforms["isolations"]["chIso"]
 
         clf_mc = xforms["peak_tail_clfs_mc"]
@@ -300,10 +300,10 @@ class ChainedQuantileRegression:
         # clfs (input variables are the same)
         clf_vars = clf_mc["EB"].variables
         irho = clf_vars.index("fixedGridRhoAll")
-        clf_stack_vars = [awkward.to_numpy(photons[name]) for name in clf_vars[:irho]]
-        clf_stack_vars.append(awkward.to_numpy(rho))
+        clf_stack_vars = [ak.to_numpy(photons[name]) for name in clf_vars[:irho]]
+        clf_stack_vars.append(ak.to_numpy(rho))
         clf_stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in clf_vars[irho + 1 :]]
+            [ak.to_numpy(photons[name]) for name in clf_vars[irho + 1 :]]
         )
         clf_eval_vars = numpy.column_stack(clf_stack_vars)
         # ---Charge isolations
@@ -324,8 +324,8 @@ class ChainedQuantileRegression:
 
         migration = numpy.random.uniform(size=clf_eval_vars.shape[0])
         migration_subcat = numpy.random.uniform(size=clf_eval_vars.shape[0])
-        pfChgIso = awkward.to_numpy(photons.pfChargedIsoPFPV)
-        pfChgIsoWorst = awkward.to_numpy(photons.pfChargedIsoWorstVtx)
+        pfChgIso = ak.to_numpy(photons.pfChargedIsoPFPV)
+        pfChgIsoWorst = ak.to_numpy(photons.pfChargedIsoWorstVtx)
 
         can_migrate = probs_mc > probs_data
         should_migrate = migration[:, None] < (1 - probs_data / probs_mc)
@@ -353,29 +353,29 @@ class ChainedQuantileRegression:
         p2t_vars = p2t["EB"].variables
         irho = p2t_vars.index("fixedGridRhoAll")
         irnd = p2t_vars.index("peak2tail_chIso_rnd")
-        p2t_stack_vars = [awkward.to_numpy(photons[name]) for name in p2t_vars[:irho]]
-        p2t_stack_vars.append(awkward.to_numpy(rho))
+        p2t_stack_vars = [ak.to_numpy(photons[name]) for name in p2t_vars[:irho]]
+        p2t_stack_vars.append(ak.to_numpy(rho))
         p2t_stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in p2t_vars[irho + 1 : irnd]]
+            [ak.to_numpy(photons[name]) for name in p2t_vars[irho + 1 : irnd]]
         )
         # https://github.com/cms-analysis/flashgg/blob/dev_legacy_runII/Taggers/plugins/DifferentialPhoIdInputsCorrector.cc#L301
         p2t_stack_vars.append(
             numpy.random.uniform(low=0.01, high=0.99, size=clf_eval_vars.shape[0])
         )
         p2t_stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in p2t_vars[irnd + 1 :]]
+            [ak.to_numpy(photons[name]) for name in p2t_vars[irnd + 1 :]]
         )
         # worst
         p2t_worst_vars = p2t_worst["EB"].variables
         irho_worst = p2t_worst_vars.index("fixedGridRhoAll")
         irnd_worst = p2t_worst_vars.index("peak2tail_chIsoWorst_rnd")
         p2t_worst_stack_vars = [
-            awkward.to_numpy(photons[name]) for name in p2t_worst_vars[:irho_worst]
+            ak.to_numpy(photons[name]) for name in p2t_worst_vars[:irho_worst]
         ]
-        p2t_worst_stack_vars.append(awkward.to_numpy(rho))
+        p2t_worst_stack_vars.append(ak.to_numpy(rho))
         p2t_worst_stack_vars.extend(
             [
-                awkward.to_numpy(photons[name])
+                ak.to_numpy(photons[name])
                 for name in p2t_worst_vars[irho_worst + 1 : irnd_worst]
             ]
         )
@@ -385,7 +385,7 @@ class ChainedQuantileRegression:
         )
         p2t_worst_stack_vars.extend(
             [
-                awkward.to_numpy(photons[name])
+                ak.to_numpy(photons[name])
                 for name in p2t_worst_vars[irnd_worst + 1 :]
             ]
         )
@@ -503,11 +503,11 @@ class ChainedQuantileRegression:
         morph_vars = morphing["EB"].variables
         irho = morph_vars.index("fixedGridRhoAll")
         morph_stack_vars = [
-            awkward.to_numpy(photons[name]) for name in morph_vars[:irho]
+            ak.to_numpy(photons[name]) for name in morph_vars[:irho]
         ]
-        morph_stack_vars.append(awkward.to_numpy(rho))
+        morph_stack_vars.append(ak.to_numpy(rho))
         morph_stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in morph_vars[irho + 1 :]]
+            [ak.to_numpy(photons[name]) for name in morph_vars[irho + 1 :]]
         )
 
         morph_eval_vars = numpy.column_stack(morph_stack_vars)
@@ -525,11 +525,11 @@ class ChainedQuantileRegression:
         morph_worst_vars = morphing_worst["EB"].variables
         irho = morph_worst_vars.index("fixedGridRhoAll")
         morph_worst_stack_vars = [
-            awkward.to_numpy(photons[name]) for name in morph_worst_vars[:irho]
+            ak.to_numpy(photons[name]) for name in morph_worst_vars[:irho]
         ]
-        morph_worst_stack_vars.append(awkward.to_numpy(rho))
+        morph_worst_stack_vars.append(ak.to_numpy(rho))
         morph_worst_stack_vars.extend(
-            [awkward.to_numpy(photons[name]) for name in morph_worst_vars[irho + 1 :]]
+            [ak.to_numpy(photons[name]) for name in morph_worst_vars[irho + 1 :]]
         )
 
         morph_worst_eval_vars = numpy.column_stack(morph_worst_stack_vars)
@@ -544,15 +544,15 @@ class ChainedQuantileRegression:
 
         return photons
 
-    def apply(self, photons: awkward.Array, events: awkward.Array) -> awkward.Array:
+    def apply(self, photons: ak.Array, events: ak.Array) -> ak.Array:
         # We're going to work in flattened data within this
         # function. Less mind-bending.
-        rho = awkward.ones_like(photons.pt) * events.Rho.fixedGridRhoAll
-        counts = awkward.num(photons, axis=1)
-        photons = awkward.flatten(photons)
-        rho = awkward.flatten(rho)
+        rho = ak.ones_like(photons.pt) * events.Rho.fixedGridRhoAll
+        counts = ak.num(photons, axis=1)
+        photons = ak.flatten(photons)
+        rho = ak.flatten(rho)
 
-        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
         isEE = ~isEB
 
         if "shower_shapes" in self.transforms:
@@ -565,4 +565,4 @@ class ChainedQuantileRegression:
                 if "chIso" == key:
                     photons = self.apply_charged_isolation(photons, rho, isEB, isEE)
 
-        return awkward.unflatten(photons, counts)
+        return ak.unflatten(photons, counts)

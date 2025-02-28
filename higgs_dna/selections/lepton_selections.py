@@ -1,12 +1,12 @@
-import awkward
+import awkward as ak
 from higgs_dna.selections.object_selections import delta_r_mask
 
 
 def select_electrons(
     self,
-    electrons: awkward.highlevel.Array,
-    diphotons: awkward.highlevel.Array,
-) -> awkward.highlevel.Array:
+    electrons: ak.highlevel.Array,
+    diphotons: ak.highlevel.Array,
+) -> ak.highlevel.Array:
     pt_cut = electrons.pt > self.electron_pt_threshold
 
     eta_cut = abs(electrons.eta) < self.electron_max_eta
@@ -34,9 +34,9 @@ def select_electrons(
 
 def select_muons(
     self,
-    muons: awkward.highlevel.Array,
-    diphotons: awkward.highlevel.Array
-) -> awkward.highlevel.Array:
+    muons: ak.highlevel.Array,
+    diphotons: ak.highlevel.Array
+) -> ak.highlevel.Array:
     pt_cut = muons.pt > self.muon_pt_threshold
 
     eta_cut = abs(muons.eta) < self.muon_max_eta
@@ -77,9 +77,9 @@ def select_muons(
 
 def select_taus(
     self,
-    taus: awkward.highlevel.Array,
-    diphotons: awkward.highlevel.Array
-) -> awkward.highlevel.Array:
+    taus: ak.highlevel.Array,
+    diphotons: ak.highlevel.Array
+) -> ak.highlevel.Array:
     # Kinematic cuts
     pt_cut = taus.pt > self.tau_pt_threshold
     eta_cut = abs(taus.eta) < abs(self.tau_max_eta)

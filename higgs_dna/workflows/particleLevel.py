@@ -7,7 +7,7 @@ from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higg
 from higgs_dna.utils.misc_utils import choose_jet
 
 from typing import Any, Dict, List, Optional
-import awkward
+import awkward as ak
 import logging
 import warnings
 import numpy
@@ -60,10 +60,10 @@ class ParticleLevelProcessor(HggBaseProcessor):
             output_format=output_format
         )
 
-    def process_extra(self, events: awkward.Array) -> awkward.Array:
+    def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
 
-    def process(self, events: awkward.Array) -> Dict[Any, Any]:
+    def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
 
         # metadata array to append to higgsdna output
@@ -82,15 +82,15 @@ class ParticleLevelProcessor(HggBaseProcessor):
         histos_etc[dataset_name] = {}
         if self.data_kind == "mc":
             histos_etc[dataset_name]["nTot"] = int(
-                awkward.num(events.genWeight, axis=0)
+                ak.num(events.genWeight, axis=0)
             )
-            histos_etc[dataset_name]["nPos"] = int(awkward.sum(events.genWeight > 0))
-            histos_etc[dataset_name]["nNeg"] = int(awkward.sum(events.genWeight < 0))
+            histos_etc[dataset_name]["nPos"] = int(ak.sum(events.genWeight > 0))
+            histos_etc[dataset_name]["nNeg"] = int(ak.sum(events.genWeight < 0))
             histos_etc[dataset_name]["nEff"] = int(
                 histos_etc[dataset_name]["nPos"] - histos_etc[dataset_name]["nNeg"]
             )
             histos_etc[dataset_name]["genWeightSum"] = float(
-                awkward.sum(events.genWeight)
+                ak.sum(events.genWeight)
             )
         else:
             histos_etc[dataset_name]["nTot"] = int(len(events))
@@ -100,7 +100,7 @@ class ParticleLevelProcessor(HggBaseProcessor):
             histos_etc[dataset_name]["genWeightSum"] = float(len(events))
 
         # Add sum of gen weights before selection for normalisation in postprocessing
-        metadata["sum_genw_presel"] = str(awkward.sum(events.genWeight))
+        metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
 
         # read which systematics and corrections to process
         try:
@@ -124,9 +124,9 @@ class ParticleLevelProcessor(HggBaseProcessor):
                 continue
 
         # Filling with some dummy values
-        diphotons = awkward.Array({"pt": numpy.ones(len(events))})
+        diphotons = ak.Array({"pt": numpy.ones(len(events))})
 
-        events["GenIsolatedPhoton"] = awkward.pad_none(events["GenIsolatedPhoton"], 2)
+        events["GenIsolatedPhoton"] = ak.pad_none(events["GenIsolatedPhoton"], 2)
 
         diphotons["leadingGenIsolatedPhoton_pt"] = events.GenIsolatedPhoton[:,0].pt
         diphotons["leadingGenIsolatedPhoton_eta"] = events.GenIsolatedPhoton[:,0].eta
@@ -141,7 +141,7 @@ class ParticleLevelProcessor(HggBaseProcessor):
         diphotons['GenPTH'], diphotons['GenYH'], diphotons['GenPhiH'] = get_higgs_gen_attributes(events)
 
         genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
-        diphotons['GenNJ'] = awkward.num(genJets)
+        diphotons['GenNJ'] = ak.num(genJets)
         diphotons['GenPTJ0'] = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
 
         # workflow specific processing

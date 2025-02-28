@@ -38,7 +38,7 @@ import operator
 import os
 import warnings
 from typing import Any, Dict, List, Optional
-import awkward
+import awkward as ak
 import numpy
 import sys
 import vector
@@ -245,10 +245,10 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
             warnings.warn(f"Could not instantiate diphoton MVA: {e}")
             self.diphoton_mva = None
 
-    def process_extra(self, events: awkward.Array) -> awkward.Array:
+    def process_extra(self, events: ak.Array) -> ak.Array:
         raise NotImplementedError
 
-    def apply_filters_and_triggers(self, events: awkward.Array) -> awkward.Array:
+    def apply_filters_and_triggers(self, events: ak.Array) -> ak.Array:
         # met filters
         met_filters = self.meta["flashggMetFilters"][self.data_kind]
         filtered = functools.reduce(
@@ -256,7 +256,7 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
             (events.Flag[metfilter.split("_")[-1]] for metfilter in met_filters),
         )
 
-        triggered = awkward.ones_like(filtered)
+        triggered = ak.ones_like(filtered)
         if self.apply_trigger:
             trigger_names = []
             triggers = self.meta["TriggerPaths"][self.trigger_group][self.analysis]
@@ -272,15 +272,15 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
 
         return events[filtered & triggered]
 
-    def process(self, events: awkward.Array) -> Dict[Any, Any]:
+    def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
 
         # Filter to remove overlap from bkg samples
         if ("QCD" in dataset_name) or ("GJet" in dataset_name):
             if "QCD" in dataset_name:
-                MC_filter = (awkward.num(events.Photon.pt[events.Photon.genPartFlav == 1]) == 0)
+                MC_filter = (ak.num(events.Photon.pt[events.Photon.genPartFlav == 1]) == 0)
             else:
-                MC_filter = (awkward.num(events.Photon.pt[events.Photon.genPartFlav == 1]) <= 1)
+                MC_filter = (ak.num(events.Photon.pt[events.Photon.genPartFlav == 1]) <= 1)
             logger.debug("MC filter to remove overlap betwee GG GJ and JJ samples")
             logger.debug(f"Sample: {dataset_name}")
             logger.debug(f"Photons.genPartFlav = {events.Photon.genPartFlav}")
@@ -298,15 +298,15 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
         histos_etc[dataset_name] = {}
         if self.data_kind == "mc":
             histos_etc[dataset_name]["nTot"] = int(
-                awkward.num(events.genWeight, axis=0)
+                ak.num(events.genWeight, axis=0)
             )
-            histos_etc[dataset_name]["nPos"] = int(awkward.sum(events.genWeight > 0))
-            histos_etc[dataset_name]["nNeg"] = int(awkward.sum(events.genWeight < 0))
+            histos_etc[dataset_name]["nPos"] = int(ak.sum(events.genWeight > 0))
+            histos_etc[dataset_name]["nNeg"] = int(ak.sum(events.genWeight < 0))
             histos_etc[dataset_name]["nEff"] = int(
                 histos_etc[dataset_name]["nPos"] - histos_etc[dataset_name]["nNeg"]
             )
             histos_etc[dataset_name]["genWeightSum"] = float(
-                awkward.sum(events.genWeight)
+                ak.sum(events.genWeight)
             )
         else:
             histos_etc[dataset_name]["nTot"] = int(len(events))
@@ -335,7 +335,7 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
         if self.data_kind == "mc":
             logger.info("processing MC dataset")
             # Add sum of gen weights before selection for normalisation in postprocessing
-            metadata["sum_genw_presel"] = str(awkward.sum(events.genWeight))
+            metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
         else:
             logger.info("processing Data dataset")
             metadata["sum_genw_presel"] = "Data"
@@ -517,8 +517,8 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
             diphotons = apply_fiducial_cut_det_level(self, diphotons)
 
             # preselection, require at least one candidate
-            dipho_presel_cut = awkward.num(diphotons["mass"]) >= 1
-            dipho_num = awkward.num(diphotons["mass"])
+            dipho_presel_cut = ak.num(diphotons["mass"]) >= 1
+            dipho_num = ak.num(diphotons["mass"])
 
             if self.data_kind == "mc":
 
@@ -527,9 +527,9 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                 diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
 
                 GenPTH, GenYH, GenPhiH = get_higgs_gen_attributes(events)
-                GenPTH = awkward.fill_none(GenPTH, -999.0)
+                GenPTH = ak.fill_none(GenPTH, -999.0)
 
-            diphotons = awkward.firsts(diphotons)
+            diphotons = ak.firsts(diphotons)
             diphotons["n_dipho_cand"] = dipho_num
 
             # select only events with a candidate
@@ -544,37 +544,37 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
             logger.info(f"selected number of events  after diphoton preselection {len(dipho_events)}")
 
             # jet_variables
-            jets = awkward.zip(
+            jets = ak.zip(
                 {
                     "pt": jets.pt,
                     "eta": jets.eta,
                     "phi": jets.phi,
                     "mass": jets.mass,
                     "charge": jets.chEmEF,
-                    "hFlav": jets.hadronFlavour if self.data_kind == "mc" else awkward.ones_like(jets.pt) * -1.,
-                    "particleNetAK4_CvsL": jets.particleNetAK4_CvsL if hasattr(jets, "particleNetAK4_CvsL") else awkward.ones_like(jets.pt) * -1.,
-                    "particleNetAK4_CvsB": jets.particleNetAK4_CvsB if hasattr(jets, "particleNetAK4_CvsB") else awkward.ones_like(jets.pt) * -1.,
-                    "particleNetAK4_B": jets.particleNetAK4_B if hasattr(jets, "particleNetAK4_B") else awkward.ones_like(jets.pt) * -1.,
+                    "hFlav": jets.hadronFlavour if self.data_kind == "mc" else ak.ones_like(jets.pt) * -1.,
+                    "particleNetAK4_CvsL": jets.particleNetAK4_CvsL if hasattr(jets, "particleNetAK4_CvsL") else ak.ones_like(jets.pt) * -1.,
+                    "particleNetAK4_CvsB": jets.particleNetAK4_CvsB if hasattr(jets, "particleNetAK4_CvsB") else ak.ones_like(jets.pt) * -1.,
+                    "particleNetAK4_B": jets.particleNetAK4_B if hasattr(jets, "particleNetAK4_B") else ak.ones_like(jets.pt) * -1.,
                     "btagDeepFlav_B": jets.btagDeepFlavB,
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
                     "jetId": jets.jetId,
-                    "n_sv": jets.nSVs if hasattr(jets, "nSVs") else awkward.ones_like(jets.pt) * -1.,
-                    "n_muons": jets.nMuons if hasattr(jets, "nMuons") else awkward.ones_like(jets.pt) * -1.,
-                    "n_electrons": jets.nElectrons if hasattr(jets, "nElectrons") else awkward.ones_like(jets.pt) * -1.,
-                    "nConst": jets.nConstituents if hasattr(jets, "nConstituents") else awkward.ones_like(jets.pt) * -1.,
-                    "neHEF": jets.neHEF if hasattr(jets, "neHEF") else awkward.ones_like(jets.pt) * -1.,
-                    "neEmEF": jets.neEmEF if hasattr(jets, "neEmEF") else awkward.ones_like(jets.pt) * -1.,
-                    "chHEF": jets.chHEF if hasattr(jets, "chHEF") else awkward.ones_like(jets.pt) * -1.,
-                    "chEmEF": jets.neHEF if hasattr(jets, "chEmEF") else awkward.ones_like(jets.pt) * -1.,
+                    "n_sv": jets.nSVs if hasattr(jets, "nSVs") else ak.ones_like(jets.pt) * -1.,
+                    "n_muons": jets.nMuons if hasattr(jets, "nMuons") else ak.ones_like(jets.pt) * -1.,
+                    "n_electrons": jets.nElectrons if hasattr(jets, "nElectrons") else ak.ones_like(jets.pt) * -1.,
+                    "nConst": jets.nConstituents if hasattr(jets, "nConstituents") else ak.ones_like(jets.pt) * -1.,
+                    "neHEF": jets.neHEF if hasattr(jets, "neHEF") else ak.ones_like(jets.pt) * -1.,
+                    "neEmEF": jets.neEmEF if hasattr(jets, "neEmEF") else ak.ones_like(jets.pt) * -1.,
+                    "chHEF": jets.chHEF if hasattr(jets, "chHEF") else ak.ones_like(jets.pt) * -1.,
+                    "chEmEF": jets.neHEF if hasattr(jets, "chEmEF") else ak.ones_like(jets.pt) * -1.,
                 }
             )
-            jets = awkward.with_name(jets, "PtEtaPhiMCandidate")
+            jets = ak.with_name(jets, "PtEtaPhiMCandidate")
             if not hasattr(jets, "particleNetAK4_CvsL"):
                 logger.info("your jet collection doesn't have the PNet score fields")
 
-            electrons = awkward.zip(
+            electrons = ak.zip(
                 {
                     "pt": dipho_events.Electron.pt,
                     "eta": dipho_events.Electron.eta,
@@ -586,9 +586,9 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                     "mvaIso_WPL": dipho_events.Electron.mvaIso_Fall17V2_WPL if hasattr(dipho_events.Electron, "mvaIso_Fall17V2_WPL") else dipho_events.Electron.mvaIso_WP80,
                 }
             )
-            electrons = awkward.with_name(electrons, "PtEtaPhiMCandidate")
+            electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
 
-            muons = awkward.zip(
+            muons = ak.zip(
                 {
                     "pt": dipho_events.Muon.pt,
                     "eta": dipho_events.Muon.eta,
@@ -602,9 +602,9 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                     "pfIsoId": dipho_events.Muon.pfIsoId
                 }
             )
-            muons = awkward.with_name(muons, "PtEtaPhiMCandidate")
+            muons = ak.with_name(muons, "PtEtaPhiMCandidate")
 
-            sv = awkward.zip(
+            sv = ak.zip(
                 {
                     "pt": dipho_events.SV.pt,
                     "eta": dipho_events.SV.eta,
@@ -624,7 +624,7 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                     "ntracks": dipho_events.SV.ntracks,
                 }
             )
-            sv = awkward.with_name(sv, "PtEtaPhiMCandidate")
+            sv = ak.with_name(sv, "PtEtaPhiMCandidate")
 
             # lepton cleaning
             sel_electrons = electrons[
@@ -638,9 +638,9 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
             ]
 
             # sort diphotons by pT
-            jets = jets[awkward.argsort(jets.pt, ascending=False, axis=1)]
+            jets = jets[ak.argsort(jets.pt, ascending=False, axis=1)]
 
-            n_jets = awkward.num(jets)
+            n_jets = ak.num(jets)
 
             first_jet_pt = choose_jet(jets.pt, 0, -999.0)
             first_jet_eta = choose_jet(jets.eta, 0, -999.0)
@@ -733,10 +733,10 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
             # Deal with order of tagger priorities
             # Turn from diphoton jagged array to whether or not an event was selected
             if len(self.taggers):
-                counts = awkward.num(diphotons.pt, axis=1)
+                counts = ak.num(diphotons.pt, axis=1)
                 flat_tags = numpy.stack(
                     (
-                        awkward.flatten(
+                        ak.flatten(
                             diphotons[
                                 "_".join([tagger.name, str(tagger.priority)])
                             ]
@@ -745,15 +745,15 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                     ),
                     axis=1,
                 )
-                tags = awkward.from_regular(
-                    awkward.unflatten(flat_tags, counts), axis=2
+                tags = ak.from_regular(
+                    ak.unflatten(flat_tags, counts), axis=2
                 )
-                winner = awkward.min(tags[tags != 0], axis=2)
+                winner = ak.min(tags[tags != 0], axis=2)
                 diphotons["best_tag"] = winner
 
                 # lowest priority is most important (ascending sort)
                 # leave in order of diphoton pT in case of ties (stable sort)
-                sorted = awkward.argsort(diphotons.best_tag, stable=True)
+                sorted = ak.argsort(diphotons.best_tag, stable=True)
                 diphotons = diphotons[sorted]
 
             # set diphotons as part of the event record
@@ -763,8 +763,8 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
             diphotons["lumi"] = dipho_events.luminosityBlock
             diphotons["run"] = dipho_events.run
             # nPV just for validation of pileup reweighting
-            diphotons["nPV"] = dipho_events.PV.npvs if not self.data_kind else awkward.ones_like(dipho_events.event)
-            diphotons["nPU"] = dipho_events.Pileup.nPU if not self.data_kind else awkward.ones_like(dipho_events.event)
+            diphotons["nPV"] = dipho_events.PV.npvs if not self.data_kind else ak.ones_like(dipho_events.event)
+            diphotons["nPU"] = dipho_events.Pileup.nPU if not self.data_kind else ak.ones_like(dipho_events.event)
             diphotons["rho"] = dipho_events.Rho.fixedGridRhoAll
 
             # here I add lead jet to event because I need it for cTagSF evaluation
@@ -774,7 +774,7 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
             dipho_events["first_jet_phi"] = first_jet_phi
             dipho_events["first_jet_mass"] = first_jet_mass
             dipho_events["first_jet_charge"] = first_jet_charge
-            dipho_events["first_jet_hFlav"] = awkward.values_astype(first_jet_hFlav, numpy.int)
+            dipho_events["first_jet_hFlav"] = ak.values_astype(first_jet_hFlav, numpy.int)
             dipho_events["first_jet_DeepFlavour_CvsL"] = first_jet_DeepFlavour_CvsL
             dipho_events["first_jet_DeepFlavour_CvsB"] = first_jet_DeepFlavour_CvsB
 
@@ -793,7 +793,7 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                 diphotons["HTXS_stage_0"] = dipho_events.HTXS.stage_0
             # Fill zeros for data because there is no GenVtx for data, obviously
             else:
-                diphotons["dZ"] = awkward.zeros_like(dipho_events.PV.z)
+                diphotons["dZ"] = ak.zeros_like(dipho_events.PV.z)
 
             # list of field to dump to pandas
             fields = []
@@ -801,12 +801,12 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
             # drop events without a tag, if there are tags
             if len(self.taggers):
                 selection_mask = ~(
-                    awkward.is_none(diphotons)
-                    | awkward.is_none(diphotons.best_tag)
+                    ak.is_none(diphotons)
+                    | ak.is_none(diphotons.best_tag)
                 )
                 diphotons = diphotons[selection_mask]
             else:
-                selection_mask = ~awkward.is_none(diphotons)
+                selection_mask = ~ak.is_none(diphotons)
                 diphotons = diphotons[selection_mask]
             # return if there is no surviving events
             if len(diphotons) == 0:
@@ -816,7 +816,7 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
                 event_weights = Weights(size=len(dipho_events[selection_mask]), storeIndividual=True)
                 # set weights to generator weights
-                event_weights._weight = awkward.to_numpy(events["genWeight"][selection_mask])
+                event_weights._weight = ak.to_numpy(events["genWeight"][selection_mask])
 
                 # corrections to event weights:
                 for correction_name in correction_names:
@@ -843,7 +843,7 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                             )
                             if systematic_name == "LHEScale":
                                 if hasattr(dipho_events, "LHEScaleWeight"):
-                                    diphotons["nweight_LHEScale"] = awkward.num(
+                                    diphotons["nweight_LHEScale"] = ak.num(
                                         dipho_events.LHEScaleWeight[selection_mask],
                                         axis=1,
                                     )
@@ -858,7 +858,7 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                                 if hasattr(dipho_events, "LHEPdfWeight"):
                                     # two AlphaS weights are removed
                                     diphotons["nweight_LHEPdf"] = (
-                                        awkward.num(
+                                        ak.num(
                                             dipho_events.LHEPdfWeight[selection_mask],
                                             axis=1,
                                         )
@@ -892,10 +892,10 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                 diphotons["genWeight"] = dipho_events[selection_mask].genWeight
 
                 metadata["sum_weight_central"] = str(
-                    awkward.sum(event_weights.weight())
+                    ak.sum(event_weights.weight())
                 )
                 metadata["sum_weight_central_wo_bTagSF"] = str(
-                    awkward.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
+                    ak.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
                 )
 
                 # Store variations with respect to central weight
@@ -910,16 +910,16 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
                         )
                         if ("bTagSF" in modifier):
                             metadata["sum_weight_" + modifier] = str(
-                                awkward.sum(event_weights.weight(modifier=modifier))
+                                ak.sum(event_weights.weight(modifier=modifier))
                             )
 
             # Add weight variables (=1) for data for consistent datasets
             else:
-                diphotons["weight_central"] = awkward.ones_like(
+                diphotons["weight_central"] = ak.ones_like(
                     diphotons["event"]
                 )
-                diphotons["weight"] = awkward.ones_like(diphotons["event"])
-                diphotons["genWeight"] = awkward.ones_like(diphotons["event"])
+                diphotons["weight"] = ak.ones_like(diphotons["event"])
+                diphotons["genWeight"] = ak.ones_like(diphotons["event"])
 
             # Compute and store the different variations of sigma_m_over_m
             diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m, IsData=(self.data_kind == "data"))
@@ -1045,8 +1045,8 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
         pass
 
     def add_diphoton_mva(
-        self, diphotons: awkward.Array, events: awkward.Array
-    ) -> awkward.Array:
+        self, diphotons: ak.Array, events: ak.Array
+    ) -> ak.Array:
         return calculate_diphoton_mva(
             self,
             (self.diphoton_mva, self.meta["HiggsDNA_DiPhotonMVA"]["inputs"]),
@@ -1055,69 +1055,69 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
         )
 
     def add_photonid_mva(
-        self, photons: awkward.Array, events: awkward.Array
-    ) -> awkward.Array:
-        photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll * awkward.ones_like(
+        self, photons: ak.Array, events: ak.Array
+    ) -> ak.Array:
+        photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll * ak.ones_like(
             photons.pt
         )
-        counts = awkward.num(photons, axis=-1)
-        photons = awkward.flatten(photons)
-        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        counts = ak.num(photons, axis=-1)
+        photons = ak.flatten(photons)
+        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
         mva_EB = calculate_photonid_mva(
             (self.photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]), photons
         )
         mva_EE = calculate_photonid_mva(
             (self.photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]), photons
         )
-        mva = awkward.where(isEB, mva_EB, mva_EE)
+        mva = ak.where(isEB, mva_EB, mva_EE)
         photons["mvaID"] = mva
 
-        return awkward.unflatten(photons, counts)
+        return ak.unflatten(photons, counts)
 
     def add_photonid_mva_run3(
-        self, photons: awkward.Array, events: awkward.Array
-    ) -> awkward.Array:
+        self, photons: ak.Array, events: ak.Array
+    ) -> ak.Array:
 
         preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
         photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
 
-        rho = events.Rho.fixedGridRhoAll * awkward.ones_like(photons.pt)
-        rho = awkward.flatten(rho)
+        rho = events.Rho.fixedGridRhoAll * ak.ones_like(photons.pt)
+        rho = ak.flatten(rho)
 
-        photons = awkward.flatten(photons)
+        photons = ak.flatten(photons)
 
-        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
         mva_EB = calculate_photonid_mva_run3(
             [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]], photons , rho
         )
         mva_EE = calculate_photonid_mva_run3(
             [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]], photons, rho
         )
-        mva = awkward.where(isEB, mva_EB, mva_EE)
+        mva = ak.where(isEB, mva_EB, mva_EE)
         photons["mvaID_run3"] = mva
 
         return mva
 
     def add_corr_photonid_mva_run3(
-        self, photons: awkward.Array, events: awkward.Array
-    ) -> awkward.Array:
+        self, photons: ak.Array, events: ak.Array
+    ) -> ak.Array:
 
         preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
         photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
 
-        rho = events.Rho.fixedGridRhoAll * awkward.ones_like(photons.pt)
-        rho = awkward.flatten(rho)
+        rho = events.Rho.fixedGridRhoAll * ak.ones_like(photons.pt)
+        rho = ak.flatten(rho)
 
-        photons = awkward.flatten(photons)
+        photons = ak.flatten(photons)
 
         # Now calculating the corrected mvaID
-        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
         corr_mva_EB = calculate_photonid_mva_run3(
             [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB_corr"]], photons, rho
         )
         corr_mva_EE = calculate_photonid_mva_run3(
             [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE_corr"]], photons, rho
         )
-        corr_mva = awkward.where(isEB, corr_mva_EB, corr_mva_EE)
+        corr_mva = ak.where(isEB, corr_mva_EB, corr_mva_EE)
 
         return corr_mva

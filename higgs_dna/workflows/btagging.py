@@ -39,7 +39,7 @@ import operator
 import os
 import warnings
 from typing import Any, Dict, List, Optional
-import awkward
+import awkward as ak
 import numpy
 import sys
 import vector
@@ -98,7 +98,7 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
             output_format=output_format
         )
 
-    def process(self, events: awkward.Array) -> Dict[Any, Any]:
+    def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
 
         # data or monte carlo?
@@ -110,15 +110,15 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
         histos_etc[dataset_name] = {}
         if self.data_kind == "mc":
             histos_etc[dataset_name]["nTot"] = int(
-                awkward.num(events.genWeight, axis=0)
+                ak.num(events.genWeight, axis=0)
             )
-            histos_etc[dataset_name]["nPos"] = int(awkward.sum(events.genWeight > 0))
-            histos_etc[dataset_name]["nNeg"] = int(awkward.sum(events.genWeight < 0))
+            histos_etc[dataset_name]["nPos"] = int(ak.sum(events.genWeight > 0))
+            histos_etc[dataset_name]["nNeg"] = int(ak.sum(events.genWeight < 0))
             histos_etc[dataset_name]["nEff"] = int(
                 histos_etc[dataset_name]["nPos"] - histos_etc[dataset_name]["nNeg"]
             )
             histos_etc[dataset_name]["genWeightSum"] = float(
-                awkward.sum(events.genWeight)
+                ak.sum(events.genWeight)
             )
         else:
             histos_etc[dataset_name]["nTot"] = int(len(events))
@@ -141,7 +141,7 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
 
         if self.data_kind == "mc":
             # Add sum of gen weights before selection for normalisation in postprocessing
-            metadata["sum_genw_presel"] = str(awkward.sum(events.genWeight))
+            metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
         else:
             metadata["sum_genw_presel"] = "Data"
 
@@ -332,11 +332,11 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
 
                 GenPTH, GenYH, GenPhiH = get_higgs_gen_attributes(events)
 
-                GenPTH = awkward.fill_none(GenPTH, -999.0)
+                GenPTH = ak.fill_none(GenPTH, -999.0)
                 diphotons['GenPTH'] = GenPTH
 
                 genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
-                diphotons['GenNJ'] = awkward.num(genJets)
+                diphotons['GenNJ'] = ak.num(genJets)
                 GenPTJ0 = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
                 diphotons['GenPTJ0'] = GenPTJ0
 
@@ -346,8 +346,8 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
 
                 genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 2.5)
                 genBJetCondition = genJetCondition & (genJets.hadronFlavour == 5)
-                genJets = awkward.with_field(genJets, genBJetCondition, "GenIsBJet")
-                num_bjets = awkward.sum(genJets["GenIsBJet"], axis=-1)
+                genJets = ak.with_field(genJets, genBJetCondition, "GenIsBJet")
+                num_bjets = ak.sum(genJets["GenIsBJet"], axis=-1)
                 diphotons["GenNBJet"] = num_bjets
 
                 gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
@@ -364,12 +364,12 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
                 # and the Run 2 recommendations for the bjets
                 genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 2.5)
                 genBJetCondition = genJetCondition & (genJets.hadronFlavour == 5)
-                genJets = awkward.with_field(genJets, genBJetCondition, "GenIsBJet")
+                genJets = ak.with_field(genJets, genBJetCondition, "GenIsBJet")
                 genCJetCondition = genJetCondition & (genJets.hadronFlavour == 4)
-                genJets = awkward.with_field(genJets, genCJetCondition, "GenIsCJet")
+                genJets = ak.with_field(genJets, genCJetCondition, "GenIsCJet")
                 genLJetCondition = genJetCondition & (genJets.hadronFlavour == 0)
-                genJets = awkward.with_field(genJets, genLJetCondition, "GenIsLJet")
-                num_bjets = awkward.sum(genJets["GenIsBJet"], axis=-1)
+                genJets = ak.with_field(genJets, genLJetCondition, "GenIsLJet")
+                num_bjets = ak.sum(genJets["GenIsBJet"], axis=-1)
                 diphotons["GenNBJet"] = num_bjets
 
                 gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
@@ -381,38 +381,38 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
                 with numpy.errstate(divide='ignore', invalid='ignore'):
                     GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
 
-                GenYJ0 = awkward.fill_none(GenYJ0, -999)
-                GenYJ0 = awkward.where(numpy.isnan(GenYJ0), -999, GenYJ0)
+                GenYJ0 = ak.fill_none(GenYJ0, -999)
+                GenYJ0 = ak.where(numpy.isnan(GenYJ0), -999, GenYJ0)
                 diphotons['GenYJ0'] = GenYJ0
 
-                GenYH = awkward.fill_none(GenYH, -999)
-                GenYH = awkward.where(numpy.isnan(GenYH), -999, GenYH)
+                GenYH = ak.fill_none(GenYH, -999)
+                GenYH = ak.where(numpy.isnan(GenYH), -999, GenYH)
                 diphotons['GenYH'] = GenYH
 
                 GenAbsPhiHJ0 = numpy.abs(gen_first_jet_phi - GenPhiH)
 
                 # Set all entries above 2*pi to -999
-                GenAbsPhiHJ0 = awkward.where(
+                GenAbsPhiHJ0 = ak.where(
                     GenAbsPhiHJ0 > 2 * numpy.pi,
                     -999,
                     GenAbsPhiHJ0
                 )
-                GenAbsPhiHJ0_pi_array = awkward.full_like(GenAbsPhiHJ0, 2 * numpy.pi)
+                GenAbsPhiHJ0_pi_array = ak.full_like(GenAbsPhiHJ0, 2 * numpy.pi)
 
                 # Select the smallest angle
-                GenAbsPhiHJ0 = awkward.where(
+                GenAbsPhiHJ0 = ak.where(
                     GenAbsPhiHJ0 > numpy.pi,
                     GenAbsPhiHJ0_pi_array - GenAbsPhiHJ0,
                     GenAbsPhiHJ0
                 )
-                GenAbsPhiHJ0 = awkward.fill_none(GenAbsPhiHJ0, -999.0)
+                GenAbsPhiHJ0 = ak.fill_none(GenAbsPhiHJ0, -999.0)
 
                 diphotons["GenDPhiHJ0"] = GenAbsPhiHJ0
 
                 GenAbsYHJ0 = numpy.abs(GenYJ0 - GenYH)
 
                 # Set all entries above 500 to -999
-                GenAbsYHJ0 = awkward.where(
+                GenAbsYHJ0 = ak.where(
                     GenAbsYHJ0 > 500,
                     -999,
                     GenAbsYHJ0
@@ -435,17 +435,17 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
             }
 
             # jet_variables
-            jets = awkward.zip(
+            jets = ak.zip(
                 {
                     "pt": jets.pt,
                     "eta": jets.eta,
                     "phi": jets.phi,
                     "mass": jets.mass,
-                    "charge": awkward.zeros_like(
+                    "charge": ak.zeros_like(
                         jets.pt
                     ),
                     **btagMVA_selection.get(self.bjet_mva, {}),
-                    "hFlav": jets.hadronFlavour if self.data_kind == "mc" else awkward.zeros_like(jets.pt),
+                    "hFlav": jets.hadronFlavour if self.data_kind == "mc" else ak.zeros_like(jets.pt),
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
@@ -458,9 +458,9 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
                     ),
                 }
             )
-            jets = awkward.with_name(jets, "PtEtaPhiMCandidate")
+            jets = ak.with_name(jets, "PtEtaPhiMCandidate")
 
-            electrons = awkward.zip(
+            electrons = ak.zip(
                 {
                     "pt": events.Electron.pt,
                     "eta": events.Electron.eta,
@@ -472,12 +472,12 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
                     "mvaIso_WP80": events.Electron.mvaIso_WP80,
                 }
             )
-            electrons = awkward.with_name(electrons, "PtEtaPhiMCandidate")
+            electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
 
             # Special cut for base workflow to replicate iso cut for electrons also for muons
             events['Muon'] = events.Muon[events.Muon.pfRelIso03_all < 0.2]
 
-            muons = awkward.zip(
+            muons = ak.zip(
                 {
                     "pt": events.Muon.pt,
                     "eta": events.Muon.eta,
@@ -491,7 +491,7 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
                     "pfIsoId": events.Muon.pfIsoId
                 }
             )
-            muons = awkward.with_name(muons, "PtEtaPhiMCandidate")
+            muons = ak.with_name(muons, "PtEtaPhiMCandidate")
 
             # lepton cleaning
             sel_electrons = electrons[
@@ -503,7 +503,7 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
             jets = jets[
                 select_jets(self, jets, diphotons, sel_muons, sel_electrons)
             ]
-            jets = jets[awkward.argsort(jets.pt, ascending=False)]
+            jets = jets[ak.argsort(jets.pt, ascending=False)]
 
             # adding selected jets to events to be used in ctagging SF calculation
             events["sel_jets"] = jets
@@ -529,8 +529,8 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
 
             # B-Jets
             bJetCondition = (jets.pt > 30) & (abs(jets.eta) < 2.5) & (jets[btag_mva_column] >= btag_WP)
-            jets = awkward.with_field(jets, bJetCondition, "IsBJet")
-            num_bjets = awkward.sum(jets["IsBJet"], axis=-1)
+            jets = ak.with_field(jets, bJetCondition, "IsBJet")
+            num_bjets = ak.sum(jets["IsBJet"], axis=-1)
             diphotons["NBJet"] = num_bjets
 
             # Efficiency variables
@@ -538,35 +538,35 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
 
             bJetCondition_bjet = (selected_bjets.pt > 30) & (numpy.abs(selected_bjets.eta) < 2.5) & (selected_bjets[btag_mva_column] >= btag_WP)
             jetCondition_bjet = (selected_bjets.pt > 30) & (numpy.abs(selected_bjets.eta) < 2.5)
-            num_bjets_bjet = awkward.num(selected_bjets[bJetCondition_bjet])
+            num_bjets_bjet = ak.num(selected_bjets[bJetCondition_bjet])
             diphotons["NBJet_GenBJet"] = num_bjets_bjet
-            num_jets_bjet = awkward.num(selected_bjets[jetCondition_bjet])
+            num_jets_bjet = ak.num(selected_bjets[jetCondition_bjet])
             diphotons["NJet_GenBJet"] = num_jets_bjet
 
-            genBJets_selected_bjets_pt_list = awkward.flatten(selected_bjets[bJetCondition_bjet].pt.to_list())
-            genJets_selected_bjets_pt_list = awkward.flatten(selected_bjets[jetCondition_bjet].pt.to_list())
+            genBJets_selected_bjets_pt_list = ak.flatten(selected_bjets[bJetCondition_bjet].pt.to_list())
+            genJets_selected_bjets_pt_list = ak.flatten(selected_bjets[jetCondition_bjet].pt.to_list())
 
             selected_cjets = jets[jets.hFlav == 4]
             bJetCondition_cjet = (selected_cjets.pt > 30) & (numpy.abs(selected_cjets.eta) < 2.5) & (selected_cjets[btag_mva_column] >= btag_WP)
             jetCondition_cjet = (selected_cjets.pt > 30) & (numpy.abs(selected_cjets.eta) < 2.5)
-            num_bjets_cjet = awkward.num(selected_cjets[bJetCondition_cjet])
+            num_bjets_cjet = ak.num(selected_cjets[bJetCondition_cjet])
             diphotons["NBJet_GenCJet"] = num_bjets_cjet
-            num_jets_cjet = awkward.num(selected_cjets[jetCondition_cjet])
+            num_jets_cjet = ak.num(selected_cjets[jetCondition_cjet])
             diphotons["NJet_GenCJet"] = num_jets_cjet
 
-            genCJets_selected_cjets_pt_list = awkward.flatten(selected_cjets[bJetCondition_cjet].pt.to_list())
-            genJets_selected_cjets_pt_list = awkward.flatten(selected_cjets[jetCondition_cjet].pt.to_list())
+            genCJets_selected_cjets_pt_list = ak.flatten(selected_cjets[bJetCondition_cjet].pt.to_list())
+            genJets_selected_cjets_pt_list = ak.flatten(selected_cjets[jetCondition_cjet].pt.to_list())
 
             selected_ljets = jets[jets.hFlav == 0]
             bJetCondition_ljet = (selected_ljets.pt > 30) & (numpy.abs(selected_ljets.eta) < 2.5) & (selected_ljets[btag_mva_column] >= btag_WP)
             jetCondition_ljet = (selected_ljets.pt > 30) & (numpy.abs(selected_ljets.eta) < 2.5)
-            num_bjets_ljet = awkward.num(selected_ljets[bJetCondition_ljet])
+            num_bjets_ljet = ak.num(selected_ljets[bJetCondition_ljet])
             diphotons["NBJet_GenLJet"] = num_bjets_ljet
-            num_jets_ljet = awkward.num(selected_ljets[jetCondition_ljet])
+            num_jets_ljet = ak.num(selected_ljets[jetCondition_ljet])
             diphotons["NJet_GenLJet"] = num_jets_ljet
 
-            genLJets_selected_ljets_pt_list = awkward.flatten(selected_ljets[bJetCondition_ljet].pt.to_list())
-            genJets_selected_ljets_pt_list = awkward.flatten(selected_ljets[jetCondition_ljet].pt.to_list())
+            genLJets_selected_ljets_pt_list = ak.flatten(selected_ljets[bJetCondition_ljet].pt.to_list())
+            genJets_selected_ljets_pt_list = ak.flatten(selected_ljets[jetCondition_ljet].pt.to_list())
 
             selected_jets_pt_dict = {
                 "genBJet_recoBJet": genBJets_selected_bjets_pt_list,
@@ -610,7 +610,7 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
 
         return histos_etc
 
-    def apply_filters_and_triggers(self, events: awkward.Array) -> awkward.Array:
+    def apply_filters_and_triggers(self, events: ak.Array) -> ak.Array:
         # met filters
         met_filters = self.meta["flashggMetFilters"][self.data_kind]
         filtered = functools.reduce(
@@ -618,7 +618,7 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
             (events.Flag[metfilter.split("_")[-1]] for metfilter in met_filters),
         )
 
-        triggered = awkward.ones_like(filtered)
+        triggered = ak.ones_like(filtered)
         if self.apply_trigger:
             trigger_names = []
             triggers = self.meta["TriggerPaths"][self.trigger_group][self.analysis]
@@ -635,8 +635,8 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
         return events[filtered & triggered]
 
     def add_diphoton_mva(
-        self, diphotons: awkward.Array, events: awkward.Array
-    ) -> awkward.Array:
+        self, diphotons: ak.Array, events: ak.Array
+    ) -> ak.Array:
         return calculate_diphoton_mva(
             (self.diphoton_mva, self.meta["flashggDiPhotonMVA"]["inputs"]),
             diphotons,
@@ -644,74 +644,74 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
         )
 
     def add_photonid_mva(
-        self, photons: awkward.Array, events: awkward.Array
-    ) -> awkward.Array:
-        photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll * awkward.ones_like(
+        self, photons: ak.Array, events: ak.Array
+    ) -> ak.Array:
+        photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll * ak.ones_like(
             photons.pt
         )
-        counts = awkward.num(photons, axis=-1)
-        photons = awkward.flatten(photons)
-        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        counts = ak.num(photons, axis=-1)
+        photons = ak.flatten(photons)
+        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
         mva_EB = calculate_photonid_mva(
             (self.photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]), photons
         )
         mva_EE = calculate_photonid_mva(
             (self.photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]), photons
         )
-        mva = awkward.where(isEB, mva_EB, mva_EE)
+        mva = ak.where(isEB, mva_EB, mva_EE)
         photons["mvaID"] = mva
 
-        return awkward.unflatten(photons, counts)
+        return ak.unflatten(photons, counts)
 
     def add_photonid_mva_run3(
-        self, photons: awkward.Array, events: awkward.Array
-    ) -> awkward.Array:
+        self, photons: ak.Array, events: ak.Array
+    ) -> ak.Array:
 
         preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
         photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
 
-        rho = events.Rho.fixedGridRhoAll * awkward.ones_like(photons.pt)
-        rho = awkward.flatten(rho)
+        rho = events.Rho.fixedGridRhoAll * ak.ones_like(photons.pt)
+        rho = ak.flatten(rho)
 
-        photons = awkward.flatten(photons)
+        photons = ak.flatten(photons)
 
-        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
         mva_EB = calculate_photonid_mva_run3(
             [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]], photons , rho
         )
         mva_EE = calculate_photonid_mva_run3(
             [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]], photons, rho
         )
-        mva = awkward.where(isEB, mva_EB, mva_EE)
+        mva = ak.where(isEB, mva_EB, mva_EE)
         photons["mvaID_run3"] = mva
 
         return mva
 
     def add_corr_photonid_mva_run3(
-        self, photons: awkward.Array, events: awkward.Array
-    ) -> awkward.Array:
+        self, photons: ak.Array, events: ak.Array
+    ) -> ak.Array:
 
         preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
         photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
 
-        rho = events.Rho.fixedGridRhoAll * awkward.ones_like(photons.pt)
-        rho = awkward.flatten(rho)
+        rho = events.Rho.fixedGridRhoAll * ak.ones_like(photons.pt)
+        rho = ak.flatten(rho)
 
-        photons = awkward.flatten(photons)
+        photons = ak.flatten(photons)
 
         # Now calculating the corrected mvaID
-        isEB = awkward.to_numpy(numpy.abs(photons.eta) < 1.5)
+        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
         corr_mva_EB = calculate_photonid_mva_run3(
             [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB_corr"]], photons, rho
         )
         corr_mva_EE = calculate_photonid_mva_run3(
             [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE_corr"]], photons, rho
         )
-        corr_mva = awkward.where(isEB, corr_mva_EB, corr_mva_EE)
+        corr_mva = ak.where(isEB, corr_mva_EB, corr_mva_EE)
 
         return corr_mva
 
-    def process_extra(self, events: awkward.Array) -> awkward.Array:
+    def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
 
     def postprocess(self, accumulant: Dict[Any, Any]) -> Any:

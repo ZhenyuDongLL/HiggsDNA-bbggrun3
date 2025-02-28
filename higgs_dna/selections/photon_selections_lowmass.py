@@ -1,4 +1,4 @@
-import awkward
+import awkward as ak
 import numpy
 
 
@@ -6,14 +6,14 @@ import numpy
 # cuts (pt, eta, sieie, mvaID, iso... etc)
 #
 def photon_preselection_lowmass(
-    self, photons: awkward.Array, events: awkward.Array, year="2023"
-) -> awkward.Array:
+    self, photons: ak.Array, events: ak.Array, year="2023"
+) -> ak.Array:
     """
     Apply preselection cuts to photons.
     Note that these selections are applied on each photon, it is not based on the diphoton pair.
     """
     # hlt-mimicking cuts
-    rho = events.Rho.fixedGridRhoAll * awkward.ones_like(photons.pt)
+    rho = events.Rho.fixedGridRhoAll * ak.ones_like(photons.pt)
     photon_abs_eta = numpy.abs(photons.eta)
     if year in ["2016", "2016PreVFP", "2016PostVFP", "2017", "2018"]:
         # Run 2, use standard photon preselection

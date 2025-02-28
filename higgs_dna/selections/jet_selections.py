@@ -1,5 +1,5 @@
 from higgs_dna.selections.object_selections import delta_r_mask
-import awkward
+import awkward as ak
 import correctionlib
 import os
 from coffea.analysis_tools import PackedSelection
@@ -17,10 +17,10 @@ def jetIdFlags_v1213(jets, nano_version):
 
     if nano_version == 12:
         # Default tight
-        passJetIdTight = awkward.where(
+        passJetIdTight = ak.where(
             abs_eta <= 2.7,
             (jets.jetId & (1 << 1)) > 0,  # Tight criteria for abs_eta <= 2.7
-            awkward.where(
+            ak.where(
                 (abs_eta > 2.7) & (abs_eta <= 3.0),
                 ((jets.jetId & (1 << 1)) > 0) & (jets.neHEF < 0.99),  # Tight criteria for 2.7 < abs_eta <= 3.0
                 ((jets.jetId & (1 << 1)) > 0) & (jets.neEmEF < 0.4)  # Tight criteria for 3.0 < abs_eta
@@ -28,24 +28,24 @@ def jetIdFlags_v1213(jets, nano_version):
         )
 
         # Default tight lepton veto
-        passJetIdTightLepVeto = awkward.where(
+        passJetIdTightLepVeto = ak.where(
             abs_eta <= 2.7,
             passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),  # add lepton veto for abs_eta <= 2.7
             passJetIdTight  # No lepton veto for 2.7 < abs_eta
         )
     else:
         # Default tight for NanoAOD version 13
-        passJetIdTight = awkward.where(
+        passJetIdTight = ak.where(
             abs_eta <= 2.6,
             (jets.neHEF < 0.99)
             & (jets.neEmEF < 0.9)
             & (jets.chMultiplicity + jets.neMultiplicity > 1)
             & (jets.chHEF > 0.01)
             & (jets.chMultiplicity > 0),  # Tight criteria for abs_eta <= 2.6
-            awkward.where(
+            ak.where(
                 (abs_eta > 2.6) & (abs_eta <= 2.7),
                 (jets.neHEF < 0.9) & (jets.neEmEF < 0.99),  # Tight criteria for 2.6 < abs_eta <= 2.7
-                awkward.where(
+                ak.where(
                     (abs_eta > 2.7) & (abs_eta <= 3.0),
                     jets.neHEF < 0.99,  # Tight criteria for 2.7 < abs_eta <= 3.0
                     (jets.neMultiplicity >= 2) & (jets.neEmEF < 0.4)  # Tight criteria for abs_eta > 3.0
@@ -54,7 +54,7 @@ def jetIdFlags_v1213(jets, nano_version):
         )
 
         # Default tight lepton veto
-        passJetIdTightLepVeto = awkward.where(
+        passJetIdTightLepVeto = ak.where(
             abs_eta <= 2.7,
             passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),  # add lepton veto for abs_eta <= 2.7
             passJetIdTight  # No lepton veto for 2.7 < abs_eta
@@ -109,12 +109,12 @@ def getBTagMVACut(mva_name, mva_wp, year):
 
 def select_jets(
     self,
-    jets: awkward.highlevel.Array,
-    diphotons: awkward.highlevel.Array,
-    muons: awkward.highlevel.Array,
-    electrons: awkward.highlevel.Array,
-    taus: awkward.highlevel.Array = None,
-) -> awkward.highlevel.Array:
+    jets: ak.highlevel.Array,
+    diphotons: ak.highlevel.Array,
+    muons: ak.highlevel.Array,
+    electrons: ak.highlevel.Array,
+    taus: ak.highlevel.Array = None,
+) -> ak.highlevel.Array:
     # jet id selection: https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
     if (self.nano_version == 12) or (self.nano_version == 13):
         passJetIdTight, passJetIdTightLepVeto = jetIdFlags_v1213(jets, self.nano_version)
@@ -125,7 +125,7 @@ def select_jets(
             logger.info("Applying jetID recipe of NanoAOD version %s", self.nano_version)
             jetId_cut = passJetIdTight & passJetIdTightLepVeto
         else:
-            jetId_cut = awkward.ones_like(jets.pt) > 0
+            jetId_cut = ak.ones_like(jets.pt) > 0
             logger.warning("[ select_jets ] - No JetId applied")
     else:
         if self.jet_jetId == "tight":
@@ -133,19 +133,19 @@ def select_jets(
         elif self.jet_jetId == "tightLepVeto":
             jetId_cut = jets.jetId == 6
         else:
-            jetId_cut = awkward.ones_like(jets.pt) > 0
+            jetId_cut = ak.ones_like(jets.pt) > 0
             logger.warning("[ select_jets ] - No JetId applied")
     logger.debug(
-        f"[ select_jets ] - Total: {awkward.sum(awkward.flatten((awkward.ones_like(jets.pt) > 0)))} - Pass tight jetId: {awkward.sum(awkward.flatten(jetId_cut))}"
+        f"[ select_jets ] - Total: {ak.sum(ak.flatten((ak.ones_like(jets.pt) > 0)))} - Pass tight jetId: {ak.sum(ak.flatten(jetId_cut))}"
     )
     pt_cut = jets.pt > self.jet_pt_threshold
     eta_cut = abs(jets.eta) < self.jet_max_eta
-    dr_dipho_cut = awkward.ones_like(pt_cut) > 0
-    if (self.clean_jet_dipho) & (awkward.num(diphotons.pt, axis=0) > 0):
+    dr_dipho_cut = ak.ones_like(pt_cut) > 0
+    if (self.clean_jet_dipho) & (ak.num(diphotons.pt, axis=0) > 0):
         dr_dipho_cut = delta_r_mask(jets, diphotons, self.jet_dipho_min_dr)
 
-    if (self.clean_jet_pho) & (awkward.num(diphotons.pt, axis=0) > 0):
-        lead = awkward.zip(
+    if (self.clean_jet_pho) & (ak.num(diphotons.pt, axis=0) > 0):
+        lead = ak.zip(
             {
                 "pt": diphotons.pho_lead.pt,
                 "eta": diphotons.pho_lead.eta,
@@ -154,8 +154,8 @@ def select_jets(
                 "charge": diphotons.pho_lead.charge,
             }
         )
-        lead = awkward.with_name(lead, "PtEtaPhiMCandidate")
-        sublead = awkward.zip(
+        lead = ak.with_name(lead, "PtEtaPhiMCandidate")
+        sublead = ak.zip(
             {
                 "pt": diphotons.pho_sublead.pt,
                 "eta": diphotons.pho_sublead.eta,
@@ -164,25 +164,25 @@ def select_jets(
                 "charge": diphotons.pho_sublead.charge,
             }
         )
-        sublead = awkward.with_name(sublead, "PtEtaPhiMCandidate")
+        sublead = ak.with_name(sublead, "PtEtaPhiMCandidate")
         dr_pho_lead_cut = delta_r_mask(jets, lead, self.jet_pho_min_dr)
         dr_pho_sublead_cut = delta_r_mask(jets, sublead, self.jet_pho_min_dr)
     else:
         dr_pho_lead_cut = jets.pt > -1
         dr_pho_sublead_cut = jets.pt > -1
 
-    if (self.clean_jet_ele) & (awkward.num(electrons.pt, axis=0) > 0):
+    if (self.clean_jet_ele) & (ak.num(electrons.pt, axis=0) > 0):
         dr_electrons_cut = delta_r_mask(jets, electrons, self.jet_ele_min_dr)
     else:
         dr_electrons_cut = jets.pt > -1
 
-    if (self.clean_jet_muo) & (awkward.num(muons.pt, axis=0) > 0):
+    if (self.clean_jet_muo) & (ak.num(muons.pt, axis=0) > 0):
         dr_muons_cut = delta_r_mask(jets, muons, self.jet_muo_min_dr)
     else:
         dr_muons_cut = jets.pt > -1
 
     if taus is not None:
-        if (self.clean_jet_tau) & (awkward.num(taus.pt, axis=0) > 0):
+        if (self.clean_jet_tau) & (ak.num(taus.pt, axis=0) > 0):
             dr_taus_cut = delta_r_mask(jets, taus, self.jet_tau_min_dr)
         else:
             dr_taus_cut = jets.pt > -1
@@ -204,20 +204,20 @@ def select_jets(
 
 def select_fatjets(
     self,
-    fatjets: awkward.highlevel.Array,
-    diphotons: awkward.highlevel.Array,
-    muons: awkward.highlevel.Array,
-    electrons: awkward.highlevel.Array,
-) -> awkward.highlevel.Array:
+    fatjets: ak.highlevel.Array,
+    diphotons: ak.highlevel.Array,
+    muons: ak.highlevel.Array,
+    electrons: ak.highlevel.Array,
+) -> ak.highlevel.Array:
     # same as select_jets(), but uses fatjet variables
     pt_cut = fatjets.pt > self.fatjet_pt_threshold
     eta_cut = abs(fatjets.eta) < self.fatjet_max_eta
-    dr_dipho_cut = awkward.ones_like(pt_cut) > 0
-    if self.clean_fatjet_dipho & (awkward.num(diphotons.pt, axis=0) > 0):
+    dr_dipho_cut = ak.ones_like(pt_cut) > 0
+    if self.clean_fatjet_dipho & (ak.num(diphotons.pt, axis=0) > 0):
         dr_dipho_cut = delta_r_mask(fatjets, diphotons, self.fatjet_dipho_min_dr)
 
-    if (self.clean_fatjet_pho) & (awkward.num(diphotons.pt, axis=0) > 0):
-        lead = awkward.zip(
+    if (self.clean_fatjet_pho) & (ak.num(diphotons.pt, axis=0) > 0):
+        lead = ak.zip(
             {
                 "pt": diphotons.pho_lead.pt,
                 "eta": diphotons.pho_lead.eta,
@@ -226,8 +226,8 @@ def select_fatjets(
                 "charge": diphotons.pho_lead.charge,
             }
         )
-        lead = awkward.with_name(lead, "PtEtaPhiMCandidate")
-        sublead = awkward.zip(
+        lead = ak.with_name(lead, "PtEtaPhiMCandidate")
+        sublead = ak.zip(
             {
                 "pt": diphotons.pho_sublead.pt,
                 "eta": diphotons.pho_sublead.eta,
@@ -236,19 +236,19 @@ def select_fatjets(
                 "charge": diphotons.pho_sublead.charge,
             }
         )
-        sublead = awkward.with_name(sublead, "PtEtaPhiMCandidate")
+        sublead = ak.with_name(sublead, "PtEtaPhiMCandidate")
         dr_pho_lead_cut = delta_r_mask(fatjets, lead, self.fatjet_pho_min_dr)
         dr_pho_sublead_cut = delta_r_mask(fatjets, sublead, self.fatjet_pho_min_dr)
     else:
         dr_pho_lead_cut = fatjets.pt > -1
         dr_pho_sublead_cut = fatjets.pt > -1
 
-    if (self.clean_fatjet_ele) & (awkward.num(electrons.pt, axis=0) > 0):
+    if (self.clean_fatjet_ele) & (ak.num(electrons.pt, axis=0) > 0):
         dr_electrons_cut = delta_r_mask(fatjets, electrons, self.fatjet_ele_min_dr)
     else:
         dr_electrons_cut = fatjets.pt > -1
 
-    if (self.clean_fatjet_muo) & (awkward.num(muons.pt, axis=0) > 0):
+    if (self.clean_fatjet_muo) & (ak.num(muons.pt, axis=0) > 0):
         dr_muons_cut = delta_r_mask(fatjets, muons, self.fatjet_muo_min_dr)
     else:
         dr_muons_cut = fatjets.pt > -1
@@ -350,8 +350,8 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
     jets_jagged = jets_jagged[
         (jets_jagged.eta >= low_eta) & (jets_jagged.eta < high_eta)
     ]
-    count = awkward.num(jets_jagged)
-    jets = awkward.flatten(jets_jagged)
+    count = ak.num(jets_jagged)
+    jets = ak.flatten(jets_jagged)
 
     cset = correctionlib.CorrectionSet.from_file(json_dict[year])
 
@@ -371,14 +371,14 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
     sel_obj.add("vetomap", (np.abs(vetomap) > 0) | (flag_veto_jet))
 
     sel_veto_jet = sel_obj.all(*(sel_obj.names))
-    sel_good_jet = ~awkward.Array(sel_veto_jet)
+    sel_good_jet = ~ak.Array(sel_veto_jet)
     logger.debug(
-        f"[{systematic}] total: {len(sel_good_jet)}, pass: {awkward.sum(sel_good_jet)}"
+        f"[{systematic}] total: {len(sel_good_jet)}, pass: {ak.sum(sel_good_jet)}"
     )
-    sel_good_jet_jagged = awkward.unflatten(sel_good_jet, count)
-    flag_veto_jet_jagged = awkward.unflatten(flag_veto_jet, count)
+    sel_good_jet_jagged = ak.unflatten(sel_good_jet, count)
+    flag_veto_jet_jagged = ak.unflatten(flag_veto_jet, count)
 
-    sel_event_veto = ~awkward.any(flag_veto_jet_jagged, axis=1)
+    sel_event_veto = ~ak.any(flag_veto_jet_jagged, axis=1)
 
     # Apply the veto mask, preserving all fields
     filtered_events = events[sel_event_veto]
@@ -387,6 +387,6 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
     filtered_events["Jet"] = (jets_jagged[sel_good_jet_jagged])[sel_event_veto]
 
     logger.debug(
-        f"[{systematic}] total event: {len(sel_event_veto)}, pass event: {awkward.sum(sel_event_veto)}"
+        f"[{systematic}] total event: {len(sel_event_veto)}, pass event: {ak.sum(sel_event_veto)}"
     )
     return filtered_events

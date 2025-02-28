@@ -1,15 +1,15 @@
 from higgs_dna.selections.object_selections import delta_r_mask
-import awkward
+import awkward as ak
 
 
 def match_sv(
     self,
-    jets: awkward.highlevel.Array,
-    sv: awkward.highlevel.Array,
+    jets: ak.highlevel.Array,
+    sv: ak.highlevel.Array,
     lead_only: bool
-) -> awkward.highlevel.Array:
+) -> ak.highlevel.Array:
     if lead_only:
-        jets = awkward.firsts(jets)
+        jets = ak.firsts(jets)
     dr_max = 0.4
     dr_dipho_cut = delta_r_mask(sv, jets, dr_max)
 

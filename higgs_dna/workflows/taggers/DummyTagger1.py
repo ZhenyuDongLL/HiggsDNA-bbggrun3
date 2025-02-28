@@ -1,4 +1,4 @@
-import awkward
+import awkward as ak
 import numpy
 
 
@@ -17,10 +17,10 @@ class DummyTagger1:
         return 20
 
     def __call__(
-        self, events: awkward.Array, diphotons: awkward.Array
-    ) -> awkward.Array:
+        self, events: ak.Array, diphotons: ak.Array
+    ) -> ak.Array:
         # Baseline example for subcategorization:
         return (
-            self.priority * awkward.ones_like(diphotons.pt, dtype=numpy.int32),
+            self.priority * ak.ones_like(diphotons.pt, dtype=numpy.int32),
             {},
         )

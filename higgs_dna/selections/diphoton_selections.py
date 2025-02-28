@@ -1,4 +1,4 @@
-import awkward
+import awkward as ak
 import numpy
 import warnings
 
@@ -15,12 +15,12 @@ def build_diphoton_candidates(photons, min_pt_lead_photon):
         awkward.Array: The diphoton candidate collection with calculated kinematic properties.
     """
     # Sort photons in descending order of pT
-    sorted_photons = photons[awkward.argsort(photons.pt, ascending=False)]
+    sorted_photons = photons[ak.argsort(photons.pt, ascending=False)]
     # Ensure a 'charge' field exists; default to zero if not provided
-    sorted_photons["charge"] = awkward.zeros_like(sorted_photons.pt)
+    sorted_photons["charge"] = ak.zeros_like(sorted_photons.pt)
 
     # Create all possible pairs of photons (combinations) with fields "pho_lead" and "pho_sublead"
-    diphotons = awkward.combinations(sorted_photons, 2, fields=["pho_lead", "pho_sublead"])
+    diphotons = ak.combinations(sorted_photons, 2, fields=["pho_lead", "pho_sublead"])
 
     # Apply the cut on the leading photon's pT
     diphotons = diphotons[diphotons["pho_lead"].pt > min_pt_lead_photon]
@@ -39,15 +39,15 @@ def build_diphoton_candidates(photons, min_pt_lead_photon):
     diphotons["rapidity"] = 0.5 * numpy.log((diphoton_e + diphoton_pz) / (diphoton_e - diphoton_pz))
 
     # Sort diphoton candidates by pT in descending order
-    diphotons = diphotons[awkward.argsort(diphotons.pt, ascending=False)]
+    diphotons = diphotons[ak.argsort(diphotons.pt, ascending=False)]
 
     return diphotons
 
 
 def apply_fiducial_cut_det_level(
     self,
-    diphotons: awkward.Array,
-) -> awkward.Array:
+    diphotons: ak.Array,
+) -> ak.Array:
     lead_rel_iso = diphotons.pho_lead.pfRelIso03_all if hasattr(diphotons.pho_lead, "pfRelIso03_all") else diphotons.pho_lead.pfRelIso03_all_quadratic  # photons.pfRelIso03_chg for v11, photons.pfRelIso03_chg_quadratic v12 and above
     sublead_rel_iso = diphotons.pho_sublead.pfRelIso03_all if hasattr(diphotons.pho_sublead, "pfRelIso03_all") else diphotons.pho_sublead.pfRelIso03_all_quadratic  # photons.pfRelIso03_chg for v11, photons.pfRelIso03_chg_quadratic v12 and above
     # Determine if event passes fiducial Hgg cuts at detector-level

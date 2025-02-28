@@ -1,7 +1,7 @@
 import warnings
 from typing import List, Optional, Tuple
 
-import awkward
+import awkward as ak
 import numpy
 import xgboost
 
@@ -18,8 +18,8 @@ def load_photonid_mva(fname: str) -> Optional[xgboost.Booster]:
 
 def calculate_photonid_mva(
     mva: Tuple[Optional[xgboost.Booster], List[str]],
-    photon: awkward.Array,
-) -> awkward.Array:
+    photon: ak.Array,
+) -> ak.Array:
     """Recompute PhotonIDMVA on-the-fly. This step is necessary considering that the inputs have to be corrected
     with the QRC process. Following is the list of features (barrel has 12, endcap two more):
     EB:
@@ -43,11 +43,11 @@ def calculate_photonid_mva(
     photonid_mva, var_order = mva
 
     if photonid_mva is None:
-        return awkward.ones_like(photon.pt)
+        return ak.ones_like(photon.pt)
 
     bdt_inputs = {}
     bdt_inputs = numpy.column_stack(
-        [awkward.to_numpy(photon[name]) for name in var_order]
+        [ak.to_numpy(photon[name]) for name in var_order]
     )
     tempmatrix = xgboost.DMatrix(bdt_inputs, feature_names=var_order)
 
@@ -80,8 +80,8 @@ def load_photonid_mva_run3(fname: str) -> Optional[xgboost.Booster]:
 
 def calculate_photonid_mva_run3(
     mva: Tuple[Optional[xgboost.Booster], List[str]],
-    photon: awkward.Array, rho,
-) -> awkward.Array:
+    photon: ak.Array, rho,
+) -> ak.Array:
 
     """Recompute PhotonIDMVA on-the-fly. This step is necessary considering that the inputs have to be corrected
     with the QRC process. Following is the list of features (barrel has 12, endcap two more):
@@ -129,11 +129,11 @@ def calculate_photonid_mva_run3(
     photonid_mva, var_order = mva
 
     if photonid_mva is None:
-        return awkward.ones_like(photon.pt)
+        return ak.ones_like(photon.pt)
 
     bdt_inputs = {}
     bdt_inputs = numpy.column_stack(
-        [awkward.to_numpy(photon[name]) for name in var_order]
+        [ak.to_numpy(photon[name]) for name in var_order]
     )
 
     tempmatrix = xgboost.DMatrix(bdt_inputs)

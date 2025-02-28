@@ -11,7 +11,7 @@ from higgs_dna.tools.flow_corrections import apply_flow_corrections_to_photons
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from typing import Any, Dict, List, Optional
-import awkward
+import awkward as ak
 import logging
 import functools
 import warnings
@@ -92,7 +92,7 @@ class ZeeProcessor(HggBaseProcessor):
     def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
         pass
 
-    def process(self, events: awkward.Array) -> Dict[Any, Any]:
+    def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
 
         # data or monte carlo?
@@ -104,15 +104,15 @@ class ZeeProcessor(HggBaseProcessor):
         histos_etc[dataset_name] = {}
         if self.data_kind == "mc":
             histos_etc[dataset_name]["nTot"] = int(
-                awkward.num(events.genWeight, axis=0)
+                ak.num(events.genWeight, axis=0)
             )
-            histos_etc[dataset_name]["nPos"] = int(awkward.sum(events.genWeight > 0))
-            histos_etc[dataset_name]["nNeg"] = int(awkward.sum(events.genWeight < 0))
+            histos_etc[dataset_name]["nPos"] = int(ak.sum(events.genWeight > 0))
+            histos_etc[dataset_name]["nNeg"] = int(ak.sum(events.genWeight < 0))
             histos_etc[dataset_name]["nEff"] = int(
                 histos_etc[dataset_name]["nPos"] - histos_etc[dataset_name]["nNeg"]
             )
             histos_etc[dataset_name]["genWeightSum"] = float(
-                awkward.sum(events.genWeight)
+                ak.sum(events.genWeight)
             )
         else:
             histos_etc[dataset_name]["nTot"] = int(len(events))
@@ -140,7 +140,7 @@ class ZeeProcessor(HggBaseProcessor):
 
         if self.data_kind == "mc":
             # Add sum of gen weights before selection for normalisation in postprocessing
-            metadata["sum_genw_presel"] = str(awkward.sum(events.genWeight))
+            metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
         else:
             metadata["sum_genw_presel"] = "Data"
 
@@ -177,7 +177,7 @@ class ZeeProcessor(HggBaseProcessor):
 
         # Matching photons eta and phi to electrons and making basic selection
         events["Photon"] = events.Photon[events.Photon.electronIdx > -1]
-        events = events[awkward.num(events.Photon) >= 2]
+        events = events[ak.num(events.Photon) >= 2]
 
         # Need to add ScEta for scale and smear corrections
         matched_electrons = events.Electron[events.Photon.electronIdx]
@@ -190,7 +190,7 @@ class ZeeProcessor(HggBaseProcessor):
         events.Electron = matched_electrons
 
         # save raw pt
-        events.Photon = awkward.with_field(events.Photon, awkward.copy(events.Photon.pt), "pt_raw")
+        events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -388,19 +388,19 @@ class ZeeProcessor(HggBaseProcessor):
             }
 
             # jet_variables
-            jets = awkward.zip(
+            jets = ak.zip(
                 {
                     "pt": jets.pt,
                     "eta": jets.eta,
                     "phi": jets.phi,
                     "mass": jets.mass,
-                    "charge": awkward.zeros_like(
+                    "charge": ak.zeros_like(
                         jets.pt
                     ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
                     **btagMVA_selection.get(self.bjet_mva, {}),
                     "hFlav": jets.hadronFlavour
                     if self.data_kind == "mc"
-                    else awkward.zeros_like(jets.pt),
+                    else ak.zeros_like(jets.pt),
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
@@ -413,9 +413,9 @@ class ZeeProcessor(HggBaseProcessor):
                     ),
                 }
             )
-            jets = awkward.with_name(jets, "PtEtaPhiMCandidate")
+            jets = ak.with_name(jets, "PtEtaPhiMCandidate")
 
-            electrons = awkward.zip(
+            electrons = ak.zip(
                 {
                     "pt": events.Electron.pt,
                     "eta": events.Electron.eta,
@@ -427,12 +427,12 @@ class ZeeProcessor(HggBaseProcessor):
                     "mvaIso_WP80": events.Electron.mvaIso_WP80,
                 }
             )
-            electrons = awkward.with_name(electrons, "PtEtaPhiMCandidate")
+            electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
 
             # Special cut for base workflow to replicate iso cut for electrons also for muons
             events['Muon'] = events.Muon[events.Muon.pfRelIso03_all < 0.2]
 
-            muons = awkward.zip(
+            muons = ak.zip(
                 {
                     "pt": events.Muon.pt,
                     "eta": events.Muon.eta,
@@ -446,7 +446,7 @@ class ZeeProcessor(HggBaseProcessor):
                     "pfIsoId": events.Muon.pfIsoId
                 }
             )
-            muons = awkward.with_name(muons, "PtEtaPhiMCandidate")
+            muons = ak.with_name(muons, "PtEtaPhiMCandidate")
 
             # lepton cleaning
             sel_electrons = electrons[
@@ -458,12 +458,12 @@ class ZeeProcessor(HggBaseProcessor):
             jets = jets[
                 select_jets(self, jets, diphotons, sel_muons, sel_electrons)
             ]
-            jets = jets[awkward.argsort(jets.pt, ascending=False)]
+            jets = jets[ak.argsort(jets.pt, ascending=False)]
 
             # adding selected jets to events to be used in ctagging SF calculation
             events["sel_jets"] = jets
-            n_jets = awkward.num(jets)
-            Njets2p5 = awkward.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 2.5)])
+            n_jets = ak.num(jets)
+            Njets2p5 = ak.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 2.5)])
 
             # B-Jets
             btag_WP = getBTagMVACut(mva_name=self.bjet_mva,
@@ -473,8 +473,8 @@ class ZeeProcessor(HggBaseProcessor):
             btag_mva_column = list(btagMVA_selection[self.bjet_mva].keys())[0]
 
             bJetCondition = (jets.pt > 30) & (abs(jets.eta) < 2.5) & (jets[btag_mva_column] >= btag_WP)
-            jets = awkward.with_field(jets, bJetCondition, f"{self.bjet_mva}_IsBJet")
-            num_bjets = awkward.sum(jets[f"{self.bjet_mva}_IsBJet"], axis=-1)
+            jets = ak.with_field(jets, bJetCondition, f"{self.bjet_mva}_IsBJet")
+            num_bjets = ak.sum(jets[f"{self.bjet_mva}_IsBJet"], axis=-1)
             diphotons[f"{self.bjet_mva}_NBJet"] = num_bjets
 
             first_bjet_pt = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True].pt, 0, -999.0)
@@ -513,7 +513,7 @@ class ZeeProcessor(HggBaseProcessor):
             diphotons["n_jets"] = n_jets
             diphotons["Njets2p5"] = Njets2p5
 
-            diphotons = awkward.firsts(diphotons)
+            diphotons = ak.firsts(diphotons)
             # set diphotons as part of the event record
             events[f"diphotons_{do_variation}"] = diphotons
             # annotate diphotons with event information
@@ -529,12 +529,12 @@ class ZeeProcessor(HggBaseProcessor):
                 diphotons["dZ"] = events.GenVtx.z - events.PV.z
             # Fill zeros for data because there is no GenVtx for data, obviously
             else:
-                diphotons["dZ"] = awkward.zeros_like(events.PV.z)
+                diphotons["dZ"] = ak.zeros_like(events.PV.z)
 
             # drop events without a preselected diphoton candidate
             # drop events without a tag, if there are tags
 
-            selection_mask = ~awkward.is_none(diphotons)
+            selection_mask = ~ak.is_none(diphotons)
             diphotons = diphotons[selection_mask]
 
             # return if there is no surviving events
@@ -545,7 +545,7 @@ class ZeeProcessor(HggBaseProcessor):
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
                 event_weights = Weights(size=len(events[selection_mask]),storeIndividual=True)
                 # set weights to generator weights
-                event_weights._weight = awkward.to_numpy(events["genWeight"][selection_mask])
+                event_weights._weight = ak.to_numpy(events["genWeight"][selection_mask])
 
                 # corrections to event weights:
                 for correction_name in correction_names:
@@ -603,10 +603,10 @@ class ZeeProcessor(HggBaseProcessor):
 
             # Add weight variables (=1) for data for consistent datasets
             else:
-                diphotons["weight_central"] = awkward.ones_like(
+                diphotons["weight_central"] = ak.ones_like(
                     diphotons["event"]
                 )
-                diphotons["weight"] = awkward.ones_like(diphotons["event"])
+                diphotons["weight"] = ak.ones_like(diphotons["event"])
 
             # Compute and store the different variations of sigma_m_over_m
             diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m, IsData=(self.data_kind == "data"))

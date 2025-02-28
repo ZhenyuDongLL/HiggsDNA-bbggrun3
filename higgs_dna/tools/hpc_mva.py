@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple
 
-import awkward
+import awkward as ak
 import numpy
 import xgboost as xgb
 import logging
@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 def calculate_ch_vs_ggh_mva(
     self,
     mva: Tuple[Tuple[Optional[xgb.Booster], Optional[xgb.Booster]], List[str]],
-    diphotons: awkward.Array,
-    events: awkward.Array,
-) -> awkward.Array:
+    diphotons: ak.Array,
+    events: ak.Array,
+) -> ak.Array:
     """
     Calculate cH vs ggH bdt scores for events.
     """
@@ -22,7 +22,7 @@ def calculate_ch_vs_ggh_mva(
         return diphotons, events
     elif len(diphotons) == 0:
         logger.info("no events surviving event selection, adding fake ch vs ggh bdt score")
-        diphotons["ch_vs_ggh_bdt_score"] = awkward.zeros_like(diphotons.mass)
+        diphotons["ch_vs_ggh_bdt_score"] = ak.zeros_like(diphotons.mass)
         return diphotons, events
 
     ch_vs_ggh = []
@@ -49,7 +49,7 @@ def calculate_ch_vs_ggh_mva(
     events_bdt["leadingJet_pt"] = diphotons.first_jet_pt
     events_bdt["leadingJet_eta"] = diphotons.first_jet_eta
 
-    lead_jets = awkward.zip(
+    lead_jets = ak.zip(
         {
             "pt": diphotons.first_jet_pt,
             "eta": diphotons.first_jet_eta,
@@ -58,7 +58,7 @@ def calculate_ch_vs_ggh_mva(
             "charge": diphotons.first_jet_charge
         }
     )
-    lead_jets = awkward.with_name(lead_jets, "PtEtaPhiMCandidate")
+    lead_jets = ak.with_name(lead_jets, "PtEtaPhiMCandidate")
 
     lpj_dphi = diphotons[pho_lead].delta_phi(lead_jets)
     spj_dphi = diphotons[pho_sublead].delta_phi(lead_jets)
@@ -66,14 +66,14 @@ def calculate_ch_vs_ggh_mva(
     events_bdt["DeltaPhi_gamma1_cjet"] = lpj_dphi
     events_bdt["DeltaPhi_gamma2_cjet"] = spj_dphi
 
-    events_bdt["nJets_revised"] = awkward.where(
+    events_bdt["nJets_revised"] = ak.where(
         diphotons.n_jets > 3,
-        awkward.ones_like(diphotons.n_jets) * 3,
+        ak.ones_like(diphotons.n_jets) * 3,
         diphotons.n_jets
     )
 
     for name in var_order:
-        events_bdt[name] = awkward.fill_none(events_bdt[name], -999.0)
+        events_bdt[name] = ak.fill_none(events_bdt[name], -999.0)
 
     bdt_features = []
     for x in var_order:
@@ -84,8 +84,8 @@ def calculate_ch_vs_ggh_mva(
         else:
             bdt_features.append(x)
 
-    events_bdt = awkward.values_astype(events_bdt, numpy.float64)
-    features_bdt = awkward.to_numpy(events_bdt[bdt_features])
+    events_bdt = ak.values_astype(events_bdt, numpy.float64)
+    features_bdt = ak.to_numpy(events_bdt[bdt_features])
 
     features_bdt_matrix = xgb.DMatrix(
         features_bdt.view((float, len(features_bdt.dtype.names)))
@@ -99,13 +99,13 @@ def calculate_ch_vs_ggh_mva(
         if "dipho" not in var:
             diphotons[var] = events_bdt[var]
 
-    scores_out = awkward.where(
+    scores_out = ak.where(
         events.event % 4 < 2,
         scores[0],
         scores[1]
     )
 
-    diphotons["ch_vs_ggh_bdt_score"] = awkward.ones_like(diphotons.mass)
+    diphotons["ch_vs_ggh_bdt_score"] = ak.ones_like(diphotons.mass)
     diphotons["ch_vs_ggh_bdt_score"] = scores_out
 
     return diphotons, events
@@ -114,9 +114,9 @@ def calculate_ch_vs_ggh_mva(
 def calculate_ch_vs_cb_mva(
     self,
     mva: Tuple[Tuple[Optional[xgb.Booster], Optional[xgb.Booster]], List[str]],
-    diphotons: awkward.Array,
-    events: awkward.Array,
-) -> awkward.Array:
+    diphotons: ak.Array,
+    events: ak.Array,
+) -> ak.Array:
     """
     Calculate cH vs ggH bdt scores for events.
     """
@@ -125,7 +125,7 @@ def calculate_ch_vs_cb_mva(
         return diphotons, events
     elif len(diphotons) == 0:
         logger.info("no events surviving event selection, adding fake ch vs cb bdt score")
-        diphotons["ch_vs_cb_bdt_score"] = awkward.zeros_like(diphotons.mass)
+        diphotons["ch_vs_cb_bdt_score"] = ak.zeros_like(diphotons.mass)
         return diphotons, events
 
     ch_vs_cb = []
@@ -151,7 +151,7 @@ def calculate_ch_vs_cb_mva(
     events_bdt["leadingJet_pt"] = diphotons.first_jet_pt
     events_bdt["leadingJet_eta"] = diphotons.first_jet_eta
 
-    lead_jets = awkward.zip(
+    lead_jets = ak.zip(
         {
             "pt": diphotons.first_jet_pt,
             "eta": diphotons.first_jet_eta,
@@ -160,7 +160,7 @@ def calculate_ch_vs_cb_mva(
             "charge": diphotons.first_jet_charge
         }
     )
-    lead_jets = awkward.with_name(lead_jets, "PtEtaPhiMCandidate")
+    lead_jets = ak.with_name(lead_jets, "PtEtaPhiMCandidate")
 
     lpj_dphi = diphotons[pho_lead].delta_phi(lead_jets)
     spj_dphi = diphotons[pho_sublead].delta_phi(lead_jets)
@@ -168,14 +168,14 @@ def calculate_ch_vs_cb_mva(
     events_bdt["DeltaPhi_gamma1_cjet"] = lpj_dphi
     events_bdt["DeltaPhi_gamma2_cjet"] = spj_dphi
 
-    events_bdt["nJets_revised"] = awkward.where(
+    events_bdt["nJets_revised"] = ak.where(
         diphotons.n_jets > 3,
-        awkward.ones_like(diphotons.n_jets) * 3,
+        ak.ones_like(diphotons.n_jets) * 3,
         diphotons.n_jets
     )
 
     for name in var_order:
-        events_bdt[name] = awkward.fill_none(events_bdt[name], -999.0)
+        events_bdt[name] = ak.fill_none(events_bdt[name], -999.0)
 
     bdt_features = []
     for x in var_order:
@@ -186,8 +186,8 @@ def calculate_ch_vs_cb_mva(
         else:
             bdt_features.append(x)
 
-    events_bdt = awkward.values_astype(events_bdt, numpy.float64)
-    features_bdt = awkward.to_numpy(events_bdt[bdt_features])
+    events_bdt = ak.values_astype(events_bdt, numpy.float64)
+    features_bdt = ak.to_numpy(events_bdt[bdt_features])
 
     features_bdt_matrix = xgb.DMatrix(
         features_bdt.view((float, len(features_bdt.dtype.names)))
@@ -201,13 +201,13 @@ def calculate_ch_vs_cb_mva(
         if "dipho" not in var:
             diphotons[var] = events_bdt[var]
 
-    scores_out = awkward.where(
+    scores_out = ak.where(
         events.event % 4 < 2,
         scores[0],
         scores[1]
     )
 
-    diphotons["ch_vs_cb_bdt_score"] = awkward.ones_like(diphotons.mass)
+    diphotons["ch_vs_cb_bdt_score"] = ak.ones_like(diphotons.mass)
     diphotons["ch_vs_cb_bdt_score"] = scores_out
 
     return diphotons, events
@@ -216,9 +216,9 @@ def calculate_ch_vs_cb_mva(
 def calculate_ggh_vs_hb_mva(
     self,
     mva: Tuple[Tuple[Optional[xgb.Booster], Optional[xgb.Booster]], List[str]],
-    diphotons: awkward.Array,
-    events: awkward.Array,
-) -> awkward.Array:
+    diphotons: ak.Array,
+    events: ak.Array,
+) -> ak.Array:
     """
     Calculate cH vs ggH bdt scores for events.
     """
@@ -227,7 +227,7 @@ def calculate_ggh_vs_hb_mva(
         return diphotons, events
     elif len(diphotons) == 0:
         logger.info("no events surviving event selection, adding fake ggh vs hb bdt score")
-        diphotons["ggh_vs_hb_bdt_score"] = awkward.zeros_like(diphotons.mass)
+        diphotons["ggh_vs_hb_bdt_score"] = ak.zeros_like(diphotons.mass)
         return diphotons, events
 
     ggh_vs_hb = []
@@ -277,7 +277,7 @@ def calculate_ggh_vs_hb_mva(
     events_bdt["n_b_jets_medium"] = diphotons.n_b_jets_medium
     events_bdt["n_b_jets_loose"] = diphotons.n_b_jets_loose
 
-    lead_jets = awkward.zip(
+    lead_jets = ak.zip(
         {
             "pt": diphotons.first_jet_pt,
             "eta": diphotons.first_jet_eta,
@@ -286,9 +286,9 @@ def calculate_ggh_vs_hb_mva(
             "charge": diphotons.first_jet_charge
         }
     )
-    lead_jets = awkward.with_name(lead_jets, "PtEtaPhiMCandidate")
+    lead_jets = ak.with_name(lead_jets, "PtEtaPhiMCandidate")
 
-    lead_pt_jets = awkward.zip(
+    lead_pt_jets = ak.zip(
         {
             "pt": diphotons.first_pt_jet_pt,
             "eta": diphotons.first_pt_jet_eta,
@@ -297,9 +297,9 @@ def calculate_ggh_vs_hb_mva(
             "charge": diphotons.first_pt_jet_charge
         }
     )
-    lead_pt_jets = awkward.with_name(lead_pt_jets, "PtEtaPhiMCandidate")
+    lead_pt_jets = ak.with_name(lead_pt_jets, "PtEtaPhiMCandidate")
 
-    sublead_pt_jets = awkward.zip(
+    sublead_pt_jets = ak.zip(
         {
             "pt": diphotons.second_pt_jet_pt,
             "eta": diphotons.second_pt_jet_eta,
@@ -308,9 +308,9 @@ def calculate_ggh_vs_hb_mva(
             "charge": diphotons.second_pt_jet_charge
         }
     )
-    sublead_pt_jets = awkward.with_name(sublead_pt_jets, "PtEtaPhiMCandidate")
+    sublead_pt_jets = ak.with_name(sublead_pt_jets, "PtEtaPhiMCandidate")
 
-    subsublead_jets = awkward.zip(
+    subsublead_jets = ak.zip(
         {
             "pt": diphotons.third_jet_pt,
             "eta": diphotons.third_jet_eta,
@@ -319,7 +319,7 @@ def calculate_ggh_vs_hb_mva(
             "charge": diphotons.third_jet_charge
         }
     )
-    subsublead_jets = awkward.with_name(subsublead_jets, "PtEtaPhiMCandidate")
+    subsublead_jets = ak.with_name(subsublead_jets, "PtEtaPhiMCandidate")
 
     lpj_dphi = diphotons[pho_lead].delta_phi(lead_pt_jets)
     spj_dphi = diphotons[pho_sublead].delta_phi(lead_pt_jets)
@@ -342,39 +342,39 @@ def calculate_ggh_vs_hb_mva(
     events_bdt["dR_ljlp"] = dR_ljlp
     events_bdt["lj_ptoM"] = lj_ptoM
 
-    events_bdt["dEta_ljslj"] = awkward.where(
+    events_bdt["dEta_ljslj"] = ak.where(
         events_bdt["second_jet_eta"] != -999.,
         events_bdt["dEta_ljslj"],
-        awkward.ones_like(events_bdt["dEta_ljslj"]) * -1
+        ak.ones_like(events_bdt["dEta_ljslj"]) * -1
     )
-    events_bdt["dEta_sljh"] = awkward.where(
+    events_bdt["dEta_sljh"] = ak.where(
         events_bdt["second_jet_eta"] != -999.,
         events_bdt["dEta_sljh"],
-        awkward.ones_like(events_bdt["dEta_sljh"]) * -1
+        ak.ones_like(events_bdt["dEta_sljh"]) * -1
     )
-    events_bdt["lj_ptoM"] = awkward.where(
+    events_bdt["lj_ptoM"] = ak.where(
         events_bdt["lj_ptoM"] > 50000,
-        awkward.ones_like(events_bdt.lj_ptoM) * 50000,
+        ak.ones_like(events_bdt.lj_ptoM) * 50000,
         events_bdt["lj_ptoM"]
     )
-    events_bdt["lj_ptoM"] = awkward.where(
+    events_bdt["lj_ptoM"] = ak.where(
         events_bdt["lj_ptoM"] < -1.,
-        awkward.ones_like(events_bdt.lj_ptoM) * -1,
+        ak.ones_like(events_bdt.lj_ptoM) * -1,
         events_bdt["lj_ptoM"]
     )
-    events_bdt["first_muon_pt"] = awkward.where(
+    events_bdt["first_muon_pt"] = ak.where(
         events_bdt["first_muon_pt"] < 0,
-        awkward.ones_like(events_bdt.first_muon_pt) * -1,
+        ak.ones_like(events_bdt.first_muon_pt) * -1,
         events_bdt["first_muon_pt"]
     )
-    events_bdt["first_electron_pt"] = awkward.where(
+    events_bdt["first_electron_pt"] = ak.where(
         events_bdt["first_muon_pt"] < 0,
-        awkward.ones_like(events_bdt.first_muon_pt) * -1,
+        ak.ones_like(events_bdt.first_muon_pt) * -1,
         events_bdt["first_muon_pt"]
     )
 
     for name in var_order:
-        events_bdt[name] = awkward.fill_none(events_bdt[name], -999.0)
+        events_bdt[name] = ak.fill_none(events_bdt[name], -999.0)
 
     bdt_features = []
     for x in var_order:
@@ -385,8 +385,8 @@ def calculate_ggh_vs_hb_mva(
         else:
             bdt_features.append(x)
 
-    events_bdt = awkward.values_astype(events_bdt, numpy.float64)
-    features_bdt = awkward.to_numpy(events_bdt[bdt_features])
+    events_bdt = ak.values_astype(events_bdt, numpy.float64)
+    features_bdt = ak.to_numpy(events_bdt[bdt_features])
 
     features_bdt_matrix = xgb.DMatrix(
         features_bdt.view((float, len(features_bdt.dtype.names))), feature_names=bdt_features
@@ -400,31 +400,31 @@ def calculate_ggh_vs_hb_mva(
         if "dipho" not in var:
             diphotons[var] = events_bdt[var]
 
-    scores_out_sig = awkward.where(
+    scores_out_sig = ak.where(
         events.event % 4 < 2,
         scores[0][:, 0],
         scores[1][:, 0]
     )
-    scores_out_tth = awkward.where(
+    scores_out_tth = ak.where(
         events.event % 4 < 2,
         scores[0][:, 1],
         scores[1][:, 1]
     )
-    scores_out_vbf = awkward.where(
+    scores_out_vbf = ak.where(
         events.event % 4 < 2,
         scores[0][:, 2],
         scores[1][:, 2]
     )
-    scores_out_vh = awkward.where(
+    scores_out_vh = ak.where(
         events.event % 4 < 2,
         scores[0][:, 3],
         scores[1][:, 3]
     )
 
-    diphotons["ggh_vs_hb_bdt_sig_score"] = awkward.ones_like(diphotons.mass)
-    diphotons["ggh_vs_hb_bdt_tth_score"] = awkward.ones_like(diphotons.mass)
-    diphotons["ggh_vs_hb_bdt_vbf_score"] = awkward.ones_like(diphotons.mass)
-    diphotons["ggh_vs_hb_bdt_vh_score"] = awkward.ones_like(diphotons.mass)
+    diphotons["ggh_vs_hb_bdt_sig_score"] = ak.ones_like(diphotons.mass)
+    diphotons["ggh_vs_hb_bdt_tth_score"] = ak.ones_like(diphotons.mass)
+    diphotons["ggh_vs_hb_bdt_vbf_score"] = ak.ones_like(diphotons.mass)
+    diphotons["ggh_vs_hb_bdt_vh_score"] = ak.ones_like(diphotons.mass)
     diphotons["ggh_vs_hb_bdt_sig_score"] = scores_out_sig
     diphotons["ggh_vs_hb_bdt_tth_score"] = scores_out_tth
     diphotons["ggh_vs_hb_bdt_vbf_score"] = scores_out_vbf
