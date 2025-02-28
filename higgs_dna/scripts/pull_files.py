@@ -1293,7 +1293,7 @@ def main():
         "--log", dest="log", type=str, default="INFO", help="Logger info level"
     )
     parser.add_argument(
-        "--target_dir",
+        "--target-dir",
         type=str,
         default=None,
         help="directory to place the correction jsons, default: ../higgs-dna/systematics/JSONs",
@@ -1305,13 +1305,13 @@ def main():
         help="Name of the analysis you're perfoming, ideally it would match the output directory in which you're analysis parquet will end up, default: higgs-dna-test.",
     )
     parser.add_argument(
-        "--log_dir",
+        "--log-dir",
         type=str,
         default="./json-log/",
         help="Log file summarising the json will end up here, default: ./json-log/",
     )
     parser.add_argument(
-        "--use_xrdcp",
+        "--use-xrdcp",
         action="store_true",
         help="Use xrdcp to copy the files, default: %(default)s",
         default=False,
@@ -1428,4 +1428,4 @@ if __name__ == "__main__":
 # python pull_files.py --all
 # python pull_files.py --target GoldenJSON
 # python pull_files.py --target cTag
-# python pull_files.py --target GoldenJSON --target_dir ./test_json --log_dir ./json-log --analysis goldenjson_test
+# python pull_files.py --target GoldenJSON --target-dir ./test_json --log-dir ./json-log --analysis goldenjson_test

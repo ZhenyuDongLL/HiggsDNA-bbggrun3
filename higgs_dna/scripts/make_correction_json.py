@@ -31,70 +31,70 @@ def main():
         help="year to select correction values from",
     )
     parser.add_option(
-        "--do_fnuf",
+        "--do-fnuf",
         dest="do_fnuf",
         action="store_true",
         default=False,
         help="create FNUF correction json",
     )
     parser.add_option(
-        "--do_showsh",
+        "--do-showsh",
         dest="do_showsh",
         action="store_true",
         default=False,
         help="create shower shape correction json",
     )
     parser.add_option(
-        "--do_idmva",
+        "--do-idmva",
         dest="do_IDMVA",
         action="store_true",
         default=False,
         help="create PhotonID MVA correction json",
     )
     parser.add_option(
-        "--do_Mat",
+        "--do-Mat",
         dest="do_Material",
         action="store_true",
         default=False,
         help="create Material correction json",
     )
     parser.add_option(
-        "--do_eVeto",
+        "--do-eVeto",
         dest="do_eVeto",
         action="store_true",
         default=False,
         help="create Electron Veto correction json",
     )
     parser.add_option(
-        "--do_presel",
+        "--do-presel",
         dest="do_presel",
         action="store_true",
         default=False,
         help="create Preselection Scale Factor json",
     )
     parser.add_option(
-        "--do_trigger",
+        "--do-trigger",
         dest="do_trigger",
         action="store_true",
         default=False,
         help="create Trigger Scale Factor jsons",
     )
     parser.add_option(
-        "--do_trigger_lead",
+        "--do-trigger-lead",
         dest="do_trigger_lead",
         action="store_true",
         default=False,
         help="create lead photon Trigger Scale Factor json",
     )
     parser.add_option(
-        "--do_trigger_sublead",
+        "--do-trigger-sublead",
         dest="do_trigger_sublead",
         action="store_true",
         default=False,
         help="create sublead photon Trigger Scale Factor json",
     )
     parser.add_option(
-        "--do_all",
+        "--do-all",
         dest="do_all",
         action="store_true",
         default=False,

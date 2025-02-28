@@ -12,7 +12,7 @@ The script will perform multiple steps:
 
 All the steps can be performed in one go with a command more or less like this::
 
-        python3 prepare_output_file.py --input [path to output dir] --merge --root --ws --syst --cats --args "--do_syst"
+        python3 prepare_output_file.py --input [path to output dir] --merge --root --ws --syst --cats --args "--do-syst"
 
 or the single steps can be performed by running the auxiliary files (``merge_parquet.py``, ``convert_parquet_to_root.py``, ``Tree2WS``) separately.
 A complete set of options for the main script is listed below.
@@ -57,7 +57,7 @@ During the merging step MC samples can also be normalised to the ``efficiency x 
 Root step 
 ---------
 
-During this step the script calls multiple times the script ``convert_parquet_to_root.py``. The arguments to pass to the script, for instance if you want the systematic variation included in the output ``ROOT tree`` are specified when calling ``prepare_output_file.py`` using ``--args "--do_syst"``.
+During this step the script calls multiple times the script ``convert_parquet_to_root.py``. The arguments to pass to the script, for instance if you want the systematic variation included in the output ``ROOT tree`` are specified when calling ``prepare_output_file.py`` using ``--args "--do-syst"``.
 As before the script creates a new called ``root`` under ``out_dir``, if this directory already exists it will throw an error and exit. In the script there is a dictionary called ``outfiles`` that contains the name of the output root file that will be created according to the process tipe, if the wf is run using the main script this correspond to the proces containd in ``process_dict``.
 
 By default, ``prepare_output_file.py`` uses the local execution to process files. If one wants to process the files via HTCondor (tested on LXPLUS), the ``--apptainer`` flag is to be used. It uses a docker image of the HiggsDNA master branch in conjunction with HTCondor to facilitate the work.
@@ -125,7 +125,7 @@ A valid command would for example be:
 Workspace step
 --------------
 
-During this step the main script uses multiple time the ``Flashgg_FinalFit``, it moves to the directory defined in the ``--final_fit`` option (improvable) and uses the ``Tree2WS`` script there on the content of the ``root`` directory previously created. The output is stored in ``out_dir/root/smaple_name/ws/``.
+During this step the main script uses multiple time the ``Flashgg_FinalFit``, it moves to the directory defined in the ``--final-fit`` option (improvable) and uses the ``Tree2WS`` script there on the content of the ``root`` directory previously created. The output is stored in ``out_dir/root/smaple_name/ws/``.
 
 Commands
 --------
@@ -134,21 +134,21 @@ The workflow is meant to be run in one go using the ``prepare_output_file.py`` s
 
 To run everything starting from the output of HiggsDNA with categories and systematic variatrion one can use::
 
-        python3 prepare_output_file.py --input [path to output dir] --merge --root --ws --syst --cats --args "--do_syst"
+        python3 prepare_output_file.py --input [path to output dir] --merge --root --ws --syst --cats --args "--do-syst"
 
 and everithing should run smoothly, it does for me at least (I've not tried the scripts in a while so thing may have to be adjusted in this document).
-Some options can be removed. If you want to use ``--syst`` and ``--root`` you should also add ``--args "--do_syst"``.
+Some options can be removed. If you want to use ``--syst`` and ``--root`` you should also add ``--args "--do-syst"``.
 
 The complete list of options for the main file is here:
 
     * ``--merge``, "Do merging of the .parquet files"
     * ``--root``, "Do root conversion step"
     * ``--ws``, "Do root to workspace conversion step"
-    * ``--ws_config``, "configuration file for Tree2WS, as it is now it must be stored in Tree2WS directory in FinalFit",
-    * ``--final_fit``, "FlashggFinalFit path" # the default is just for me, it should be changed but I don't see a way to make this generally valid
+    * ``--ws-config``, "configuration file for Tree2WS, as it is now it must be stored in Tree2WS directory in FinalFit",
+    * ``--final-fit``, "FlashggFinalFit path" # the default is just for me, it should be changed but I don't see a way to make this generally valid
     * ``--syst``, "Do systematics variation treatment"
     * ``--cats``, ="Split into categories",
-    * ``--args``, "additional options for root converter: --do_syst, --notag",
+    * ``--args``, "additional options for root converter: --do-syst, --notag",
     * ``--skip-normalisation``, "Independent of file type, skip normalisation step",
     * ``--verbose``, "verbose lefer for the logger: INFO (default), DEBUG",
     * ``--output``, "Output path for the merged and ROOT files.",
@@ -167,9 +167,9 @@ the script works also without the ``--cats`` option, it creates a dummy selectio
 
 Same for the root step::
 
-        python3 convert_parquet_to_root.py [/path/to/merged.parquet] [path to output file containing also the filename] mc (or data depending what you're doing) --process [process name (should match one of the outfiles dict entries)] --do_syst --cats [cat_dict] --vars [variation.json]
+        python3 convert_parquet_to_root.py [/path/to/merged.parquet] [path to output file containing also the filename] mc (or data depending what you're doing) --process [process name (should match one of the outfiles dict entries)] --do-syst --cats [cat_dict] --vars [variation.json]
 
-``--do_syst`` is not mandatory, but if it's there also the dictionary containing the variations must be specified with the ``--var`` option. As before the script works also without the ``--cats`` option.
+``--do-syst`` is not mandatory, but if it's there also the dictionary containing the variations must be specified with the ``--var`` option. As before the script works also without the ``--cats`` option.
 
 
 

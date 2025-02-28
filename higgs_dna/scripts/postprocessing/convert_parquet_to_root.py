@@ -29,7 +29,7 @@ def main():
         help="create NOTAG dataset as well.",
     )
     parser.add_argument(
-        "--do_syst",
+        "--do-syst",
         dest="do_syst",
         action="store_true",
         default=False,

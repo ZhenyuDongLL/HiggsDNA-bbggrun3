@@ -407,7 +407,7 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         except KeyError:
             systematic_names = []
 
-        # If --Smear_sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt scpectrum need to be smeared in order to properly calculate the smeared sigma_m_m
+        # If --Smear-sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt scpectrum need to be smeared in order to properly calculate the smeared sigma_m_m
         if (
             self.data_kind == "mc"
             and self.Smear_sigma_m
