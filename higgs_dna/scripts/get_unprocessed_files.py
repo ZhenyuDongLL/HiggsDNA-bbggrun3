@@ -16,6 +16,11 @@ import os
 # - python3 get_unprocessed_files.py --convention <naming_convention> --source <dir_to_HiggsDNA_dump> --json <sample.json> --output <some_path/unprocessed_samples.json>
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 
+# --------------------------------------------------------------------------------------------------------------------#
+# If you are just interested in the number of files that were processed, you can use the following command: ----------#
+# - find <path_to_parquet_files> -type f -regextype posix-extended -regex '.*_Events_0-[0-9]+\.parquet' | wc -l
+# --------------------------------------------------------------------------------------------------------------------#
+
 def get_fetcher_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Obtain the list of unprocessed root files from the associated samples list."
