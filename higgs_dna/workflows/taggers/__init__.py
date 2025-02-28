@@ -5,8 +5,6 @@ from .DummyTagger2 import DummyTagger2
 from .HHWWggTagger import HHWWggTagger
 from .yTagger import yTagger
 from .ptTagger import ptTagger
-from .fiducialClassicalTagger import fiducialClassicalTagger
-from .fiducialGeometricTagger import fiducialGeometricTagger
 
 taggers: Dict[str, Any] = {}
 
@@ -15,7 +13,5 @@ taggers["DummyTagger2"] = DummyTagger2
 taggers["HHWWggTagger"] = HHWWggTagger
 taggers["yTagger"] = yTagger
 taggers["ptTagger"] = ptTagger
-taggers["fiducialClassicalTagger"] = fiducialClassicalTagger
-taggers["fiducialGeometricTagger"] = fiducialGeometricTagger
 
 __all__ = ["taggers"]
