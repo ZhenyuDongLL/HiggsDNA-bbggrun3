@@ -1,5 +1,5 @@
 import glob
-import awkward
+import awkward as ak
 import pyarrow.parquet as pq
 
 
@@ -14,7 +14,7 @@ def Get_WeightSum_Btag(source_paths,logger):
 
     for i, source_path in enumerate(source_paths):
         # create array to store the sum of the weights for all systematic vartions
-        dataset_check_fields = awkward.from_parquet(glob.glob("%s/*.parquet" % source_path)[0])
+        dataset_check_fields = ak.from_parquet(glob.glob("%s/*.parquet" % source_path)[0])
         # check if systamtic vatiation are stored by acessing one field of the parquet file
         flag_bWeight_sys = "weight_bTagSF_sys_jesDown" in dataset_check_fields.fields
         del dataset_check_fields

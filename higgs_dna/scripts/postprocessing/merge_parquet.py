@@ -4,7 +4,7 @@ import json
 import ast
 import os
 import glob
-import awkward
+import awkward as ak
 from higgs_dna.utils.logger_utils import setup_logger
 import pyarrow.parquet as pq
 import numpy as np
@@ -67,7 +67,7 @@ def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="Ge
             tuple_list = extract_tuples(additionalConditions)
             for additionalCondition in tuple_list:
                 condition = condition & extract_filter(dataset, additionalCondition)
-        dataset[diffVariableName] = awkward.where(condition, diffId, dataset[diffVariableName])
+        dataset[diffVariableName] = ak.where(condition, diffId, dataset[diffVariableName])
 
     return dataset
 
@@ -215,7 +215,7 @@ def main():
             if (not args.is_data) & (not args.skip_normalisation):
                 # Remove ParquetDataset from memory and read file in as awkward array
                 del dataset
-                dataset_arr = awkward.from_parquet(target_paths[i] + cat + "_merged.parquet")
+                dataset_arr = ak.from_parquet(target_paths[i] + cat + "_merged.parquet")
                 # Add filtering for differentials here
 
                 if gen_binning != None:
@@ -232,7 +232,7 @@ def main():
                 if(args.do_b_weight_normalisation):
                     if((WeightSum_preBTag_arr[i]/WeightSum_postBTag_arr[i])!=1):
                         dataset_arr = Renormalize_BTag_Weights(dataset_arr,target_paths[i],cat,WeightSum_preBTag_arr[i],WeightSum_postBTag_arr[i],WeightSum_postBTag_sys_arr[i],IsBtagNorm_sys_arr[i],logger)
-                awkward.to_parquet(dataset_arr, target_paths[i] + cat + "_merged.parquet")
+                ak.to_parquet(dataset_arr, target_paths[i] + cat + "_merged.parquet")
                 logger.info(
                     "Successfully added normalised weight column to dataset"
                 )

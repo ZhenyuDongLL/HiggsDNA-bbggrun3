@@ -1,14 +1,14 @@
 from coffea.lumi_tools import LumiMask
-import awkward
+import awkward as ak
 import os
 import logging
 
 
 def select_lumis(
     year,
-    events: awkward.highlevel.Array,
+    events: ak.highlevel.Array,
     logger: logging.Logger,
-) -> awkward.highlevel.Array:
+) -> ak.highlevel.Array:
     goldenJson_dict = {
         "2016": os.path.join(
             os.path.dirname(__file__),

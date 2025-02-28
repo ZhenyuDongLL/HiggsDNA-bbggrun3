@@ -1,4 +1,4 @@
-import awkward
+import awkward as ak
 import torch
 import zuko
 import numpy as np
@@ -11,21 +11,21 @@ def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_
     Apply normalizing flow corrections to the photon collection and update the photonID MVA.
 
     Parameters:
-        photons (awkward.Array): The photon collection.
-        events (awkward.Array): The events collection.
+        photons (ak.Array): The photon collection.
+        events (ak.Array): The events collection.
         meta (dict): Metadata containing correction inputs".
         year (str): The dataset year identifier.
         add_photonid_mva_run3 (callable): Function to recompute the photonID MVA.
         logger (logging.Logger, optional).
 
     Returns:
-        awkward.Array: The updated photon collection with flow corrections applied.
+        ak.Array: The updated photon collection with flow corrections applied.
     """
     if logger is not None:
         logger.info("Calculating normalizing flow corrections to photon MVA ID inputs")
 
     # Get counts to be used for unflattening the corrected inputs.
-    counts = photons.num() if hasattr(photons, "num") else awkward.num(photons)
+    counts = photons.num() if hasattr(photons, "num") else ak.num(photons)
 
     # Calculate corrected inputs
     corrected_inputs, var_list = calculate_flow_corrections(
@@ -42,16 +42,16 @@ def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_
     # For each variable, store the raw value and update with the corrected value.
     for i, var in enumerate(var_list):
         photons["raw_" + str(var)] = photons[str(var)]
-        photons[str(var)] = awkward.unflatten(corrected_inputs[:, i], counts)
+        photons[str(var)] = ak.unflatten(corrected_inputs[:, i], counts)
 
     # Update the photonID MVA using the new, corrected inputs.
-    photons["mvaID"] = awkward.unflatten(add_photonid_mva_run3(photons, events), counts)
+    photons["mvaID"] = ak.unflatten(add_photonid_mva_run3(photons, events), counts)
 
     return photons
 
 
 # Function responsible for applyting the flow and calculate the per photon corrections in the mvaID inputs and in the sigma_E/E
-def calculate_flow_corrections(photon: awkward.Array, events, inputs_list, isolation_indexes , year="2022postEE"):
+def calculate_flow_corrections(photon: ak.Array, events, inputs_list, isolation_indexes , year="2022postEE"):
 
     """
     Perform the evaluation of pre-trained flow models for simulation to data corrections
@@ -88,18 +88,18 @@ def calculate_flow_corrections(photon: awkward.Array, events, inputs_list, isola
         print('\nThere is no model trained for this specific year!! - Exiting')
         sys.exit(0)
 
-    rho = events.Rho.fixedGridRhoAll * awkward.ones_like(photon.pt)
-    rho = awkward.flatten(rho)
-    photon = awkward.flatten(photon)
+    rho = events.Rho.fixedGridRhoAll * ak.ones_like(photon.pt)
+    rho = ak.flatten(rho)
+    photon = ak.flatten(photon)
 
     flow_inputs = {}
     flow_inputs = np.column_stack(
-        [awkward.to_numpy(photon[name]) for name in var_list]
+        [ak.to_numpy(photon[name]) for name in var_list]
     )
 
     flow_conditions = {}
     flow_conditions = np.column_stack(
-        [awkward.to_numpy(photon[name]) for name in conditions_list]
+        [ak.to_numpy(photon[name]) for name in conditions_list]
     )
 
     # Adding the boolean to the conditions - rho has to be added by hand here, since it is a event quantity, not a photon one.

@@ -1,12 +1,12 @@
 import os
 import sys
-import awkward
+import awkward as ak
 import pandas
 import numpy as np
 import higgs_dna.tools.decorrelator as decorr
 
 
-def decorrelate_mass_resolution(events: awkward.Array, type: str, year, IsSAS_ET_Dependent=False):
+def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Dependent=False):
     # type = "nominal","smeared","corr","corr_smeared"
 
     # reading the CDFs files

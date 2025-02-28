@@ -42,7 +42,7 @@ from higgs_dna.systematics import weight_corrections as available_weight_correct
 import functools
 import warnings
 from typing import Any, Dict, List, Optional
-import awkward
+import awkward as ak
 import numpy
 import sys
 import os
@@ -150,10 +150,10 @@ class HHbbggProcessor(HggBaseProcessor):
         # Choose fiducial cut
         self.fiducialCuts = "store_flag"  # right now, this is needed even though default for HHbbgg workflow is store_flag as the defualt command line argument for fiducialCuts ('classical') over rides the default of the workflow
 
-    def process_extra(self, events: awkward.Array) -> awkward.Array:
+    def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
 
-    def process(self, events: awkward.Array) -> Dict[Any, Any]:
+    def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
         filename = events.metadata["filename"]
 
@@ -166,15 +166,15 @@ class HHbbggProcessor(HggBaseProcessor):
         histos_etc[dataset_name] = {}
         if self.data_kind == "mc":
             histos_etc[dataset_name]["nTot"] = int(
-                awkward.num(events.genWeight, axis=0)
+                ak.num(events.genWeight, axis=0)
             )
-            histos_etc[dataset_name]["nPos"] = int(awkward.sum(events.genWeight > 0))
-            histos_etc[dataset_name]["nNeg"] = int(awkward.sum(events.genWeight < 0))
+            histos_etc[dataset_name]["nPos"] = int(ak.sum(events.genWeight > 0))
+            histos_etc[dataset_name]["nNeg"] = int(ak.sum(events.genWeight < 0))
             histos_etc[dataset_name]["nEff"] = int(
                 histos_etc[dataset_name]["nPos"] - histos_etc[dataset_name]["nNeg"]
             )
             histos_etc[dataset_name]["genWeightSum"] = float(
-                awkward.sum(events.genWeight)
+                ak.sum(events.genWeight)
             )
         else:
             histos_etc[dataset_name]["nTot"] = int(len(events))
@@ -202,7 +202,7 @@ class HHbbggProcessor(HggBaseProcessor):
 
         if self.data_kind == "mc":
             # Add sum of gen weights before selection for normalisation in postprocessing
-            metadata["sum_genw_presel"] = str(awkward.sum(events.genWeight))
+            metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
         else:
             metadata["sum_genw_presel"] = "Data"
 
@@ -262,7 +262,7 @@ class HHbbggProcessor(HggBaseProcessor):
             if "scale" or "smearing" in correction.lower():
                 s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon["pt_raw"] = awkward.copy(events.Photon.pt)
+            events.Photon["pt_raw"] = ak.copy(events.Photon.pt)
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -448,7 +448,7 @@ class HHbbggProcessor(HggBaseProcessor):
                 # Did not completely update the genJet part of the base processor because HHbbgg has its own way of dealing with it. We may think of a way to use what was developped to improve our gen selection.
                 # Changes that were not replicated here : https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/-/commit/55846b80a83619a9112b95fb8824dfdb71eee0b2
                 GenPTH, GenYH, GenPhiH = get_higgs_gen_attributes(events)
-                diphotons['GenPTH'] = awkward.fill_none(GenPTH, -999.0)
+                diphotons['GenPTH'] = ak.fill_none(GenPTH, -999.0)
 
             # baseline modifications to diphotons
             if self.diphoton_mva is not None:
@@ -459,18 +459,18 @@ class HHbbggProcessor(HggBaseProcessor):
             histos_etc.update(process_extra)
 
             # jet_variables
-            jets = awkward.zip(
+            jets = ak.zip(
                 {
                     "pt": jets.pt,
                     "eta": jets.eta,
                     "phi": jets.phi,
                     "mass": jets.mass,
-                    "charge": awkward.zeros_like(
+                    "charge": ak.zeros_like(
                         jets.pt
                     ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
                     "hFlav": jets.hadronFlavour
                     if self.data_kind == "mc"
-                    else awkward.zeros_like(jets.pt),
+                    else ak.zeros_like(jets.pt),
                     "btagDeepFlav_B": jets.btagDeepFlavB,
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
@@ -492,9 +492,9 @@ class HHbbggProcessor(HggBaseProcessor):
 
                 }
             )
-            jets = awkward.with_name(jets, "PtEtaPhiMCandidate")
+            jets = ak.with_name(jets, "PtEtaPhiMCandidate")
 
-            electrons = awkward.zip(
+            electrons = ak.zip(
                 {
                     "pt": events.Electron.pt,
                     "eta": events.Electron.eta,
@@ -506,18 +506,18 @@ class HHbbggProcessor(HggBaseProcessor):
                     "mvaIso_WP80": events.Electron.mvaIso_WP80,
                     "mvaID": events.Electron.mvaIso,
                     "pfRelIso03_all": events.Electron.pfRelIso03_all,
-                    "pfRelIso04_all": awkward.zeros_like(events.Electron.pt),  # Iso04 does not exist in nanoAOD, hence filling in zeros
-                    "pfIsoId": awkward.ones_like(events.Electron.pt) * 10,  # IsoId does not exist in nanoAOD, hence filling in 10
+                    "pfRelIso04_all": ak.zeros_like(events.Electron.pt),  # Iso04 does not exist in nanoAOD, hence filling in zeros
+                    "pfIsoId": ak.ones_like(events.Electron.pt) * 10,  # IsoId does not exist in nanoAOD, hence filling in 10
                     "dxy": events.Electron.dxy,
                     "dz": events.Electron.dz,
                 }
             )
-            electrons = awkward.with_name(electrons, "PtEtaPhiMCandidate")
+            electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
 
             # Special cut for base workflow to replicate iso cut for electrons also for muons
             # events['Muon'] = events.Muon[events.Muon.pfRelIso03_all < 0.2]
 
-            muons = awkward.zip(
+            muons = ak.zip(
                 {
                     "pt": events.Muon.pt,
                     "eta": events.Muon.eta,
@@ -536,27 +536,27 @@ class HHbbggProcessor(HggBaseProcessor):
                     "dz": events.Muon.dz,
                 }
             )
-            muons = awkward.with_name(muons, "PtEtaPhiMCandidate")
+            muons = ak.with_name(muons, "PtEtaPhiMCandidate")
 
             # create PuppiMET objects
             puppiMET = events.PuppiMET
-            puppiMET = awkward.with_name(puppiMET, "PtEtaPhiMCandidate")
+            puppiMET = ak.with_name(puppiMET, "PtEtaPhiMCandidate")
 
             # FatJet variables
             fatjets = events.FatJet
-            fatjets["charge"] = awkward.zeros_like(fatjets.pt)
-            fatjets = awkward.with_name(fatjets, "PtEtaPhiMCandidate")
+            fatjets["charge"] = ak.zeros_like(fatjets.pt)
+            fatjets = ak.with_name(fatjets, "PtEtaPhiMCandidate")
 
             # SubJet variables
             subjets = events.SubJet
-            subjets["charge"] = awkward.zeros_like(subjets.pt)
-            subjets = awkward.with_name(subjets, "PtEtaPhiMCandidate")
+            subjets["charge"] = ak.zeros_like(subjets.pt)
+            subjets = ak.with_name(subjets, "PtEtaPhiMCandidate")
 
             # GenJetAK8 variables
             if self.data_kind == "mc":
                 genjetsAK8 = events.GenJetAK8
-                genjetsAK8["charge"] = awkward.zeros_like(genjetsAK8.pt)
-                genjetsAK8 = awkward.with_name(genjetsAK8, "PtEtaPhiMCandidate")
+                genjetsAK8["charge"] = ak.zeros_like(genjetsAK8.pt)
+                genjetsAK8 = ak.with_name(genjetsAK8, "PtEtaPhiMCandidate")
 
             # lepton cleaning
             sel_electrons = electrons[
@@ -566,14 +566,14 @@ class HHbbggProcessor(HggBaseProcessor):
                 select_muons(self, muons, diphotons)
             ]
 
-            n_electrons = awkward.num(sel_electrons)
-            n_muons = awkward.num(sel_muons)
+            n_electrons = ak.num(sel_electrons)
+            n_muons = ak.num(sel_muons)
             diphotons["n_electrons"] = n_electrons
             diphotons["n_muons"] = n_muons
-            diphotons["n_electrons_after_dxy_dz_cuts"] = awkward.num(
+            diphotons["n_electrons_after_dxy_dz_cuts"] = ak.num(
                 sel_electrons[(sel_electrons.dxy < 0.2) & (sel_electrons.dz < 0.5)]
             )
-            diphotons["n_muons_after_dxy_dz_cuts"] = awkward.num(
+            diphotons["n_muons_after_dxy_dz_cuts"] = ak.num(
                 sel_muons[(sel_muons.dxy < 0.2) & (sel_muons.dz < 0.5)]
             )
 
@@ -585,21 +585,21 @@ class HHbbggProcessor(HggBaseProcessor):
             jets = jets[
                 select_jets(self, jets, diphotons, sel_muons, sel_electrons)
             ]
-            jets = jets[awkward.argsort(jets.pt, ascending=False)]
-            jets["index"] = awkward.local_index(jets.pt)
+            jets = jets[ak.argsort(jets.pt, ascending=False)]
+            jets["index"] = ak.local_index(jets.pt)
 
             # fatjet selection and pt ordering
             fatjets = fatjets[select_fatjets(self, fatjets, diphotons, sel_muons, sel_electrons)]  # For now, having the same preselection as jet. Can be changed later
 
             try:
-                fatjets = fatjets[awkward.argsort(fatjets.particleNetWithMass_HbbvsQCD, ascending=False)]
+                fatjets = fatjets[ak.argsort(fatjets.particleNetWithMass_HbbvsQCD, ascending=False)]
             except ValueError as e:
                 logger.warning(f"Error sorting fatjets: {e}")
 
             # adding selected jets to events to be used in ctagging SF calculation
             events["sel_jets"] = jets
-            n_jets = awkward.num(jets)
-            Njets2p5 = awkward.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 2.5)])
+            n_jets = ak.num(jets)
+            Njets2p5 = ak.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 2.5)])
 
             diphotons["n_jets"] = n_jets
             diphotons["Njets2p5"] = Njets2p5
@@ -620,8 +620,8 @@ class HHbbggProcessor(HggBaseProcessor):
                 #   - boolean array of matched jet: 1 if matched, 0 if not matched but recoJet exists, -999 if recoJet doesn't exist
                 #   - genPartonFlav array of matched genJet: genFlav if matched, -999 if no matching genJet or if recoJet doesn't exist
                 genjets = events.GenJet
-                genjets["charge"] = awkward.zeros_like(genjets.pt)
-                genjets = awkward.with_name(genjets, "PtEtaPhiMCandidate")
+                genjets["charge"] = ak.zeros_like(genjets.pt)
+                genjets = ak.with_name(genjets, "PtEtaPhiMCandidate")
                 for i in range(self.num_jets_to_store):  # Number of jets to select
                     for key, jet_flav in [(f"jet{i+1}_genMatched", False), (f"jet{i+1}_genFlav", True)]:
                         # Retrieve the matching boolean using the match_jet function
@@ -630,18 +630,18 @@ class HHbbggProcessor(HggBaseProcessor):
                         diphotons[key] = value
 
                 gen_b_mask = ((events.GenPart.pdgId == 5) | (events.GenPart.pdgId == -5))
-                if awkward.sum(awkward.num(events.GenPart[gen_b_mask])) != 0:
-                    gen_b = awkward.pad_none(events.GenPart[gen_b_mask], self.num_jets_to_store)
+                if ak.sum(ak.num(events.GenPart[gen_b_mask])) != 0:
+                    gen_b = ak.pad_none(events.GenPart[gen_b_mask], self.num_jets_to_store)
                     motheridx = gen_b.genPartIdxMother
-                    mask_Hbb = (awkward.any(events.GenPart[motheridx].pdgId == 25, axis=1))
-                    if awkward.sum(awkward.num(gen_b[mask_Hbb])) != 0:
+                    mask_Hbb = (ak.any(events.GenPart[motheridx].pdgId == 25, axis=1))
+                    if ak.sum(ak.num(gen_b[mask_Hbb])) != 0:
                         gen_b_hbb = gen_b[mask_Hbb]
-                        gen_b_hbb["charge"] = awkward.zeros_like(gen_b_hbb.pt)
-                        gen_b_hbb = awkward.with_name(gen_b_hbb, "PtEtaPhiMCandidate")
+                        gen_b_hbb["charge"] = ak.zeros_like(gen_b_hbb.pt)
+                        gen_b_hbb = ak.with_name(gen_b_hbb, "PtEtaPhiMCandidate")
                         for i in range(self.num_jets_to_store):  # Number of jets to select
                             key = f"jet{i+1}_genMatched_Hbb"
                             value = match_jet(jets, gen_b_hbb, i, -999.0)
-                            diphotons[key] = awkward.fill_none(value, -999.0)
+                            diphotons[key] = ak.fill_none(value, -999.0)
 
                 #   - boolean array of matched fatjet
                 #   - genPartonFlav array of matched genFatJet
@@ -662,15 +662,15 @@ class HHbbggProcessor(HggBaseProcessor):
                 gentop_mask = (
                     (events.GenPart.pdgId == 6) | (events.GenPart.pdgId == -6)
                 ) & genPart_status
-                if awkward.sum(awkward.num(events.GenPart[gentop_mask])) != 0:
-                    gentops = awkward.pad_none(events.GenPart[gentop_mask], 2)
-                    gentops["charge"] = awkward.where(
+                if ak.sum(ak.num(events.GenPart[gentop_mask])) != 0:
+                    gentops = ak.pad_none(events.GenPart[gentop_mask], 2)
+                    gentops["charge"] = ak.where(
                         gentops.pdgId == 6, 2 / 3, 0
-                    ) + awkward.where(gentops.pdgId == -6, -2 / 3, 0)
-                    gentops = awkward.with_name(gentops, "PtEtaPhiMCandidate")
+                    ) + ak.where(gentops.pdgId == -6, -2 / 3, 0)
+                    gentops = ak.with_name(gentops, "PtEtaPhiMCandidate")
 
                     try:
-                        gentops = gentops[awkward.argsort(gentops.pt, ascending=False)]
+                        gentops = gentops[ak.argsort(gentops.pt, ascending=False)]
                     except ValueError as e:
                         logger.warning(f"Error sorting gentops: {e}")
 
@@ -683,13 +683,13 @@ class HHbbggProcessor(HggBaseProcessor):
                 # add in gen 4-momenta #
                 #   - vector bosons (if exists)
                 genZ_mask = (events.GenPart.pdgId == 23) & genPart_status
-                if awkward.sum(awkward.num(events.GenPart[genZ_mask])) != 0:
-                    genZs = awkward.pad_none(events.GenPart[genZ_mask], 2)
-                    genZs["charge"] = awkward.zeros_like(genZs.pt)
-                    genZs = awkward.with_name(genZs, "PtEtaPhiMCandidate")
+                if ak.sum(ak.num(events.GenPart[genZ_mask])) != 0:
+                    genZs = ak.pad_none(events.GenPart[genZ_mask], 2)
+                    genZs["charge"] = ak.zeros_like(genZs.pt)
+                    genZs = ak.with_name(genZs, "PtEtaPhiMCandidate")
 
                     try:
-                        genZs = genZs[awkward.argsort(genZs.pt, ascending=False)]
+                        genZs = genZs[ak.argsort(genZs.pt, ascending=False)]
                     except ValueError as e:
                         logger.warning(f"Error sorting genZs: {e}")
 
@@ -702,15 +702,15 @@ class HHbbggProcessor(HggBaseProcessor):
                 genW_mask = (
                     (events.GenPart.pdgId == 24) | (events.GenPart.pdgId == -24)
                 ) & genPart_status
-                if awkward.sum(awkward.num(events.GenPart[genW_mask])) != 0:
-                    genWs = awkward.pad_none(events.GenPart[genW_mask], 2)
-                    genWs["charge"] = awkward.where(
+                if ak.sum(ak.num(events.GenPart[genW_mask])) != 0:
+                    genWs = ak.pad_none(events.GenPart[genW_mask], 2)
+                    genWs["charge"] = ak.where(
                         genWs.pdgId == 24, 1, 0
-                    ) + awkward.where(genWs.pdgId == -24, -1, 0)
-                    genWs = awkward.with_name(genWs, "PtEtaPhiMCandidate")
+                    ) + ak.where(genWs.pdgId == -24, -1, 0)
+                    genWs = ak.with_name(genWs, "PtEtaPhiMCandidate")
 
                     try:
-                        genWs = genWs[awkward.argsort(genWs.pt, ascending=False)]
+                        genWs = genWs[ak.argsort(genWs.pt, ascending=False)]
                     except ValueError as e:
                         logger.warning(f"Error sorting genWs: {e}")
 
@@ -723,21 +723,21 @@ class HHbbggProcessor(HggBaseProcessor):
                 # add in gen 4-momenta #
                 #   - gen Higgs (if exists)
                 genHiggs_mask = (events.GenPart.pdgId == 25) & genPart_status
-                if awkward.sum(awkward.num(events.GenPart[genHiggs_mask])) != 0:
-                    genHiggs = awkward.pad_none(events.GenPart[genHiggs_mask], 2)
-                    mask_bb = (awkward.any(genHiggs.children.pdgId == 5, axis=2)) & (awkward.any(genHiggs.children.pdgId == -5, axis=2))
-                    mask_gg = (awkward.all(genHiggs.children.pdgId == 22, axis=2))
-                    mask_two_part = (awkward.num(genHiggs.children.pdgId, axis=2) == 2)
-                    genHiggs["charge"] = awkward.zeros_like(genHiggs.pt)
-                    genHiggs = awkward.with_name(genHiggs, "PtEtaPhiMCandidate")
+                if ak.sum(ak.num(events.GenPart[genHiggs_mask])) != 0:
+                    genHiggs = ak.pad_none(events.GenPart[genHiggs_mask], 2)
+                    mask_bb = (ak.any(genHiggs.children.pdgId == 5, axis=2)) & (ak.any(genHiggs.children.pdgId == -5, axis=2))
+                    mask_gg = (ak.all(genHiggs.children.pdgId == 22, axis=2))
+                    mask_two_part = (ak.num(genHiggs.children.pdgId, axis=2) == 2)
+                    genHiggs["charge"] = ak.zeros_like(genHiggs.pt)
+                    genHiggs = ak.with_name(genHiggs, "PtEtaPhiMCandidate")
                     diHiggs_bool = (
-                        awkward.num(events.GenPart[genHiggs_mask], axis=1) == 2
+                        ak.num(events.GenPart[genHiggs_mask], axis=1) == 2
                     )
                     try:
-                        genHiggs = genHiggs[awkward.argsort(genHiggs.pt, ascending=False)]
+                        genHiggs = genHiggs[ak.argsort(genHiggs.pt, ascending=False)]
                     except ValueError as e:
                         logger.warning(f"Error sorting genHiggs: {e}")
-                    genHiggsdecay = awkward.zip(
+                    genHiggsdecay = ak.zip(
                         {
                             "Higgs_toGG": mask_gg & mask_two_part,
                             "Higgs_tobb": mask_bb & mask_two_part,
@@ -750,13 +750,13 @@ class HHbbggProcessor(HggBaseProcessor):
                             diphotons[key] = value
 
                     # add in gen_mHH (if exists)
-                    gen_mHH = awkward.firsts(
+                    gen_mHH = ak.firsts(
                         (
-                            genHiggs[awkward.local_index(genHiggs, axis=1) == 0]
-                            + genHiggs[awkward.local_index(genHiggs, axis=1) == 1]
+                            genHiggs[ak.local_index(genHiggs, axis=1) == 0]
+                            + genHiggs[ak.local_index(genHiggs, axis=1) == 1]
                         ).mass
                     )
-                    gen_mHH = awkward.where(diHiggs_bool, gen_mHH, -999)
+                    gen_mHH = ak.where(diHiggs_bool, gen_mHH, -999)
                     diphotons["gen_mHH"] = gen_mHH
 
                 # Add the truth information
@@ -768,19 +768,19 @@ class HHbbggProcessor(HggBaseProcessor):
             json_file = os.path.join(os.path.dirname(__file__), "../tools/WPs_btagging_HHbbgg.json")
             with open(json_file, "r") as jf:
                 btagging_wps = json.load(jf)
-            nBTight = awkward.fill_none((awkward.sum(jets.btagPNetB >= btagging_wps[self.year[dataset_name][0]]["PNetTight"], axis=1)), 0)
-            nBMedium = awkward.fill_none((awkward.sum(jets.btagPNetB >= btagging_wps[self.year[dataset_name][0]]["PNetMedium"], axis=1)), 0)
-            nBLoose = awkward.fill_none((awkward.sum(jets.btagPNetB >= btagging_wps[self.year[dataset_name][0]]["PNetLoose"], axis=1)), 0)
+            nBTight = ak.fill_none((ak.sum(jets.btagPNetB >= btagging_wps[self.year[dataset_name][0]]["PNetTight"], axis=1)), 0)
+            nBMedium = ak.fill_none((ak.sum(jets.btagPNetB >= btagging_wps[self.year[dataset_name][0]]["PNetMedium"], axis=1)), 0)
+            nBLoose = ak.fill_none((ak.sum(jets.btagPNetB >= btagging_wps[self.year[dataset_name][0]]["PNetLoose"], axis=1)), 0)
 
-            n_fatjets = awkward.num(fatjets)
+            n_fatjets = ak.num(fatjets)
             diphotons["n_fatjets"] = n_fatjets
 
             # Creatiion a dijet
-            dijets_base = awkward.combinations(
+            dijets_base = ak.combinations(
                 jets, 2, fields=("first_jet", "second_jet")
             )
-            self.calc_cut_flow("select_two_jets", diphotons[~awkward.is_none(awkward.firsts(dijets_base))], metadata)
-            self.calc_cut_flow("select_two_jets_include_or_atleast_one_fatjet", diphotons[(~awkward.is_none(awkward.firsts(dijets_base))) | (diphotons["n_fatjets"] > 0)], metadata)
+            self.calc_cut_flow("select_two_jets", diphotons[~ak.is_none(ak.firsts(dijets_base))], metadata)
+            self.calc_cut_flow("select_two_jets_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets_base))) | (diphotons["n_fatjets"] > 0)], metadata)
 
             # HHbbgg :  now turn the dijets into candidates with four momenta and such
             dijets_4mom = dijets_base["first_jet"] + dijets_base["second_jet"]
@@ -794,33 +794,33 @@ class HHbbggProcessor(HggBaseProcessor):
             )
             dijets_base["DeltaR_jj"] = DeltaR(dijets_base["first_jet"], dijets_base["second_jet"])
             try:
-                dijets_base = dijets_base[awkward.argsort(dijets_base.btagPNetB_sum, ascending=False)]
+                dijets_base = dijets_base[ak.argsort(dijets_base.btagPNetB_sum, ascending=False)]
             except ValueError as e:
                 logger.warning(f"Error sorting dijets: {e}")
 
-            dijets_base = awkward.with_name(dijets_base, "PtEtaPhiMCandidate")
+            dijets_base = ak.with_name(dijets_base, "PtEtaPhiMCandidate")
 
-            dijets_for_tth_killer = awkward.copy(dijets_base)  # needed for a few ttH killer variables
+            dijets_for_tth_killer = ak.copy(dijets_base)  # needed for a few ttH killer variables
 
             # Selection on the dijet
             dijets_base = dijets_base[(numpy.abs(dijets_base["first_jet"].eta) < 2.5) & (numpy.abs(dijets_base["second_jet"].eta) < 2.5)]
-            self.calc_cut_flow("jet_eta_cut", diphotons[~awkward.is_none(awkward.firsts(dijets_base))], metadata)
-            self.calc_cut_flow("jet_eta_cut_include_or_atleast_one_fatjet", diphotons[(~awkward.is_none(awkward.firsts(dijets_base))) | (diphotons["n_fatjets"] > 0)], metadata)
+            self.calc_cut_flow("jet_eta_cut", diphotons[~ak.is_none(ak.firsts(dijets_base))], metadata)
+            self.calc_cut_flow("jet_eta_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets_base))) | (diphotons["n_fatjets"] > 0)], metadata)
             dijets_base = dijets_base[dijets_base.btagPNetB_sum > 0]
-            self.calc_cut_flow("dijet_b_tag_sum_cut", diphotons[~awkward.is_none(awkward.firsts(dijets_base))], metadata)
-            self.calc_cut_flow("dijet_b_tag_sum_cut_include_or_atleast_one_fatjet", diphotons[(~awkward.is_none(awkward.firsts(dijets_base))) | (diphotons["n_fatjets"] > 0)], metadata)
+            self.calc_cut_flow("dijet_b_tag_sum_cut", diphotons[~ak.is_none(ak.firsts(dijets_base))], metadata)
+            self.calc_cut_flow("dijet_b_tag_sum_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets_base))) | (diphotons["n_fatjets"] > 0)], metadata)
 
             for AnType in self.bbgg_analysis :
-                dijets = awkward.copy(dijets_base)
+                dijets = ak.copy(dijets_base)
                 if AnType not in ["nonRes", "Res"]:
                     raise NotImplementedError
                 if AnType == "nonRes":
                     dijets = dijets[dijets["mass"] > 70]
-                    self.calc_cut_flow(f"{AnType}_dijet_lower_mass_cut", diphotons[~awkward.is_none(awkward.firsts(dijets))], metadata)
-                    self.calc_cut_flow(f"{AnType}_dijet_lower_mass_cut_include_or_atleast_one_fatjet", diphotons[(~awkward.is_none(awkward.firsts(dijets))) | (diphotons["n_fatjets"] > 0)], metadata)
+                    self.calc_cut_flow(f"{AnType}_dijet_lower_mass_cut", diphotons[~ak.is_none(ak.firsts(dijets))], metadata)
+                    self.calc_cut_flow(f"{AnType}_dijet_lower_mass_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets))) | (diphotons["n_fatjets"] > 0)], metadata)
                     dijets = dijets[dijets["mass"] < 190]
-                    self.calc_cut_flow(f"{AnType}_dijet_upper_mass_cut", diphotons[~awkward.is_none(awkward.firsts(dijets))], metadata)
-                    self.calc_cut_flow(f"{AnType}_dijet_upper_mass_cut_include_or_atleast_one_fatjet", diphotons[(~awkward.is_none(awkward.firsts(dijets))) | (diphotons["n_fatjets"] > 0)], metadata)
+                    self.calc_cut_flow(f"{AnType}_dijet_upper_mass_cut", diphotons[~ak.is_none(ak.firsts(dijets))], metadata)
+                    self.calc_cut_flow(f"{AnType}_dijet_upper_mass_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets))) | (diphotons["n_fatjets"] > 0)], metadata)
 
                 lead_bjet_pt = choose_jet(dijets["first_jet"].pt, 0, -999.0)
                 lead_bjet_eta = choose_jet(dijets["first_jet"].eta, 0, -999.0)
@@ -855,8 +855,8 @@ class HHbbggProcessor(HggBaseProcessor):
                 #   - genPartonFlav array of matched genbJet
                 if self.data_kind == "mc":
                     for bjet_type, bjet_4mom in {
-                        "lead": awkward.firsts(dijets["first_jet"]),
-                        "sublead": awkward.firsts(dijets["second_jet"])
+                        "lead": ak.firsts(dijets["first_jet"]),
+                        "sublead": ak.firsts(dijets["second_jet"])
                     }.items():
                         for key, jet_flav in [(f"{bjet_type}_bjet_genMatched", False), (f"{bjet_type}_bjet_genFlav", True)]:
                             value = match_jet(bjet_4mom, genjets, None, -999.0, jet_flav=jet_flav)
@@ -867,25 +867,25 @@ class HHbbggProcessor(HggBaseProcessor):
 
                 # Add the genHiggs matching
                 if self.data_kind == "mc":
-                    Higgs = awkward.zip(
+                    Higgs = ak.zip(
                         {
                             "Higgs_toGG": HHbbgg["obj_diphoton"],
                             "Higgs_tobb": HHbbgg["obj_dijet"],
                         }
                     )
-                    if awkward.sum(awkward.num(events.GenPart[genHiggs_mask])) != 0:
+                    if ak.sum(ak.num(events.GenPart[genHiggs_mask])) != 0:
                         for prop in ["Higgs_toGG", "Higgs_tobb"]:
                             key = f"{prop}_genMatched"
                             value = match_jet(Higgs[prop], genHiggs, None, -999.0)
                             diphotons[f"{AnType}_{key}"] = value
 
                 # Write the variables in diphotons
-                diphotons[f"{AnType}_HHbbggCandidate_pt"] = awkward.fill_none(HHbbgg.obj_HHbbgg.pt, -999.0)
-                diphotons[f"{AnType}_HHbbggCandidate_eta"] = awkward.fill_none(HHbbgg.obj_HHbbgg.eta, -999.0)
-                diphotons[f"{AnType}_HHbbggCandidate_phi"] = awkward.fill_none(HHbbgg.obj_HHbbgg.phi, -999.0)
-                diphotons[f"{AnType}_HHbbggCandidate_mass"] = awkward.fill_none(HHbbgg.obj_HHbbgg.mass, -999.0)
+                diphotons[f"{AnType}_HHbbggCandidate_pt"] = ak.fill_none(HHbbgg.obj_HHbbgg.pt, -999.0)
+                diphotons[f"{AnType}_HHbbggCandidate_eta"] = ak.fill_none(HHbbgg.obj_HHbbgg.eta, -999.0)
+                diphotons[f"{AnType}_HHbbggCandidate_phi"] = ak.fill_none(HHbbgg.obj_HHbbgg.phi, -999.0)
+                diphotons[f"{AnType}_HHbbggCandidate_mass"] = ak.fill_none(HHbbgg.obj_HHbbgg.mass, -999.0)
 
-                diphotons[f"{AnType}_M_X"] = awkward.fill_none(HHbbgg.obj_HHbbgg.mass - HHbbgg.obj_diphoton.mass - HHbbgg.obj_dijet.mass + (2 * 125), -999.0)
+                diphotons[f"{AnType}_M_X"] = ak.fill_none(HHbbgg.obj_HHbbgg.mass - HHbbgg.obj_diphoton.mass - HHbbgg.obj_dijet.mass + (2 * 125), -999.0)
 
                 diphotons[f"{AnType}_lead_bjet_pt"] = lead_bjet_pt
                 diphotons[f"{AnType}_lead_bjet_eta"] = lead_bjet_eta
@@ -915,23 +915,23 @@ class HHbbggProcessor(HggBaseProcessor):
                 diphotons[f"{AnType}_dijet_mass"] = dijet_mass
                 diphotons[f"{AnType}_dijet_charge"] = dijet_charge
 
-                diphotons[f"{AnType}_pholead_PtOverM"] = awkward.fill_none(HHbbgg.pho_lead.pt / HHbbgg.obj_diphoton.mass, -999.0)
-                diphotons[f"{AnType}_phosublead_PtOverM"] = awkward.fill_none(HHbbgg.pho_sublead.pt / HHbbgg.obj_diphoton.mass, -999.0)
+                diphotons[f"{AnType}_pholead_PtOverM"] = ak.fill_none(HHbbgg.pho_lead.pt / HHbbgg.obj_diphoton.mass, -999.0)
+                diphotons[f"{AnType}_phosublead_PtOverM"] = ak.fill_none(HHbbgg.pho_sublead.pt / HHbbgg.obj_diphoton.mass, -999.0)
 
-                diphotons[f"{AnType}_FirstJet_PtOverM"] = awkward.fill_none(diphotons[f"{AnType}_lead_bjet_pt"] / diphotons[f"{AnType}_dijet_mass"], -999.0)
-                diphotons[f"{AnType}_SecondJet_PtOverM"] = awkward.fill_none(diphotons[f"{AnType}_sublead_bjet_pt"] / diphotons[f"{AnType}_dijet_mass"], -999.0)
+                diphotons[f"{AnType}_FirstJet_PtOverM"] = ak.fill_none(diphotons[f"{AnType}_lead_bjet_pt"] / diphotons[f"{AnType}_dijet_mass"], -999.0)
+                diphotons[f"{AnType}_SecondJet_PtOverM"] = ak.fill_none(diphotons[f"{AnType}_sublead_bjet_pt"] / diphotons[f"{AnType}_dijet_mass"], -999.0)
 
-                diphotons[f"{AnType}_DeltaR_j1g1"] = awkward.fill_none(DeltaR(HHbbgg.first_jet, HHbbgg.pho_lead), -999.0)
-                diphotons[f"{AnType}_DeltaR_j2g1"] = awkward.fill_none(DeltaR(HHbbgg.second_jet, HHbbgg.pho_lead), -999.0)
-                diphotons[f"{AnType}_DeltaR_j1g2"] = awkward.fill_none(DeltaR(HHbbgg.first_jet, HHbbgg.pho_sublead), -999.0)
-                diphotons[f"{AnType}_DeltaR_j2g2"] = awkward.fill_none(DeltaR(HHbbgg.second_jet, HHbbgg.pho_sublead), -999.0)
+                diphotons[f"{AnType}_DeltaR_j1g1"] = ak.fill_none(DeltaR(HHbbgg.first_jet, HHbbgg.pho_lead), -999.0)
+                diphotons[f"{AnType}_DeltaR_j2g1"] = ak.fill_none(DeltaR(HHbbgg.second_jet, HHbbgg.pho_lead), -999.0)
+                diphotons[f"{AnType}_DeltaR_j1g2"] = ak.fill_none(DeltaR(HHbbgg.first_jet, HHbbgg.pho_sublead), -999.0)
+                diphotons[f"{AnType}_DeltaR_j2g2"] = ak.fill_none(DeltaR(HHbbgg.second_jet, HHbbgg.pho_sublead), -999.0)
 
-                DeltaR_comb = awkward.Array([diphotons[f"{AnType}_DeltaR_j1g1"], diphotons[f"{AnType}_DeltaR_j2g1"], diphotons[f"{AnType}_DeltaR_j1g2"], diphotons[f"{AnType}_DeltaR_j2g2"]])
+                DeltaR_comb = ak.Array([diphotons[f"{AnType}_DeltaR_j1g1"], diphotons[f"{AnType}_DeltaR_j2g1"], diphotons[f"{AnType}_DeltaR_j1g2"], diphotons[f"{AnType}_DeltaR_j2g2"]])
 
-                diphotons[f"{AnType}_DeltaR_jg_min"] = awkward.min(DeltaR_comb, axis=0)
+                diphotons[f"{AnType}_DeltaR_jg_min"] = ak.min(DeltaR_comb, axis=0)
 
                 # ttH Killer vars #
-                b_dijets = awkward.firsts(dijets)
+                b_dijets = ak.firsts(dijets)
                 chi_t0 = getChi_t0(
                     b_dijets,
                     dijets_for_tth_killer,
@@ -944,36 +944,36 @@ class HHbbggProcessor(HggBaseProcessor):
                     n_jets,
                     -999.0,
                 )
-                diphotons[f"{AnType}_chi_t0"] = awkward.fill_none(chi_t0,-999.0)
-                diphotons[f"{AnType}_chi_t1"] = awkward.fill_none(chi_t1,-999.0)
-                diphotons[f"{AnType}_DeltaPhi_j1MET"] = awkward.fill_none(DeltaPhi(HHbbgg.first_jet, puppiMET), -999.0)
-                diphotons[f"{AnType}_DeltaPhi_j2MET"] = awkward.fill_none(DeltaPhi(HHbbgg.second_jet, puppiMET), -999.0)
-                diphotons[f"{AnType}_CosThetaStar_CS"] = awkward.fill_none(getCosThetaStar_CS(HHbbgg, 6800), -999.0)
-                diphotons[f"{AnType}_CosThetaStar_gg"] = awkward.fill_none(getCosThetaStar_gg(HHbbgg), -999.0)
-                diphotons[f"{AnType}_CosThetaStar_jj"] = awkward.fill_none(getCosThetaStar_jj(HHbbgg), -999.0)
+                diphotons[f"{AnType}_chi_t0"] = ak.fill_none(chi_t0,-999.0)
+                diphotons[f"{AnType}_chi_t1"] = ak.fill_none(chi_t1,-999.0)
+                diphotons[f"{AnType}_DeltaPhi_j1MET"] = ak.fill_none(DeltaPhi(HHbbgg.first_jet, puppiMET), -999.0)
+                diphotons[f"{AnType}_DeltaPhi_j2MET"] = ak.fill_none(DeltaPhi(HHbbgg.second_jet, puppiMET), -999.0)
+                diphotons[f"{AnType}_CosThetaStar_CS"] = ak.fill_none(getCosThetaStar_CS(HHbbgg, 6800), -999.0)
+                diphotons[f"{AnType}_CosThetaStar_gg"] = ak.fill_none(getCosThetaStar_gg(HHbbgg), -999.0)
+                diphotons[f"{AnType}_CosThetaStar_jj"] = ak.fill_none(getCosThetaStar_jj(HHbbgg), -999.0)
 
                 if AnType == "nonRes":
                     # Add VBF jets information
-                    # HHbbgg = awkward.with_name(HHbbgg, "PtEtaPhiMCandidate", behavior=candidate.behavior)
-                    # jets = awkward.with_name(jets, "PtEtaPhiMCandidate", behavior=candidate.behavior)
-                    jets["dr_VBFj_b1"] = awkward.fill_none(jets.delta_r(HHbbgg.first_jet), -999.0)
-                    jets["dr_VBFj_b2"] = awkward.fill_none(jets.delta_r(HHbbgg.second_jet), -999.0)
-                    jets["dr_VBFj_g1"] = awkward.fill_none(jets.delta_r(HHbbgg.pho_lead), -999.0)
-                    jets["dr_VBFj_g2"] = awkward.fill_none(jets.delta_r(HHbbgg.pho_sublead), -999.0)
+                    # HHbbgg = ak.with_name(HHbbgg, "PtEtaPhiMCandidate", behavior=candidate.behavior)
+                    # jets = ak.with_name(jets, "PtEtaPhiMCandidate", behavior=candidate.behavior)
+                    jets["dr_VBFj_b1"] = ak.fill_none(jets.delta_r(HHbbgg.first_jet), -999.0)
+                    jets["dr_VBFj_b2"] = ak.fill_none(jets.delta_r(HHbbgg.second_jet), -999.0)
+                    jets["dr_VBFj_g1"] = ak.fill_none(jets.delta_r(HHbbgg.pho_lead), -999.0)
+                    jets["dr_VBFj_g2"] = ak.fill_none(jets.delta_r(HHbbgg.pho_sublead), -999.0)
 
                     # VBF jet selection
                     vbf_jets = jets[(jets.pt > 30) & (jets.dr_VBFj_b1 > 0.4) & (jets.dr_VBFj_b2 > 0.4)]
-                    vbf_jet_pair = awkward.combinations(
+                    vbf_jet_pair = ak.combinations(
                         vbf_jets, 2, fields=("first_jet", "second_jet")
                     )
-                    vbf = awkward.zip({
+                    vbf = ak.zip({
                         "first_jet": vbf_jet_pair["0"],
                         "second_jet": vbf_jet_pair["1"],
                         "dijet": vbf_jet_pair["0"] + vbf_jet_pair["1"],
                     })
                     vbf = vbf[vbf.first_jet.pt > 40.]
-                    vbf = vbf[awkward.argsort(vbf.dijet.mass, ascending=False)]
-                    vbf = awkward.firsts(vbf)
+                    vbf = vbf[ak.argsort(vbf.dijet.mass, ascending=False)]
+                    vbf = ak.firsts(vbf)
 
                     # Store VBF jets properties
                     vbf_jets_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "PNetRegPtRawCorr", "PNetRegPtRawCorrNeutrino", "PNetRegPtRawRes", "btagPNetQvG", "btagDeepFlav_QG"]
@@ -981,37 +981,37 @@ class HHbbggProcessor(HggBaseProcessor):
                         vbf_properties = vbf_jets_properties if i != "dijet" else vbf_jets_properties[:5]
                         for prop in vbf_properties:
                             key = f"VBF_{i}_{prop}"
-                            value = awkward.fill_none(getattr(vbf[i], prop), -999)
+                            value = ak.fill_none(getattr(vbf[i], prop), -999)
                             # Store the value in the diphotons dictionary
                             diphotons[key] = value
 
-                    diphotons["VBF_first_jet_PtOverM"] = awkward.where(diphotons.VBF_first_jet_pt != -999, diphotons.VBF_first_jet_pt / diphotons.VBF_dijet_mass, -999)
-                    diphotons["VBF_second_jet_PtOverM"] = awkward.where(diphotons.VBF_second_jet_pt != -999, diphotons.VBF_second_jet_pt / diphotons.VBF_dijet_mass, -999)
-                    diphotons["VBF_first_jet_index"] = awkward.fill_none(vbf.first_jet.index, -999)
-                    diphotons["VBF_second_jet_index"] = awkward.fill_none(vbf.second_jet.index, -999)
+                    diphotons["VBF_first_jet_PtOverM"] = ak.where(diphotons.VBF_first_jet_pt != -999, diphotons.VBF_first_jet_pt / diphotons.VBF_dijet_mass, -999)
+                    diphotons["VBF_second_jet_PtOverM"] = ak.where(diphotons.VBF_second_jet_pt != -999, diphotons.VBF_second_jet_pt / diphotons.VBF_dijet_mass, -999)
+                    diphotons["VBF_first_jet_index"] = ak.fill_none(vbf.first_jet.index, -999)
+                    diphotons["VBF_second_jet_index"] = ak.fill_none(vbf.second_jet.index, -999)
 
-                    diphotons["VBF_jet_eta_prod"] = awkward.fill_none(vbf.first_jet.eta * vbf.second_jet.eta, -999)
-                    diphotons["VBF_jet_eta_diff"] = awkward.fill_none(vbf.first_jet.eta - vbf.second_jet.eta, -999)
-                    diphotons["VBF_jet_eta_sum"] = awkward.fill_none(vbf.first_jet.eta + vbf.second_jet.eta, -999)
+                    diphotons["VBF_jet_eta_prod"] = ak.fill_none(vbf.first_jet.eta * vbf.second_jet.eta, -999)
+                    diphotons["VBF_jet_eta_diff"] = ak.fill_none(vbf.first_jet.eta - vbf.second_jet.eta, -999)
+                    diphotons["VBF_jet_eta_sum"] = ak.fill_none(vbf.first_jet.eta + vbf.second_jet.eta, -999)
 
-                    diphotons["VBF_DeltaR_j1b1"] = awkward.fill_none(vbf.first_jet.dr_VBFj_b1, -999)
-                    diphotons["VBF_DeltaR_j1b2"] = awkward.fill_none(vbf.first_jet.dr_VBFj_b2, -999)
-                    diphotons["VBF_DeltaR_j2b1"] = awkward.fill_none(vbf.second_jet.dr_VBFj_b1, -999)
-                    diphotons["VBF_DeltaR_j2b2"] = awkward.fill_none(vbf.second_jet.dr_VBFj_b2, -999)
+                    diphotons["VBF_DeltaR_j1b1"] = ak.fill_none(vbf.first_jet.dr_VBFj_b1, -999)
+                    diphotons["VBF_DeltaR_j1b2"] = ak.fill_none(vbf.first_jet.dr_VBFj_b2, -999)
+                    diphotons["VBF_DeltaR_j2b1"] = ak.fill_none(vbf.second_jet.dr_VBFj_b1, -999)
+                    diphotons["VBF_DeltaR_j2b2"] = ak.fill_none(vbf.second_jet.dr_VBFj_b2, -999)
 
-                    diphotons["VBF_DeltaR_j1g1"] = awkward.fill_none(vbf.first_jet.dr_VBFj_g1, -999)
-                    diphotons["VBF_DeltaR_j1g2"] = awkward.fill_none(vbf.first_jet.dr_VBFj_g2, -999)
-                    diphotons["VBF_DeltaR_j2g1"] = awkward.fill_none(vbf.second_jet.dr_VBFj_g1, -999)
-                    diphotons["VBF_DeltaR_j2g2"] = awkward.fill_none(vbf.second_jet.dr_VBFj_g2, -999)
+                    diphotons["VBF_DeltaR_j1g1"] = ak.fill_none(vbf.first_jet.dr_VBFj_g1, -999)
+                    diphotons["VBF_DeltaR_j1g2"] = ak.fill_none(vbf.first_jet.dr_VBFj_g2, -999)
+                    diphotons["VBF_DeltaR_j2g1"] = ak.fill_none(vbf.second_jet.dr_VBFj_g1, -999)
+                    diphotons["VBF_DeltaR_j2g2"] = ak.fill_none(vbf.second_jet.dr_VBFj_g2, -999)
 
-                    DeltaR_jb = awkward.Array([diphotons["VBF_DeltaR_j1b1"], diphotons["VBF_DeltaR_j2b1"], diphotons["VBF_DeltaR_j1b2"], diphotons["VBF_DeltaR_j2b2"]])
-                    DeltaR_jg = awkward.Array([diphotons["VBF_DeltaR_j1g1"], diphotons["VBF_DeltaR_j2g1"], diphotons["VBF_DeltaR_j1g2"], diphotons["VBF_DeltaR_j2g2"]])
+                    DeltaR_jb = ak.Array([diphotons["VBF_DeltaR_j1b1"], diphotons["VBF_DeltaR_j2b1"], diphotons["VBF_DeltaR_j1b2"], diphotons["VBF_DeltaR_j2b2"]])
+                    DeltaR_jg = ak.Array([diphotons["VBF_DeltaR_j1g1"], diphotons["VBF_DeltaR_j2g1"], diphotons["VBF_DeltaR_j1g2"], diphotons["VBF_DeltaR_j2g2"]])
 
-                    diphotons["VBF_DeltaR_jb_min"] = awkward.min(DeltaR_jb, axis=0)
-                    diphotons["VBF_DeltaR_jg_min"] = awkward.min(DeltaR_jg, axis=0)
+                    diphotons["VBF_DeltaR_jb_min"] = ak.min(DeltaR_jb, axis=0)
+                    diphotons["VBF_DeltaR_jg_min"] = ak.min(DeltaR_jg, axis=0)
 
-                    diphotons["VBF_Cgg"] = awkward.where(diphotons.VBF_jet_eta_diff != -999, Cxx(diphotons.eta, diphotons.VBF_jet_eta_diff, diphotons.VBF_jet_eta_sum), -999)
-                    diphotons["VBF_Cbb"] = awkward.where(diphotons.VBF_jet_eta_diff != -999, Cxx(diphotons.nonRes_dijet_eta, diphotons.VBF_jet_eta_diff, diphotons.VBF_jet_eta_sum), -999)
+                    diphotons["VBF_Cgg"] = ak.where(diphotons.VBF_jet_eta_diff != -999, Cxx(diphotons.eta, diphotons.VBF_jet_eta_diff, diphotons.VBF_jet_eta_sum), -999)
+                    diphotons["VBF_Cbb"] = ak.where(diphotons.VBF_jet_eta_diff != -999, Cxx(diphotons.nonRes_dijet_eta, diphotons.VBF_jet_eta_diff, diphotons.VBF_jet_eta_sum), -999)
 
                 # add flags for the presence of btagged jets for the different analyses
                 diphotons[f"{AnType}_has_two_btagged_jets"] = (diphotons[f"{AnType}_sublead_bjet_pt"] > -998)
@@ -1029,20 +1029,20 @@ class HHbbggProcessor(HggBaseProcessor):
             diphotons["nBLoose"] = nBLoose
             # Addition of lepton info-> Taken from the top workflow. This part of the code was orignally written by Florain Mausolf
             # Adding a 'generation' field to electrons and muons
-            sel_electrons['generation'] = awkward.ones_like(sel_electrons.pt)
-            sel_muons['generation'] = 2 * awkward.ones_like(sel_muons.pt)
+            sel_electrons['generation'] = ak.ones_like(sel_electrons.pt)
+            sel_muons['generation'] = 2 * ak.ones_like(sel_muons.pt)
 
             # Combine electrons and muons into a single leptons collection
-            leptons = awkward.concatenate([sel_electrons, sel_muons], axis=1)
-            leptons = awkward.with_name(leptons, "PtEtaPhiMCandidate")
+            leptons = ak.concatenate([sel_electrons, sel_muons], axis=1)
+            leptons = ak.with_name(leptons, "PtEtaPhiMCandidate")
 
             # Sort leptons by pt in descending order
             try:
-                leptons = leptons[awkward.argsort(leptons.pt, ascending=False)]
+                leptons = leptons[ak.argsort(leptons.pt, ascending=False)]
             except ValueError as e:
                 logger.warning(f"Error sorting leptons: {e}")
 
-            n_leptons = awkward.num(leptons)
+            n_leptons = ak.num(leptons)
             diphotons["n_leptons"] = n_leptons
 
             # Annotate diphotons with selected leptons properties
@@ -1058,11 +1058,11 @@ class HHbbggProcessor(HggBaseProcessor):
             # ttH Killer vars cont.
             for jet in range(self.num_jets_to_store):
                 for lep in range(self.num_leptons_to_store):
-                    diphotons[f"DeltaR_j{jet+1}l{lep+1}"] = awkward.fill_none(DeltaR(awkward.firsts(jets[awkward.local_index(jets) == jet]), awkward.firsts(leptons[awkward.local_index(leptons) == lep])), -999.0)
-            diphotons["DeltaR_b1l1"] = awkward.fill_none(DeltaR(HHbbgg.first_jet, awkward.firsts(leptons[awkward.local_index(leptons) == 0])), -999.0)
-            diphotons["DeltaR_b2l1"] = awkward.fill_none(DeltaR(HHbbgg.second_jet, awkward.firsts(leptons[awkward.local_index(leptons) == 0])), -999.0)
-            diphotons["DeltaR_b1l2"] = awkward.fill_none(DeltaR(HHbbgg.first_jet, awkward.firsts(leptons[awkward.local_index(leptons) == 1])), -999.0)
-            diphotons["DeltaR_b2l2"] = awkward.fill_none(DeltaR(HHbbgg.second_jet, awkward.firsts(leptons[awkward.local_index(leptons) == 1])), -999.0)
+                    diphotons[f"DeltaR_j{jet+1}l{lep+1}"] = ak.fill_none(DeltaR(ak.firsts(jets[ak.local_index(jets) == jet]), ak.firsts(leptons[ak.local_index(leptons) == lep])), -999.0)
+            diphotons["DeltaR_b1l1"] = ak.fill_none(DeltaR(HHbbgg.first_jet, ak.firsts(leptons[ak.local_index(leptons) == 0])), -999.0)
+            diphotons["DeltaR_b2l1"] = ak.fill_none(DeltaR(HHbbgg.second_jet, ak.firsts(leptons[ak.local_index(leptons) == 0])), -999.0)
+            diphotons["DeltaR_b1l2"] = ak.fill_none(DeltaR(HHbbgg.first_jet, ak.firsts(leptons[ak.local_index(leptons) == 1])), -999.0)
+            diphotons["DeltaR_b2l2"] = ak.fill_none(DeltaR(HHbbgg.second_jet, ak.firsts(leptons[ak.local_index(leptons) == 1])), -999.0)
 
             if self.data_kind == 'mc':
                 # add in gen lepton info #
@@ -1074,10 +1074,10 @@ class HHbbggProcessor(HggBaseProcessor):
                     | (events.GenDressedLepton.pdgId == 13)  # muon
                     | (events.GenDressedLepton.pdgId == -13)  # muon
                 ]
-                genLeptons["charge"] = awkward.where(genLeptons.pdgId > 0, -1, 0) + awkward.where(genLeptons.pdgId < 0, 1, 0)
-                genLeptons = awkward.with_name(genLeptons, "PtEtaPhiMCandidate")
-                genLeptons = genLeptons[awkward.argsort(genLeptons.pt, ascending=False)]
-                genLepton_abs_pdgId = awkward.where(genLeptons.pdgId > 0, genLeptons.pdgId, -genLeptons.pdgId)
+                genLeptons["charge"] = ak.where(genLeptons.pdgId > 0, -1, 0) + ak.where(genLeptons.pdgId < 0, 1, 0)
+                genLeptons = ak.with_name(genLeptons, "PtEtaPhiMCandidate")
+                genLeptons = genLeptons[ak.argsort(genLeptons.pt, ascending=False)]
+                genLepton_abs_pdgId = ak.where(genLeptons.pdgId > 0, genLeptons.pdgId, -genLeptons.pdgId)
 
                 for i in range(self.num_leptons_to_store):  # Number of leptons to select
                     key = f"lepton{i+1}_genMatched"
@@ -1086,8 +1086,8 @@ class HHbbggProcessor(HggBaseProcessor):
                         leptons,
                         genLeptons[
                             (
-                                genLepton_abs_pdgId == awkward.where(
-                                    awkward.firsts(leptons[awkward.local_index(leptons) == i])["generation"] == 1, 11, 13
+                                genLepton_abs_pdgId == ak.where(
+                                    ak.firsts(leptons[ak.local_index(leptons) == i])["generation"] == 1, 11, 13
                                 )
                             )
                         ],
@@ -1205,10 +1205,10 @@ class HHbbggProcessor(HggBaseProcessor):
             # Deal with order of tagger priorities
             # Turn from diphoton jagged array to whether or not an event was selected
             if len(self.taggers):
-                counts = awkward.num(diphotons.pt, axis=1)
+                counts = ak.num(diphotons.pt, axis=1)
                 flat_tags = numpy.stack(
                     (
-                        awkward.flatten(
+                        ak.flatten(
                             diphotons[
                                 "_".join([tagger.name, str(tagger.priority)])
                             ]
@@ -1217,18 +1217,18 @@ class HHbbggProcessor(HggBaseProcessor):
                     ),
                     axis=1,
                 )
-                tags = awkward.from_regular(
-                    awkward.unflatten(flat_tags, counts), axis=2
+                tags = ak.from_regular(
+                    ak.unflatten(flat_tags, counts), axis=2
                 )
-                winner = awkward.min(tags[tags != 0], axis=2)
+                winner = ak.min(tags[tags != 0], axis=2)
                 diphotons["best_tag"] = winner
 
                 # lowest priority is most important (ascending sort)
                 # leave in order of diphoton pT in case of ties (stable sort)
-                sorted = awkward.argsort(diphotons.best_tag, stable=True)
+                sorted = ak.argsort(diphotons.best_tag, stable=True)
                 diphotons = diphotons[sorted]
 
-            diphotons = awkward.firsts(diphotons)
+            diphotons = ak.firsts(diphotons)
             # set diphotons as part of the event record
             events[f"diphotons_{do_variation}"] = diphotons
             # annotate diphotons with event information
@@ -1250,18 +1250,18 @@ class HHbbggProcessor(HggBaseProcessor):
                 diphotons["HTXS_stage_0"] = events.HTXS.stage_0
             # Fill zeros for data because there is no GenVtx for data, obviously
             else:
-                diphotons["dZ"] = awkward.zeros_like(events.PV.z)
+                diphotons["dZ"] = ak.zeros_like(events.PV.z)
 
             # drop events without a preselected diphoton candidate
             # drop events without a tag, if there are tags
             if len(self.taggers):
                 selection_mask = ~(
-                    awkward.is_none(diphotons)
-                    | awkward.is_none(diphotons.best_tag)
+                    ak.is_none(diphotons)
+                    | ak.is_none(diphotons.best_tag)
                 )
                 diphotons = diphotons[selection_mask]
             else:
-                selection_mask = ~awkward.is_none(diphotons)
+                selection_mask = ~ak.is_none(diphotons)
                 diphotons = diphotons[selection_mask]
 
             # return if there is no surviving events
@@ -1272,7 +1272,7 @@ class HHbbggProcessor(HggBaseProcessor):
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
                 event_weights = Weights(size=len(events[selection_mask]), storeIndividual=True)
                 # set weights to generator weights
-                event_weights._weight = awkward.to_numpy(events["genWeight"][selection_mask])
+                event_weights._weight = ak.to_numpy(events["genWeight"][selection_mask])
 
                 # corrections to event weights:
                 for correction_name in correction_names:
@@ -1304,7 +1304,7 @@ class HHbbggProcessor(HggBaseProcessor):
                             )
                             if systematic_name == "LHEScale":
                                 if hasattr(events, "LHEScaleWeight"):
-                                    diphotons["nweight_LHEScale"] = awkward.num(
+                                    diphotons["nweight_LHEScale"] = ak.num(
                                         events.LHEScaleWeight[selection_mask],
                                         axis=1,
                                     )
@@ -1319,7 +1319,7 @@ class HHbbggProcessor(HggBaseProcessor):
                                 if hasattr(events, "LHEPdfWeight"):
                                     # two AlphaS weights are removed
                                     diphotons["nweight_LHEPdf"] = (
-                                        awkward.num(
+                                        ak.num(
                                             events.LHEPdfWeight[selection_mask],
                                             axis=1,
                                         )
@@ -1353,10 +1353,10 @@ class HHbbggProcessor(HggBaseProcessor):
                 diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]
 
                 metadata["sum_weight_central"] = str(
-                    awkward.sum(event_weights.weight())
+                    ak.sum(event_weights.weight())
                 )
                 metadata["sum_weight_central_wo_bTagSF"] = str(
-                    awkward.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
+                    ak.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
                 )
 
                 # Store variations with respect to central weight
@@ -1371,7 +1371,7 @@ class HHbbggProcessor(HggBaseProcessor):
                         )
                         if ("bTagSF" in modifier):
                             metadata["sum_weight_" + modifier] = str(
-                                awkward.sum(event_weights.weight(modifier=modifier))
+                                ak.sum(event_weights.weight(modifier=modifier))
                             )
 
                 # Store weights for different width effects
@@ -1381,14 +1381,14 @@ class HHbbggProcessor(HggBaseProcessor):
                 if "RelWidth" in dataset_name:
                     diphotons["weight_interference"] = [weights_interference[str(dataset_name.split('_')[-2] + '_' + dataset_name.split('_')[-1])]] * len(events[selection_mask])
                 else:
-                    diphotons["weight_interference"] = awkward.full_like(diphotons["weight_central"], 0)
+                    diphotons["weight_interference"] = ak.full_like(diphotons["weight_central"], 0)
 
             # Add weight variables (=1) for data for consistent datasets
             else:
-                diphotons["weight_central"] = awkward.ones_like(
+                diphotons["weight_central"] = ak.ones_like(
                     diphotons["event"]
                 )
-                diphotons["weight"] = awkward.ones_like(diphotons["event"])
+                diphotons["weight"] = ak.ones_like(diphotons["event"])
 
             # Compute and store the different variations of sigma_m_over_m
             diphotons = compute_sigma_m(diphotons, processor='base', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m, IsData=(self.data_kind == "data"))
@@ -1460,9 +1460,9 @@ class HHbbggProcessor(HggBaseProcessor):
         # function takes input array and adds number of events (for data) or sum of genweights (for mc) for a cut_name in metadata
         # for use with calculating cutflow table
         if self.data_kind == "mc":
-            counts = awkward.sum(diphotons[~awkward.is_none(awkward.firsts(diphotons))].genWeight)
+            counts = ak.sum(diphotons[~ak.is_none(ak.firsts(diphotons))].genWeight)
         else:
-            counts = len(diphotons[~awkward.is_none(awkward.firsts(diphotons))])
+            counts = len(diphotons[~ak.is_none(ak.firsts(diphotons))])
 
         metadata[f"{cut_name}"] = str(counts)
 

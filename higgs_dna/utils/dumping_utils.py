@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-import awkward
+import awkward as ak
 import pandas
 import os
 import pathlib
@@ -9,7 +9,7 @@ import pyarrow.parquet as pq
 import uproot
 
 
-def apply_naming_convention(self, events: awkward.Array) -> str:
+def apply_naming_convention(self, events: ak.Array) -> str:
     """
     Apply the correct naming convention.
     Select which uuid (DAS or uproot (Legacy)) should be included in the parquet name.
@@ -37,7 +37,7 @@ def apply_naming_convention(self, events: awkward.Array) -> str:
     return fname
 
 
-def diphoton_list_to_pandas(self, diphotons: awkward.Array) -> pandas.DataFrame:
+def diphoton_list_to_pandas(self, diphotons: ak.Array) -> pandas.DataFrame:
     """
     Convert diphoton array to pandas dataframe.
     By default the observables related to each item of the diphoton pair are
@@ -47,16 +47,16 @@ def diphoton_list_to_pandas(self, diphotons: awkward.Array) -> pandas.DataFrame:
     derived class.
     """
     output = pandas.DataFrame()
-    for field in awkward.fields(diphotons):
+    for field in ak.fields(diphotons):
         prefix = self.prefixes.get(field, "")
         if len(prefix) > 0:
-            for subfield in awkward.fields(diphotons[field]):
+            for subfield in ak.fields(diphotons[field]):
                 if subfield != "__systematics__":
-                    output[f"{prefix}_{subfield}"] = awkward.to_numpy(
+                    output[f"{prefix}_{subfield}"] = ak.to_numpy(
                         diphotons[field][subfield]
                     )
         else:
-            output[field] = awkward.to_numpy(diphotons[field])
+            output[field] = ak.to_numpy(diphotons[field])
     return output
 
 
@@ -126,8 +126,8 @@ def dump_pandas(
 
 
 def diphoton_ak_array_fields(
-    self, diphotons: awkward.Array, fields, logger
-) -> awkward.Array:
+    self, diphotons: ak.Array, fields, logger
+) -> ak.Array:
     """
     This function allows you to add the list of variables to be dumped
     Adjust the prefix.
@@ -142,15 +142,15 @@ def diphoton_ak_array_fields(
         ):  # not needed in the output, the information is already stored in pho_lead and pho_sublead
             prefix = self.prefixes.get(field, "")
             if len(prefix) > 0:
-                for subfield in awkward.fields(diphotons[field]):
+                for subfield in ak.fields(diphotons[field]):
                     if subfield != "__systematics__":
                         output[f"{prefix}_{subfield}"] = diphotons[field][subfield]
             else:
                 output[field] = diphotons[field]
-    return awkward.Array(output)
+    return ak.Array(output)
 
 
-def diphoton_ak_array(self, diphotons: awkward.Array) -> awkward.Array:
+def diphoton_ak_array(self, diphotons: ak.Array) -> ak.Array:
     """
     Adjust the prefix.
     By default the observables related to each item of the diphoton pair are
@@ -158,20 +158,20 @@ def diphoton_ak_array(self, diphotons: awkward.Array) -> awkward.Array:
     The observables related to the diphoton pair are stored with no prefix.
     """
     output = {}
-    for field in awkward.fields(diphotons):
+    for field in ak.fields(diphotons):
         prefix = self.prefixes.get(field, "")
         if len(prefix) > 0:
-            for subfield in awkward.fields(diphotons[field]):
+            for subfield in ak.fields(diphotons[field]):
                 if subfield != "__systematics__":
                     output[f"{prefix}_{subfield}"] = diphotons[field][subfield]
         else:
             output[field] = diphotons[field]
-    return awkward.Array(output)
+    return ak.Array(output)
 
 
 def dump_ak_array(
     self,
-    akarr: awkward.Array,
+    akarr: ak.Array,
     fname: str,
     location: str,
     metadata: None,
@@ -206,7 +206,7 @@ def dump_ak_array(
         else os.path.join(location, os.path.join(merged_subdirs, fname))
     )
 
-    pa_table = awkward.to_arrow_table(akarr)
+    pa_table = ak.to_arrow_table(akarr)
     # If metadata is not None then write to pyarrow table
     if metadata:
         merged_metadata = {**metadata, **(pa_table.schema.metadata or {})}
@@ -239,8 +239,8 @@ def dump_ak_array(
 
 
 def dress_branches(
-    main_arr: awkward.Array, additional_arr: awkward.Array, prefix: str
-) -> awkward.Array:
+    main_arr: ak.Array, additional_arr: ak.Array, prefix: str
+) -> ak.Array:
     """_summary_
 
     Args:
@@ -253,11 +253,11 @@ def dress_branches(
     """
     import numpy as np
 
-    for field in awkward.fields(additional_arr):
+    for field in ak.fields(additional_arr):
         if not field == "__systematics__":
             if "bool" in str(additional_arr[field].type):
                 # * change `bool` to `int8` avoid error when using coffea to read the parquet
-                main_arr[f"{prefix}_{field}"] = awkward.values_astype(
+                main_arr[f"{prefix}_{field}"] = ak.values_astype(
                     additional_arr[field], np.int8
                 )
             else:
@@ -265,7 +265,7 @@ def dress_branches(
     return main_arr
 
 
-def get_obj_syst_dict(obj_ak: awkward.Array, var_new: Optional[List[str]] = ["pt"]):
+def get_obj_syst_dict(obj_ak: ak.Array, var_new: Optional[List[str]] = ["pt"]):
     """_summary_
 
     Args:
@@ -306,7 +306,7 @@ def get_obj_syst_dict(obj_ak: awkward.Array, var_new: Optional[List[str]] = ["pt
     obj_syst_dict = {"nominal": obj_nom}
     for isyst in syst_list:
         for ivariation in replace_dict[isyst]:
-            obj_tmp = awkward.copy(obj_nom)
+            obj_tmp = ak.copy(obj_nom)
             for ivariable in replace_dict[isyst][ivariation]:
                 obj_tmp[ivariable] = obj_ak[replace_dict[isyst][ivariation][ivariable]]
             obj_syst_dict.update({f"{isyst}_{ivariation}": obj_tmp})

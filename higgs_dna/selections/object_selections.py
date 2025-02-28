@@ -1,10 +1,10 @@
-import awkward
+import awkward as ak
 import numpy as np
 
 
 def delta_r_mask(
-    first: awkward.highlevel.Array, second: awkward.highlevel.Array, threshold: float
-) -> awkward.highlevel.Array:
+    first: ak.highlevel.Array, second: ak.highlevel.Array, threshold: float
+) -> ak.highlevel.Array:
     """
     Select objects from first which are at least threshold away from all objects in second.
     The result is a mask (i.e., a boolean array) of the same shape as first.
@@ -19,18 +19,18 @@ def delta_r_mask(
     :rtype: coffea.nanoevents.methods.candidate.PtEtaPhiMCandidate
     """
     mval = first.metric_table(second)
-    return awkward.all(mval > threshold, axis=-1)
+    return ak.all(mval > threshold, axis=-1)
 
 
 def delta_phi_mask(
-        Phi1: awkward.highlevel.Array,
-        Phi2: awkward.highlevel.Array,
+        Phi1: ak.highlevel.Array,
+        Phi2: ak.highlevel.Array,
         threshold: float
-) -> awkward.highlevel.Array:
+) -> ak.highlevel.Array:
     # Select objects that are at least threshold away in Phi space
 
     # calculate delta_phi
     dPhi = abs(Phi1 - Phi2) % (2 * np.pi)
-    dPhi = awkward.where(dPhi > np.pi, 2 * np.pi - dPhi, dPhi)
+    dPhi = ak.where(dPhi > np.pi, 2 * np.pi - dPhi, dPhi)
 
     return dPhi > threshold

@@ -34,7 +34,7 @@ import functools
 import operator
 import warnings
 from typing import Any, Dict, List, Optional
-import awkward
+import awkward as ak
 import numpy
 import sys
 import vector
@@ -373,10 +373,10 @@ class lowmassProcessor(HggBaseProcessor):
         self.trigger_group = ".*DoubleEG.*"
         self.analysis = "lowMassAnalysis"
 
-    def process_extra(self, events: awkward.Array) -> awkward.Array:
+    def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
 
-    def apply_filters(self, events: awkward.Array) -> awkward.Array:
+    def apply_filters(self, events: ak.Array) -> ak.Array:
         # met filters
         met_filters = self.meta["flashggMetFilters"][self.data_kind]
         filtered = functools.reduce(
@@ -387,13 +387,13 @@ class lowmassProcessor(HggBaseProcessor):
         return events[filtered]
 
     def apply_triggers(
-        self, events: awkward.Array, apply_to_mc: bool = False
-    ) -> awkward.Array:
+        self, events: ak.Array, apply_to_mc: bool = False
+    ) -> ak.Array:
         # trigger selection
         logger.debug(
             f"[apply_triggers] {self.trigger_group} {self.analysis} {self.data_kind} {apply_to_mc}"
         )
-        triggered = awkward.ones_like(events.event)
+        triggered = ak.ones_like(events.event)
 
         if self.apply_trigger:
             if not apply_to_mc and self.data_kind == "mc":
@@ -414,7 +414,7 @@ class lowmassProcessor(HggBaseProcessor):
 
         return events
 
-    def process(self, events: awkward.Array) -> Dict[Any, Any]:
+    def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
 
         # data or monte carlo?
@@ -426,15 +426,15 @@ class lowmassProcessor(HggBaseProcessor):
         histos_etc[dataset_name] = {}
         if self.data_kind == "mc":
             histos_etc[dataset_name]["nTot"] = int(
-                awkward.num(events.genWeight, axis=0)
+                ak.num(events.genWeight, axis=0)
             )
-            histos_etc[dataset_name]["nPos"] = int(awkward.sum(events.genWeight > 0))
-            histos_etc[dataset_name]["nNeg"] = int(awkward.sum(events.genWeight < 0))
+            histos_etc[dataset_name]["nPos"] = int(ak.sum(events.genWeight > 0))
+            histos_etc[dataset_name]["nNeg"] = int(ak.sum(events.genWeight < 0))
             histos_etc[dataset_name]["nEff"] = int(
                 histos_etc[dataset_name]["nPos"] - histos_etc[dataset_name]["nNeg"]
             )
             histos_etc[dataset_name]["genWeightSum"] = float(
-                awkward.sum(events.genWeight)
+                ak.sum(events.genWeight)
             )
         else:
             histos_etc[dataset_name]["nTot"] = int(len(events))
@@ -462,7 +462,7 @@ class lowmassProcessor(HggBaseProcessor):
 
         if self.data_kind == "mc":
             # Add sum of gen weights before selection for normalisation in postprocessing
-            metadata["sum_genw_presel"] = str(awkward.sum(events.genWeight))
+            metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
         else:
             metadata["sum_genw_presel"] = "Data"
 
@@ -515,7 +515,7 @@ class lowmassProcessor(HggBaseProcessor):
             if "scale" or "smearing" in correction.lower():
                 s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon["pt_raw"] = awkward.copy(events.Photon.pt)
+            events.Photon["pt_raw"] = ak.copy(events.Photon.pt)
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -692,7 +692,7 @@ class lowmassProcessor(HggBaseProcessor):
                 )
 
             # sort diphotons by pT
-            diphotons = diphotons[awkward.argsort(diphotons.pt, ascending=False)]
+            diphotons = diphotons[ak.argsort(diphotons.pt, ascending=False)]
 
             # Determine if event passes fiducial Hgg cuts at detector-level
             # fid_det_passed = get_fiducial_mask(diphotons, self.fiducialCuts)
@@ -725,20 +725,20 @@ class lowmassProcessor(HggBaseProcessor):
             }
 
             # jet_variables
-            jets = awkward.zip(
+            jets = ak.zip(
                 {
                     "pt": jets.pt,
                     "eta": jets.eta,
                     "phi": jets.phi,
                     "mass": jets.mass,
-                    "charge": awkward.zeros_like(
+                    "charge": ak.zeros_like(
                         jets.pt
                     ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
                     **btagMVA_selection.get(self.bjet_mva, {}),
                     "hFlav": (
                         jets.hadronFlavour
                         if self.data_kind == "mc"
-                        else awkward.zeros_like(jets.pt)
+                        else ak.zeros_like(jets.pt)
                     ),
                     "btagDeepFlav_B": jets.btagDeepFlavB,
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
@@ -753,9 +753,9 @@ class lowmassProcessor(HggBaseProcessor):
                     ),
                 }
             )
-            jets = awkward.with_name(jets, "PtEtaPhiMCandidate")
+            jets = ak.with_name(jets, "PtEtaPhiMCandidate")
 
-            electrons = awkward.zip(
+            electrons = ak.zip(
                 {
                     "pt": events.Electron.pt,
                     "eta": events.Electron.eta,
@@ -767,9 +767,9 @@ class lowmassProcessor(HggBaseProcessor):
                     "mvaIso_WP80": events.Electron.mvaIso_WP80,
                 }
             )
-            electrons = awkward.with_name(electrons, "PtEtaPhiMCandidate")
+            electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
 
-            muons = awkward.zip(
+            muons = ak.zip(
                 {
                     "pt": events.Muon.pt,
                     "eta": events.Muon.eta,
@@ -783,7 +783,7 @@ class lowmassProcessor(HggBaseProcessor):
                     "pfIsoId": events.Muon.pfIsoId,
                 }
             )
-            muons = awkward.with_name(muons, "PtEtaPhiMCandidate")
+            muons = ak.with_name(muons, "PtEtaPhiMCandidate")
 
             # lepton cleaning
             sel_electrons = electrons[select_electrons(self, electrons, diphotons)]
@@ -791,12 +791,12 @@ class lowmassProcessor(HggBaseProcessor):
 
             # jet selection and pt ordering
             jets = jets[select_jets(self, jets, diphotons, sel_muons, sel_electrons)]
-            jets = jets[awkward.argsort(jets.pt, ascending=False)]
+            jets = jets[ak.argsort(jets.pt, ascending=False)]
 
             # adding selected jets to events to be used in ctagging SF calculation
             events["sel_jets"] = jets
-            n_jets = awkward.num(jets)
-            Njets2p5 = awkward.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 2.5)])
+            n_jets = ak.num(jets)
+            Njets2p5 = ak.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 2.5)])
 
             first_jet_pt = choose_jet(jets.pt, 0, -999.0)
             first_jet_eta = choose_jet(jets.eta, 0, -999.0)
@@ -850,28 +850,28 @@ class lowmassProcessor(HggBaseProcessor):
             # Deal with order of tagger priorities
             # Turn from diphoton jagged array to whether or not an event was selected
             if len(self.taggers):
-                counts = awkward.num(diphotons.pt, axis=1)
+                counts = ak.num(diphotons.pt, axis=1)
                 flat_tags = numpy.stack(
                     (
-                        awkward.flatten(
+                        ak.flatten(
                             diphotons["_".join([tagger.name, str(tagger.priority)])]
                         )
                         for tagger in self.taggers
                     ),
                     axis=1,
                 )
-                tags = awkward.from_regular(
-                    awkward.unflatten(flat_tags, counts), axis=2
+                tags = ak.from_regular(
+                    ak.unflatten(flat_tags, counts), axis=2
                 )
-                winner = awkward.min(tags[tags != 0], axis=2)
+                winner = ak.min(tags[tags != 0], axis=2)
                 diphotons["best_tag"] = winner
 
                 # lowest priority is most important (ascending sort)
                 # leave in order of diphoton pT in case of ties (stable sort)
-                sorted = awkward.argsort(diphotons.best_tag, stable=True)
+                sorted = ak.argsort(diphotons.best_tag, stable=True)
                 diphotons = diphotons[sorted]
 
-            diphotons = awkward.firsts(diphotons)
+            diphotons = ak.firsts(diphotons)
             # set diphotons as part of the event record
             events[f"diphotons_{do_variation}"] = diphotons
             # annotate diphotons with event information
@@ -897,17 +897,17 @@ class lowmassProcessor(HggBaseProcessor):
                 diphotons["HTXS_stage_0"] = events.HTXS.stage_0
             # Fill zeros for data because there is no GenVtx for data, obviously
             else:
-                diphotons["dZ"] = awkward.zeros_like(events.PV.z)
+                diphotons["dZ"] = ak.zeros_like(events.PV.z)
 
             # drop events without a preselected diphoton candidate
             # drop events without a tag, if there are tags
             if len(self.taggers):
                 selection_mask = ~(
-                    awkward.is_none(diphotons) | awkward.is_none(diphotons.best_tag)
+                    ak.is_none(diphotons) | ak.is_none(diphotons.best_tag)
                 )
                 diphotons = diphotons[selection_mask]
             else:
-                selection_mask = ~awkward.is_none(diphotons)
+                selection_mask = ~ak.is_none(diphotons)
                 diphotons = diphotons[selection_mask]
 
             # * evaluate diphoton mva and dykiller score
@@ -954,7 +954,7 @@ class lowmassProcessor(HggBaseProcessor):
                             )
                             if systematic_name == "LHEScale":
                                 if hasattr(events, "LHEScaleWeight"):
-                                    diphotons["nweight_LHEScale"] = awkward.num(
+                                    diphotons["nweight_LHEScale"] = ak.num(
                                         events.LHEScaleWeight[selection_mask],
                                         axis=1,
                                     )
@@ -969,7 +969,7 @@ class lowmassProcessor(HggBaseProcessor):
                                 if hasattr(events, "LHEPdfWeight"):
                                     # two AlphaS weights are removed
                                     diphotons["nweight_LHEPdf"] = (
-                                        awkward.num(
+                                        ak.num(
                                             events.LHEPdfWeight[selection_mask],
                                             axis=1,
                                         )
@@ -1013,8 +1013,8 @@ class lowmassProcessor(HggBaseProcessor):
 
             # Add weight variables (=1) for data for consistent datasets
             else:
-                diphotons["weight_central"] = awkward.ones_like(diphotons["event"])
-                diphotons["weight"] = awkward.ones_like(diphotons["event"])
+                diphotons["weight_central"] = ak.ones_like(diphotons["event"])
+                diphotons["weight"] = ak.ones_like(diphotons["event"])
 
             ### Add mass resolution uncertainty
             # Note that pt*cosh(eta) is equal to the energy of a four vector
