@@ -101,12 +101,16 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         self.mu_iso_wp = "tight"
         self.muon_photon_min_dr = 0.2
         self.global_muon = True
+        self.muon_max_dxy = None
+        self.muon_max_dz = None
 
         # electron selection cuts
         self.electron_pt_threshold = 15
         self.electron_max_eta = 2.5
         self.electron_photon_min_dr = 0.2
         self.el_id_wp = "loose"  # this includes isolation
+        self.electron_max_dxy = None
+        self.electron_max_dz = None
 
         # jet selection cuts
         self.jet_jetId = "tightLepVeto"  # can be "tightLepVeto" or "tight": https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
