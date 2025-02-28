@@ -393,6 +393,10 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     "charge": electrons.charge,
                     "mvaIso_WP90": electrons.mvaIso_WP90,
                     "mvaIso_WP80": electrons.mvaIso_WP80,
+                    "mvaTTH": electrons.mvaTTH,
+                    "genPartFlav": electrons.genPartFlav if self.data_kind == "mc" else np.full_like(electrons.pt, -999),
+                    "pfRelIso03_all": electrons.pfRelIso03_all,
+                    "pfRelIso03_chg": electrons.pfRelIso03_chg,
                 }
             )
             electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
@@ -408,7 +412,11 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                     "mediumId": events.Muon.mediumId,
                     "looseId": events.Muon.looseId,
                     "isGlobal": events.Muon.isGlobal,
-                    "pfIsoId": events.Muon.pfIsoId
+                    "pfIsoId": events.Muon.pfIsoId,
+                    "mvaTTH": events.Muon.mvaTTH,
+                    "genPartFlav": events.Muon.genPartFlav if self.data_kind == "mc" else np.full_like(events.Muon.pt, -999),
+                    "pfRelIso03_all": events.Muon.pfRelIso03_all,
+                    "pfRelIso03_chg": events.Muon.pfRelIso03_chg,
                 }
             )
             muons = ak.with_name(muons, "PtEtaPhiMCandidate")
@@ -443,7 +451,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             del btag_score
 
             num_jets = 8
-            jet_properties = ["pt", "eta", "phi", "mass","charge", "btagPNetB", "btagPNetCvB","btagPNetCvL","btagPNetQvG","btagPNetTauVJet", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
+            jet_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagPNetCvB", "btagPNetCvL", "btagPNetQvG", "btagPNetTauVJet", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
             for i in range(num_jets):
                 for prop in jet_properties:
                     key = f"jet{i+1}_{prop}"
@@ -475,7 +483,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             diphotons["n_leptons"] = n_leptons
 
             # Annotate diphotons with selected leptons properties
-            lepton_properties = ["pt", "eta", "phi", "mass", "charge", "generation", "ElectronMvaIso_WP80_MuonTightID"]
+            lepton_properties = ["pt", "eta", "phi", "mass", "charge", "generation", "ElectronMvaIso_WP80_MuonTightID", "mvaTTH", "genPartFlav", "pfRelIso03_all", "pfRelIso03_chg"]
             num_leptons = 2  # Number of leptons to select
             for i in range(num_leptons):
                 for prop in lepton_properties:
