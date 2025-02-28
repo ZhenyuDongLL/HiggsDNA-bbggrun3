@@ -1,5 +1,6 @@
 import awkward as ak
 import numpy as np
+from higgs_dna.selections.HHbbgg_selections import DeltaR
 from higgs_dna.selections.object_selections import delta_r_mask
 import logging
 
@@ -173,3 +174,50 @@ def get_higgs_gen_attributes(events: ak.Array) -> ak.Array:
     phi = gen_diphoton.phi
 
     return (pt, y, phi)
+
+
+def match_jet(reco_jets, gen_jets, n, fill_value, jet_size=0.4, jet_flav=False):
+    """
+    this helper function is used to identify if a reco jet (or lepton) has a matching gen jet (lepton) for MC,
+    -> Returns an array with 3 possible values:
+        0 if reco not genMatched,
+        1 if reco genMatched,
+        -999 if reco doesn't exist
+    parameters:
+    * reco_jets: (ak array) reco_jet from the jets collection.
+    * gen_jets: (ak array) gen_jet from the events.GenJet (or equivalent, e.g. events.Electron) collection.
+    * n: (int) nth jet to be selected.
+    * fill_value: (float) value with wich to fill the padded none if nth jet doesnt exist in the event.
+    """
+    if n is not None:
+        reco_jets_i = reco_jets[ak.local_index(reco_jets, axis=1) == n]
+    else:
+        # This is for arrays already split into separate event slices, used for Higgs an bjet matching.
+        reco_jets_i = ak.singletons(reco_jets)
+    reco_jets_i = ak.pad_none(reco_jets_i, 1, clip=True)
+
+    candidate_jet_matches = ak.cartesian({"reco": reco_jets_i, "gen": gen_jets}, axis=1)
+    candidate_jet_matches["deltaR_jj"] = DeltaR(
+        candidate_jet_matches["reco"], candidate_jet_matches["gen"]
+    )
+
+    matched_jets = ak.firsts(
+        candidate_jet_matches[
+            ak.argmin(candidate_jet_matches["deltaR_jj"], axis=1, keepdims=True)
+        ], axis=1
+    )
+    matched_jets_bool = matched_jets["deltaR_jj"] < jet_size
+
+    if jet_flav:
+        matched_gen_flav = ak.where(
+            matched_jets_bool, matched_jets["gen"].partonFlavour, fill_value
+        )
+        matched_gen_flav = ak.where(
+            ~ak.is_none(ak.firsts(reco_jets_i)), matched_gen_flav, fill_value
+        )
+        return matched_gen_flav
+    else:
+        matched_jets_bool = ak.where(
+            ~ak.is_none(ak.firsts(reco_jets_i)), matched_jets_bool, fill_value
+        )
+        return matched_jets_bool

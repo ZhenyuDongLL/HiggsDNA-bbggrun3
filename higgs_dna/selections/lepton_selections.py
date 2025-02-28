@@ -26,7 +26,10 @@ def select_electrons(
     dr_phoLead_cut = delta_r_mask(electrons, diphotons.pho_lead, self.electron_photon_min_dr)
     dr_phoSublead_cut = delta_r_mask(electrons, diphotons.pho_sublead, self.electron_photon_min_dr)
 
-    return pt_cut & eta_cut & id_cut & dr_phoLead_cut & dr_phoSublead_cut
+    dxy_cut = abs(electrons.dxy) < self.electron_max_dxy if self.electron_max_dxy is not None else electrons.pt > 0
+    dz_cut = abs(electrons.dz) < self.electron_max_dz if self.electron_max_dz is not None else electrons.pt > 0
+
+    return pt_cut & eta_cut & id_cut & dr_phoLead_cut & dr_phoSublead_cut & dxy_cut & dz_cut
 
 
 def select_muons(
@@ -66,7 +69,10 @@ def select_muons(
     dr_phoLead_cut = delta_r_mask(muons, diphotons.pho_lead, self.muon_photon_min_dr)
     dr_phoSublead_cut = delta_r_mask(muons, diphotons.pho_sublead, self.muon_photon_min_dr)
 
-    return pt_cut & eta_cut & id_cut & iso_cut & dr_phoLead_cut & dr_phoSublead_cut & global_cut
+    dxy_cut = abs(muons.dxy) < self.muon_max_dxy if self.muon_max_dxy is not None else muons.pt > 0
+    dz_cut = abs(muons.dz) < self.muon_max_dz if self.muon_max_dz is not None else muons.pt > 0
+
+    return pt_cut & eta_cut & id_cut & iso_cut & dr_phoLead_cut & dr_phoSublead_cut & global_cut & dxy_cut & dz_cut
 
 
 def select_taus(

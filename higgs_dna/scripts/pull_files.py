@@ -1202,6 +1202,42 @@ def get_hpc_bdt_weights(logger, target_dir, use_xrdcp=False):
     fetch_file("HPCBDT", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
+
+def get_HHbbgg_btag_WPs_json(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/tools/"
+        )
+
+    from_to_dict = {
+        "WPs_PNet": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/nkasarag/HiggsDNA_JSONs/WPs_btagging.json",
+            "to": f"{to_prefix}/WPs_btagging_HHbbgg.json",
+            "type": "eos",
+        },
+    }
+    fetch_file("HHbbgg_bTag_WPs", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
+def get_HHbbgg_weight_interference_json(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/tools/"
+        )
+
+    from_to_dict = {
+        "HHbbgg_weight_interference": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/nkasarag/HiggsDNA_JSONs/Weights_interference.json",
+            "to": f"{to_prefix}/Weights_interference_HHbbgg.json",
+            "type": "eos",
+        },
+    }
+    fetch_file("HHbbgg_weight_interference", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Simple utility script to retrieve the needed files for corections, luminostiy mask, systematics uncertainties ..."
@@ -1240,6 +1276,8 @@ def main():
             "HggPhotonIDMVA",
             "DiphotonIDMVA",
             "HPCBDT",
+            "HHbbgg_bTag_WPs",
+            "HHbbgg_weight_interference"
         ],
     )
 
@@ -1316,6 +1354,8 @@ def main():
         get_hgg_photon_id_mva_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_diphoton_id_mva_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_hpc_bdt_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_HHbbgg_btag_WPs_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "GoldenJSON":
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PU":
@@ -1368,6 +1408,10 @@ def main():
         get_diphoton_id_mva_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "HPCBDT":
         get_hpc_bdt_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "HHbbgg_bTag_WPs":
+        get_HHbbgg_btag_WPs_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "HHbbgg_weight_interference":
+        get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     else:
         logger.info("Unknown target, exit now!")
         exit(0)
