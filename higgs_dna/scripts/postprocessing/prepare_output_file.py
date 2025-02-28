@@ -143,14 +143,14 @@ def main():
         help="Do root to workspace conversion step",
     )
     parser.add_option(
-        "--ws_config",
+        "--ws-config",
         dest="config",
         type="string",
         default="config_simple.py",
         help="configuration file for Tree2WS, as it is now it must be stored in Tree2WS directory in FinalFit",
     )
     parser.add_option(
-        "--final_fit",
+        "--final-fit",
         dest="final_fit",
         type="string",
         default="/afs/cern.ch/user/n/niharrin/cernbox/PhD/Higgs/CMSSW_10_2_13/src/",
@@ -477,7 +477,7 @@ def main():
             logger.info("Starting root step")
             if opt.syst:
                 logger.info("you've selected the run with systematics")
-                args = "--do_syst"
+                args = "--do-syst"
             else:
                 logger.info("you've selected the run without systematics")
                 args = ""
@@ -803,7 +803,7 @@ def main():
             logger.info("Starting root step")
             if opt.syst:
                 logger.info("you've selected the run with systematics")
-                args = "--do_syst"
+                args = "--do-syst"
             else:
                 logger.info("you've selected the run without systematics")
                 args = ""

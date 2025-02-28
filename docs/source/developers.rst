@@ -13,6 +13,10 @@ Please lint, format and run tests before sending a PR:
    black higgs_dna
    pytest
 
+We follow certain conventions in the codebase. Please make sure to follow them when contributing:
+
+#. Make use of the common abbreviations for frequent packages, e.g., ``np`` for ``numpy`` and ``ak`` for ``awkward``.
+#. When using the ``argparse`` package, use kebab case for the argument names, e.g., ``--input-file``. Do not use snake case (underscores). Note: Internally, this is converted back to snake case, so you access the argument with ``args.input_file``, but using kebab case in argparse is the unix convention.
 
 --------------------
 Update Documentation
