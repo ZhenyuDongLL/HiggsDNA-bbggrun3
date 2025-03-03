@@ -58,6 +58,13 @@ def get_fetcher_args() -> argparse.Namespace:
         default="unprocessed_samples.json",
     )
     parser.add_argument(
+        "--limit",
+        type=int,
+        metavar="N",
+        help="Limit to the first N files of each dataset in sample JSON",
+        default=None,
+    )
+    parser.add_argument(
         "--skipbadfiles",
         help="Skip xrootd bad files when retrieving Legacy UUID",
         default=False,
@@ -190,7 +197,7 @@ def create_pq_dict(path, root_dict):
 
 
 # Create a dict of form {'dataset':{'uuid':(nevent,physical_location)}} from the sample.json file.
-def parse_sample_json(samples_json: str, convention: str, skipbadfiles):
+def parse_sample_json(samples_json: str, convention: str, limit, skipbadfiles):
 
     root_dict = {}
     rootf_uuid = []
@@ -203,7 +210,7 @@ def parse_sample_json(samples_json: str, convention: str, skipbadfiles):
         logger.info(f"Retrieving file information for dataset {name}")
 
         # Get list of root files in dataset
-        rootf_location = samples[name]
+        rootf_location = samples[name][:limit]
         # Remove redirector, eg "root://xrootd-cms.infn.it/"
         rootf_name = ["/store"+ file.split("store")[-1] for file in rootf_location]
 
@@ -320,7 +327,7 @@ def main():
     get_proxy()
 
     # Create dicts from sample.json and parquet directory
-    root_dict = parse_sample_json(args.json, args.convention, args.skipbadfiles)
+    root_dict = parse_sample_json(args.json, args.convention, args.limit, args.skipbadfiles)
     pq_dict = create_pq_dict(args.source, root_dict)
 
     logger.info("Starting creation of output file.")
