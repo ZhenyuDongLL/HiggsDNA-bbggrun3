@@ -165,7 +165,7 @@ def main():
             logger.debug("Will only process the following datasets:")
             for k, v in sample_dict.items():
                 if k.lstrip("/").startswith(args.only.rstrip("*")):
-                    logger.debug("    ", k)
+                    logger.debug(f"    {k}")
                     _new_dict[k] = v
             sample_dict = _new_dict
         else:  # is file
@@ -190,12 +190,12 @@ def main():
             _results = list(_rmap)
             counts = np.sum([r for r in _results if r is not None])
             all_invalid += [r for r in _results if type(r) == str]
-            logger.debug("Events:", np.sum(counts))
+            logger.debug(f"Events: {np.sum(counts)}")
         logger.debug("Bad files:")
         for fi in all_invalid:
             logger.debug(f"  {fi}")
         end = time.time()
-        logger.debug("TIME:", time.strftime("%H:%M:%S", time.gmtime(end - start)))
+        logger.debug(f'TIME: {time.strftime("%H:%M:%S", time.gmtime(end - start))}')
         if input("Remove bad files? (y/n)") == "y":
             logger.debug("Removing:")
             for fi in all_invalid:
