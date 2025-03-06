@@ -16,8 +16,8 @@ from higgs_dna.systematics import object_systematics as available_object_systema
 from higgs_dna.systematics import object_corrections as available_object_corrections
 from higgs_dna.systematics import weight_systematics as available_weight_systematics
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
+from higgs_dna.systematics import apply_systematic_variations_object_level
 
-import functools
 import warnings
 from typing import Any, Dict, List, Optional
 import awkward as ak
@@ -213,50 +213,27 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
                 logger
             )
 
-        # systematic object variations
-        for systematic_name in systematic_names:
-            if systematic_name in available_object_systematics.keys():
-                systematic_dct = available_object_systematics[systematic_name]
-                if systematic_dct["object"] == "Photon":
-                    logger.info(
-                        f"Adding systematic {systematic_name} to photons collection of dataset {dataset_name}"
-                    )
-                    original_photons.add_systematic(
-                        name=systematic_name,
-                        kind=systematic_dct["args"]["kind"],
-                        what=systematic_dct["args"]["what"],
-                        varying_function=functools.partial(
-                            systematic_dct["args"]["varying_function"],
-                            events=events,
-                            year=self.year[dataset_name][0],
-                        )
-                    )
-                elif systematic_dct["object"] == "Electron":
-                    logger.info(
-                        f"Adding systematic {systematic_name} to electrons collection of dataset {dataset_name}"
-                    )
-                    original_electrons.add_systematic(
-                        name=systematic_name,
-                        kind=systematic_dct["args"]["kind"],
-                        what=systematic_dct["args"]["what"],
-                        varying_function=functools.partial(
-                            systematic_dct["args"]["varying_function"],
-                            events=events,
-                            year=self.year[dataset_name][0],
-                        )
-                    )
-                # to be implemented for other objects here
-            elif systematic_name in available_weight_systematics:
-                # event weight systematics will be applied after photon preselection / application of further taggers
-                continue
-            else:
-                # may want to throw an error instead, needs to be discussed
-                warnings.warn(
-                    f"Could not process systematic variation {systematic_name}."
-                )
-                continue
+        # Add additional collections if object systematics should be applied
+        collections = {
+            "Photon": original_photons,
+            "Electron": original_electrons
+        }
 
-        # Applying systematic variations
+        # Apply the systematic variations.
+        collections = apply_systematic_variations_object_level(
+            systematic_names,
+            events,
+            self.year[dataset_name][0],
+            logger,
+            available_object_systematics,
+            available_weight_systematics,
+            collections
+        )
+
+        original_photons = collections["Photon"]
+        original_electrons = collections["Electron"]
+
+        # Write systematic variations to dicts
         photons_dct = {}
         photons_dct["nominal"] = original_photons
         logger.debug(original_photons.systematics.fields)
