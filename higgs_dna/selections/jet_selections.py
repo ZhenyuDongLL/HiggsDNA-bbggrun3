@@ -264,7 +264,7 @@ def select_fatjets(
     )
 
 
-def jetvetomap(events, logger, dataset_name, year="2022preEE"):
+def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
     """
     Jet veto map
     """
@@ -364,10 +364,16 @@ def jetvetomap(events, logger, dataset_name, year="2022preEE"):
         "phi": np.clip(jets.phi, low_phi, high_phi),
     }
 
+    if (self.nano_version == 12) or (self.nano_version == 13):
+        passJetIdTight, _ = jetIdFlags_v1213(jets, self.nano_version)
+        jetId_cut = passJetIdTight
+    else:
+        jetId_cut = ((jets.jetId == 2) | (jets.jetId == 6))
+
     input_dict["type"] = "jetvetomap"
     inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
     vetomap = cset[key_map[year]].evaluate(*(inputs))
-    flag_veto_jet = (np.abs(vetomap) > 0) & ((jets.pt > 15) & ((jets.jetId == 2) | (jets.jetId == 6)) & ((jets.chEmEF + jets.neEmEF) < 0.9) & (jets.muonIdx1 == -1) & (jets.muonIdx2 == -1))
+    flag_veto_jet = (np.abs(vetomap) > 0) & ((jets.pt > 15) & (jetId_cut) & ((jets.chEmEF + jets.neEmEF) < 0.9) & (jets.muonIdx1 == -1) & (jets.muonIdx2 == -1))
     sel_obj.add("vetomap", (np.abs(vetomap) > 0) | (flag_veto_jet))
 
     sel_veto_jet = sel_obj.all(*(sel_obj.names))

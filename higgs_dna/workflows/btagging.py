@@ -224,7 +224,7 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
         # apply jetvetomap: only retain events that without any jets in the veto region
         if not self.skipJetVetoMap:
             events = jetvetomap(
-                events, logger, dataset_name, year=self.year[dataset_name][0]
+                self, events, logger, dataset_name, year=self.year[dataset_name][0]
             )
 
         original_photons = events.Photon
