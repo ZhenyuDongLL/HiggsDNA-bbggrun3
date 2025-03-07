@@ -456,7 +456,7 @@ class lowmassProcessor(HggBaseProcessor):
         # apply jetvetomap
         if not self.skipJetVetoMap:
             events = jetvetomap(
-                events, logger, dataset_name, year=self.year[dataset_name][0]
+                self, events, logger, dataset_name, year=self.year[dataset_name][0]
             )
         # metadata array to append to higgsdna output
         metadata = {}
