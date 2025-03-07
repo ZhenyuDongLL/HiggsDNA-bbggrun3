@@ -104,6 +104,20 @@ def main():
     else:
         log_level = "INFO"
     logger = setup_logger(level=log_level)
+
+    if args.executor != "dask/local":
+        if args.workers is None:
+            args.workers = 12
+        if args.scaleout is None:
+            args.scaleout = 6
+        if args.max_scaleout is None:
+            args.max_scaleout = 250
+        if args.memory is None:
+            args.memory = "10GB"
+    if args.executor == "dask/local":
+        if args.memory is None:
+            args.memory = "auto"
+
     logger.info("Start production")
 
     # Here we assume that all the keys are there, otherwise an exception will be raised
@@ -137,7 +151,9 @@ def main():
     # log if a dataset is not in the sample_dict
     bad_datasets = [key for key in year if key not in sample_dict]
     if bad_datasets:
-        logger.info(f"The following datasets are present in the analysis but not in the sample json and will be ignored: {bad_datasets}")
+        logger.info(
+            f"The following datasets are present in the analysis but not in the sample json and will be ignored: {bad_datasets}"
+        )
 
     # drop datasets from sample_dict if they are not in the analysis
     keys_to_delete = [key for key in sample_dict if key not in year]
@@ -239,7 +255,13 @@ def main():
             logger.error("You selected the workflow 'dystudies', but it has been renamed to base. Exiting.")
         raise NotImplementedError(f"Workflow '{workflow}' not implemented")
 
-    if args.executor not in ["futures", "iterative", "dask/lpc", "dask/casa"]:
+    if args.executor not in [
+        "futures",
+        "iterative",
+        "dask/local",
+        "dask/lpc",
+        "dask/casa",
+    ]:
         """
         dask/parsl needs to export x509 to read over xrootd
         dask/lpc uses custom jobqueue provider that handles x509
@@ -323,10 +345,17 @@ def main():
         executor = processor.ParslExecutor()
         run_executor(args, executor, sample_dict, processor_instance)
     elif "dask" in args.executor:
-        from dask.distributed import performance_report
+        from dask.distributed import LocalCluster, performance_report
         from dask_jobqueue import HTCondorCluster, SLURMCluster
 
-        if "lpc" in args.executor:
+        if "local" in args.executor:
+            cluster = LocalCluster(
+                n_workers=args.scaleout,
+                threads_per_worker=args.workers,
+                memory_limit=args.memory,
+            )
+
+        elif "lpc" in args.executor:
             env_extra = [
                 f"export PYTHONPATH=$PYTHONPATH:{os.getcwd()}",
             ]
@@ -393,11 +422,13 @@ def main():
             logger.info("Waiting for at least one worker...")
             # client.wait_for_workers(1)
             client.register_worker_plugin(dependency_installer)
-        else:
+        elif args.executor != "dask/local" and args.executor != "dask/casa":
             cluster.adapt(minimum=args.scaleout, maximum=args.max_scaleout)
             client = Client(cluster)
             logger.info("Waiting for at least one worker...")
             client.wait_for_workers(1)
+        else:
+            client = Client(cluster)
         with performance_report(filename="dask-report.html"):
             executor = processor.DaskExecutor(client=client, retries=50)
             run_executor(args, executor, sample_dict, processor_instance)
