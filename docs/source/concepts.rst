@@ -43,7 +43,7 @@ where ``simple_analysis.json`` looks like this:
           ],
           "year":[
             "SampleName1": ["2022preEE"],
-            "SampleName2": ["2017"]            
+            "SampleName2": ["2017"]
           ]
           "systematics": {
               "SampleName1": [
@@ -70,6 +70,7 @@ The next two flags that you will want to specify are ``dump`` and ``executor``: 
 
 * ``iterative``
 * ``futures``
+* ``dask/local``
 * ``dask/condor``
 * ``dask/slurm``
 * ``dask/lpc``

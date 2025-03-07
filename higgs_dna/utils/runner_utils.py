@@ -68,13 +68,19 @@ def get_main_parser():
         "--triggerGroup",
         default=".*DoubleEG.*",
         help="trigger group to be selected",
-        choices=(".*DoubleEG.*", ".*EGamma.*2018.*", ".*EGamma.*", ".*SingleEle.*", ".*DoubleMuon.*"),
+        choices=(
+            ".*DoubleEG.*",
+            ".*EGamma.*2018.*",
+            ".*EGamma.*",
+            ".*SingleEle.*",
+            ".*DoubleMuon.*",
+        ),
     )
     parser.add_argument(
         "--analysis",
         default="mainAnalysis",
         help="analysis to run",
-        choices=("mainAnalysis", "tagAndProbe", "ZmmyAnalysis")
+        choices=("mainAnalysis", "tagAndProbe", "ZmmyAnalysis"),
     )
     parser.add_argument(
         "--save",
@@ -98,6 +104,7 @@ def get_main_parser():
             "futures",
             "parsl/slurm",
             "parsl/condor",
+            "dask/local",
             "dask/condor",
             "dask/slurm",
             "dask/lpc",
@@ -110,6 +117,7 @@ def get_main_parser():
         "For example see https://parsl.readthedocs.io/en/stable/userguide/configuring.html"
         "- `parsl/slurm` - tested at DESY/Maxwell"
         "- `parsl/condor` - tested at DESY, RWTH"
+        "- `dask/local` - tested at local machines"
         "- `dask/slurm` - tested at DESY/Maxwell"
         "- `dask/condor` - tested at DESY, RWTH"
         "- `dask/lpc` - custom lpc/condor setup (due to write access restrictions)"
@@ -120,16 +128,14 @@ def get_main_parser():
         "-j",
         "--workers",
         type=int,
-        default=12,
         help="Number of workers (cores/threads) to use for multi-worker executors "
-        "(e.g. futures or condor) (default: %(default)s)",
+        "(e.g. futures or condor) (default: None for dask/local and 12 for others)",
     )
     parser.add_argument(
         "-m",
         "--memory",
         type=str,
-        default="10GB",
-        help="Memory to use for each job in distributed executors (default: %(default)s)",
+        help="Memory to use for each job in distributed executors (default: 'auto' for dask/local and '10GB' for others)",
     )
     parser.add_argument(
         "--walltime",
@@ -147,16 +153,13 @@ def get_main_parser():
         "-s",
         "--scaleout",
         type=int,
-        default=6,
         help="Number of nodes to scale out to if using slurm/condor. Total number of "
-        "concurrent threads is ``workers x scaleout`` (default: %(default)s)",
+        "concurrent threads is ``workers x scaleout`` (default: None for dask/local and 6 for others)",
     )
     parser.add_argument(
         "--max-scaleout",
         dest="max_scaleout",
         type=int,
-        default=250,
-        help="The maximum number of nodes to adapt the cluster to. (default: %(default)s)",
     )
     parser.add_argument(
         "--timeout",
@@ -261,7 +264,7 @@ def get_main_parser():
             "parquet",
         ],
         default="parquet",
-        help="Output format (default: %(default)s)."
+        help="Output format (default: %(default)s).",
     )
     return parser
 
