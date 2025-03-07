@@ -1,5 +1,5 @@
 from higgs_dna.tools.chained_quantile import ChainedQuantileRegression
-from higgs_dna.tools.diphoton_mva import calculate_diphoton_mva
+from higgs_dna.tools.diphoton_mva import calculate_retrained_diphoton_mva as calculate_diphoton_mva
 from higgs_dna.tools.xgb_loader import load_bdt
 from higgs_dna.tools.photonid_mva import calculate_photonid_mva, load_photonid_mva
 from higgs_dna.tools.photonid_mva import calculate_photonid_mva_run3, load_photonid_mva_run3
@@ -1044,7 +1044,8 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         self, diphotons: ak.Array, events: ak.Array
     ) -> ak.Array:
         return calculate_diphoton_mva(
-            (self.diphoton_mva, self.meta["flashggDiPhotonMVA"]["inputs"]),
+            self,
+            (self.diphoton_mva, self.meta["HiggsDNA_DiPhotonMVA"]["inputs"]),
             diphotons,
             events,
         )
