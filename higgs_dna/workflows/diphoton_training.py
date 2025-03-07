@@ -1,9 +1,7 @@
 from higgs_dna.workflows.base import HggBaseProcessor
 from higgs_dna.tools.chained_quantile import ChainedQuantileRegression
-from higgs_dna.tools.diphoton_mva import calculate_retrained_diphoton_mva as calculate_diphoton_mva
 from higgs_dna.tools.xgb_loader import load_bdt
-from higgs_dna.tools.photonid_mva import calculate_photonid_mva, load_photonid_mva
-from higgs_dna.tools.photonid_mva import calculate_photonid_mva_run3, load_photonid_mva_run3
+from higgs_dna.tools.photonid_mva import load_photonid_mva
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attributes
@@ -34,7 +32,6 @@ from higgs_dna.systematics import weight_systematics as available_weight_systema
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 
 import functools
-import operator
 import os
 import warnings
 from typing import Any, Dict, List, Optional
@@ -247,30 +244,6 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         raise NotImplementedError
-
-    def apply_filters_and_triggers(self, events: ak.Array) -> ak.Array:
-        # met filters
-        met_filters = self.meta["flashggMetFilters"][self.data_kind]
-        filtered = functools.reduce(
-            operator.and_,
-            (events.Flag[metfilter.split("_")[-1]] for metfilter in met_filters),
-        )
-
-        triggered = ak.ones_like(filtered)
-        if self.apply_trigger:
-            trigger_names = []
-            triggers = self.meta["TriggerPaths"][self.trigger_group][self.analysis]
-            hlt = events.HLT
-            for trigger in triggers:
-                actual_trigger = trigger.replace("HLT_", "").replace("*", "")
-                for field in hlt.fields:
-                    if field.startswith(actual_trigger):
-                        trigger_names.append(field)
-            triggered = functools.reduce(
-                operator.or_, (hlt[trigger_name] for trigger_name in trigger_names)
-            )
-
-        return events[filtered & triggered]
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
@@ -1043,81 +1016,3 @@ class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
 
     def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
         pass
-
-    def add_diphoton_mva(
-        self, diphotons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-        return calculate_diphoton_mva(
-            self,
-            (self.diphoton_mva, self.meta["HiggsDNA_DiPhotonMVA"]["inputs"]),
-            diphotons,
-            events,
-        )
-
-    def add_photonid_mva(
-        self, photons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-        photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll * ak.ones_like(
-            photons.pt
-        )
-        counts = ak.num(photons, axis=-1)
-        photons = ak.flatten(photons)
-        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
-        mva_EB = calculate_photonid_mva(
-            (self.photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]), photons
-        )
-        mva_EE = calculate_photonid_mva(
-            (self.photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]), photons
-        )
-        mva = ak.where(isEB, mva_EB, mva_EE)
-        photons["mvaID"] = mva
-
-        return ak.unflatten(photons, counts)
-
-    def add_photonid_mva_run3(
-        self, photons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-
-        preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
-        photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
-
-        rho = events.Rho.fixedGridRhoAll * ak.ones_like(photons.pt)
-        rho = ak.flatten(rho)
-
-        photons = ak.flatten(photons)
-
-        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
-        mva_EB = calculate_photonid_mva_run3(
-            [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]], photons , rho
-        )
-        mva_EE = calculate_photonid_mva_run3(
-            [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]], photons, rho
-        )
-        mva = ak.where(isEB, mva_EB, mva_EE)
-        photons["mvaID_run3"] = mva
-
-        return mva
-
-    def add_corr_photonid_mva_run3(
-        self, photons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-
-        preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
-        photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
-
-        rho = events.Rho.fixedGridRhoAll * ak.ones_like(photons.pt)
-        rho = ak.flatten(rho)
-
-        photons = ak.flatten(photons)
-
-        # Now calculating the corrected mvaID
-        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
-        corr_mva_EB = calculate_photonid_mva_run3(
-            [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB_corr"]], photons, rho
-        )
-        corr_mva_EE = calculate_photonid_mva_run3(
-            [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE_corr"]], photons, rho
-        )
-        corr_mva = ak.where(isEB, corr_mva_EB, corr_mva_EE)
-
-        return corr_mva
