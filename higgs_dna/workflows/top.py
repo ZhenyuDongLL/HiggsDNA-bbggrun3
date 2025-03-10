@@ -379,6 +379,12 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             muons = muons[select_muons(self, muons, diphotons)]
             jets = jets[select_jets(self, jets, diphotons, muons, electrons)]
 
+            # remove "jet horns". Although there is no final recipe, applying pT > 50 GeV for jets with abs(eta) in (2.5, 3) seems to help
+            # See https://gitlab.cern.ch/cms-jetmet/coordination/coordination/-/issues/113
+            jets = jets[
+                ~((jets.pt < 50) & (np.abs(jets.eta) > 2.5) & (np.abs(jets.eta) < 3))
+            ]
+
             # ordering in pt since corrections may have changed the order
             electrons = electrons[ak.argsort(electrons.pt, ascending=False)]
             muons = muons[ak.argsort(muons.pt, ascending=False)]
