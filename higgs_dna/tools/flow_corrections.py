@@ -75,15 +75,15 @@ def calculate_flow_corrections(photon: ak.Array, events, inputs_list, isolation_
     if (year == "2022postEE"):
         flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2)
         path_means_std = os.path.join(os.path.dirname(__file__), 'flows/postEE/')
-        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu')))
+        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
     elif (year == "2022preEE"):
         flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2)
         path_means_std = os.path.join(os.path.dirname(__file__), 'flows/preEE/')
-        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu')))
+        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
     elif ('2023' in year):
         flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
         path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2023_model/')
-        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu')))
+        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
     else:
         print('\nThere is no model trained for this specific year!! - Exiting')
         sys.exit(0)
