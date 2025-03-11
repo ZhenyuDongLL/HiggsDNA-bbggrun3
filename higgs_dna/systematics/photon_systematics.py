@@ -290,20 +290,15 @@ def Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians="1G
         corr_up_variation = smear_and_syst_evaluator.evaluate('scale_up', pt_raw, r9, AbsScEta)
         corr_down_variation = smear_and_syst_evaluator.evaluate('scale_down', pt_raw, r9, AbsScEta)
 
-        if restriction is not None:
-            if restriction == "EB":
-                uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEB))
-
-            elif restriction == "EE":
-                uncMask = ak.to_numpy(ak.flatten(events.Photon.isScEtaEE))
-
-            corr_up_variation = np.where(
-                uncMask, corr_up_variation, np.zeros_like(corr_up_variation)
-            )
-
-            corr_down_variation = np.where(
-                uncMask, corr_down_variation, np.zeros_like(corr_down_variation)
-            )
+        if restriction == "EB":
+            corr_up_variation[ak.to_numpy(ak.flatten(events.Photon.isScEtaEE))] = 1.
+            corr_up_variation[ak.to_numpy(ak.flatten(events.Photon.isScEtaEE))] = 1.
+        elif restriction == "EE":
+            corr_up_variation[ak.to_numpy(ak.flatten(events.Photon.isScEtaEB))] = 1.
+            corr_up_variation[ak.to_numpy(ak.flatten(events.Photon.isScEtaEB))] = 1.
+        else:
+            logger.error("The restriction is not implemented yet! Valid options are [\"EB\", \"EE\"] \n Exiting. \n")
+            sys.exit(1)
 
         # Coffea does the unflattenning step itself and sets this value as pt of the up/down variations
         # scale uncertainties are applied on the smeared pt
