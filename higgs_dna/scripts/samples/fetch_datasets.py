@@ -6,6 +6,7 @@ from typing import List, Iterable, Dict
 from pathlib import Path
 import subprocess
 from higgs_dna.utils.logger_utils import setup_logger
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Define xrootd prefixes for different regions
 xrootd_pfx = {
@@ -67,11 +68,10 @@ def get_fetcher_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_dataset_dict_grid(
-    fset: Iterable[Iterable[str]], xrd: str, dbs_instance: str, logger
-) -> Dict[str, List[str]]:
+def get_dataset_dict_grid(fset: Iterable[Iterable[str]], xrd: str, dbs_instance: str, logger) -> Dict[str, List[str]]:
     """
     Fetch file lists for grid datasets using dasgoclient.
+    This function is parallelised and will restart stuck requests after 10 seconds.
 
     :param fset: Iterable of tuples (dataset-short-name, dataset-path)
     :param xrd: xrootd prefix
@@ -79,31 +79,43 @@ def get_dataset_dict_grid(
     :param logger: Logger instance
     :return: Dictionary mapping dataset names to list of file paths
     """
-    fdict = {}
-
-    for name, dataset in fset:
+    def fetch_dataset(name: str, dataset: str) -> (str, List[str]):
         logger.info(f"Fetching files for dataset '{name}': '{dataset}'")
-        # Handle private samples
         private_appendix = "" if not dataset.endswith("/USER") else " instance=prod/phys03"
-        try:
-            # Construct dasgoclient command
-            cmd = f"/cvmfs/cms.cern.ch/common/dasgoclient -query='instance={dbs_instance} file dataset={dataset}{private_appendix}'"
-            logger.debug(f"Executing command: {cmd}")
-            # Execute the command and capture output
-            flist = subprocess.check_output(cmd, shell=True, universal_newlines=True).splitlines()
-            # Filter out empty lines and prepend xrootd prefix
-            flist = [xrd + f for f in flist if f.strip()]
+        cmd = f"/cvmfs/cms.cern.ch/common/dasgoclient -query='instance={dbs_instance} file dataset={dataset}{private_appendix}'"
+        logger.debug(f"Executing command: {cmd}")
+        while True:
+            try:
+                flist = subprocess.check_output(cmd, shell=True, universal_newlines=True, timeout=10).splitlines()
+                break
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Timeout reached for dataset '{dataset}', retrying...")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"dasgoclient command failed for dataset '{dataset}': {e}")
+                return name, []
+            except Exception as e:
+                logger.error(f"Unexpected error while fetching files for dataset '{dataset}': {e}")
+                return name, []
+        flist = [xrd + f for f in flist if f.strip()]
+        logger.info(f"Found {len(flist)} files for dataset '{name}'.")
+        return name, flist
+
+
+    fdict = {}
+    with ThreadPoolExecutor() as executor:
+        future_to_dataset = {executor.submit(fetch_dataset, name, dataset): name for name, dataset in fset}
+        for future in as_completed(future_to_dataset):
+            name, flist = future.result()
             if name not in fdict:
                 fdict[name] = flist
             else:
                 fdict[name].extend(flist)
-            logger.info(f"Found {len(flist)} files for dataset '{name}'.")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"dasgoclient command failed for dataset '{dataset}': {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error while fetching files for dataset '{dataset}': {e}")
 
-    return fdict
+    # Reorder fdict to match the order in which datasets were passed in fset
+    ordered_fdict = {}
+    for name, _ in fset:
+        ordered_fdict[name] = fdict.get(name, [])
+    return ordered_fdict
 
 
 def get_dataset_dict_local(
