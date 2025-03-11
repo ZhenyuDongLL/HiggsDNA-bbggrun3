@@ -217,8 +217,11 @@ def jerc_jet(
             "RunG": "Summer22EE_22Sep2023_RunG_V2_DATA",
             "MC": "Summer22EE_22Sep2023_V2_MC",
         },
+        # For 2023 era C, different version of the datasets have different JECs
+        # Details: https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/-/issues/220#note_9180675
         "2023preBPix": {
-            "RunC": "Summer23Prompt23_RunCv123_V1_DATA",
+            "RunCv123": "Summer23Prompt23_RunCv123_V1_DATA",
+            "RunCv4": "Summer23Prompt23_RunCv4_V1_DATA",
             "MC": "Summer23Prompt23_V1_MC",
         },
         "2023postBPix": {

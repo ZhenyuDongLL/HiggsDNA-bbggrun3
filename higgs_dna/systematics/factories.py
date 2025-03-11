@@ -42,6 +42,10 @@ def add_jme_corr_syst(corrections_dict, systematics_dict, logger):
             "jec_RunF": partial(jerc_jet, pt=None, era="RunF", level="L1L2L3Res"),
             "jec_RunG": partial(jerc_jet, pt=None, era="RunG", level="L1L2L3Res"),
             "jec_RunH": partial(jerc_jet, pt=None, era="RunH", level="L1L2L3Res"),
+            # For 2023 era C, different version of the datasets have different JECs
+            # Details: https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/-/issues/220#note_9180675
+            "jec_RunCv123": partial(jerc_jet, pt=None, era="RunCv123", level="L1L2L3Res"),
+            "jec_RunCv4": partial(jerc_jet, pt=None, era="RunCv4", level="L1L2L3Res"),
         }
     )
     logger.info(
