@@ -11,7 +11,37 @@ import awkward as ak
 import numpy as np
 from scipy import interpolate
 
+
+def compute_fid_xsec(in_frac, mass_points, xs_value, BR, no_interpolation, target_mass=125.38):
+    """
+    Compute the fiducial cross section for a given observable.
+
+    Parameters:
+      in_frac (dict): Dictionary of in-fiducial fractions keyed by mass point.
+      mass_points (list): List of mass points (as strings) provided via the command line.
+      xs_value (float): Cross section value from the XS map for the process.
+      BR (float): Branching ratio.
+      no_interpolation (bool): Flag to disable interpolation when only mass point 125 is provided.
+      target_mass (float): The mass at which to evaluate the spline (default 125.38).
+    
+    Returns:
+      float: The computed fiducial cross section.
+    """
+    if no_interpolation:
+        value = in_frac["125"]
+    else:
+        # Convert mass_points to floats and compute spline interpolation.
+        masses = [float(p) for p in mass_points]
+        points = [in_frac[p] for p in mass_points]
+        spline = interpolate.splrep(masses, points, k=2)
+        value = float(interpolate.splev(target_mass, spline))
+    return value * xs_value * 1000 * BR
+
+
+
 available_processes = ['ggH', 'VBFH', 'VH', 'ttH', 'all', 'xH']
+available_mass_points = ['120', '125', '130']
+available_fid_selections = ['fiducialGeometricFlag', 'fiducialClassicalFlag']
 available_years = ['2022']
 available_eras = ['preEE', 'postEE', 'all']
 
@@ -19,6 +49,8 @@ available_eras = ['preEE', 'postEE', 'all']
 parser = argparse.ArgumentParser(description = "Calculate the inclusive fiducial cross section of pp->H(yy)+X process(es) based on processed samples without detector-level selections. ")
 parser.add_argument('path', type = str, help = "Path to the top-level folder containing the different directories. Please only run this on the output of the ParticleLevelProcessor.")
 parser.add_argument('--process', type = str, choices = available_processes, default = 'ggH', help = "Please specify the process(es) for which you want to calculate the inclusive fiducial xsec.")
+parser.add_argument('--mass-points', nargs='+', choices = available_mass_points, default = available_mass_points, help = "Please specify the mass points to run over. If only one single mass point of 125 is specified: No interpolation is performed.")
+parser.add_argument('--fid-selection', type = str, choices = available_fid_selections, default = 'fiducialGeometricFlag', help = "Please specify the fiducial selection flag to use.")
 parser.add_argument('--year', type = str, choices = available_years, default = '2022', help = 'Please specify the desired year if you want to combine samples from multiple eras.')
 parser.add_argument('--era', type = str, choices = available_eras, default = 'postEE', help = "Please specify the era(s) that you want to run over. If you specify 'all', an inverse variance weighting is performed to increase the precision.")
 parser.add_argument('--bin', type = str, default = '|0|5000|', help = "Bin boundaries of the differential XS. The default")
@@ -27,6 +59,21 @@ parser.add_argument('--weight', type = str, default = 'weight', help = "Weight t
 parser.add_argument('--powheg', action="store_true", help="To process powheg sample.")
 
 args = parser.parse_args()
+
+args = parser.parse_args()
+
+# New check for mass points
+if len(args.mass_points) == 1:
+    if args.mass_points[0] != '125':
+        parser.error("When specifying a single mass point, only '125' is allowed.")
+    no_interpolation = True
+else:
+    no_interpolation = False
+
+if args.fid_selection == 'fiducialGeometricFlag':
+    print('INFO: Using the geometric fiducial flag for the selection.')
+elif args.fid_selection == 'fiducialClassicalFlag':
+    print('INFO: Using the classical fiducial flag for the selection.')
 
 path_folder = args.path # Use the specified folder path
 # Pepare the processes array appropriately
@@ -89,7 +136,7 @@ processMap = {'ggH':  'GluGluHtoGG',
               'ttH':   'ttHtoGG',}
 
 BR = 0.2270/100 # SM value for mH close to 125: https://twiki.cern.ch/twiki/bin/view/LHCPhysics/CERNYellowReportPageBR
-mass_points = [120,125,130] # The fiducial acceptance should be extrapolated at 125.38 using a spline between 120, 125, and 130
+mass_points = args.mass_points # The fiducial acceptance should be extrapolated at 125.38 using a spline between 120, 125, and 130 if we have the mass points
 # For powheg only the 125 GeV sample is available
 # [FIXME] For the time being, no extrapolation, its effects is in any case small.
 # [FIXME] Idea: compute the relative variation between 125 and 125.38 GeV with Madgraph and then apply it to powheg
@@ -120,6 +167,7 @@ for b in range(len(obs_bins)-1):
         in_frac_per_mass_alpha_up = {}
         in_frac_per_mass_alpha_dn = {}
         for mass in mass_points:
+            print(f'INFO: Now extracting numbers for mass {mass}...')
             in_frac_per_mass_era = {}
             in_frac_per_mass_era_scale_up = {}
             in_frac_per_mass_era_scale_dn = {}
@@ -135,7 +183,7 @@ for b in range(len(obs_bins)-1):
                 if args.powheg: process_string = path_folder + processMap[process] + '_M-' + str(mass_powheg[mass]) + '_powheg'
                 arr = ak.from_parquet(process_string)
                 # Calculating the relevant fractions
-                inFiducialFlag = (arr.fiducialGeometricFlag == True) & (abs(arr[args.obs]) >= obs_bins[b]) & (abs(arr[args.obs]) < obs_bins[b+1]) # Only for this type of tagger right now, can be customised in the future
+                inFiducialFlag = (arr[args.fid_selection] == True) & (abs(arr[args.obs]) >= obs_bins[b]) & (abs(arr[args.obs]) < obs_bins[b+1]) # Only for this type of tagger right now, can be customised in the future
 
                 sumwAll = ak.sum(arr[args.weight])
                 sumwIn = ak.sum(arr[args.weight][(inFiducialFlag)])
@@ -210,6 +258,29 @@ for b in range(len(obs_bins)-1):
 
             result = np.sum(np.asarray([in_frac_per_mass_era_alpha_dn[era] for era in eras]))
             in_frac_per_mass_alpha_dn[mass] = result / np.sum(1/sumw2_tmp)
+    
+        fid_xsecs_per_bin_process[process] = compute_fid_xsec(
+            in_frac_per_mass, args.mass_points, XS_map['13p6'][process], BR, no_interpolation
+        )
+        fid_xsecs_per_bin_process_scale_up[process] = compute_fid_xsec(
+            in_frac_per_mass_scale_up, args.mass_points, XS_map_scale_up['13p6'][process], BR, no_interpolation
+        )
+        fid_xsecs_per_bin_process_scale_dn[process] = compute_fid_xsec(
+            in_frac_per_mass_scale_dn, args.mass_points, XS_map_scale_dn['13p6'][process], BR, no_interpolation
+        )
+        fid_xsecs_per_bin_process_pdf_up[process] = compute_fid_xsec(
+            in_frac_per_mass_pdf_up, args.mass_points, XS_map_pdf_up['13p6'][process], BR, no_interpolation
+        )
+        fid_xsecs_per_bin_process_pdf_dn[process] = compute_fid_xsec(
+            in_frac_per_mass_pdf_dn, args.mass_points, XS_map_pdf_dn['13p6'][process], BR, no_interpolation
+        )
+        fid_xsecs_per_bin_process_alpha_up[process] = compute_fid_xsec(
+            in_frac_per_mass_alpha_up, args.mass_points, XS_map_alphaS_up['13p6'][process], BR, no_interpolation
+        )
+        fid_xsecs_per_bin_process_alpha_dn[process] = compute_fid_xsec(
+            in_frac_per_mass_alpha_dn, args.mass_points, XS_map_alphaS_dn['13p6'][process], BR, no_interpolation
+        )
+
 
         points = [in_frac_per_mass[p] for p in mass_points]
         spline = interpolate.splrep(mass_points, points, k=2)
