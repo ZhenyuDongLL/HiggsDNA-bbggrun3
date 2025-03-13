@@ -3,11 +3,12 @@
 import os
 import subprocess
 from optparse import OptionParser
-import json, glob
+import json
 from importlib import resources
 from higgs_dna.utils.logger_utils import setup_logger
+from higgs_dna.scripts.postprocessing.remote.slurm import slurm_postprocessing
+from higgs_dna.scripts.postprocessing.remote.htcondor import htcondor_postprocessing
 
-import logging
 from concurrent.futures import ThreadPoolExecutor
 
 # ---------------------- A few helping functions  ----------------------
@@ -104,11 +105,78 @@ def decompose_string(input_string, era_flag=False):
             return process
 
 
+def decompose_string(input_string, era_flag=False):
+    """
+    Decomposes the input string into process, mass, and era components based on underscores.
+
+    Args:
+        input_string (str): The string to be decomposed.
+        era_flag (bool): If True, include the era in the output. If False, exclude the era.
+
+    Returns:
+        str: The formatted string in the style process + _ + mass (+ _ + era if era_flag is True).
+    """
+    # Map known processes to their keywords
+    process_map = {
+        "GluGluHtoGG": "ggh",
+        "GluGluHto2G": "ggh",
+        "ggh": "ggh",
+        "ttHtoGG": "tth",
+        "ttHto2G": "tth",
+        "tth": "tth",
+        "VHtoGG": "vh",
+        "VHto2G": "vh",
+        "vh": "vh",
+        "VBFHtoGG": "vbf",
+        "VBFHto2G": "vbf",
+        "vbf": "vbf",
+        "bbHtoGG": "bbh",
+        "bbHto2G": "bbh",
+        "DYto2L": "dy",
+        "GG-Box": "ggbox",
+        "GJet": "gjet"
+    }
+
+    parts = input_string.split("_")
+
+    # Extract the process by matching known keywords
+    process = "unknown"
+    for key, value in process_map.items():
+        if key in parts[0]:
+            process = value
+            break
+
+    # Extract the mass component
+    mass = next((part[2:] for part in parts if part.startswith("M-") and part[2:].isdigit()), "")
+
+    # Find the era (if it exists) and strip the year if included.
+    era = ""
+    for part in parts:
+        if "pre" in part or "post" in part:
+            era = part
+            if part[:4].isdigit():
+                era = part[4:]
+            break
+
+    # Assemble the output.
+    if mass:
+        if era_flag and era:
+            return f"{process}_{mass}_{era}"
+        elif era_flag:
+            return f"{process}_{mass}"
+        else:
+            return f"{process}_{mass}"
+    else:
+        if era_flag and era:
+            return f"{process}_{era}"
+        else:
+            return process
+
+
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 # - EXAMPLE USAGE: ----------------------------------------------------------------------------------------------------------------------------------------------------------------#
 # - prepare_output_file --input <dir_to_HiggsDNA_dump> --merge --varDict <path_to_varDict> --root --syst --cats --catDict <path_to_catDict> --output <path_to_output_dir>
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
-
 
 def main():
     # Read options from command line
@@ -232,18 +300,17 @@ def main():
         help="Condor log files activated.",
     )
     parser.add_option(
-        "--condor-logs",
-        dest="condor_logs",
-        type="string",
+        "--batch",
+        dest="batch",
+        choices=["condor", "condor/apptainer", "slurm", "slurm/psi", ""],
         default="",
-        help="Output path of the Condor log files.",
+        help="Run HTCondor with or without Docker image of HiggsDNA's current master branch or run via SLURM. The slurm/psi option is for use on the PSI Tier 3 only. If not specified, run locally.",
     )
     parser.add_option(
-        "--apptainer",
-        dest="apptainer",
-        action="store_true",
-        default=False,
-        help="Run HTCondor with Docker image of HiggsDNA's current master branch.",
+        "--logs",
+        dest="logs",
+        default="",
+        help="Output path of the Log files of either HTCondor or SLURM.",
     )
     parser.add_option(
         "--eraFlag",
@@ -253,13 +320,13 @@ def main():
         help="Returns era flag in the process dictionary to allow distinction.",
     )
     (opt, args) = parser.parse_args()
-
+    
     if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
         opt.verbose = "INFO"
     logger = setup_logger(level=opt.verbose)
 
     folder_for_dirlist = opt.input
-    if opt.apptainer:
+    if opt.batch == "condor/apptainer":
         if opt.root and not opt.merge:
             folder_for_dirlist = opt.input + "/merged"
         elif opt.folder_structure != "":
@@ -270,16 +337,13 @@ def main():
         if opt.folder_structure != "":
             folder_for_dirlist = opt.folder_structure
 
-# os.system(
-#    f"ls -l {folder_for_dirlist} | tail -n +2 | grep -v .coffea | grep -v merged | grep -v root |"
-#     + "awk '{print $NF}' > dirlist.txt"
-# )
-
+# Creating dirlist
     os.system(
         f"find {folder_for_dirlist} -mindepth 1 -maxdepth 1 -type d | grep -v '^.$' | grep -v .coffea | grep -v '/merged$' | grep -v '/root$' |"
         + "awk -F'/' '{print $NF}' > dirlist.txt"
         )
-
+    
+    BASEDIR = resources.files("higgs_dna").joinpath("")
 # the key of the var_dict entries is also used as a key for the related root tree branch
 # to be consistent with FinalFit naming scheme you shoud use SystNameUp and SystNameDown,
 # e.g. "FNUFUp": "FNUF_up", "FNUFDown": "FNUF_down"
@@ -288,31 +352,41 @@ def main():
         var_dict = {
             "NOMINAL": "nominal",
         }
+        # Creating nominal var_dict temporarily in higgs_dna's base folder
+        var_dict_loc = os.path.join(BASEDIR, "variation.json")
+        with open(var_dict_loc, "w") as file:
+            file.write(json.dumps(var_dict))
     else:
-        with open(opt.varDict, "r") as jf:
-            var_dict = json.load(jf)['var_dict']
-
+        var_dict_loc = os.path.realpath(opt.varDict)
+        with open(var_dict_loc, "r") as jf:
+            var_dict = json.load(jf)
 
 # Here we prepare to split the output into categories, in the dictionary are defined the cuts to be applyed by pyarrow.ParquetDataset
 # when reading the data, the variable obviously has to be in the dumped .parquet
 # This can be improved by passing the configuration via json loading
     if opt.cats and opt.catDict is not None:
-        with open(opt.catDict, "r") as jf:
-            cat_dict = json.load(jf)['cat_dict']
+        cat_dict_loc = os.path.realpath(opt.catDict)
+        with open(cat_dict_loc, "r") as jf:
+            cat_dict = json.load(jf)
     else:
         logger.info("You chose to run without cats or you did not specify the path to a categorisation dictionary JSON, so we will only use one inclusive NOTAG category.")
         cat_dict = {"NOTAG": {"cat_filter": [("pt", ">", -1.0)]}}
+        # Creating NOTAG cat_dict temporarily in higgs_dna's base folder
+        cat_dict_loc = os.path.join(BASEDIR, "category.json")
+        with open(cat_dict_loc, "w") as file:
+            file.write(json.dumps(cat_dict))
 
-# Now, after loading the JSONs from possibly relative paths, we can change the directory appropriately to get to work
     EXEC_PATH = os.path.realpath(os.getcwd())
     os.chdir(opt.input)
     IN_PATH = os.path.realpath(os.getcwd())
     SCRIPT_DIR = os.path.dirname(
         os.path.abspath(__file__)
     )  # script directory
-    BASEDIR = resources.files("higgs_dna").joinpath("")
+    
 
-    CONDOR_PATH = os.path.realpath(os.path.abspath(opt.condor_logs)) # need real absolute path. otherwise problems can arise on lxplus (between afs and eos)
+    if opt.logs != "":
+        CONDOR_PATH = os.path.realpath(os.path.abspath(opt.logs)) # need real absolute path. otherwise problems can arise on lxplus (between afs and eos)
+
 # I create a dictionary and save it to a temporary json so that this can be shared between the two scripts
 # and then gets deleted to not leave trash around. We have to care for the environment :P.
 # Not super elegant, open for suggestions
@@ -324,70 +398,28 @@ def main():
 #     file.write(json.dumps(var_dict))
 
 # Using OUT_PATH for the location of the output if different from the input path
-    if not opt.apptainer:
+    if (not opt.batch == "condor/apptainer") and (not "slurm" in opt.batch):
         if opt.output == "":
             OUT_PATH = IN_PATH
-            # os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
-            # os.system(f"mv variation.json {SCRIPT_DIR}/../../higgs_dna/variation.json")
-            with open(os.path.join(BASEDIR, "category.json"), "w") as file:
-                file.write(json.dumps(cat_dict))
-            with open(os.path.join(BASEDIR, "variation.json"), "w") as file:
-                file.write(json.dumps(var_dict))
-            # if opt.folder_structure != "":
-            #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
-            # else:
+
             dirlist_path = f"{EXEC_PATH}/dirlist.txt"
         else:
             OUT_PATH = opt.output
-            # os.system(f"mv category.json {OUT_PATH}/category.json")
-            # os.system(f"mv variation.json {OUT_PATH}/variation.json")
-            # os.system(f"mv category.json {SCRIPT_DIR}/../../higgs_dna/category.json")
-            # os.system(f"mv variation.json {SCRIPT_DIR}/../../higgs_dna/variation.json")
-            with open(os.path.join(BASEDIR, "category.json"), "w") as file:
-                file.write(json.dumps(cat_dict))
-            with open(os.path.join(BASEDIR, "variation.json"), "w") as file:
-                file.write(json.dumps(var_dict))
-            # if opt.folder_structure != "":
-            #     dirlist_path = folder_for_dirlist+"/dirlist.txt"
-            #     os.system(f"mv {dirlist_path} {OUT_PATH}/dirlist.txt")
-            # else:
+
             dirlist_path = f"{OUT_PATH}/dirlist.txt"
             os.system(f"mv {EXEC_PATH}/dirlist.txt {OUT_PATH}/dirlist.txt")
-        cat_dict = "category.json"
     else:
-        if opt.output == "":
+        if (opt.output == "") or (opt.batch == "slurm/psi"):
             OUT_PATH = IN_PATH
-            cat_dict_loc = os.path.join(BASEDIR, "category.json")
-            var_dict_loc = os.path.join(BASEDIR, "variation.json")
-            # os.system(f"mv category.json {cat_dict_loc}")
-            # os.system(f"mv variation.json {var_dict_loc}")
-            with open(cat_dict_loc, "w") as file:
-                file.write(json.dumps(cat_dict))
-            with open(var_dict_loc, "w") as file:
-                file.write(json.dumps(var_dict))
+            if (opt.batch == "slurm/psi"):
+                OUT_PATH = os.path.realpath(opt.output)
 
             dirlist_path = f"{EXEC_PATH}/dirlist.txt"
         else:
             OUT_PATH = os.path.realpath(opt.output)
-            cat_dict_loc = f"{OUT_PATH}/category.json"
-            var_dict_loc = f"{OUT_PATH}/variation.json"
-            # os.system(f"mv category.json {cat_dict_loc}")
-            # os.system(f"mv variation.json {var_dict_loc}")
-            with open(cat_dict_loc, "w") as file:
-                file.write(json.dumps(cat_dict))
-            with open(var_dict_loc, "w") as file:
-                file.write(json.dumps(var_dict))
 
             dirlist_path = f"{OUT_PATH}/dirlist.txt"
             os.system(f"mv {EXEC_PATH}/dirlist.txt {OUT_PATH}/dirlist.txt")
-
-    def submit_jobs(directory, suffix=""):
-        if suffix != "":
-            sub_files = glob.glob(f"{directory}/*{suffix}.sub")
-        else:
-            sub_files = glob.glob(f"{directory}/*.sub")
-        for current_file in sub_files:
-            subprocess.run(["condor_submit", "-spool", current_file])
 
     if opt.genBinning != "":
         genBinning_str = f"--genBinning {opt.genBinning}"
@@ -402,7 +434,7 @@ def main():
         target_dir = f"{OUT_PATH}/merged/{file}/{var_dict[var]}"
         MKDIRP(target_dir)
 
-        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {skip_normalisation_str} {genBinning_str}"
+        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {skip_normalisation_str} {genBinning_str} --abs"
         logger.info(command)
 
         # Execute the command using subprocess.run
@@ -420,7 +452,7 @@ def main():
             if opt.syst:
                 # Systematic variations processing
                 with ThreadPoolExecutor(max_workers=7) as executor:
-                    futures = [executor.submit(process_var, var, var_dict, IN_PATH, OUT_PATH, SCRIPT_DIR, file, cat_dict, skip_normalisation_str) for var in var_dict]
+                    futures = [executor.submit(process_var, var, var_dict, IN_PATH, OUT_PATH, SCRIPT_DIR, file, cat_dict_loc, skip_normalisation_str) for var in var_dict]
 
                 for future in futures:
                     try:
@@ -429,7 +461,7 @@ def main():
                         logger.error(f"Error processing variable: {e}")
             else:
                 # Single nominal processing for MC
-                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict} {skip_normalisation_str} {genBinning_str}"
+                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {skip_normalisation_str} {genBinning_str} --abs"
                 subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
         else:
             # Data processing
@@ -439,10 +471,10 @@ def main():
                 raise Exception(f"The selected target path: {merged_target_path} already exists")
             if not os.path.exists(data_dir_path):
                 MKDIRP(data_dir_path)
-            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict} --is-data {genBinning_str}'
+            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict_loc} --is-data {genBinning_str} --abs'
             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
-    if not opt.apptainer:
+    if (opt.batch == ""):
         if opt.merge:
             with open(dirlist_path) as fl:
                 files = fl.readlines()
@@ -467,7 +499,7 @@ def main():
                     if "data" in file.lower() or "DoubleEG" in file:
                         dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                         if len(filenames) > 0:
-                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict} --is-data {genBinning_str}'
+                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data {genBinning_str} --abs'
                             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
                             break
                         else:
@@ -495,7 +527,7 @@ def main():
                             raise Exception(
                                 f"The selected target path: {OUT_PATH}/root/{file} already exists"
                             )
-
+                        print(file)
                         if os.listdir(f"{IN_PATH}/merged/{file}/"):
                             logger.info(f"Found merged files {IN_PATH}/merged/{file}/")
                         else:
@@ -503,7 +535,7 @@ def main():
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         os.system(
-                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict} --vars variation.json {genBinning_str}"
+                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} --abs"
                         )
                     elif "data" in file.lower():
                         if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
@@ -526,12 +558,12 @@ def main():
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json {genBinning_str}'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} --abs'
                             )
                         else:
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict} --vars variation.json {genBinning_str}'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} --abs'
                             )
 
         if opt.ws:
@@ -551,8 +583,6 @@ def main():
                     doSystematics = "--doSystematics"
                 else:
                     doSystematics = ""
-                with open(os.path.join(BASEDIR, "category.json")) as f:
-                    cat_file = json.load(f)
                 for dir in files:
                     dir = dir.split("\n")[0]
                     # if MC
@@ -568,9 +598,9 @@ def main():
                                 f"The selected target path: {IN_PATH}/root/{dir} it's empty"
                             )
                         doNOTAG = ""
-                        if ("NOTAG" in cat_file.keys()):
+                        if ("NOTAG" in cat_dict.keys()):
                             doNOTAG = "--doNOTAG"
-                        command = f"python trees2ws.py {doNOTAG} --inputConfig {opt.config} --productionMode {decompose_string(file)} --year 2017 {doSystematics} --inputTreeFile {filename}"
+                        command = f"python trees2ws.py {doNOTAG} --inputConfig {opt.config} --productionMode {decompose_string(dir)} --year 2017 {doSystematics} --inputTreeFile {filename}"
                         activate_final_fit(opt.final_fit, command)
                     elif "data" in dir.lower() and not data_done:
                         if os.listdir(f"{IN_PATH}/root/Data/"):
@@ -584,393 +614,35 @@ def main():
                                 f"The selected target path: {IN_PATH}/root/{dir} it's empty"
                             )
                         doNOTAG = ""
-                        if ("NOTAG" in cat_file.keys()):
+                        if ("NOTAG" in cat_dict.keys()):
                             doNOTAG = "--doNOTAG"
                         command = f"python trees2ws_data.py {doNOTAG} --inputConfig {opt.config} --inputTreeFile {filename}"
                         activate_final_fit(opt.final_fit, command)
                         data_done = True
             os.chdir(EXEC_PATH)
 
-    else:
-        if opt.merge:
-            with open(dirlist_path) as fl:
-                files = fl.readlines()
-                if not opt.merge_data:
-                    for file in files:
-                        file = file.split("\n")[0]
-                        # parent_id = 0
-                        # MC dataset are identified as everythingthat does not contain "data" or "Data" in the name.
-                        if "data" not in file.lower():
-                            if opt.condor_logs != "":
-                                job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
-                                job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
-                            else:
-                                job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
-                                job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
+    elif ("slurm" in opt.batch):
+        slurm_postprocessing(
+            _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, dirlist_path=dirlist_path, var_dict=var_dict, 
+            cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
+            decompose_string=decompose_string, logger=logger
+            )
 
-                            if not opt.make_condor_logs:
-                                job_file_out = "/dev/null"
-                                job_file_err = "/dev/null"
-                                job_file_log = "/dev/null"
-                            elif opt.condor_logs != "":
-                                job_file_out = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                                job_file_err = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).err")
-                                job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
-                            else:
-                                job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                                job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
-                                job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
+    elif ("condor" in opt.batch):
+        htcondor_postprocessing(
+            _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=CONDOR_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path, 
+            var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str, 
+            skip_normalisation_str=skip_normalisation_str, decompose_string=decompose_string, logger=logger
+        )
 
-                            with open(job_file_executable, "w") as executable_file:
-                                executable_file.write("#!/bin/sh\n")
-                                if os.path.exists(f"{OUT_PATH}/merged/{file}"):
-                                    raise Exception(
-                                        f"The selected target path: {OUT_PATH}/merged/{file} already exists"
-                                    )
-
-                                MKDIRP(f"{OUT_PATH}/merged/{file}")
-                                if opt.syst:
-                                    # if we have systematic variations in different files we have to split them in different directories
-                                    # otherwise they will be all merged at once in the same output file
-                                    i = 0
-                                    for var in var_dict:
-                                        os.chdir(OUT_PATH)
-
-                                        MKDIRP(f"{OUT_PATH}/merged/{file}/{var_dict[var]}")
-
-                                        os.chdir(SCRIPT_DIR)
-                                        logger.info(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str}")
-                                        executable_file.write(f"if [ $1 -eq {i} ]; then\n")
-                                        executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str} || exit 107\n")
-                                        executable_file.write("exit 0\n")
-                                        executable_file.write("fi\n")
-                                        i += 1
-
-                                else:
-                                    i = 1
-                                    os.chdir(SCRIPT_DIR)
-                                    print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str}")
-                                    executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                    executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {skip_normalisation_str} --abs {genBinning_str} || exit 107\n")
-                                    executable_file.write("exit 0\n")
-                                    executable_file.write("fi\n")
-
-                            os.system(f"chmod 775 {job_file_executable}")
-                            with open(job_file_submit, "w") as submit_file:
-                                if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
-                                submit_file.write(f"executable = {job_file_executable}\n")
-                                submit_file.write("arguments = $(ProcId)\n")
-                                submit_file.write(f"output = {job_file_out}\n")
-                                submit_file.write(f"error = {job_file_err}\n")
-                                submit_file.write(f"log = {job_file_log}\n")
-                                submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
-                                submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                                # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                                if opt.apptainer:
-                                    submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                    submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                                    submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                                submit_file.write("max_retries = 3\n")
-                                submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                                submit_file.write(f'+JobFlavour = "microcentury"\n')
-                                submit_file.write(f"queue {i}\n")
-
-                        else:
-                            if opt.condor_logs != "":
-                                job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
-                                job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
-                            else:
-                                job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
-                                job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
-
-                            if not opt.make_condor_logs:
-                                job_file_out = "/dev/null"
-                                job_file_err = "/dev/null"
-                                job_file_log = "/dev/null"
-                            elif opt.condor_logs != "":
-                                job_file_out = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                                job_file_err = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).err")
-                                job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
-                            else:
-                                job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                                job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
-                                job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
-
-                            with open(job_file_executable, "w") as executable_file:
-                                executable_file.write("#!/bin/sh\n")
-                                if os.path.exists(f"{OUT_PATH}/merged/{file}/{file}_merged.parquet"):
-                                    raise Exception(
-                                        f"The selected target path: {OUT_PATH}/merged/{file}/{file}_merged.parquet already exists"
-                                    )
-                                if not os.path.exists(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'):
-                                    MKDIRP(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}')
-                                os.chdir(SCRIPT_DIR)
-                                print(f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}')
-                                executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str} || exit 107\n")
-                                executable_file.write("exit 0\n")
-                                executable_file.write("fi\n")
-
-                            os.system(f"chmod 775 {job_file_executable}")
-                            with open(job_file_submit, "w") as submit_file:
-                                if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
-                                submit_file.write(f"executable = {job_file_executable}\n")
-                                submit_file.write("arguments = $(ProcId)\n")
-                                submit_file.write(f"output = {job_file_out}\n")
-                                submit_file.write(f"error = {job_file_err}\n")
-                                submit_file.write(f"log = {job_file_log}\n")
-                                submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
-                                submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                                # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                                if opt.apptainer:
-                                    submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                    submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                                    submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                                submit_file.write("max_retries = 3\n")
-                                submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                                submit_file.write(f'+JobFlavour = "microcentury"\n')
-                                submit_file.write(f"queue\n")
-                    if opt.condor_logs != "":
-                        submit_jobs(CONDOR_PATH)
-                    else:
-                        submit_jobs(OUT_PATH)
-
-                # at this point Data will be split in eras if any Data dataset is present, here we merge them again in one allData file to rule them all
-                # we also skip this step if there is no Data
-                if opt.merge_data:
-                    j = 0
-                    for file in files:
-                        if j != 0: continue
-                        file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
-                        if opt.condor_logs != "":
-                            job_file_executable = os.path.join(CONDOR_PATH, f"{file}_merge_data.sh")
-                            job_file_submit = os.path.join(CONDOR_PATH, f"{file}_merge_data.sub")
-                        else:
-                            job_file_executable = os.path.join(OUT_PATH, f"{file}_merge_data.sh")
-                            job_file_submit = os.path.join(OUT_PATH, f"{file}_merge_data.sub")
-
-                        if not opt.make_condor_logs:
-                            job_file_out = "/dev/null"
-                            job_file_err = "/dev/null"
-                            job_file_log = "/dev/null"
-                        elif opt.condor_logs != "":
-                            job_file_out = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).err")
-                            job_file_log = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).log")
-                        else:
-                            job_file_out = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).err")
-                            job_file_log = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).log")
-                        if "data" in file.lower() or "DoubleEG" in file:
-                            with open(job_file_executable, "w") as executable_file:
-                                executable_file.write("#!/bin/sh\n")
-                                dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
-                                if len(filenames) > 0:
-                                    print(f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}')
-                                    executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                    executable_file.write(f"    merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} --is-data --abs {genBinning_str} || exit 107\n")
-                                    executable_file.write("exit 0\n")
-                                    executable_file.write("fi\n")
-                                    #break
-                                else:
-                                    logger.info(f'No merged parquet found for {file} in the directory: {OUT_PATH}/merged/Data_{file.split("_")[-1]}')
-                            with open(job_file_submit, "w") as submit_file:
-                                if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
-                                submit_file.write(f"executable = {job_file_executable}\n")
-                                submit_file.write("arguments = $(ProcId)\n")
-                                submit_file.write(f"output = {job_file_out}\n")
-                                submit_file.write(f"error = {job_file_err}\n")
-                                submit_file.write(f"log = {job_file_log}\n")
-                                submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
-                                submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                                # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                                if opt.apptainer:
-                                    submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                    submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                                    submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                                submit_file.write("max_retries = 3\n")
-                                submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                                submit_file.write(f'+JobFlavour = "microcentury"\n')
-                                submit_file.write(f"queue\n")
-                        os.system(f"chmod 775 {job_file_executable}")
-                        j += 1
-                    if opt.condor_logs != "":
-                        submit_jobs(CONDOR_PATH, "merge_data")
-                    else:
-                        submit_jobs(OUT_PATH, "merge_data")
-
-        if opt.root:
-            logger.info("Starting root step")
-            if opt.syst:
-                logger.info("you've selected the run with systematics")
-                args = "--do-syst"
-            else:
-                logger.info("you've selected the run without systematics")
-                args = ""
-
-            if opt.merge:
-                IN_PATH = OUT_PATH
-            # Note, in my version of HiggsDNA I run the analysis splitting data per Era in different datasets
-            # the treatment of data here is tested just with that structure
-            with open(dirlist_path) as fl:
-                files = fl.readlines()
-                for file in files:
-                    file = file.split("\n")[0]
-                    if "data" not in file.lower() and (not "unknown" in decompose_string(file, era_flag=opt.eraFlag)):
-                        if opt.condor_logs != "":
-                            job_file_executable = os.path.join(CONDOR_PATH, f"{file}_root.sh")
-                        else:
-                            job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
-
-                        if not opt.merge:
-                            if opt.condor_logs != "":
-                                job_file_submit = os.path.join(CONDOR_PATH, f"{file}_root.sub")
-                            else:
-                                job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
-                            if not opt.make_condor_logs:
-                                job_file_out = "/dev/null"
-                                job_file_err = "/dev/null"
-                                job_file_log = "/dev/null"
-                            elif opt.condor_logs != "":
-                                job_file_out = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                                job_file_err = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
-                                job_file_log = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).log")
-                            else:
-                                job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                                job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
-                                job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
-                        with open(job_file_executable, "w") as executable_file:
-                            executable_file.write("#!/bin/sh\n")
-                            if os.path.exists(f"{OUT_PATH}/root/{file}"):
-                                raise Exception(
-                                    f"The selected target path: {OUT_PATH}/root/{file} already exists"
-                                )
-
-                            if os.listdir(f"{IN_PATH}/merged/{file}/"):
-                                logger.info(f"Found merged files {IN_PATH}/merged/{file}/")
-                            else:
-                                raise Exception(f"Merged parquet not found at {IN_PATH}/merged/")
-                            MKDIRP(f"{OUT_PATH}/root/{file}")
-                            os.chdir(SCRIPT_DIR)
-                            executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
-                            executable_file.write("exit 0\n")
-                            executable_file.write("fi\n")
-                        os.system(f"chmod 775 {job_file_executable}")
-                        with open(job_file_submit, "w") as submit_file:
-                            if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
-                            submit_file.write(f"executable = {job_file_executable}\n")
-                            submit_file.write("arguments = $(ProcId)\n")
-                            submit_file.write(f"output = {job_file_out}\n")
-                            submit_file.write(f"error = {job_file_err}\n")
-                            submit_file.write(f"log = {job_file_log}\n")
-                            submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
-                            submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                            # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                            if opt.apptainer:
-                                submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                                submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                            submit_file.write("max_retries = 3\n")
-                            submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                            submit_file.write(f'+JobFlavour = "microcentury"\n')
-                            submit_file.write(f"queue\n")
-                    elif "data" in file.lower():
-                        if opt.condor_logs != "":
-                            job_file_executable = os.path.join(CONDOR_PATH, f"{file}_root.sh")
-                        else:
-                            job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
-
-                        if not opt.merge:
-                            if opt.condor_logs != "":
-                                job_file_submit = os.path.join(CONDOR_PATH, f"{file}_root.sub")
-                            else:
-                                job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
-
-                            if not opt.make_condor_logs:
-                                job_file_out = "/dev/null"
-                                job_file_err = "/dev/null"
-                                job_file_log = "/dev/null"
-                            elif opt.condor_logs != "":
-                                job_file_out = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                                job_file_err = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
-                                job_file_log = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).log")
-                            else:
-                                job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                                job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
-                                job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
-
-                        with open(job_file_executable, "w") as executable_file:
-                            executable_file.write("#!/bin/sh\n")
-                            if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
-                                logger.info(
-                                    f'Found merged data files in: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
-                                )
-                            else:
-                                raise Exception(
-                                    f'Merged parquet not found at: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
-                                )
-
-                            if os.path.exists(
-                                f'{OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
-                            ):
-                                logger.info(
-                                    f'Data already converted: {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root'
-                                )
-                                continue
-                            elif not os.path.exists(f"{OUT_PATH}/root/Data/"):
-                                MKDIRP(f"{OUT_PATH}/root/Data")
-                                os.chdir(SCRIPT_DIR)
-                                executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
-                                executable_file.write("exit 0\n")
-                                executable_file.write("fi\n")
-                            else:
-                                os.chdir(SCRIPT_DIR)
-                                executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} || exit 107\n")
-                                executable_file.write("exit 0\n")
-                                executable_file.write("fi\n")
-                    os.system(f"chmod 775 {job_file_executable}")
-                    with open(job_file_submit, "w") as submit_file:
-                        if opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
-                        submit_file.write(f"executable = {job_file_executable}\n")
-                        submit_file.write("arguments = $(ProcId)\n")
-                        submit_file.write(f"output = {job_file_out}\n")
-                        submit_file.write(f"error = {job_file_err}\n")
-                        submit_file.write(f"log = {job_file_log}\n")
-                        submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
-                        submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                        # if opt.max_materialize != "": submit_file.write(f"max_materialize = {opt.max_materialize}\n")
-                        if opt.apptainer:
-                            submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                            submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                            submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                        submit_file.write("max_retries = 3\n")
-                        submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                        submit_file.write(f'+JobFlavour = "microcentury"\n')
-                        submit_file.write(f"queue\n")
-            if opt.condor_logs != "":
-                submit_jobs(CONDOR_PATH, "root")
-            else:
-                submit_jobs(OUT_PATH, "root")
-
-    if not opt.apptainer:
     # We don't want to leave trash around
-        if os.path.exists(dirlist_path):
-            os.system(f"rm {dirlist_path}")
-        if opt.output == "":
-            if os.path.exists(os.path.join(BASEDIR, "category.json")):
-                os.system(f"rm {os.path.join(BASEDIR, 'category.json')}")
-            if os.path.exists(os.path.join(BASEDIR, "variation.json")):
-                os.system(f"rm {os.path.join(BASEDIR, 'variation.json')}")
-
-    # elif (opt.apptainer) and (opt.root):
-    #     if os.path.exists(f"{OUT_PATH}/category.json"):
-    #         os.system(f"rm {OUT_PATH}/category.json")
-    #     if os.path.exists(f"{OUT_PATH}/variation.json"):
-    #         os.system(f"rm {OUT_PATH}/variation.json")
-
+    if os.path.exists(dirlist_path):
+        os.system(f"rm {dirlist_path}")
+    if ((opt.catDict is None) and (opt.varDict is None)) and (opt.output == ""):
+        if os.path.exists(cat_dict_loc):
+            os.system(f"rm {cat_dict_loc}")
+        if os.path.exists(var_dict_loc):
+            os.system(f"rm {var_dict_loc}")
 
 if __name__ == "__main__":
     main()

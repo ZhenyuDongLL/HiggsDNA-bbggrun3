@@ -136,7 +136,7 @@ def main():
 
     if args.genBinning != "":
         if args.abs:
-            genBinning_path = args.genBinning
+            genBinning_path = os.path.realpath(args.genBinning)
         else:
             genBinning_path = os.path.join(BASEDIR, "scripts/postprocessing/sample_gen_binning.json")
         with open(genBinning_path, 'r') as json_file:
@@ -158,7 +158,7 @@ def main():
 
     if args.cats_dict != "":
         if args.abs:
-            cats_path = args.cats_dict
+            cats_path = os.path.realpath(args.cats_dict)
         else:
             cats_path = os.path.join(BASEDIR, "category.json")
         with open(cats_path) as pf:
@@ -203,7 +203,11 @@ def main():
             logger.info("ParquetDataset read successfully.")
             logger.info(
                 f"Attempting to merge ParquetDataset and save to {target_paths[i]}."
-            )
+            )            
+            if "Data" in target_paths[i]:
+                os.makedirs("/".join(target_paths[i].split("/")[:-1]), exist_ok=True)
+            else:
+                os.makedirs(target_paths[i], exist_ok=True) # Create target directory if it does not exist
             pq.write_table(
                 dataset.read(), target_paths[i] + cat + "_merged.parquet"
             )  # dataset.read() is a pyarrow table

@@ -88,9 +88,8 @@ def generate_categories(recoVar, binName, boundaries, isData=False):
     return categories
 
 def save_to_json(output_file, categories):
-    data = {"cat_dict": categories}
     with open(output_file, 'w') as outfile:
-        json.dump(data, outfile, indent=4)
+        json.dump(categories, outfile, indent=4)
 
 def main():
     parser = argparse.ArgumentParser(description='Generate JSON file with specified reco variable boundaries.')

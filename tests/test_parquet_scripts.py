@@ -46,7 +46,7 @@ def test_prepare_output_file():
     Test if preparation of output file with the helper script works
     """
     # Download and unzip without relying on wget or unzip for slim python CI
-    url = "https://cernbox.cern.ch/remote.php/dav/public-files/Y9BLGMELVw8AMdD/example_HiggsDNA_output.zip"
+    url = "https://cernbox.cern.ch/remote.php/dav/public-files/J7s2HFTJ0WrdVRg/example_HiggsDNA_output.zip"
     output_file = "example_HiggsDNA_output.zip"
     response = requests.get(url)
     with open(output_file, "wb") as f:
@@ -68,7 +68,7 @@ def test_prepare_output_file():
     assert os.path.exists(f"{location}/signal/root")
 
     with open("cat_dict_inclusive_data.json") as f:
-        categories = list(json.load(f)["cat_dict"].keys())
+        categories = list(json.load(f).keys())
 
     # check merged parquet files for data
     for era in ["C", "D", "E", "F", "G"]:
@@ -84,10 +84,10 @@ def test_prepare_output_file():
 
     # check merged parquet files for MC
     with open("cat_dict_inclusive_MC.json") as f:
-        categories = list(json.load(f)["cat_dict"].keys())
+        categories = list(json.load(f).keys())
 
     with open("var_dict.json") as f:
-        variations = list(json.load(f)["var_dict"].values())
+        variations = list(json.load(f).values())
 
     for sample in ["GluGluHtoGG_M-125", "VBFHtoGG_M-125", "VHtoGG_M-125", "ttHtoGG_M-125"]:
         for leak in ["preEE", "postEE"]:
@@ -101,7 +101,7 @@ def test_prepare_output_file():
 
     # check root files for MC
     with open("var_dict.json") as f:
-        variations = list(json.load(f)["var_dict"].keys())
+        variations = list(json.load(f).keys())
 
     for sample in ["GluGluHtoGG_M-125", "VBFHtoGG_M-125", "VHtoGG_M-125", "ttHtoGG_M-125"]:
         for leak in ["preEE", "postEE"]:

@@ -76,7 +76,7 @@ def main():
 
     if args.genBinning != "":
         if args.abs:
-            genBinning_path = args.genBinning
+            genBinning_path = os.path.realpath(args.genBinning)
         else:
             genBinning_path = os.path.join(BASEDIR, "scripts/postprocessing/sample_gen_binning.json")
         with open(genBinning_path, 'r') as json_file:
@@ -88,6 +88,9 @@ def main():
     rename_dict = {
         "mass": "CMS_hgg_mass"
     }
+
+    # Ensure that the target directory exists
+    os.makedirs('/'.join(target_path.split("/")[:-1]), exist_ok=True)
 
     df_dict = {}
     outfiles = {
@@ -156,7 +159,7 @@ def main():
 # Loading category informations (used for naming of files to read/write)
     if args.cats_dict != "":
         if args.abs:
-            cats_path = args.cats_dict
+            cats_path = os.path.realpath(args.cats_dict)
         else:
             cats_path = os.path.join(BASEDIR, args.cats_dict)
         with open(cats_path) as pf:
@@ -177,7 +180,7 @@ def main():
 # Active object systematics, weight systematics are just different sets of weights contained in the nominal file
     if args.vars_dict != "":
         if args.abs:
-            vars_path = args.vars_dict
+            vars_path = os.path.realpath(args.vars_dict)
         else:
             vars_path = os.path.join(BASEDIR, args.vars_dict)
         # with resources.open_text("higgs_dna", args.vars_dict) as pf:
