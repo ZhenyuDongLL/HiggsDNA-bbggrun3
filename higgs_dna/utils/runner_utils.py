@@ -1,6 +1,3 @@
-from higgs_dna.workflows import workflows, taggers
-from higgs_dna.metaconditions import metaconditions
-
 import argparse
 import os
 import subprocess
@@ -22,9 +19,9 @@ def get_main_parser():
         + "It has to look like this:\n"
         + "{\n"
         + '\t"samplejson": "path to sample JSON",\n'
-        + f'\t"workflow": one of {list(workflows.keys())},\n'
-        + f'\t"metaconditions": one of {list(metaconditions.keys())},\n'
-        + f'\t"taggers": list from {list(taggers.keys())},\n'
+        + '\t"workflow": one of the implemented workflows, e.g., "base",\n'
+        + '\t"metaconditions": one of available metaconditions, e.g., "Era2022_v1",\n'
+        + '\t"taggers": one of the implemented taggers, e.g., "HHWWggTagger",\n'
         + '\t"systematics": path to systematics JSON or systematics in JSON style,\n'
         + '\t"corrections": path to corrections JSON or corrections in JSON sytle\n'
         + "}",
