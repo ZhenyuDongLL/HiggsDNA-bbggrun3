@@ -228,18 +228,26 @@ def parse_sample_json(samples_json: str, convention: str, limit, skipbadfiles):
         for directory in unique_rootf_directory:
             files_from_unique_directories.append([rootf for rootf in rootf_name if directory in rootf][0])
 
-        # Here we retrieve the original dataset names based on the root file list we just retrieved
-        dataset_list = [os.popen(
+        # Here we retrieve the original dataset names and status based on the root file list we just retrieved
+        dataset_info = [os.popen(
                 # use the cvmfs source for dasgoclient because it works for everyone
                 # Both local infrastructures with cvmfs and lxplus!
-                ("/cvmfs/cms.cern.ch/common/dasgoclient -query='dataset file={}'").format(
+                ("/cvmfs/cms.cern.ch/common/dasgoclient -query='dataset file={} status=* | grep dataset.name | grep dataset.status'").format(
                     rootf
                 )
             ).read() for rootf in files_from_unique_directories]
 
+        # Construct the list of original dataset & print a warning if the dataset we are processing is INVALID
+        dataset_list = []
+        for dinfo in dataset_info:
+            dataset_location, dataset_status = dinfo.split()
+            dataset_list.append(dataset_location)
+            if dataset_status not in ["PRODUCTION", "VALID"]:
+                logger.warning(f"{dataset_location} status is {dataset_status}, which is neither VALID nor PRODUCTION. Make sure this is intentional")
+
         # From the dataset names, we can now retrieve all the root files contained in each dataset
         nested_file_list = [(os.popen(
-                ("/cvmfs/cms.cern.ch/common/dasgoclient -query='file dataset={} | grep file.name | grep file.nevents'").format(
+                ("/cvmfs/cms.cern.ch/common/dasgoclient -query='file status=* dataset={} | grep file.name | grep file.nevents'").format(
                     dataset.strip()
                 )
             ).read()).splitlines() for dataset in dataset_list]
