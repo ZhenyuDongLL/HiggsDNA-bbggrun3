@@ -35,7 +35,66 @@ def submit_slurm_jobs(directory, suffix=""):
         if file.endswith(f"{suffix}.sh"):
             os.system(f"sbatch {os.path.join(directory, file)}")
 
-def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, decompose_string, logger):
+def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, decompose_string, logger):
+    if _opt.root_only:
+        with open(dirlist_path) as fl:
+            files = fl.readlines()
+            log_path = os.getcwd()
+            if _opt.logs is not None:
+                log_path = _opt.logs
+
+            for j, file in enumerate(files):
+                if _opt.merge_data and (_opt.type.lower() == "data") and j > 0: continue
+                file = file.split("\n")[0]
+                
+                os.makedirs(os.path.join(log_path, file), exist_ok=True)
+                job_script = os.path.join(log_path, file, f"{file}_root.sh")
+                job_out = os.path.join(log_path, file, f"{file}_root.out")
+                job_err = os.path.join(log_path, file, f"{file}_root.err")
+                
+                commands = []
+                
+                # Handle merge data for data type if applicable
+                if _opt.merge_data and (_opt.type.lower() == "data"):
+                    source_folder_path = f"{IN_PATH}"
+                    # Create allData.root
+                    target_file_path = f"{OUT_PATH}/root/Data/merged.root"
+                    target_folder_path = f"{OUT_PATH}/root/Data"
+                    if (_opt.batch == "slurm/psi"):
+                        target_file_path = f"$TARGET_PATH/root/Data/merged.root"
+                        target_folder_path = f"$TARGET_PATH/root/Data"
+                    else:
+                        os.makedirs(target_folder_path, exist_ok=True)
+
+                    current_process = "data"
+                elif (not _opt.merge_data) or (_opt.type.lower() == "mc"):
+                    source_folder_path = f"{IN_PATH}/{file}"
+                    target_file_path = f"{OUT_PATH}/root/{file}/merged.root"
+                    target_folder_path = f"{OUT_PATH}/root/{file}"
+                    if (_opt.batch == "slurm/psi"):
+                        target_file_path = f"$TARGET_PATH/root/{file}/merged.root"
+                        target_folder_path = f"$TARGET_PATH/root/{file}"
+                    else:
+                        os.makedirs(target_folder_path, exist_ok=True)
+
+                    current_process = decompose_string(file)
+                
+                print(f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {current_process} {skip_normalisation_str} {merge_data_str} {do_syst_str}")
+                commands.append(f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {current_process} {skip_normalisation_str} {merge_data_str} {do_syst_str}")
+                
+                if (_opt.type.lower() != "data"):
+                    random_delay = True
+                    sleeping = True
+                else:
+                    random_delay = False
+                    sleeping = False
+                
+                create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="root", random_delay=random_delay, memory="22G")
+        
+                submit_slurm_jobs(os.path.join(log_path, file), suffix="root")
+                if sleeping:
+                    sleep(2)
+        return 0
 
     if _opt.merge and not _opt.merge_data:
         with open(dirlist_path) as fl:

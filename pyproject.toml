@@ -63,6 +63,7 @@ test = ["pytest>=6"]
 [project.scripts]
 "run_analysis.py" = "higgs_dna.scripts.run_analysis:main"
 "merge_parquet.py" = "higgs_dna.scripts.postprocessing.merge_parquet:main"
+"merge_root.py" = "higgs_dna.scripts.postprocessing.advanced.merge_root:main"
 "convert_parquet_to_root.py" = "higgs_dna.scripts.postprocessing.convert_parquet_to_root:main"
 "prepare_output_file.py" = "higgs_dna.scripts.postprocessing.prepare_output_file:main"
 "make_correction_json.py" = "higgs_dna.scripts.make_correction_json:main"

@@ -24,7 +24,87 @@ def MKDIRP(dirpath, verbose=False, dry_run=False):
     return
 
 
-def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, decompose_string, logger):
+def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, decompose_string, logger):
+    if _opt.root_only:
+        with open(dirlist_path) as fl:
+            files = fl.readlines()
+            if _opt.merge_data and (_opt.type.lower() == "data"):
+                source_folder_path = f"{IN_PATH}"
+                target_file_path = f"{OUT_PATH}/root/Data/merged.root"
+                target_folder_path = f"{OUT_PATH}/root/Data"
+                if os.path.exists(target_folder_path):
+                    raise Exception(
+                        f"The selected target path: {target_folder_path} already exists"
+                    )
+                MKDIRP(target_folder_path)
+            for j, file in enumerate(files):
+                if _opt.merge_data and (_opt.type.lower() == "data") and j > 0: continue
+
+                file = file.split("\n")[0]
+                # parent_id = 0
+                # MC dataset are identified as everythingthat does not contain "data" or "Data" in the name.
+                if _opt.condor_logs != "":
+                    job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
+                    job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
+                else:
+                    job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
+                    job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
+                if not _opt.make_condor_logs:
+                    job_file_out = "/dev/null"
+                    job_file_err = "/dev/null"
+                    job_file_log = "/dev/null"
+                elif _opt.condor_logs != "":
+                    job_file_out = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).out")
+                    job_file_err = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                    job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
+                else:
+                    job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
+                    job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                    job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
+                
+                with open(job_file_executable, "w") as executable_file:
+                    executable_file.write("#!/bin/sh\n")
+                    if (not _opt.merge_data) or (_opt.type.lower() == "mc"):
+                        source_folder_path = f"{IN_PATH}/{file}"
+                        target_file_path = f"{OUT_PATH}/root/{file}/merged.root"
+                        target_folder_path = f"{OUT_PATH}/root/{file}"
+                        if os.path.exists(target_folder_path):
+                            raise Exception(
+                                f"The selected target path: {target_folder_path} already exists"
+                            )
+
+                        MKDIRP(target_folder_path)
+
+                    os.chdir(SCRIPT_DIR)
+
+                    print(f"python3 merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file)} {skip_normalisation_str} {merge_data_str} {do_syst_str}")
+                    executable_file.write(f"if [ $1 -eq 0 ]; then\n")
+                    executable_file.write(f"    python3 merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file)} {skip_normalisation_str} {merge_data_str} {do_syst_str} || exit 107\n")
+                    executable_file.write("exit 0\n")
+                    executable_file.write("fi\n")
+                        
+                os.system(f"chmod 775 {job_file_executable}")
+                with open(job_file_submit, "w") as submit_file:
+                    if _opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
+                    submit_file.write(f"executable = {job_file_executable}\n")
+                    submit_file.write("arguments = $(ProcId)\n")
+                    submit_file.write(f"output = {job_file_out}\n")
+                    submit_file.write(f"error = {job_file_err}\n")
+                    submit_file.write(f"log = {job_file_log}\n")
+                    submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
+                    submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
+                    if _opt.apptainer:
+                        submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
+                        submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest"\n""")
+                        submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                    submit_file.write("max_retries = 3\n")
+                    submit_file.write("requirements = Machine =!= LastRemoteHost\n")
+                    submit_file.write(f'+JobFlavour = "microcentury"\n')
+                    submit_file.write(f"queue\n")
+            if _opt.condor_logs != "":
+                submit_jobs(CONDOR_PATH)
+            else:
+                submit_jobs(OUT_PATH)
     if _opt.merge:
         with open(dirlist_path) as fl:
             files = fl.readlines()
