@@ -36,73 +36,6 @@ def activate_final_fit(path, command):
         f"eval `scram runtime -sh` && source {path}/flashggFinalFit/setup.sh && cd {path}/flashggFinalFit/Trees2WS && {command} "
     )
     os.chdir(current_path)
-    
-def decompose_string(input_string, era_flag=False):
-    """
-    Decomposes the input string into process, mass, and era components based on underscores.
-
-    Args:
-        input_string (str): The string to be decomposed.
-        era_flag (bool): If True, include the era in the output. If False, exclude the era.
-
-    Returns:
-        str: The formatted string in the style process + _ + mass (+ _ + era if era_flag is True).
-    """
-    # Map known processes to their keywords
-    process_map = {
-        "GluGluHtoGG": "ggh",
-        "GluGluHto2G": "ggh",
-        "ggh": "ggh",
-        "ttHtoGG": "tth",
-        "ttHto2G": "tth",
-        "tth": "tth",
-        "VHtoGG": "vh",
-        "VHto2G": "vh",
-        "vh": "vh",
-        "VBFHtoGG": "vbf",
-        "VBFHto2G": "vbf",
-        "vbf": "vbf",
-        "bbHtoGG": "bbh",
-        "bbHto2G": "bbh",
-        "DYto2L": "dy",
-        "GG-Box": "ggbox",
-        "GJet": "gjet"
-    }
-
-    parts = input_string.split("_")
-
-    # Extract the process by matching known keywords
-    process = "unknown"
-    for key, value in process_map.items():
-        if key in parts[0]:
-            process = value
-            break
-
-    # Extract the mass component
-    mass = next((part[2:] for part in parts if part.startswith("M-") and part[2:].isdigit()), "")
-
-    # Find the era (if it exists) and strip the year if included.
-    era = ""
-    for part in parts:
-        if "pre" in part or "post" in part:
-            era = part
-            if part[:4].isdigit():
-                era = part[4:]
-            break
-
-    # Assemble the output.
-    if mass:
-        if era_flag and era:
-            return f"{process}_{mass}_{era}"
-        elif era_flag:
-            return f"{process}_{mass}"
-        else:
-            return f"{process}_{mass}"
-    else:
-        if era_flag and era:
-            return f"{process}_{era}"
-        else:
-            return process
 
 
 def decompose_string(input_string, era_flag=False):
@@ -134,7 +67,9 @@ def decompose_string(input_string, era_flag=False):
         "bbHto2G": "bbh",
         "DYto2L": "dy",
         "GG-Box": "ggbox",
-        "GJet": "gjet"
+        "GJet": "gjet",
+        "Data": "data"
+        
     }
 
     parts = input_string.split("_")
@@ -302,9 +237,9 @@ def main():
     parser.add_option(
         "--batch",
         dest="batch",
-        choices=["condor", "condor/apptainer", "slurm", "slurm/psi", ""],
-        default="",
-        help="Run HTCondor with or without Docker image of HiggsDNA's current master branch or run via SLURM. The slurm/psi option is for use on the PSI Tier 3 only. If not specified, run locally.",
+        choices=["condor", "condor/apptainer", "slurm", "slurm/psi", "local", "local/futures"],
+        default="local",
+        help="Run HTCondor with or without Docker image of HiggsDNA's current master branch or run via SLURM. The slurm/psi option is for use on the PSI Tier 3 only. If local, run with futures. Default: futures.",
     )
     parser.add_option(
         "--logs",
@@ -318,6 +253,20 @@ def main():
         action="store_true",
         default=False,
         help="Returns era flag in the process dictionary to allow distinction.",
+    )
+    parser.add_option(
+        "--root-only",
+        dest="root_only",
+        action="store_true",
+        default=False,
+        help="Produces only ROOT output (for example for FinalFits).",
+    )
+    parser.add_option(
+        "--type",
+        type=str,
+        dest="type",
+        default="",
+        help="Type of dataset (data or mc).",
     )
     (opt, args) = parser.parse_args()
     
@@ -427,6 +376,8 @@ def main():
         genBinning_str = ""
 # Define string if normalisation to be skipped
     skip_normalisation_str = "--skip-normalisation" if opt.skip_normalisation else ""
+    merge_data_str = "--merge-all-data" if opt.merge_data else ""
+    do_syst_str = "--do_syst" if opt.syst else ""
 
 # The process var below is the function that will be executed in parallel for each systematic variation. It substitutes the old loop of the systematics to speed up the process.
 # Paths now must be ABSOLUTE!! - CD while multi thread is not a good idea!
@@ -474,7 +425,66 @@ def main():
             command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict_loc} --is-data {genBinning_str} --abs'
             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
-    if (opt.batch == ""):
+    def root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, skip_normalisation_str):
+        file = file.split("\n")[0]
+        if opt.merge_data and (opt.type.lower() == "data"):
+            source_folder_path = f"{IN_PATH}"
+            target_file_path = f"{OUT_PATH}/root/Data/merged.root"
+            target_folder_path = f"{OUT_PATH}/root/Data"
+            if os.path.exists(target_folder_path):
+                raise Exception(
+                    f"The selected target path: {target_folder_path} already exists"
+                )
+            MKDIRP(target_folder_path)
+        if (not opt.merge_data) or (opt.type.lower() == "mc"):
+            source_folder_path = f"{IN_PATH}/{file}"
+            target_file_path = f"{OUT_PATH}/root/{file}/merged.root"
+            target_folder_path = f"{OUT_PATH}/root/{file}"
+            if os.path.exists(target_folder_path):
+                raise Exception(
+                    f"The selected target path: {target_folder_path} already exists"
+                )
+
+            MKDIRP(target_folder_path)
+
+        command = f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {opt.type} --process {decompose_string(file)} {skip_normalisation_str} {merge_data_str} {do_syst_str}"
+        logger.info(command)
+        
+        # Execute the command using subprocess.run
+        subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
+
+    if ("local" in opt.batch):
+        if opt.root_only:
+            if opt.batch == "local/futures":
+                logger.info("Using futures")
+                with open(dirlist_path) as fl:
+                    files = fl.readlines()
+                    if opt.merge_data and (opt.type.lower() == "data"):
+                        for j, file in enumerate(files):
+                            file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
+                            if j > 0: continue
+                            root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, skip_normalisation_str)
+                    else:
+                        print(files)
+                        # No more loop over the files, we will use the ThreadPoolExecutor to parallelize the process!
+                        with ThreadPoolExecutor(max_workers=8) as executor:
+                            futures = [executor.submit(root_process_var, cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, skip_normalisation_str) for file in files]
+
+                        # Optionally, wait for all futures to complete and check for exceptions
+                        for future in futures:
+                            try:
+                                future.result()
+                            except Exception as e:
+                                # Log file-level exceptions
+                                logger.error(f"Error processing file: {e}")
+
+            else:
+                with open(dirlist_path) as fl:
+                    files = fl.readlines()
+                    for j, file in enumerate(files):
+                        file = file.split("\n")[0]
+                        if opt.merge_data and (opt.type.lower() == "data") and j > 0: continue
+                        root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, skip_normalisation_str)
         if opt.merge:
             with open(dirlist_path) as fl:
                 files = fl.readlines()
@@ -625,14 +635,14 @@ def main():
         slurm_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, dirlist_path=dirlist_path, var_dict=var_dict, 
             cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
-            decompose_string=decompose_string, logger=logger
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, decompose_string=decompose_string, logger=logger
             )
 
     elif ("condor" in opt.batch):
         htcondor_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=CONDOR_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path, 
             var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str, 
-            skip_normalisation_str=skip_normalisation_str, decompose_string=decompose_string, logger=logger
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, decompose_string=decompose_string, logger=logger
         )
 
     # We don't want to leave trash around
