@@ -527,10 +527,10 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
                 diphotons["GenNBJet"] = num_bjets
 
                 gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
-                diphotons["GenPTbJ1"] = gen_first_bjet_pt
+                diphotons["GenPTbJ0"] = gen_first_bjet_pt
 
                 gen_first_jet_hFlav = choose_jet(genJets.hadronFlavour, 0, -999.0)
-                diphotons["GenJ1hFlav"] = gen_first_jet_hFlav
+                diphotons["GenJ0hFlav"] = gen_first_jet_hFlav
 
                 with numpy.errstate(divide='ignore', invalid='ignore'):
                     GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
@@ -677,7 +677,10 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
             diphotons[f"{self.bjet_mva}_NBJet"] = num_bjets
 
             first_bjet_pt = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True].pt, 0, -999.0)
-            diphotons[f"{self.bjet_mva}_PTbJ1"] = first_bjet_pt
+            diphotons[f"{self.bjet_mva}_PTbJ0"] = first_bjet_pt
+
+            first_bjet_mva = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True][btag_mva_column], 0, -999.0)
+            diphotons[f"{self.bjet_mva}_ScorebJ0"] = first_bjet_mva
 
             first_jet_pt = choose_jet(jets.pt, 0, -999.0)
             first_jet_eta = choose_jet(jets.eta, 0, -999.0)

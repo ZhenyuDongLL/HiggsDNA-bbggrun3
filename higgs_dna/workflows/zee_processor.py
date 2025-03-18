@@ -350,7 +350,7 @@ class ZeeProcessor(HggBaseProcessor):
                 photons = self.add_photonid_mva(photons, events)
 
             # photon preselection
-            photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0], electron_veto=False, revert_electron_veto=True, IsFlag=True)
+            photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0], electron_veto=False, revert_electron_veto=False, IsFlag=True)
 
             diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 
@@ -451,13 +451,10 @@ class ZeeProcessor(HggBaseProcessor):
             diphotons[f"{self.bjet_mva}_NBJet"] = num_bjets
 
             first_bjet_pt = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True].pt, 0, -999.0)
-            diphotons[f"{self.bjet_mva}_PTbJ1"] = first_bjet_pt
+            diphotons[f"{self.bjet_mva}_PTbJ0"] = first_bjet_pt
 
             first_bjet_mva = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True][btag_mva_column], 0, -999.0)
-            diphotons[f"{self.bjet_mva}_ScorebJ1"] = first_bjet_mva
-
-            first_bjet_mva = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True][btag_mva_column], 0, -999.0)
-            diphotons[f"{self.bjet_mva}_ScorebJ1"] = first_bjet_mva
+            diphotons[f"{self.bjet_mva}_ScorebJ0"] = first_bjet_mva
 
             first_jet_pt = choose_jet(jets.pt, 0, -999.0)
             first_jet_eta = choose_jet(jets.eta, 0, -999.0)
@@ -471,13 +468,13 @@ class ZeeProcessor(HggBaseProcessor):
             second_jet_mass = choose_jet(jets.mass, 1, -999.0)
             second_jet_charge = choose_jet(jets.charge, 1, -999.0)
 
-            diphotons["first_jet_pt"] = first_jet_pt
+            diphotons["PTJ0"] = first_jet_pt
             diphotons["first_jet_eta"] = first_jet_eta
             diphotons["first_jet_phi"] = first_jet_phi
             diphotons["first_jet_mass"] = first_jet_mass
             diphotons["first_jet_charge"] = first_jet_charge
 
-            diphotons["second_jet_pt"] = second_jet_pt
+            diphotons["PTJ1"] = second_jet_pt
             diphotons["second_jet_eta"] = second_jet_eta
             diphotons["second_jet_phi"] = second_jet_phi
             diphotons["second_jet_mass"] = second_jet_mass
@@ -509,6 +506,9 @@ class ZeeProcessor(HggBaseProcessor):
 
             selection_mask = ~ak.is_none(diphotons)
             diphotons = diphotons[selection_mask]
+
+            bTagFixedWP_present = any("bTagFixedWP" in item for item in systematic_names) + any("bTagFixedWP" in item for item in correction_names)
+            PNet_present = any("bTagFixedWP_PNet" in item for item in systematic_names) + any("bTagFixedWP_PNet" in item for item in correction_names)
 
             # return if there is no surviving events
             if len(diphotons) == 0:
@@ -543,8 +543,59 @@ class ZeeProcessor(HggBaseProcessor):
                         varying_function = available_weight_corrections[correction_name]
                         event_weights = varying_function(**common_args)
 
-                bTagFixedWP_present = any("bTagFixedWP" in item for item in systematic_names) + any("bTagFixedWP" in item for item in correction_names)
-                PNet_present = any("bTagFixedWP_PNet" in item for item in systematic_names) + any("bTagFixedWP_PNet" in item for item in correction_names)
+                # systematic variations of event weights go to nominal output dataframe:
+                if do_variation == "nominal":
+                    for systematic_name in systematic_names:
+                        if systematic_name in available_weight_systematics:
+                            logger.info(
+                                f"Adding systematic {systematic_name} to weight collection of dataset {dataset_name}"
+                            )
+                            if systematic_name == "LHEScale":
+                                if hasattr(events, "LHEScaleWeight"):
+                                    diphotons["nweight_LHEScale"] = ak.num(
+                                        events.LHEScaleWeight[selection_mask],
+                                        axis=1,
+                                    )
+                                    diphotons[
+                                        "weight_LHEScale"
+                                    ] = events.LHEScaleWeight[selection_mask]
+                                else:
+                                    logger.info(
+                                        f"No {systematic_name} Weights in dataset {dataset_name}"
+                                    )
+                            elif systematic_name == "LHEPdf":
+                                if hasattr(events, "LHEPdfWeight"):
+                                    # two AlphaS weights are removed
+                                    diphotons["nweight_LHEPdf"] = (
+                                        ak.num(
+                                            events.LHEPdfWeight[selection_mask],
+                                            axis=1,
+                                        )
+                                        - 2
+                                    )
+                                    diphotons[
+                                        "weight_LHEPdf"
+                                    ] = events.LHEPdfWeight[selection_mask][
+                                        :, :-2
+                                    ]
+                                else:
+                                    logger.info(
+                                        f"No {systematic_name} Weights in dataset {dataset_name}"
+                                    )
+                            else:
+                                common_args = {
+                                    "events": events[selection_mask],
+                                    "photons": events[f"diphotons_{do_variation}"][selection_mask],
+                                    "weights": event_weights,
+                                    "dataset_name": dataset_name,
+                                    "year": self.year[dataset_name][0],
+                                }
+
+                                if any("bTagFixedWP" in item for item in systematic_names):
+                                    common_args["bTagEffFileName"] = self.bTagEffFileName
+
+                                varying_function = available_weight_systematics[systematic_name]
+                                event_weights = varying_function(**common_args)
 
                 if PNet_present and (self.nano_version < 12):
                     logger.error("\n B-Tagging systematics and corrections using Particle Net are only available for NanoAOD v12 or higher. Exiting! \n")
@@ -562,7 +613,7 @@ class ZeeProcessor(HggBaseProcessor):
                 )
 
                 if bTagFixedWP_present:
-                    diphotons["weight_BtagPNetFixedWP"] = event_weights.partial_weight(include=["bTagFixedWP"])
+                    diphotons["weight_bTagFixedWP"] = event_weights.partial_weight(include=["bTagFixedWP"])
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
                     if len(event_weights.variations):
