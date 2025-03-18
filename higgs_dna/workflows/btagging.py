@@ -172,27 +172,38 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
         if (
             self.data_kind == "mc"
             and self.Smear_sigma_m
-            and ("Smearing" not in correction_names and "Et_dependent_Smearing" not in correction_names)
+            and ("Smearing_Trad" not in correction_names and "Smearing_IJazZ" not in correction_names and "Smearing2G_IJazZ" not in correction_names)
         ):
             warnings.warn(
-                "Smearing or Et_dependent_Smearing should be specified in the corrections field in .json in order to smear the mass!"
+                "Smearing_Trad or  Smearing_IJazZ or Smearing2G_IJazZ should be specified in the corrections field in .json in order to smear the mass!"
             )
             sys.exit(0)
+
+        # save raw pt if we use scale/smearing corrections
+        # These needs to be before the smearing of the mass resolution in order to have the raw pt for the function
+        s_or_s_applied = False
+        for correction in correction_names:
+            if "scale" or "smearing" in correction.lower():
+                s_or_s_applied = True
+        if s_or_s_applied:
+            events.Photon["pt_raw"] = ak.copy(events.Photon.pt)
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
-            if "Scale" in correction_names:
-                correction_name = "Smearing"
-            elif "Et_dependent_Scale" in correction_names:
-                correction_name = "Et_dependent_Smearing"
+            if "Scale_Trad" in correction_names:
+                correction_name = "Smearing_Trad"
+            elif "Scale_IJazZ" in correction_names:
+                correction_name = "Smearing_IJazZ"
+            elif "Scale2G_IJazZ" in correction_names:
+                correction_name = "Smearing2G_IJazZ"
             else:
                 logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
                 sys.exit(0)
 
             logger.info(
                 f"""
-                \nApplying correction {correction_name} to dataset {dataset_name}\n
+                Applying correction {correction_name} to dataset {dataset_name}\n
                 This is only for the addition of the smearing term to the sigma_m_over_m in data\n
                 """
             )
@@ -327,18 +338,6 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
                 gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
                 gen_first_jet_phi = choose_jet(genJets.phi, 0, -999.0)
 
-                genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 2.5)
-                genBJetCondition = genJetCondition & (genJets.hadronFlavour == 5)
-                genJets = ak.with_field(genJets, genBJetCondition, "GenIsBJet")
-                num_bjets = ak.sum(genJets["GenIsBJet"], axis=-1)
-                diphotons["GenNBJet"] = num_bjets
-
-                gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
-                diphotons["GenBJetPT"] = gen_first_bjet_pt
-
-                gen_first_jet_hFlav = choose_jet(genJets.hadronFlavour, 0, -999.0)
-                diphotons["GenJ1hFlav"] = gen_first_jet_hFlav
-
                 gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
                 gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
 
@@ -356,10 +355,10 @@ class BTaggingEfficienciesProcessor(HggBaseProcessor):
                 diphotons["GenNBJet"] = num_bjets
 
                 gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
-                diphotons["GenBJetPT"] = gen_first_bjet_pt
+                diphotons["GenPTbJ0"] = gen_first_bjet_pt
 
                 gen_first_jet_hFlav = choose_jet(genJets.hadronFlavour, 0, -999.0)
-                diphotons["GenJ1hFlav"] = gen_first_jet_hFlav
+                diphotons["GenJ0hFlav"] = gen_first_jet_hFlav
 
                 with numpy.errstate(divide='ignore', invalid='ignore'):
                     GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
