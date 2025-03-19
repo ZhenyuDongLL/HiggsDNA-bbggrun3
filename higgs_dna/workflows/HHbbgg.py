@@ -308,6 +308,17 @@ class HHbbggProcessor(HggBaseProcessor):
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
 
+        # Computing the normalizing flow correction
+        if self.data_kind == "mc" and self.doFlow_corrections:
+            original_photons = apply_flow_corrections_to_photons(
+                original_photons,
+                events,
+                self.meta,
+                self.year[dataset_name][0],
+                self.add_photonid_mva_run3,
+                logger
+            )
+
         # Add additional collections if object systematics should be applied
         collections = {
             "Photon": original_photons,
@@ -327,17 +338,6 @@ class HHbbggProcessor(HggBaseProcessor):
 
         original_photons = collections["Photon"]
         original_electrons = collections["Electron"]
-
-        # Computing the normalizing flow correction
-        if self.data_kind == "mc" and self.doFlow_corrections:
-            original_photons = apply_flow_corrections_to_photons(
-                original_photons,
-                events,
-                self.meta,
-                self.year[dataset_name][0],
-                self.add_photonid_mva_run3,
-                logger
-            )
 
         # Write systematic variations to dicts
         photons_dct = {}
@@ -1384,12 +1384,12 @@ class HHbbggProcessor(HggBaseProcessor):
 
                 # decorrelate flow corrected smeared sigma_m_over_m
                 if (self.doFlow_corrections and self.Smear_sigma_m):
-                    if self.data_kind == "data" and "Et_dependent_Scale" in correction_names:
+                    if self.data_kind == "data" and ("Scale_IJazZ" in correction_names or "Scale2G_IJazZ" in correction_names):
                         diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
-                    elif self.data_kind == "mc" and "Et_dependent_Smearing" in correction_names:
+                    elif self.data_kind == "mc" and ("Smearing2G_IJazZ" in correction_names or "Smearing_IJazZ" in correction_names):
                         diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
                     else:
-                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0])
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
 
                 # Instead of the nominal sigma_m_over_m, we will use the smeared version of it -> (https://indico.cern.ch/event/1319585/#169-update-on-the-run-3-mass-r)
                 # else:
