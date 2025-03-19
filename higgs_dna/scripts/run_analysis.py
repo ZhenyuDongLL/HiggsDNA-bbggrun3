@@ -446,7 +446,7 @@ def main():
             args.json_analysis_file,
             sample_dict,
             args_string,
-            queue=args.queue,
+            queue=args.queue if args.queue is not None else "workday",
             memory=args.memory,
         )
         output = vanilla_submitter.submit()
