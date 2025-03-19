@@ -143,6 +143,8 @@ class LXPlusVanillaSubmitter:
                     submit_file.write(f"output = {job_file_out}\n")
                     submit_file.write(f"error = {job_file_err}\n")
                     submit_file.write(f"log = {job_file_log}\n")
+                    submit_file.write('transfer_output_files = ""\n')
+                    submit_file.write('output_destination = ""\n')
                     submit_file.write(f"request_memory = {self.memory}\n")
                     submit_file.write("getenv = True\n")
                     submit_file.write(f'+JobFlavour = "{self.queue}"\n')
@@ -162,6 +164,7 @@ class LXPlusVanillaSubmitter:
                     job_file_name = os.path.join(self.jobs_dir, f"{base_name}.sub")
                     job_file_out = os.path.join(self.jobs_dir, f"{base_name}.out")
                     job_file_err = os.path.join(self.jobs_dir, f"{base_name}.err")
+                    job_file_log = os.path.join(self.jobs_dir, f"{base_name}.log")
                     with open(job_file_name, "w") as submit_file:
                         arguments = self.args_string.replace(
                             original_analysis_path, json_file
@@ -172,6 +175,9 @@ class LXPlusVanillaSubmitter:
                         )
                         submit_file.write(f"output = {job_file_out}\n")
                         submit_file.write(f"error = {job_file_err}\n")
+                        submit_file.write(f"log = {job_file_log}\n")
+                        submit_file.write('transfer_output_files = ""\n')
+                        submit_file.write('output_destination = ""\n')
                         submit_file.write(f"request_memory = {self.memory}\n")
                         submit_file.write("getenv = True\n")
                         submit_file.write(f'+JobFlavour = "{self.queue}"\n')
