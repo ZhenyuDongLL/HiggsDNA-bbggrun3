@@ -43,6 +43,17 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                 file = file.split("\n")[0]
                 # parent_id = 0
                 # MC dataset are identified as everythingthat does not contain "data" or "Data" in the name.
+                if _opt.logs != "":
+                    jobs_dir = CONDOR_PATH
+                else: 
+                    jobs_dir = OUTPATH
+                if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
+                    job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
+                elif ("/eos/cms" in os.path.realpath(jobs_dir)):
+                    job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(jobs_dir)
+                else:
+                    job_file_dir = os.path.realpath(jobs_dir)
+                    
                 if _opt.condor_logs != "":
                     job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
                     job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
@@ -54,12 +65,12 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     job_file_err = "/dev/null"
                     job_file_log = "/dev/null"
                 elif _opt.condor_logs != "":
-                    job_file_out = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                    job_file_err = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                    job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
+                    job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
                     job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
                 else:
-                    job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                    job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                    job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
+                    job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
                     job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
                 
                 with open(job_file_executable, "w") as executable_file:
@@ -91,6 +102,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     submit_file.write(f"output = {job_file_out}\n")
                     submit_file.write(f"error = {job_file_err}\n")
                     submit_file.write(f"log = {job_file_log}\n")
+                    submit_file.write(f"output_destination = {job_file_dir}\n")
                     submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                     submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                     if _opt.apptainer:
@@ -113,6 +125,17 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     file = file.split("\n")[0]
                     # parent_id = 0
                     # MC dataset are identified as everythingthat does not contain "data" or "Data" in the name.
+                    if _opt.logs != "":
+                        jobs_dir = CONDOR_PATH
+                    else: 
+                        jobs_dir = OUTPATH
+                    if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
+                        job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
+                    elif ("/eos/cms" in os.path.realpath(jobs_dir)):
+                        job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(jobs_dir)
+                    else:
+                        job_file_dir = os.path.realpath(jobs_dir)
+
                     if "data" not in file.lower():
                         if _opt.logs != "":
                             job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
@@ -126,12 +149,12 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             job_file_err = "/dev/null"
                             job_file_log = "/dev/null"
                         elif _opt.logs != "":
-                            job_file_out = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                            job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
+                            job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
                             job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
                         else:
-                            job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                            job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
+                            job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
                             job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
 
                         with open(job_file_executable, "w") as executable_file:
@@ -176,6 +199,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write(f"output = {job_file_out}\n")
                             submit_file.write(f"error = {job_file_err}\n")
                             submit_file.write(f"log = {job_file_log}\n")
+                            submit_file.write(f"output_destination = {job_file_dir}\n")
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
@@ -190,6 +214,17 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
 
                     else:
                         if _opt.logs != "":
+                            jobs_dir = CONDOR_PATH
+                        else: 
+                            jobs_dir = OUTPATH
+                        if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
+                            job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
+                        elif ("/eos/cms" in os.path.realpath(jobs_dir)):
+                            job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(jobs_dir)
+                        else:
+                            job_file_dir = os.path.realpath(jobs_dir)
+
+                        if _opt.logs != "":
                             job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
                             job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
                         else:
@@ -201,12 +236,12 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             job_file_err = "/dev/null"
                             job_file_log = "/dev/null"
                         elif _opt.logs != "":
-                            job_file_out = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                            job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
+                            job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
                             job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
                         else:
-                            job_file_out = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(OUT_PATH, f"{file}.$(ClusterId).$(ProcId).err")
+                            job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
+                            job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
                             job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
 
                         with open(job_file_executable, "w") as executable_file:
@@ -232,6 +267,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write(f"output = {job_file_out}\n")
                             submit_file.write(f"error = {job_file_err}\n")
                             submit_file.write(f"log = {job_file_log}\n")
+                            submit_file.write(f"output_destination = {job_file_dir}\n")
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
@@ -256,6 +292,17 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     if j != 0: continue
                     file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
                     if _opt.logs != "":
+                        jobs_dir = CONDOR_PATH
+                    else: 
+                        jobs_dir = OUTPATH
+                    if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
+                        job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
+                    elif ("/eos/cms" in os.path.realpath(jobs_dir)):
+                        job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(jobs_dir)
+                    else:
+                        job_file_dir = os.path.realpath(jobs_dir)
+
+                    if _opt.logs != "":
                         job_file_executable = os.path.join(CONDOR_PATH, f"{file}_merge_data.sh")
                         job_file_submit = os.path.join(CONDOR_PATH, f"{file}_merge_data.sub")
                     else:
@@ -267,12 +314,12 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         job_file_err = "/dev/null"
                         job_file_log = "/dev/null"
                     elif _opt.logs != "":
-                        job_file_out = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).out")
-                        job_file_err = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).err")
+                        job_file_out = f"{file}_merge_data.$(ClusterId).$(ProcId).out"
+                        job_file_err = f"{file}_merge_data.$(ClusterId).$(ProcId).err"
                         job_file_log = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).log")
                     else:
-                        job_file_out = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).out")
-                        job_file_err = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).$(ProcId).err")
+                        job_file_out = f"{file}_merge_data.$(ClusterId).$(ProcId).out"
+                        job_file_err = f"{file}_merge_data.$(ClusterId).$(ProcId).err"
                         job_file_log = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).log")
                     if "data" in file.lower() or "DoubleEG" in file:
                         with open(job_file_executable, "w") as executable_file:
@@ -294,6 +341,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write(f"output = {job_file_out}\n")
                             submit_file.write(f"error = {job_file_err}\n")
                             submit_file.write(f"log = {job_file_log}\n")
+                            submit_file.write(f"output_destination = {job_file_dir}\n")
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
@@ -329,6 +377,16 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
             files = fl.readlines()
             for file in files:
                 file = file.split("\n")[0]
+                if _opt.logs != "":
+                    jobs_dir = CONDOR_PATH
+                else: 
+                    jobs_dir = OUTPATH
+                if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
+                    job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
+                elif ("/eos/cms" in os.path.realpath(jobs_dir)):
+                    job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(jobs_dir)
+                else:
+                    job_file_dir = os.path.realpath(jobs_dir)
                 if "data" not in file.lower() and (not "unknown" in decompose_string(file, era_flag=_opt.eraFlag)):
                     if _opt.logs != "":
                         job_file_executable = os.path.join(CONDOR_PATH, f"{file}_root.sh")
@@ -345,12 +403,12 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             job_file_err = "/dev/null"
                             job_file_log = "/dev/null"
                         elif _opt.logs != "":
-                            job_file_out = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+                            job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
+                            job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
                             job_file_log = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).log")
                         else:
-                            job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+                            job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
+                            job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
                             job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
                     with open(job_file_executable, "w") as executable_file:
                         executable_file.write("#!/bin/sh\n")
@@ -377,6 +435,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         submit_file.write(f"output = {job_file_out}\n")
                         submit_file.write(f"error = {job_file_err}\n")
                         submit_file.write(f"log = {job_file_log}\n")
+                        submit_file.write(f"output_destination = {job_file_dir}\n")
                         submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                         submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                         # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
@@ -405,12 +464,12 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             job_file_err = "/dev/null"
                             job_file_log = "/dev/null"
                         elif _opt.logs != "":
-                            job_file_out = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+                            job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
+                            job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
                             job_file_log = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).log")
                         else:
-                            job_file_out = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).out")
-                            job_file_err = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).$(ProcId).err")
+                            job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
+                            job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
                             job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
 
                     with open(job_file_executable, "w") as executable_file:
@@ -452,6 +511,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     submit_file.write(f"output = {job_file_out}\n")
                     submit_file.write(f"error = {job_file_err}\n")
                     submit_file.write(f"log = {job_file_log}\n")
+                    submit_file.write(f"output_destination = {job_file_dir}\n")
                     submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                     submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                     # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
