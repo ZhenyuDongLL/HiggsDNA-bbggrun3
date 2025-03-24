@@ -120,9 +120,15 @@ class LXPlusVanillaSubmitter:
                 base_name = f"AN-{sample}"
                 job_file_executable = os.path.join(self.jobs_dir, f"{base_name}.sh")
                 job_file_submit = os.path.join(self.jobs_dir, f"{base_name}.sub")
-                job_file_out = os.path.join(self.jobs_dir, f"{base_name}.$(ClusterId).$(ProcId).out")
-                job_file_err = os.path.join(self.jobs_dir, f"{base_name}.$(ClusterId).$(ProcId).err")
+                job_file_out = f"{base_name}.$(ClusterId).$(ProcId).out"
+                job_file_err = f"{base_name}.$(ClusterId).$(ProcId).err"
                 job_file_log = os.path.join(self.jobs_dir, f"{base_name}.$(ClusterId).log")
+                if ("/eos/home-" in os.path.realpath(self.jobs_dir)) or ("/eos/user" in os.path.realpath(self.jobs_dir)):
+                    job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(self.jobs_dir)
+                elif ("/eos/cms" in os.path.realpath(self.jobs_dir)):
+                    job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(self.jobs_dir)
+                else:
+                    job_file_dir = os.path.realpath(self.jobs_dir)
                 n_jobs = len(self.json_analysis_files[sample])
 
                 with open(job_file_executable, "w") as executable_file:
@@ -143,8 +149,7 @@ class LXPlusVanillaSubmitter:
                     submit_file.write(f"output = {job_file_out}\n")
                     submit_file.write(f"error = {job_file_err}\n")
                     submit_file.write(f"log = {job_file_log}\n")
-                    submit_file.write('transfer_output_files = ""\n')
-                    submit_file.write('output_destination = ""\n')
+                    submit_file.write(f"output_destination = {job_file_dir}\n")
                     submit_file.write(f"request_memory = {self.memory}\n")
                     submit_file.write("getenv = True\n")
                     submit_file.write(f'+JobFlavour = "{self.queue}"\n')
@@ -162,9 +167,15 @@ class LXPlusVanillaSubmitter:
                 for json_file in self.json_analysis_files[sample]:
                     base_name = json_file.split("/")[-1].split(".")[0]
                     job_file_name = os.path.join(self.jobs_dir, f"{base_name}.sub")
-                    job_file_out = os.path.join(self.jobs_dir, f"{base_name}.out")
-                    job_file_err = os.path.join(self.jobs_dir, f"{base_name}.err")
+                    job_file_out = f"{base_name}.out"
+                    job_file_err = f"{base_name}.err"
                     job_file_log = os.path.join(self.jobs_dir, f"{base_name}.log")
+                    if ("/eos/home-" in os.path.realpath(self.jobs_dir)) or ("/eos/user" in os.path.realpath(self.jobs_dir)):
+                        job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(self.jobs_dir)
+                    elif ("/eos/cms" in os.path.realpath(self.jobs_dir)):
+                        job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(self.jobs_dir)
+                    else:
+                        job_file_dir = os.path.realpath(self.jobs_dir)
                     with open(job_file_name, "w") as submit_file:
                         arguments = self.args_string.replace(
                             original_analysis_path, json_file
@@ -176,8 +187,7 @@ class LXPlusVanillaSubmitter:
                         submit_file.write(f"output = {job_file_out}\n")
                         submit_file.write(f"error = {job_file_err}\n")
                         submit_file.write(f"log = {job_file_log}\n")
-                        submit_file.write('transfer_output_files = ""\n')
-                        submit_file.write('output_destination = ""\n')
+                        submit_file.write(f"output_destination = {job_file_dir}\n")
                         submit_file.write(f"request_memory = {self.memory}\n")
                         submit_file.write("getenv = True\n")
                         submit_file.write(f'+JobFlavour = "{self.queue}"\n')
