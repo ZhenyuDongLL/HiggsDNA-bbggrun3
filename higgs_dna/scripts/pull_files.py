@@ -1238,6 +1238,42 @@ def get_HHbbgg_weight_interference_json(logger, target_dir, use_xrdcp=False):
     }
     fetch_file("HHbbgg_weight_interference", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
+def get_muon_scale_smearing(logger, target_dir, use_xrdcp=False):
+    # References (not in Central jsonPOG repo yet):
+    # https://gitlab.cern.ch/cms-muonPOG/muonscarekit
+
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/MuonScaRe"
+        )
+
+    from_to_dict = {
+        "2022postEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/backup_MuonScaRe/muonscarekit/corrections/2022_Summer22EE.json",
+            "to": f"{to_prefix}/2022_Summer22EE.json",
+            "type": "eos",
+        },
+        "2022preEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/backup_MuonScaRe/muonscarekit/corrections/2022_Summer22.json",
+            "to": f"{to_prefix}/2022_Summer22.json",
+            "type": "eos",
+        },
+        "2023postBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/backup_MuonScaRe/muonscarekit/corrections/2023_Summer23BPix.json",
+            "to": f"{to_prefix}/2023_Summer23BPix.json",
+            "type": "eos",
+        },
+        "2023preBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/backup_MuonScaRe/muonscarekit/corrections/2023_Summer23.json",
+            "to": f"{to_prefix}/2023_Summer23.json",
+            "type": "eos",
+        },
+    }
+
+    fetch_file("MuonScaRe", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Simple utility script to retrieve the needed files for corections, luminostiy mask, systematics uncertainties ..."
@@ -1277,7 +1313,8 @@ def main():
             "DiphotonIDMVA",
             "HPCBDT",
             "HHbbgg_bTag_WPs",
-            "HHbbgg_weight_interference"
+            "HHbbgg_weight_interference",
+            "MuonScaRe"
         ],
     )
 
@@ -1356,6 +1393,7 @@ def main():
         get_hpc_bdt_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_HHbbgg_btag_WPs_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_muon_scale_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "GoldenJSON":
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PU":
@@ -1400,6 +1438,8 @@ def main():
         get_muon_SFs(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "LowMass-DYKilller":
         get_lowmass_dykiller_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "MuonScaRe":
+        get_muon_scale_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "CQR":
         get_cqr_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "HggPhotonIDMVA":
