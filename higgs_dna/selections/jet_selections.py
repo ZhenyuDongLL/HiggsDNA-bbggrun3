@@ -391,6 +391,8 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
 
     filtered_events["Photon"] = events.Photon[sel_event_veto]
     filtered_events["Jet"] = (jets_jagged[sel_good_jet_jagged])[sel_event_veto]
+    # * Need to add Muon varibles for muon s&s uncertainties
+    filtered_events["Muon"] = events.Muon[sel_event_veto]
 
     logger.debug(
         f"[{systematic}] total event: {len(sel_event_veto)}, pass event: {ak.sum(sel_event_veto)}"
