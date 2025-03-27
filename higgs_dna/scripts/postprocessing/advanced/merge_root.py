@@ -197,7 +197,7 @@ def main():
         help="Dictionary containing variations.",
     )
     parser.add_argument(
-        "--do_syst",
+        "--do-syst",
         dest="do_syst",
         action="store_true",
         default=False,

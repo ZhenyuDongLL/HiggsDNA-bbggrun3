@@ -24,7 +24,10 @@ def MKDIRP(dirpath, verbose=False, dry_run=False):
     return
 
 
-def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, decompose_string, logger):
+def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, job_flavor, memory, decompose_string, logger):
+
+    job_flavor = job_flavor or "microcentury"
+
     if _opt.root_only:
         with open(dirlist_path) as fl:
             files = fl.readlines()
@@ -111,7 +114,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                     submit_file.write("max_retries = 3\n")
                     submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                    submit_file.write(f'+JobFlavour = "microcentury"\n')
+                    if memory != None:
+                        submit_file.write(f"request_memory = {memory}\n")
+                    submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                     submit_file.write(f"queue\n")
             if _opt.condor_logs != "":
                 submit_jobs(CONDOR_PATH)
@@ -209,7 +214,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                                 submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                            submit_file.write(f'+JobFlavour = "microcentury"\n')
+                            if memory != None:
+                                submit_file.write(f"request_memory = {memory}\n")
+                            submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                             submit_file.write(f"queue {i}\n")
 
                     else:
@@ -277,7 +284,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                                 submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                            submit_file.write(f'+JobFlavour = "microcentury"\n')
+                            if memory != None:
+                                submit_file.write(f"request_memory = {memory}\n")
+                            submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                             submit_file.write(f"queue\n")
                 if _opt.logs != "":
                     submit_jobs(CONDOR_PATH)
@@ -351,7 +360,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                                 submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                            submit_file.write(f'+JobFlavour = "microcentury"\n')
+                            if memory != None:
+                                submit_file.write(f"request_memory = {memory}\n")
+                            submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                             submit_file.write(f"queue\n")
                     os.system(f"chmod 775 {job_file_executable}")
                     j += 1
@@ -364,7 +375,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
         logger.info("Starting root step")
         if _opt.syst:
             logger.info("you've selected the run with systematics")
-            args = "--do_syst"
+            args = "--do-syst"
         else:
             logger.info("you've selected the run without systematics")
             args = ""
@@ -445,7 +456,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                         submit_file.write("max_retries = 3\n")
                         submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                        submit_file.write(f'+JobFlavour = "microcentury"\n')
+                        if memory != None:
+                            submit_file.write(f"request_memory = {memory}\n")
+                        submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                         submit_file.write(f"queue\n")
                 elif "data" in file.lower():
                     if _opt.logs != "":
@@ -521,7 +534,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                     submit_file.write("max_retries = 3\n")
                     submit_file.write("requirements = Machine =!= LastRemoteHost\n")
-                    submit_file.write(f'+JobFlavour = "microcentury"\n')
+                    if memory != None:
+                        submit_file.write(f"request_memory = {memory}\n")
+                    submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                     submit_file.write(f"queue\n")
         if _opt.logs != "":
             submit_jobs(CONDOR_PATH, "root")
