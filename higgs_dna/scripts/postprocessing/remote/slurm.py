@@ -35,7 +35,12 @@ def submit_slurm_jobs(directory, suffix=""):
         if file.endswith(f"{suffix}.sh"):
             os.system(f"sbatch {os.path.join(directory, file)}")
 
-def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, decompose_string, logger):
+def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, time, partition, memory, decompose_string, logger):
+
+    time = time or "01:00:00"
+    partition = partition or "short"
+    memory = memory or "22GB"
+
     if _opt.root_only:
         with open(dirlist_path) as fl:
             files = fl.readlines()
@@ -89,7 +94,7 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                     random_delay = False
                     sleeping = False
                 
-                create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="root", random_delay=random_delay, memory="22G")
+                create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="root", random_delay=random_delay, memory=memory, time=time, partition=partition)
         
                 submit_slurm_jobs(os.path.join(log_path, file), suffix="root")
                 if sleeping:
@@ -130,7 +135,7 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                             print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}")
                             commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}")
                         
-                        create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged", random_delay=True)
+                        create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged", random_delay=True, memory=memory, time=time, partition=partition)
         
                         submit_slurm_jobs(os.path.join(log_path, file, var_dict[var]))
                         sleep(2)  # Wait 2 seconds before submitting the next job
@@ -165,7 +170,7 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                             print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}")
                             commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} --is-data --abs {genBinning_str}")
                         
-                        create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged")
+                        create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged", memory=memory, time=time, partition=partition)
                 
                 submit_slurm_jobs(log_path)
 
@@ -204,7 +209,7 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                     sys.exit(1)
                 j += 1
 
-                create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged")
+                create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged", memory=memory, time=time, partition=partition)
 
             submit_slurm_jobs(log_path, "mergeData")
 
@@ -212,7 +217,7 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
         logger.info("Starting root step")
         if _opt.syst:
             logger.info("you've selected the run with systematics")
-            args = "--do_syst"
+            args = "--do-syst"
         else:
             logger.info("you've selected the run without systematics")
             args = ""
@@ -260,6 +265,6 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                     print(f"convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {target_path}/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str}")
                     commands.append(f"convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {target_path}/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str}")
                 
-                create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, memory="8GB", mode="root")
+                create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="root", memory=memory, time=time, partition=partition)
         
             submit_slurm_jobs(log_path, "root")

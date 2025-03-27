@@ -268,6 +268,30 @@ def main():
         default="",
         help="Type of dataset (data or mc).",
     )
+    parser.add_option(
+        "--time",
+        type=str,
+        dest="time",
+        default=None,
+        help="Specifies the maximum duration for the job. Currently only applied when running on SLURM. "
+            "Format 'HH:MM:SS'.",
+    )
+    parser.add_option(
+        "--memory",
+        type=str,
+        dest="memory",
+        default=None,
+        help="Defines the memory allocation for the job. Only applied on batch systems like SLURM or HTCondor. "
+            "Value should include a unit (e.g., '2GB', '4096MB').",
+    )
+    parser.add_option(
+        "--job-flavor",
+        type=str,
+        dest="job_flavor",
+        default=None,
+        help="Specifies the job priority or resource class, primarily for HTCondor. "
+            "Determines resource allocation and expected queue time. Common flavors include 'espresso', 'microcentury', 'longlunch', etc.",
+    )
     (opt, args) = parser.parse_args()
     
     if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
@@ -377,7 +401,7 @@ def main():
 # Define string if normalisation to be skipped
     skip_normalisation_str = "--skip-normalisation" if opt.skip_normalisation else ""
     merge_data_str = "--merge-all-data" if opt.merge_data else ""
-    do_syst_str = "--do_syst" if opt.syst else ""
+    do_syst_str = "--do-syst" if opt.syst else ""
 
 # The process var below is the function that will be executed in parallel for each systematic variation. It substitutes the old loop of the systematics to speed up the process.
 # Paths now must be ABSOLUTE!! - CD while multi thread is not a good idea!
@@ -635,14 +659,14 @@ def main():
         slurm_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, dirlist_path=dirlist_path, var_dict=var_dict, 
             cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
-            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, decompose_string=decompose_string, logger=logger
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, time=opt.time, partition=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger
             )
 
     elif ("condor" in opt.batch):
         htcondor_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=CONDOR_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path, 
             var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str, 
-            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, decompose_string=decompose_string, logger=logger
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, job_flavor=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger
         )
 
     # We don't want to leave trash around
