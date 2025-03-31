@@ -35,6 +35,10 @@ from .electron_systematics import (
     Electron_Smearing,
 )
 
+from .muon_systematics import (
+    muon_pt_scare
+)
+
 from functools import partial
 import logging
 
@@ -164,6 +168,14 @@ object_systematics = {
             "varying_function": partial(Electron_Smearing, is_correction=False),
         },
     },
+    "MuonScaRe": {
+        "object": "Muon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(muon_pt_scare, is_correction=False),
+        },
+    },
     "energyErrShift": {
         "object": "Photon",
         "args": {
@@ -233,6 +245,7 @@ object_corrections = {
     "Smearing2G_IJazZ": partial(Smearing_IJazZ, pt=None, is_correction=True, gaussians="2G"),
     "Electron_Scale": partial(Electron_Scale, pt=None, is_correction=True),
     "Electron_Smearing": partial(Electron_Smearing, pt=None, is_correction=True),
+    "MuonScaRe": partial(muon_pt_scare, pt=None, is_correction=True),
     "energyErrShift": partial(energyErrShift, energyErr=None, is_correction=True),
     "FNUF": partial(FNUF, pt=None, is_correction=True),
     "ShowerShape": partial(ShowerShape, pt=None, is_correction=True),
