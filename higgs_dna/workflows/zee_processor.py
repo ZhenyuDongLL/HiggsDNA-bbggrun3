@@ -30,6 +30,7 @@ from higgs_dna.utils.dumping_utils import (
     diphoton_list_to_pandas,
     dump_pandas,
     get_obj_syst_dict,
+    apply_naming_convention,
 )
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,7 @@ class ZeeProcessor(HggBaseProcessor):
         )
 
         self.nano_version = nano_version
+        self.name_convention = "DAS"
 
         # B Jets
         self.bTagEffFileName = bTagEffFileName
@@ -86,8 +88,8 @@ class ZeeProcessor(HggBaseProcessor):
         self.bjet_wp = "T"  # Possible choices: L, M, T, XT, XXT
 
         # diphoton preselection cuts - Based on Dielectron trigger
-        self.min_pt_photon = 23.0
-        self.min_pt_lead_photon = 12.0
+        self.min_pt_photon = 12.0
+        self.min_pt_lead_photon = 23.0
 
     def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
         pass
@@ -239,6 +241,7 @@ class ZeeProcessor(HggBaseProcessor):
         photons["phi"] = events.Electron.phi
 
         photons["ele_charge"] = events.Electron.charge
+        photons["ele_cutBased"] = events.Electron.cutBased
 
         photons["ele_seedGain"] = events.Electron.seedGain
         photons["ele_r9"] = events.Electron.r9
@@ -496,6 +499,7 @@ class ZeeProcessor(HggBaseProcessor):
             # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
             if self.data_kind == "mc":
                 diphotons["genWeight"] = events.genWeight
+                diphotons["nTrueInt"] = events.Pileup.nTrueInt
                 diphotons["dZ"] = events.GenVtx.z - events.PV.z
             # Fill zeros for data because there is no GenVtx for data, obviously
             else:
@@ -650,12 +654,7 @@ class ZeeProcessor(HggBaseProcessor):
                         ]
                     ]
 
-                fname = (
-                    events.behavior[
-                        "__events_factory__"
-                    ]._partition_key.replace("/", "_")
-                    + ".%s" % self.output_format
-                )
+                fname = apply_naming_convention(self, events)
                 subdirs = []
                 if "dataset" in events.metadata:
                     subdirs.append(events.metadata["dataset"])
