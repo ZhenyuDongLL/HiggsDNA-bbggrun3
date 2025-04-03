@@ -725,14 +725,23 @@ class HHbbggProcessor(HggBaseProcessor):
                             diphotons[key] = value
 
                     # add in gen_mHH (if exists)
-                    gen_mHH = ak.firsts(
-                        (
-                            genHiggs[ak.local_index(genHiggs, axis=1) == 0]
-                            + genHiggs[ak.local_index(genHiggs, axis=1) == 1]
-                        ).mass
-                    )
+                    genH1 = genHiggs[ak.local_index(genHiggs, axis=1) == 0]
+                    genH2 = genHiggs[ak.local_index(genHiggs, axis=1) == 1]
+                    genHH = genH1 + genH2
+                    gen_mHH = ak.firsts((genHH).mass)
                     gen_mHH = ak.where(diHiggs_bool, gen_mHH, -999)
                     diphotons["gen_mHH"] = gen_mHH
+
+                    # add in gen_pT_HH (if exists)
+                    gen_pT_HH = ak.firsts((genHH).pt)
+                    gen_pT_HH = ak.where(diHiggs_bool, gen_pT_HH, -999)
+                    diphotons["gen_pT_HH"] = gen_pT_HH
+
+                    # add in gen_cosThetaStar_HH (if exists)
+                    genH1_boosted = genH1.boost(-genHH.boostvec)
+                    gen_CosThetaStar_HH = ak.firsts(numpy.cos(genH1_boosted.theta))
+                    gen_CosThetaStar_HH = ak.where(diHiggs_bool, gen_CosThetaStar_HH, -999)
+                    diphotons["gen_CosThetaStar_HH"] = gen_CosThetaStar_HH
 
                 # Add the truth information
                 param_values = get_truth_info_dict(filename)
