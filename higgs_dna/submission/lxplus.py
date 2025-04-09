@@ -118,17 +118,20 @@ class LXPlusVanillaSubmitter:
 
             for sample in sample_dict:
                 base_name = f"AN-{sample}"
-                job_file_executable = os.path.join(self.jobs_dir, f"{base_name}.sh")
-                job_file_submit = os.path.join(self.jobs_dir, f"{base_name}.sub")
+                jobs_dir = os.path.realpath(self.jobs_dir)
+                # replacing /eos/home- with /eos/user/ to prevent problems with output_destination
+                jobs_dir = jobs_dir.replace("/eos/home-", "/eos/user/")
+                job_file_executable = os.path.join(jobs_dir, f"{base_name}.sh")
+                job_file_submit = os.path.join(jobs_dir, f"{base_name}.sub")
                 job_file_out = f"{base_name}.$(ClusterId).$(ProcId).out"
                 job_file_err = f"{base_name}.$(ClusterId).$(ProcId).err"
-                job_file_log = os.path.join(self.jobs_dir, f"{base_name}.$(ClusterId).log")
-                if ("/eos/home-" in os.path.realpath(self.jobs_dir)) or ("/eos/user" in os.path.realpath(self.jobs_dir)):
-                    job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(self.jobs_dir)
-                elif ("/eos/cms" in os.path.realpath(self.jobs_dir)):
-                    job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(self.jobs_dir)
+                job_file_log = os.path.join(jobs_dir, f"{base_name}.$(ClusterId).log")
+                if ("/eos/user" in jobs_dir):
+                    job_file_dir = "root://eosuser.cern.ch/" + jobs_dir
+                elif ("/eos/cms" in jobs_dir):
+                    job_file_dir = "root://eoscms.cern.ch/" + jobs_dir
                 else:
-                    job_file_dir = os.path.realpath(self.jobs_dir)
+                    job_file_dir = jobs_dir
                 n_jobs = len(self.json_analysis_files[sample])
 
                 with open(job_file_executable, "w") as executable_file:
@@ -166,16 +169,19 @@ class LXPlusVanillaSubmitter:
             for sample in sample_dict:
                 for json_file in self.json_analysis_files[sample]:
                     base_name = json_file.split("/")[-1].split(".")[0]
-                    job_file_name = os.path.join(self.jobs_dir, f"{base_name}.sub")
+                    jobs_dir = os.path.realpath(self.jobs_dir)
+                    # replacing /eos/home- with /eos/user/ to prevent problems with output_destination
+                    jobs_dir = jobs_dir.replace("/eos/home-", "/eos/user/")
+                    job_file_name = os.path.join(jobs_dir, f"{base_name}.sub")
                     job_file_out = f"{base_name}.out"
                     job_file_err = f"{base_name}.err"
-                    job_file_log = os.path.join(self.jobs_dir, f"{base_name}.log")
-                    if ("/eos/home-" in os.path.realpath(self.jobs_dir)) or ("/eos/user" in os.path.realpath(self.jobs_dir)):
-                        job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(self.jobs_dir)
-                    elif ("/eos/cms" in os.path.realpath(self.jobs_dir)):
-                        job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(self.jobs_dir)
+                    job_file_log = os.path.join(jobs_dir, f"{base_name}.log")
+                    if ("/eos/user" in jobs_dir):
+                        job_file_dir = "root://eosuser.cern.ch/" + jobs_dir
+                    elif ("/eos/cms" in jobs_dir):
+                        job_file_dir = "root://eoscms.cern.ch/" + jobs_dir
                     else:
-                        job_file_dir = os.path.realpath(self.jobs_dir)
+                        job_file_dir = jobs_dir
                     with open(job_file_name, "w") as submit_file:
                         arguments = self.args_string.replace(
                             original_analysis_path, json_file
