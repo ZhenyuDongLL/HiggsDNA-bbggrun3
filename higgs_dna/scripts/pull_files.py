@@ -880,6 +880,9 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
     # json pog of JME: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/tree/master/POG/JME
     # jetmapveto: https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVRun3Analysis#From_JME
     base_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME"
+    # Temporary directory until JME puts them somewhere centrally,
+    # currently copied from https://indico.cern.ch/event/1450094/#1-corrections-for-the-pnet-pt
+    eos_path_PNet = "/eos/cms/store/user/evourlio/JMEPNet_forHiggsDNA"
     if target_dir is not None:
         to_prefix = target_dir
     else:
@@ -926,6 +929,14 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             ),
             "type": "cvmfs",
         },
+        "2022Summer22_PNet": {
+            "from": os.path.join(eos_path_PNet, "2022_Summer22"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2022_Summer22",
+            ),
+            "type": "eos",
+        },
         "2022Summer22EE": {
             "from": os.path.join(base_path, "2022_Summer22EE"),
             "to": os.path.join(
@@ -933,6 +944,14 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
                 "../higgs_dna/systematics/JSONs/POG/JME/2022_Summer22EE",
             ),
             "type": "cvmfs",
+        },
+        "2022Summer22EE_PNet": {
+            "from": os.path.join(eos_path_PNet, "2022_Summer22EE"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2022_Summer22EE",
+            ),
+            "type": "eos",
         },
         "2023_Summer23": {
             "from": os.path.join(base_path, "2023_Summer23"),
@@ -942,6 +961,14 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             ),
             "type": "cvmfs",
         },
+        "2023_Summer23_PNet": {
+            "from": os.path.join(eos_path_PNet, "2023_Summer23"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2023_Summer23",
+            ),
+            "type": "eos",
+        },
         "2023_Summer23BPix": {
             "from": os.path.join(base_path, "2023_Summer23BPix"),
             "to": os.path.join(
@@ -949,6 +976,14 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
                 "../higgs_dna/systematics/JSONs/POG/JME/2023_Summer23BPix",
             ),
             "type": "cvmfs",
+        },
+        "2023_Summer23BPix_PNet": {
+            "from": os.path.join(eos_path_PNet, "2023_Summer23BPix"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2023_Summer23BPix",
+            ),
+            "type": "eos",
         },
     }
 
@@ -1292,6 +1327,7 @@ def main():
             "PhotonID",
             "PU",
             "SS",
+            "SS-IJazZ",
             "Et_SS",
             "JetMET",
             "CDFs",
