@@ -307,6 +307,8 @@ class HHbbggProcessor(HggBaseProcessor):
         original_electrons = events.Electron
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
+        # Keep a copy of the original, JES-corrected, non-PNet-regressed variables
+        original_jets["pt_orig"] = original_jets.pt
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
@@ -378,9 +380,12 @@ class HHbbggProcessor(HggBaseProcessor):
         logger.debug(f"[systematics variations] {variations}")
 
         for variation in variations:
-            photons, jets = photons_dct["nominal"], events.Jet
+            # The PNet corrections are applied during the JES application,
+            # using the proper corrections tag in the runner.json.
+            # As a result, nominal JES need to be applied to the PNet-corrected jets
+            photons, jets = photons_dct["nominal"], jets_dct["nominal"]
             if variation == "nominal":
-                pass  # Do nothing since we already get the unvaried, but nominally corrected objets above
+                pass  # Do nothing since we already get the unvaried, but nominally corrected objects above
             elif variation in [*photons_dct]:  # [*dict] gets the keys of the dict since Python >= 3.5
                 photons = photons_dct[variation]
             elif variation in [*electrons_dct]:
@@ -458,6 +463,8 @@ class HHbbggProcessor(HggBaseProcessor):
                     "btagRobustParTAK4B": jets.btagRobustParTAK4B,
                     "btagRobustParTAK4QG": jets.btagRobustParTAK4QG,
                     "jetId": jets.jetId,
+                    "rawFactor": jets.rawFactor,
+                    "pt_orig": jets.pt_orig,
                     **(
                         {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chEmEF": jets.chEmEF, "muEF": jets.muEF} if self.nano_version == 12 else {}
                     ),
@@ -794,6 +801,15 @@ class HHbbggProcessor(HggBaseProcessor):
             self.calc_cut_flow("dijet_b_tag_sum_cut", diphotons[~ak.is_none(ak.firsts(dijets_base))], metadata)
             self.calc_cut_flow("dijet_b_tag_sum_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets_base))) | (diphotons["n_fatjets"] > 0)], metadata)
 
+            # adding MET to parquet, adding all variables for now
+            puppiMET_properties = puppiMET.fields
+            for prop in puppiMET_properties:
+                key = f"puppiMET_{prop}"
+                # Retrieve the value using the choose_jet function (which can be used for puppiMET as well)
+                value = getattr(puppiMET, prop)
+                # Store the value in the diphotons dictionary
+                diphotons[key] = value
+
             for AnType in self.bbgg_analysis :
                 dijets = ak.copy(dijets_base)
                 if AnType not in ["nonRes", "Res"]:
@@ -816,6 +832,8 @@ class HHbbggProcessor(HggBaseProcessor):
                 lead_bjet_PNetRegPtRawCorrNeutrino = choose_jet(dijets["first_jet"].PNetRegPtRawCorrNeutrino, 0, -999.0)
                 lead_bjet_PNetRegPtRawRes = choose_jet(dijets["first_jet"].PNetRegPtRawRes, 0, -999.0)
                 lead_bjet_jet_idx = choose_jet(dijets["first_jet"].index, 0, -999.0)
+                lead_bjet_rawFactor = choose_jet(dijets["first_jet"].rawFactor, 0, -999.0)
+                lead_bjet_pt_orig = choose_jet(dijets["first_jet"].pt_orig, 0, -999.0)
 
                 sublead_bjet_pt = choose_jet(dijets["second_jet"].pt, 0, -999.0)
                 sublead_bjet_eta = choose_jet(dijets["second_jet"].eta, 0, -999.0)
@@ -827,6 +845,52 @@ class HHbbggProcessor(HggBaseProcessor):
                 sublead_bjet_PNetRegPtRawCorrNeutrino = choose_jet(dijets["second_jet"].PNetRegPtRawCorrNeutrino, 0, -999.0)
                 sublead_bjet_PNetRegPtRawRes = choose_jet(dijets["second_jet"].PNetRegPtRawRes, 0, -999.0)
                 sublead_bjet_jet_idx = choose_jet(dijets["second_jet"].index, 0, -999.0)
+                sublead_bjet_rawFactor = choose_jet(dijets["second_jet"].rawFactor, 0, -999.0)
+                sublead_bjet_pt_orig = choose_jet(dijets["second_jet"].pt_orig, 0, -999.0)
+
+                MET_2D = ak.Array(
+                    {
+                        "pt": puppiMET.pt,
+                        "phi": puppiMET.phi,
+                    },
+                    with_name="Momentum2D",
+                )
+                lead_bjet_2D = ak.Array(
+                    {
+                        "pt": lead_bjet_pt_orig,
+                        "phi": lead_bjet_phi,
+                    },
+                    with_name="Momentum2D",
+                )
+                sublead_bjet_2D = ak.Array(
+                    {
+                        "pt": sublead_bjet_pt_orig,
+                        "phi": sublead_bjet_phi,
+                    },
+                    with_name="Momentum2D",
+                )
+                lead_bjet_2D_PNet = ak.Array(
+                    {
+                        "pt": lead_bjet_pt,
+                        "phi": lead_bjet_phi,
+                    },
+                    with_name="Momentum2D",
+                )
+                sublead_bjet_2D_PNet = ak.Array(
+                    {
+                        "pt": sublead_bjet_pt,
+                        "phi": sublead_bjet_phi,
+                    },
+                    with_name="Momentum2D",
+                )
+                # rough type-1 PNet MET
+                # derived from removing lead/sublead Puppi bjets
+                # and including their PNet-corrected variants
+                MET_2D_PNet = (
+                    MET_2D
+                    + (lead_bjet_2D + sublead_bjet_2D)
+                    - (lead_bjet_2D_PNet + sublead_bjet_2D_PNet)
+                )
 
                 dijet_pt = choose_jet(dijets.pt, 0, -999.0)
                 dijet_eta = choose_jet(dijets.eta, 0, -999.0)
@@ -881,6 +945,8 @@ class HHbbggProcessor(HggBaseProcessor):
                 diphotons[f"{AnType}_lead_bjet_PNetRegPtRawCorrNeutrino"] = lead_bjet_PNetRegPtRawCorrNeutrino
                 diphotons[f"{AnType}_lead_bjet_PNetRegPtRawRes"] = lead_bjet_PNetRegPtRawRes
                 diphotons[f"{AnType}_lead_bjet_jet_idx"] = lead_bjet_jet_idx
+                diphotons[f"{AnType}_lead_bjet_rawFactor"] = lead_bjet_rawFactor
+                diphotons[f"{AnType}_lead_bjet_pt_orig"] = lead_bjet_pt_orig
 
                 diphotons[f"{AnType}_sublead_bjet_pt"] = sublead_bjet_pt
                 diphotons[f"{AnType}_sublead_bjet_eta"] = sublead_bjet_eta
@@ -892,6 +958,11 @@ class HHbbggProcessor(HggBaseProcessor):
                 diphotons[f"{AnType}_sublead_bjet_PNetRegPtRawCorrNeutrino"] = sublead_bjet_PNetRegPtRawCorrNeutrino
                 diphotons[f"{AnType}_sublead_bjet_PNetRegPtRawRes"] = sublead_bjet_PNetRegPtRawRes
                 diphotons[f"{AnType}_sublead_bjet_jet_idx"] = sublead_bjet_jet_idx
+                diphotons[f"{AnType}_sublead_bjet_rawFactor"] = sublead_bjet_rawFactor
+                diphotons[f"{AnType}_sublead_bjet_pt_orig"] = sublead_bjet_pt_orig
+
+                diphotons[f"{AnType}_MET_ptPNetCorr"] = ak.where(lead_bjet_2D.pt != -999.0, MET_2D_PNet.pt, -999.0)
+                diphotons[f"{AnType}_MET_phiPNetCorr"] = ak.where(lead_bjet_2D.pt != -999.0, MET_2D_PNet.phi, -999.0)
 
                 diphotons[f"{AnType}_dijet_pt"] = dijet_pt
                 diphotons[f"{AnType}_dijet_eta"] = dijet_eta
@@ -960,7 +1031,7 @@ class HHbbggProcessor(HggBaseProcessor):
                     vbf = ak.firsts(vbf)
 
                     # Store VBF jets properties
-                    vbf_jets_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "PNetRegPtRawCorr", "PNetRegPtRawCorrNeutrino", "PNetRegPtRawRes", "btagPNetQvG", "btagDeepFlav_QG"]
+                    vbf_jets_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "PNetRegPtRawCorr", "PNetRegPtRawCorrNeutrino", "PNetRegPtRawRes", "btagPNetQvG", "btagDeepFlav_QG", "rawFactor", "pt_orig"]
                     for i in vbf.fields:
                         vbf_properties = vbf_jets_properties if i != "dijet" else vbf_jets_properties[:5]
                         for prop in vbf_properties:
@@ -1162,15 +1233,6 @@ class HHbbggProcessor(HggBaseProcessor):
 
                     # Store the value in the diphotons dictionary
                     diphotons[key] = value
-
-            # adding MET to parquet, adding all variables for now
-            puppiMET_properties = puppiMET.fields
-            for prop in puppiMET_properties:
-                key = f"puppiMET_{prop}"
-                # Retrieve the value using the choose_jet function (which can be used for puppiMET as well)
-                value = getattr(puppiMET, prop)
-                # Store the value in the diphotons dictionary
-                diphotons[key] = value
 
             ## ----------  End of the HHTobbgg part ----------
 

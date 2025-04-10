@@ -117,6 +117,7 @@ def jerc_jet(
     split_jec_syst=False,
     apply_jer=False,
     jer_syst=False,
+    pnet="",
 ):
     # first, check if it's data or MC
     if era == "MC" and hasattr(events, "GenPart"):
@@ -136,11 +137,15 @@ def jerc_jet(
         logger.error(f"[ jerc_jet ] - Era: {era} doesn't match the input dataset")
         exit(-1)
     # run2: AK4PFchs - run3: AK4PFPuppi
+    # If some PNet regression is used, the proper corrections will be picked up
     if int(year[:4]) > 2018:
-        algo = "AK4PFPuppi"
+        algo = "AK4PFPuppi" + pnet
     else:
         algo = "AK4PFchs"
 
+    pnetFlag = ""
+    if pnet != "":
+        pnetFlag = "_PNet"
     # jec json file
     jerc_json = {
         "2016preVFP": os.path.join(
@@ -161,19 +166,19 @@ def jerc_jet(
         ),
         "2022preEE": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2022_Summer22/jet_jerc.json.gz",
+            "../systematics/JSONs/POG/JME/2022_Summer22/jet_jerc" + pnetFlag + ".json.gz",
         ),
         "2022postEE": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2022_Summer22EE/jet_jerc.json.gz",
+            "../systematics/JSONs/POG/JME/2022_Summer22EE/jet_jerc" + pnetFlag + ".json.gz",
         ),
         "2023preBPix": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2023_Summer23/jet_jerc.json.gz",
+            "../systematics/JSONs/POG/JME/2023_Summer23/jet_jerc" + pnetFlag + ".json.gz",
         ),
         "2023postBPix": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2023_Summer23BPix/jet_jerc.json.gz",
+            "../systematics/JSONs/POG/JME/2023_Summer23BPix/jet_jerc" + pnetFlag + ".json.gz",
         ),
     }
     jec_version = {
@@ -244,7 +249,12 @@ def jerc_jet(
         jets_jagged["mass_nano"] = jets_jagged.mass
     # store the raw jet pt, only for once
     if "pt_raw" not in jets_jagged.fields:
-        jets_jagged["pt_raw"] = jets_jagged.pt * (1 - jets_jagged.rawFactor)
+        pnetFactor = 1.0
+        if pnet == "PNetRegression":
+            pnetFactor = jets_jagged.PNetRegPtRawCorr
+        if pnet == "PNetRegressionPlusNeutrino":
+            pnetFactor = jets_jagged.PNetRegPtRawCorr * jets_jagged.PNetRegPtRawCorrNeutrino
+        jets_jagged["pt_raw"] = jets_jagged.pt * (1 - jets_jagged.rawFactor) * pnetFactor
         jets_jagged["mass_raw"] = jets_jagged.mass * (1 - jets_jagged.rawFactor)
     # avoid using hasattr(jets_jagged, "rho"). Same name as the coffea vector property of rho: https://github.com/CoffeaTeam/coffea/blob/0e43daf8e40ccec44efb2622777354ebd0424b84/src/coffea/nanoevents/methods/vector.py#L482
     if "rho_value" not in jets_jagged.fields:
@@ -318,7 +328,7 @@ def jerc_jet(
         # update evaluate dictionary
         eval_dict.update(
             {
-                "JetPt": jets.pt,
+                "JetPt": jets.pt if pnet == "" else jets.pt_nano,  # JER SFs for PNet run on stadandard jets
                 "GenPt": jets.pt_gen,
                 "EventID": jets.event_id,
             }
