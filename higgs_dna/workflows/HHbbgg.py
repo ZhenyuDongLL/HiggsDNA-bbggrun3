@@ -567,6 +567,10 @@ class HHbbggProcessor(HggBaseProcessor):
             jets = jets[
                 select_jets(self, jets, diphotons, sel_muons, sel_electrons)
             ]
+            # remove eta spikes (no final recipe): applying pT > 50 GeV for jets with abs(eta) in (2.5, 3)
+            jets = jets[
+                ~((jets.pt < 50) & (numpy.abs(jets.eta) > 2.5) & (numpy.abs(jets.eta) < 3))
+            ]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
             jets["index"] = ak.local_index(jets.pt)
 
