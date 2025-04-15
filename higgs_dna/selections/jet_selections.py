@@ -99,8 +99,8 @@ def getBTagMVACut(mva_name, mva_wp, year):
     }
     avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
-        logger.error(f"\n BTV correctionlib for {year} not found! \n Exiting. \n")
-        exit()
+        logger.warning(f"\n BTV correctionlib for {year} not found! Don't cut on the selected B-Tag MVA. The b-related variables are most likely not correct.\n")
+        return -999.0
 
     mva_cut_value = correctionlib.CorrectionSet.from_file(btag_correction_configs[year]['file'])[mva_name_to_btag_wp_name[mva_name]].evaluate(mva_wp)
 
