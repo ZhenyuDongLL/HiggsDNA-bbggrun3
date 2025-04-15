@@ -32,6 +32,7 @@ import warnings
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import numpy
+import pandas as pd
 import sys
 import vector
 from coffea.analysis_tools import Weights
@@ -148,6 +149,17 @@ class STXSProcessor(HggBaseProcessor):
         if self.data_kind == "mc":
             # Add sum of gen weights before selection for normalisation in postprocessing
             metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
+
+            # Add sum of gen weights before selection for each HTXS.stage_0 bin
+            genWeight_sums = pd.DataFrame({
+                "HTXS_stage_0": events.HTXS.stage_0,
+                "genWeight": events.genWeight,
+            }).groupby("HTXS_stage_0")["genWeight"].sum()
+            custom_accumulator = {
+                f"sum_genw_presel_HTXS_Stage_0:{bin_val}": genWeight_sums[bin_val]
+                for bin_val in genWeight_sums.index
+            }
+            metadata["custom_accumulator"] = str(dict(custom_accumulator))
         else:
             metadata["sum_genw_presel"] = "Data"
 
