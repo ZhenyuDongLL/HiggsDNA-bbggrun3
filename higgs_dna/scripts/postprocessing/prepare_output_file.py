@@ -292,6 +292,13 @@ def main():
         help="Specifies the job priority or resource class, primarily for HTCondor. "
             "Determines resource allocation and expected queue time. Common flavors include 'espresso', 'microcentury', 'longlunch', etc.",
     )
+    parser.add_option(
+        "--custom-accumulator",
+        default=False,
+        action="store_true",
+        dest="custom_accumulator",
+        help="If set, the script will process the custom accumulator from the parquet files.",
+    )
     (opt, args) = parser.parse_args()
     
     if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
@@ -402,6 +409,7 @@ def main():
     skip_normalisation_str = "--skip-normalisation" if opt.skip_normalisation else ""
     merge_data_str = "--merge-all-data" if opt.merge_data else ""
     do_syst_str = "--do-syst" if opt.syst else ""
+    custom_accumulator_str = "--custom-accumulator" if opt.custom_accumulator else ""
 
 # The process var below is the function that will be executed in parallel for each systematic variation. It substitutes the old loop of the systematics to speed up the process.
 # Paths now must be ABSOLUTE!! - CD while multi thread is not a good idea!
@@ -409,7 +417,7 @@ def main():
         target_dir = f"{OUT_PATH}/merged/{file}/{var_dict[var]}"
         MKDIRP(target_dir)
 
-        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {skip_normalisation_str} {genBinning_str} --abs"
+        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {skip_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
         logger.info(command)
 
         # Execute the command using subprocess.run
@@ -436,7 +444,7 @@ def main():
                         logger.error(f"Error processing variable: {e}")
             else:
                 # Single nominal processing for MC
-                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {skip_normalisation_str} {genBinning_str} --abs"
+                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {skip_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
                 subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
         else:
             # Data processing
@@ -446,7 +454,7 @@ def main():
                 raise Exception(f"The selected target path: {merged_target_path} already exists")
             if not os.path.exists(data_dir_path):
                 MKDIRP(data_dir_path)
-            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict_loc} --is-data {genBinning_str} --abs'
+            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict_loc} --is-data {genBinning_str} --abs {custom_accumulator_str}'
             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
     def root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, skip_normalisation_str):
@@ -533,7 +541,7 @@ def main():
                     if "data" in file.lower() or "DoubleEG" in file:
                         dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                         if len(filenames) > 0:
-                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data {genBinning_str} --abs'
+                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data {genBinning_str} --abs {custom_accumulator_str}'
                             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
                             break
                         else:

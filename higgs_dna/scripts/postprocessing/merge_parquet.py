@@ -10,6 +10,7 @@ import pyarrow.parquet as pq
 import numpy as np
 from importlib import resources
 from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
+from collections import defaultdict
 
 
 def extract_tuples(input_string):
@@ -72,6 +73,23 @@ def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="Ge
     return dataset
 
 
+def process_custom_accumulator(source_path, logger):
+    # Get the custom accumulator from all files in the source path
+    accumulator = defaultdict(float)
+    source_files = glob.glob("%s/*.parquet" % source_path)
+    for f in source_files:
+        try:
+            file_accumulator = pq.read_table(f).schema.metadata[b'custom_accumulator']
+        except KeyError as e:
+            logger.error(f"Custom accumulator requested but not found in file {f}")
+            raise e
+        file_accumulator = file_accumulator.decode("utf-8")
+        file_accumulator = ast.literal_eval(file_accumulator)
+        for key, value in file_accumulator.items():
+            accumulator[key] += value
+    return dict(accumulator)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Simple utility script to merge all parquet files in one folder."
@@ -127,6 +145,13 @@ def main():
     action="store_true",
     help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
    )
+    parser.add_argument(
+        "--custom-accumulator",
+        default=False,
+        action="store_true",
+        dest="custom_accumulator",
+        help="If set, the script will process the custom accumulator from the parquet files.",
+    )
 
     args = parser.parse_args()
     source_paths = args.source.split(",")
@@ -194,6 +219,11 @@ def main():
         )
 
     for i, source_path in enumerate(source_paths):
+        # Process custom accumulator 
+        if args.custom_accumulator:
+            logger.info(f"Processing custom accumulator for {source_path}")
+            custom_accumulator = process_custom_accumulator(source_path, logger)
+
         for cat in cat_dict:
             logger.info("-" * 125)
             logger.info(
@@ -240,6 +270,14 @@ def main():
                 logger.info(
                     "Successfully added normalised weight column to dataset"
                 )
+
+            # Add custom accumulator as metadata
+            if args.custom_accumulator:
+                logger.info(f"Adding custom accumulator")
+                table = pq.read_table(target_paths[i] + cat + "_merged.parquet")
+                table = table.replace_schema_metadata({b'custom_accumulator': json.dumps(custom_accumulator).encode('utf-8')})
+                pq.write_table(table, target_paths[i] + cat + "_merged.parquet")
+                logger.info(f"Custom accumulator added successfully")
             logger.info("-" * 125)
 
 if __name__ == "__main__":
