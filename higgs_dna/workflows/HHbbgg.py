@@ -460,16 +460,14 @@ class HHbbggProcessor(HggBaseProcessor):
                     "PNetRegPtRawCorr": jets.PNetRegPtRawCorr,
                     "PNetRegPtRawCorrNeutrino": jets.PNetRegPtRawCorrNeutrino,
                     "PNetRegPtRawRes": jets.PNetRegPtRawRes,
-                    "btagRobustParTAK4B": jets.btagRobustParTAK4B,
-                    "btagRobustParTAK4QG": jets.btagRobustParTAK4QG,
                     "jetId": jets.jetId,
                     "rawFactor": jets.rawFactor,
                     "pt_orig": jets.pt_orig,
                     **(
-                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chEmEF": jets.chEmEF, "muEF": jets.muEF} if self.nano_version == 12 else {}
+                        {"btagRobustParTAK4B": jets.btagRobustParTAK4B, "btagRobustParTAK4QG": jets.btagRobustParTAK4QG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chEmEF": jets.chEmEF, "muEF": jets.muEF} if self.nano_version == 12 else {}
                     ),
                     **(
-                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version == 13 else {}
+                        {"btagRobustParTAK4B": jets.btagRobustParTAK4B, "btagRobustParTAK4QG": jets.btagRobustParTAK4QG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version == 13 else {}
                     ),
 
                 }
