@@ -193,6 +193,7 @@ class ZeeProcessor(HggBaseProcessor):
 
         # save raw pt
         events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
+        events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -247,8 +248,9 @@ class ZeeProcessor(HggBaseProcessor):
         photons["ele_r9"] = events.Electron.r9
         photons["ele_pt"] = events.Electron.pt
         photons["ele_energy"] = events.Electron.energy
-        photons["ele_ecalEnergy"] = events.Electron.ecalEnergy
-        photons["ele_ecalEnergyError"] = events.Electron.ecalEnergyError
+        if self.nano_version >= 13:
+            photons["ele_ecalEnergy"] = events.Electron.ecalEnergy
+            photons["ele_ecalEnergyError"] = events.Electron.ecalEnergyError
         photons["ele_ScEta"] = events.Electron.eta + events.Electron.deltaEtaSC
 
         events.Photon = photons

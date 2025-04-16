@@ -394,12 +394,17 @@ class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
         # save raw pt if we use scale/smearing corrections
         # These needs to be before the smearing of the mass resolution in order to have the raw pt for the function
         s_or_s_applied = False
+        s_or_s_ele_applied = False
         for correction in correction_names:
-            logger.info("There is a correction: " + correction)
             if "scale" or "smearing" in correction.lower():
-                s_or_s_applied = True
+                if "Electron" in correction:
+                    s_or_s_ele_applied = True
+                else:
+                    s_or_s_applied = True
         if s_or_s_applied:
             events.Photon["pt_raw"] = ak.copy(events.Photon.pt)
+        if s_or_s_ele_applied:
+            events.Electron["pt_raw"] = ak.copy(events.Electron.pt)
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!

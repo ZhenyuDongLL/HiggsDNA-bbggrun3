@@ -652,58 +652,57 @@ def get_scale_and_smearing(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "2022preEE": {
-            "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoBCD/photonSS.json.gz",
+            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2022/ForRe-recoBCD/SS/photonSS.json.gz",
             "to": f"{to_prefix}/SS_Rereco2022BCD.json.gz",
             "type": "eos",
         },
         "2022postEE": {
-            "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoE+PromptFG/photonSS.json.gz",
+            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2022/ForRe-recoE+PromptFG/SS/photonSS.json.gz",
             "to": f"{to_prefix}/SS_RerecoE_PromptFG_2022.json.gz",
             "type": "eos",
         },
         "2022preEE_Electrons": {
-            "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoBCD/electronSS.json.gz",
+            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2022/ForRe-recoBCD/SS/electronSS.json.gz",
             "to": f"{to_prefix}/SS_Electron_Rereco2022BCD.json.gz",
             "type": "eos",
         },
         "2022postEE_Electrons": {
-            "from": "/eos/cms/store/group/phys_egamma/akapoor/S+SJSON/2022Re-recoE+PromptFG/electronSS.json.gz",
+            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2022/ForRe-recoE+PromptFG/SS/electronSS.json.gz",
             "to": f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json.gz",
+            "type": "eos",
+        },
+        "2023preBPix": {
+            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2023/ForPrompt23C/SS/photonSS.json.gz",
+            "to": f"{to_prefix}/SS_Prompt23C.json.gz",
+            "type": "eos",
+        },
+        "2023postBPix": {
+            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2023/ForPrompt23D/SS/photonSS.json.gz",
+            "to": f"{to_prefix}/SS_Prompt23D.json.gz",
+            "type": "eos",
+        },
+        "2023preBPix_Electrons": {
+            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2023/ForPrompt23C/SS/electronSS.json.gz",
+            "to": f"{to_prefix}/SS_Electron_Prompt23C.json.gz",
+            "type": "eos",
+        },
+        "2023postBPix_Electrons": {
+            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2023/ForPrompt23D/SS/electronSS.json.gz",
+            "to": f"{to_prefix}/SS_Electron_Prompt23D.json.gz",
             "type": "eos",
         },
     }
     fetch_file(
         "Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
     )
-    # Now, unpack the gz to have the raw JSONs
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/SS_Rereco2022BCD.json.gz",
-        f"{to_prefix}/SS_Rereco2022BCD.json",
-    )
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/SS_RerecoE_PromptFG_2022.json.gz",
-        f"{to_prefix}/SS_RerecoE_PromptFG_2022.json",
-    )
-
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/SS_Electron_Rereco2022BCD.json.gz",
-        f"{to_prefix}/SS_Electron_Rereco2022BCD.json",
-    )
-
-    unzip_gz_with_gunzip(
-        logger,
-        f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json.gz",
-        f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json",
-    )
+    # Unzip everything everywhere, all at once (did you understand that reference?)
+    unzip_gz_with_gunzip(logger, to_prefix)
 
 
 
 def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
     # see https://twiki.cern.ch/twiki/bin/viewauth/CMS/EgammSFandSSRun3#Scale_And_Smearings_Correctionli for Run 3
-    # see https://cms-talk.web.cern.ch/t/pnoton-energy-corrections-in-nanoaod-v11/34327/2 for Run 2, jsons are from https://github.com/cms-egamma/ScaleFactorsJSON/tree/master
+    # jsons are not taken from the jsonpog-integration repo because the 2G jsons are not there and the PRNG corrections are removed.
     if target_dir is not None:
         to_prefix = target_dir
     else:
@@ -726,6 +725,20 @@ def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
                    f"{to_prefix}/EGMScalesSmearing_Pho_2022postEE2G.v1.json.gz"],
             "type": "eos",
         },
+        "2022preEE_Electrons": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ_for_electrons/preEE/EGMScalesSmearing_Ele_2022preEE.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ_for_electrons/preEE/EGMScalesSmearing_Ele_2022preEE2G.v1.json.gz"],
+            "to":   [f"{to_prefix}/EGMScalesSmearing_Ele_2022preEE.v1.json.gz",
+                     f"{to_prefix}/EGMScalesSmearing_Ele_2022preEE2G.v1.json.gz"],
+            "type": "eos",
+        },
+        "2022postEE_Electrons": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ_for_electrons/postEE/EGMScalesSmearing_Ele_2022postEE.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ_for_electrons/postEE/EGMScalesSmearing_Ele_2022postEE2G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2022postEE.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Ele_2022postEE2G.v1.json.gz"],
+            "type": "eos",
+        },
         "2023preBPix": {
             "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/preBPix/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
                      "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/preBPix/EGMScalesSmearing_Pho_2023preBPIX2G.v1.json.gz"],
@@ -740,16 +753,22 @@ def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
                    f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX2G.v1.json.gz"],
             "type": "eos",
         },
+
         "2023preBPix_Electrons": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SaS/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
-            "to": f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ_for_electrons/preBPix/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ_for_electrons/preBPix/EGMScalesSmearing_Ele_2023preBPIX2G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX2G.v1.json.gz"],
             "type": "eos",
         },
         "2023postBPix_Electrons": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SaS/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
-            "to": f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ_for_electrons/postBPix/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ_for_electrons/postBPix/EGMScalesSmearing_Ele_2023postBPIX2G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX2G.v1.json.gz"],
             "type": "eos",
         },
+       
     }
     fetch_file(
         "Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
@@ -1328,7 +1347,6 @@ def main():
             "PU",
             "SS",
             "SS-IJazZ",
-            "Et_SS",
             "JetMET",
             "CDFs",
             "JEC",
