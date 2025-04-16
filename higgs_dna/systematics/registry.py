@@ -31,8 +31,10 @@ from .jet_systematics import (
 )
 
 from .electron_systematics import (
-    Electron_Scale,
-    Electron_Smearing,
+    Electron_Scale_Trad,
+    Electron_Smearing_Trad,
+    Electron_Scale_IJazZ,
+    Electron_Smearing_IJazZ,
 )
 
 from .muon_systematics import (
@@ -152,22 +154,57 @@ object_systematics = {
             "varying_function": partial(Smearing_IJazZ, is_correction=False, gaussians="2G"),
         },
     },
-    "Electron_Scale": {
+    # IJazZ corrections for Electrons
+    "Electron_Scale_IJazZ": {
         "object": "Electron",
         "args": {
             "kind": "UpDownSystematic",
             "what": "pt",
-            "varying_function": partial(Electron_Scale, is_correction=False),
+            "varying_function": partial(Electron_Scale_IJazZ, is_correction=False, gaussians="1G", restriction=None),
         },
     },
-    "Electron_Smearing": {
+    "Electron_Scale2G_IJazZ": {
         "object": "Electron",
         "args": {
             "kind": "UpDownSystematic",
             "what": "pt",
-            "varying_function": partial(Electron_Smearing, is_correction=False),
+            "varying_function": partial(Electron_Scale_IJazZ, is_correction=False, gaussians="2G", restriction=None),
         },
     },
+    "Electron_Smearing_IJazZ": {
+        "object": "Electron",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Electron_Smearing_IJazZ, is_correction=False, gaussians="1G"),
+        },
+    },
+    "Electron_Smearing2G_IJazZ": {
+        "object": "Electron",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Electron_Smearing_IJazZ, is_correction=False, gaussians="2G"),
+        },
+    },
+    # Traditional corrections for Electrons
+    "Electron_Scale_Trad": {
+        "object": "Electron",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Electron_Scale_Trad, is_correction=False),
+        },
+    },
+    "Electron_Smearing_Trad": {
+        "object": "Electron",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(Electron_Smearing_Trad, is_correction=False),
+        },
+    },
+    # Muon scale and smearing
     "MuonScaRe": {
         "object": "Muon",
         "args": {
@@ -239,12 +276,16 @@ object_systematics = {
 object_corrections = {
     "Scale_Trad": partial(Scale_Trad, pt=None, is_correction=True),
     "Smearing_Trad": partial(Smearing_Trad, pt=None, is_correction=True),
+    "Electron_Scale_Trad": partial(Electron_Scale_Trad, pt=None, is_correction=True),
+    "Electron_Smearing_Trad": partial(Electron_Smearing_Trad, pt=None, is_correction=True),
     "Scale_IJazZ": partial(Scale_IJazZ, pt=None, is_correction=True, gaussians="1G"),
     "Smearing_IJazZ": partial(Smearing_IJazZ, pt=None, is_correction=True, gaussians="1G"),
     "Scale2G_IJazZ": partial(Scale_IJazZ, pt=None, is_correction=True, gaussians="2G"),
     "Smearing2G_IJazZ": partial(Smearing_IJazZ, pt=None, is_correction=True, gaussians="2G"),
-    "Electron_Scale": partial(Electron_Scale, pt=None, is_correction=True),
-    "Electron_Smearing": partial(Electron_Smearing, pt=None, is_correction=True),
+    "Electron_Scale_IJazZ": partial(Electron_Scale_IJazZ, pt=None, is_correction=True, gaussians="1G"),
+    "Electron_Smearing_IJazZ": partial(Electron_Smearing_IJazZ, pt=None, is_correction=True, gaussians="1G"),
+    "Electron_Scale2G_IJazZ": partial(Electron_Scale_IJazZ, pt=None, is_correction=True, gaussians="2G"),
+    "Electron_Smearing2G_IJazZ": partial(Electron_Smearing_IJazZ, pt=None, is_correction=True, gaussians="2G"),
     "MuonScaRe": partial(muon_pt_scare, pt=None, is_correction=True),
     "energyErrShift": partial(energyErrShift, energyErr=None, is_correction=True),
     "FNUF": partial(FNUF, pt=None, is_correction=True),
