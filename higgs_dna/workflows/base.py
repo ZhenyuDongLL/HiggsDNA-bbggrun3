@@ -255,6 +255,20 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         )
 
         triggered = ak.ones_like(filtered)
+
+        # Check: Do we apply trigger SF to MC?
+        # If yes: We should not apply the trigger bits to MC
+        # Also take into account case when no corrections are passed by using get instead of simple [] access
+        if "TriggerSF" in self.corrections.get(events.metadata["dataset"], {}) and self.data_kind == "mc":
+            self.apply_trigger = False
+        elif "TriggerSF" not in self.corrections.get(events.metadata["dataset"], {}) and self.data_kind == "mc":
+            logger.warning(
+                "You are running over MC and not applying trigger SF. "
+                "Because of this, the trigger bits will be applied to the MC. "
+                "Please make sure this is what you want. Such a configuration "
+                "should not be used for a final measurement with a Hgg signal MC sample."
+            )
+
         if self.apply_trigger:
             trigger_names = []
             triggers = self.meta["TriggerPaths"][self.trigger_group][self.analysis]
