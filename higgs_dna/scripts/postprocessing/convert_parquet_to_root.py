@@ -1,13 +1,28 @@
 #!/usr/bin/env python
 import argparse
 from higgs_dna.utils.logger_utils import setup_logger
-import pandas as pd
 import uproot
 import awkward as ak
-import numpy as np
 import os
 import json
 from importlib import resources
+
+
+def split_awkward_arrays_by_length(d, target_length=5000):
+    split_dicts = []
+    max_len = max(len(arr) for arr in d.values())
+    num_chunks = (max_len + target_length - 1) // target_length  # ceiling division
+
+    for i in range(num_chunks):
+        start = i * target_length
+        end = min((i + 1) * target_length, max_len)
+        current_split = {}
+        for key, arr in d.items():
+            current_split[key] = arr.__getitem__(slice(start, end))
+
+        split_dicts.append(current_split)
+
+    return split_dicts
 
 
 def main():
@@ -63,11 +78,17 @@ def main():
         default="",
         help="Optional: Path to the JSON containing the binning at gen-level.",
     )
+    parser.add_argument(
+        "--tbasket-length",
+        type=int,
+        dest="tbasket_length",
+        default=5000,
+        help="Length of the tbasket in the ROOT file.",
+    )
     args = parser.parse_args()
     source_path = args.source
     target_path = args.target
-    type = args.type
-    notag = True if (type == "mc" and args.notag == True) else False
+    notag = True if (args.type == "mc" and args.notag == True) else False
     process = args.process if (args.process != "") else "data"
 
     logger = setup_logger(level=args.log)
@@ -250,7 +271,7 @@ def main():
 # For data: {inputTreeDir}/Data_{sqrts}_{category}
     labels = {}
     names = {}
-    if type == "mc":
+    if args.type == "mc":
         for cat in cat_dict:
             if len(process.split("_"))>1:
                 # If process of the form {process}_{mass}
@@ -365,16 +386,45 @@ def main():
                     # same as before
                     for branch in df_dict[cat]:
                         df_dict[cat][branch] = ak.flatten(df_dict[cat][branch], axis=0)
-                    file[names[cat]] = df_dict[cat]
+
+                    logger.info(f"Adding cat {cat} to ROOT file...")
+
+                    split_dict = split_awkward_arrays_by_length(df_dict[cat], target_length=int(args.tbasket_length))
+
+                    for i, current_dict in enumerate(split_dict):
+                        logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
+
+                        if args.log == "DEBUG":
+                            array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                            logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+
+                        if i == 0:
+                            file[names[cat]] = current_dict
+                        else:
+                            file[names[cat]].extend(current_dict)
+
                     if notag:
-                        file[name_notag] = df_dict[cat]  # this is wrong, to be fixed
+                        # this is wrong, to be fixed
+                        logger.info("Adding also NOTAG to ROOT file...")
+
+                        split_dict = split_awkward_arrays_by_length(df_dict[cat], target_length=int(args.tbasket_length))
+                        for i, current_dict in enumerate(split_dict):
+                            logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
+
+                            if args.log == "DEBUG":
+                                array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                                logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+
+                            if i == 0:
+                                file[names[cat]] = current_dict
+                            else:
+                                file[names[cat]].extend(current_dict)
                 else:
                     logger.info(f"no events survived category selection for cat: {cat}")
 
         logger.info(
             f"Successfully converted parquet file to ROOT file for process {process}."
         )
-
 
 if __name__ == "__main__":
     main()
