@@ -293,6 +293,13 @@ def main():
             "Determines resource allocation and expected queue time. Common flavors include 'espresso', 'microcentury', 'longlunch', etc.",
     )
     parser.add_option(
+        "--root-tbasket-length",
+        type=int,
+        dest="root_tbasket_length",
+        default=5000,
+        help="Length of the TBaskets while converting the dictionaries carrying the data in the ROOT step.",
+    )
+    parser.add_option(
         "--custom-accumulator",
         default=False,
         action="store_true",
@@ -405,6 +412,11 @@ def main():
         genBinning_str = f"--genBinning {opt.genBinning}"
     else:
         genBinning_str = ""
+
+    if opt.root_tbasket_length != "":
+        tbasket_str = f"--tbasket-length {opt.root_tbasket_length}"
+    else:
+        tbasket_str = ""
 # Define string if normalisation to be skipped
     skip_normalisation_str = "--skip-normalisation" if opt.skip_normalisation else ""
     merge_data_str = "--merge-all-data" if opt.merge_data else ""
@@ -577,7 +589,7 @@ def main():
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         os.system(
-                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} --abs"
+                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} --abs"
                         )
                     elif "data" in file.lower():
                         if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
@@ -600,12 +612,12 @@ def main():
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} --abs'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} --abs'
                             )
                         else:
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} --abs'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} --abs'
                             )
 
         if opt.ws:
@@ -667,14 +679,14 @@ def main():
         slurm_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, dirlist_path=dirlist_path, var_dict=var_dict, 
             cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
-            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, time=opt.time, partition=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, time=opt.time, partition=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger
             )
 
     elif ("condor" in opt.batch):
         htcondor_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=CONDOR_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path, 
             var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str, 
-            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, job_flavor=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, job_flavor=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger
         )
 
     # We don't want to leave trash around

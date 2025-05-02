@@ -35,7 +35,7 @@ def submit_slurm_jobs(directory, suffix=""):
         if file.endswith(f"{suffix}.sh"):
             os.system(f"sbatch {os.path.join(directory, file)}")
 
-def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, time, partition, memory, decompose_string, logger):
+def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, time, partition, memory, decompose_string, logger):
 
     time = time or "01:00:00"
     partition = partition or "short"
@@ -244,8 +244,8 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                     if (_opt.batch == "slurm/psi"):
                         target_path = f"$TARGET_PATH/root/{file}/"
 
-                    print(f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {target_path}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str}")
-                    commands.append(f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {target_path}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str}")
+                    print(f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {target_path}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str}")
+                    commands.append(f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {target_path}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str}")
                 
                 elif "data" in file.lower():
                     
@@ -262,8 +262,8 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                     if (_opt.batch == "slurm/psi"):
                         target_path = f"$TARGET_PATH/root/Data"
                         
-                    print(f"convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {target_path}/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str}")
-                    commands.append(f"convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {target_path}/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str}")
+                    print(f"convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {target_path}/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str}")
+                    commands.append(f"convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {target_path}/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str}")
                 
                 create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="root", memory=memory, time=time, partition=partition)
         
