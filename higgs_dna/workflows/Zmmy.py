@@ -245,7 +245,7 @@ class ZmmyProcessor(HggBaseProcessor):
         # after all cuts
         events = events[eve_sel.all(*(eve_sel.names))]
         if len(events) == 0:
-            logger.debug("No surviving events in this run, return now!")
+            logger.info("No surviving events in this run, return now!")
             return run_summary
 
         # fill ntuple
@@ -452,7 +452,7 @@ class ZmmyProcessor(HggBaseProcessor):
 
         # return if there is no surviving events
         if len(ntuple) == 0:
-            logger.debug("No surviving events in this run, return now!")
+            logger.info("No surviving events in this run, return now!")
             return run_summary
 
         if self.data_kind == "mc":

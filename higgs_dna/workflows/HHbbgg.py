@@ -1319,7 +1319,7 @@ class HHbbggProcessor(HggBaseProcessor):
 
             # return if there is no surviving events
             if len(diphotons) == 0:
-                logger.debug("No surviving events in this run, return now!")
+                logger.info("No surviving events in this run, return now!")
                 return histos_etc
             if self.data_kind == "mc":
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
