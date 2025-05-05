@@ -291,6 +291,9 @@ class HHbbggProcessor(HggBaseProcessor):
             varying_function = available_object_corrections[correction_name]
             events = varying_function(events=events, year=self.year[dataset_name][0])
 
+        # Keep a copy of the original, JES-corrected, non-PNet-regressed variables
+        pt_orig = ak.copy(events.Jet["pt"])
+
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():
                 logger.info(
@@ -312,8 +315,7 @@ class HHbbggProcessor(HggBaseProcessor):
         original_electrons = events.Electron
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
-        # Keep a copy of the original, JES-corrected, non-PNet-regressed variables
-        original_jets["pt_orig"] = original_jets.pt
+        original_jets["pt_orig"] = pt_orig
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
