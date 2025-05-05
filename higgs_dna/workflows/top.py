@@ -207,6 +207,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
         original_electrons = events.Electron
+        original_muons = events.Muon
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
@@ -222,7 +223,8 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
         # Add additional collections if object systematics should be applied
         collections = {
             "Photon": original_photons,
-            "Electron": original_electrons
+            "Electron": original_electrons,
+            "Muon": original_muons
         }
 
         # Apply the systematic variations.
@@ -238,6 +240,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
 
         original_photons = collections["Photon"]
         original_electrons = collections["Electron"]
+        original_muons = collections["Muon"]
 
         # Write systematic variations to dicts
         photons_dct = {}
@@ -256,6 +259,13 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             for variation in original_electrons.systematics[systematic].fields:
                 # no deepcopy here unless we find a case where it's actually needed
                 electrons_dct[f"{systematic}_{variation}"] = original_electrons.systematics[systematic][variation]
+        muons_dct = {}
+        muons_dct["nominal"] = original_muons
+        logger.debug(original_muons.systematics.fields)
+        for systematic in original_muons.systematics.fields:
+            for variation in original_muons.systematics[systematic].fields:
+                # no deepcopy here unless we find a case where it's actually needed
+                muons_dct[f"{systematic}_{variation}"] = original_muons.systematics[systematic][variation]
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
@@ -265,6 +275,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
         variations_combined = []
         variations_combined.append(original_photons.systematics.fields)
         variations_combined.append(original_electrons.systematics.fields)
+        variations_combined.append(original_muons.systematics.fields)
         # NOTE: jet jerc systematics are not added with add_systematics
         variations_combined.append(jerc_syst_list)
         variations_flattened = sum(variations_combined, [])
@@ -277,7 +288,7 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
 
         for variation in variations:
             logger.info(f"Processing {variation} samples.\n")
-            photons, electrons, jets = photons_dct["nominal"], electrons_dct["nominal"], events.Jet
+            photons, electrons, muons, jets = photons_dct["nominal"], electrons_dct["nominal"], muons_dct["nominal"], events.Jet
             if variation == "nominal":
                 pass  # Do nothing since we already get the unvaried, but nominally corrected objets above
             elif variation in [*photons_dct]:  # [*dict] gets the keys of the dict since Python >= 3.5
@@ -286,6 +297,9 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
             elif variation in [*electrons_dct]:
                 electrons = electrons_dct[variation]
                 logger.info(f"Replacing nominal electrons with variation {variation}.\n")
+            elif variation in [*muons_dct]:
+                muons = muons_dct[variation]
+                logger.info(f"Replacing nominal muons with variation {variation}.\n")
             elif variation in [*jets_dct]:
                 jets = jets_dct[variation]
                 logger.info(f"Replacing nominal jets with variation {variation}.\n")
@@ -362,20 +376,20 @@ class TopProcessor(HggBaseProcessor):  # type: ignore
 
             muons = ak.zip(
                 {
-                    "pt": events.Muon.pt,
-                    "eta": events.Muon.eta,
-                    "phi": events.Muon.phi,
-                    "mass": events.Muon.mass,
-                    "charge": events.Muon.charge,
-                    "tightId": events.Muon.tightId,
-                    "mediumId": events.Muon.mediumId,
-                    "looseId": events.Muon.looseId,
-                    "isGlobal": events.Muon.isGlobal,
-                    "pfIsoId": events.Muon.pfIsoId,
-                    "mvaTTH": events.Muon.mvaTTH,
-                    "genPartFlav": events.Muon.genPartFlav if self.data_kind == "mc" else np.full_like(events.Muon.pt, -999),
-                    "pfRelIso03_all": events.Muon.pfRelIso03_all,
-                    "pfRelIso03_chg": events.Muon.pfRelIso03_chg,
+                    "pt": muons.pt,
+                    "eta": muons.eta,
+                    "phi": muons.phi,
+                    "mass": muons.mass,
+                    "charge": muons.charge,
+                    "tightId": muons.tightId,
+                    "mediumId": muons.mediumId,
+                    "looseId": muons.looseId,
+                    "isGlobal": muons.isGlobal,
+                    "pfIsoId": muons.pfIsoId,
+                    "mvaTTH": muons.mvaTTH,
+                    "genPartFlav": muons.genPartFlav if self.data_kind == "mc" else np.full_like(muons.pt, -999),
+                    "pfRelIso03_all": muons.pfRelIso03_all,
+                    "pfRelIso03_chg": muons.pfRelIso03_chg,
                 }
             )
             muons = ak.with_name(muons, "PtEtaPhiMCandidate")
