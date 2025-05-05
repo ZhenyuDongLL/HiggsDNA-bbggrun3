@@ -171,6 +171,8 @@ higgs_dna/systematics/JSONs/POG/
 # B-Tagging efficiencies (analysis-specific), keep midRun3.json.gz as an example file
 higgs_dna/systematics/JSONs/bTagEff/
 !higgs_dna/systematics/JSONs/bTagEff/*/midRun3.json.gz
+# Variable-based muons
+higgs_dna/systematics/JSONs/MuonScaRe/
 # JEC and JER (not sure why it is named data to be honest)
 higgs_dna/systematics/data/
 
