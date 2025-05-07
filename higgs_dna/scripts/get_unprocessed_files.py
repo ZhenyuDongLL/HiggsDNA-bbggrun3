@@ -2,9 +2,13 @@
 from higgs_dna.utils.logger_utils import setup_logger
 from higgs_dna.utils.runner_utils import get_proxy
 from XRootD import client
-from rich.progress import track
+from concurrent.futures import ThreadPoolExecutor
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn, MofNCompleteColumn
+from rich.live import Live
+from rich.console import Group
 import argparse
 import json
+import subprocess
 import os
 
 
@@ -65,6 +69,18 @@ def get_fetcher_args() -> argparse.Namespace:
         default=None,
     )
     parser.add_argument(
+        "--timeout",
+        type=int,
+        help="Timeout for dasgoclient/xrootd query (default: 30s)",
+        default=30,
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        help="Number of workers (threads) to use for multi-worker executors (default: 8)",
+        default=1,
+    )
+    parser.add_argument(
         "--skipbadfiles",
         help="Skip xrootd bad files when retrieving Legacy UUID",
         default=False,
@@ -94,16 +110,16 @@ def check_range(range_list):
 
 # Use xrootd to read the header of a root file.
 # Retrieve the associated UUID from the file header.
-def get_root_uuid_using_xrootd(fpath, skipbadfiles):
+def get_root_uuid_using_xrootd(fpath, timeout, skipbadfiles):
 
     logger.debug(f"Opening {fpath} with xrootd")
 
     try:
         with client.File() as f:
             # Try to open the file
-            status, _ = f.open(fpath, timeout=30)
+            status, _ = f.open(fpath, timeout=timeout)
             if not status.ok:
-                raise RuntimeError(f"Failed to open file {fpath}: {status.message}")
+                raise TimeoutError(f"Failed to open file {fpath}: {status.message}")
 
             # Read version bytes (offset 4, size 4)
             status, version_bytes = f.read(offset=4, size=4)
@@ -126,11 +142,10 @@ def get_root_uuid_using_xrootd(fpath, skipbadfiles):
                 uuid_bytes[8:10].hex(),
                 uuid_bytes[10:16].hex()
             ])
-    except RuntimeError as e:
+    except Exception as e:
         if skipbadfiles:
             root_uuid = "00000000-0000-0000-0000-000000000000"
         else:
-            logger.error(f"An XRootD error was encountered.")
             raise e
 
     return root_uuid
@@ -195,97 +210,170 @@ def create_pq_dict(path, root_dict):
 
     return(source_dict)
 
+def process_dataset(name: str, sample_files: list, convention: str, limit, timeout, skipbadfiles):
+    """
+    Process one dataset from the sample json.
+    Returns a dict mapping root file uuid -> (number of events, file location)
+    """
+    # Apply limit and remove redirector prefix
+    rootf_location = sample_files[:limit]
+    rootf_name = ["/store" + f.split("store")[-1] for f in rootf_location]
+
+    # Get unique directory names
+    # Retrieve the file location, eg "/store/data/Run2022C/EGamma/NANOAOD/16Dec2023-v1"
+    rootf_directory = ["/".join(f.split("/")[:-2]) for f in rootf_name]
+    unique_rootf_directory = []
+    for directory in rootf_directory:
+        if directory not in unique_rootf_directory:
+            unique_rootf_directory.append(directory)
+
+    # Get the first file for each unique directory
+    files_from_unique_directories = []
+    for directory in unique_rootf_directory:
+        for rf in rootf_name:
+            if directory in rf:
+                files_from_unique_directories.append(rf)
+                break
+
+    # Here we retrieve the original dataset names and status based on the root file list we just retrieved
+    dataset_info = []
+    # use the cvmfs source for dasgoclient because it works for everyone
+    # Both local infrastructures with cvmfs and lxplus!
+    for rootf in files_from_unique_directories:
+        cmd = ("/cvmfs/cms.cern.ch/common/dasgoclient -query='dataset file={} status=* | "
+               "grep dataset.name | grep dataset.status'").format(rootf)
+        out = subprocess.check_output(cmd, shell=True, universal_newlines=True, timeout=timeout if timeout != 0 else None).strip()
+        dataset_info.append(out)
+
+    # Construct the list of original dataset & print a warning if the dataset we are processing is INVALID
+    dataset_list = []
+    for dinfo in dataset_info:
+        if not dinfo:
+            continue
+        parts = dinfo.split()
+        dataset_location, dataset_status = parts[0], parts[1]
+        dataset_list.append(dataset_location)
+        if dataset_status not in ["PRODUCTION", "VALID"]:
+            logger.warning(f"{dataset_location} status is {dataset_status}, which is neither VALID nor PRODUCTION. Make sure this is intentional")
+
+    # Get all root files in the datasets.
+    nested_file_list = []
+    for dataset in dataset_list:
+        cmd = ("/cvmfs/cms.cern.ch/common/dasgoclient -query='file status=* dataset={} | "
+               "grep file.name | grep file.nevents'").format(dataset.strip())
+        out = subprocess.check_output(cmd, shell=True, universal_newlines=True, timeout=timeout if timeout != 0 else None).splitlines()
+        nested_file_list.append(out)
+    # Flatten the list of all root files
+    file_list = [rootf for file_list in nested_file_list for rootf in file_list]
+
+    # Retrieve UUIDs for the files
+    if convention == "DAS":
+        rootf_uuid = [f.split("/")[-1].replace(".root", "") for f in rootf_name]
+    elif convention == "Legacy":
+        rootf_uuid = [get_root_uuid_using_xrootd(f, timeout, skipbadfiles) for f in rootf_location]
+    else:
+        raise ValueError("Invalid naming convention")
+
+    # Build the output dictionary: uuid -> (number of events, file location)
+    dataset_dict = {}
+    for f_line in file_list:
+        parts = f_line.split()
+        if len(parts) < 2:
+            continue
+        fname, nev_str = parts[0], parts[1]
+        nev = int(nev_str)
+        if fname in rootf_name:
+            idx = rootf_name.index(fname)
+            associated_rootuuid = rootf_uuid[idx]
+            if associated_rootuuid == "00000000-0000-0000-0000-000000000000":
+                logger.debug(f"{fname} could not be accessed by xrootd.")
+                associated_rootuuid = "failed_" + fname.split("/")[-1].replace(".root", "")
+                nev = -999
+            associated_rootf_location = rootf_location[idx]
+            dataset_dict[associated_rootuuid] = (nev, associated_rootf_location)
+
+    return dataset_dict
+
 
 # Create a dict of form {'dataset':{'uuid':(nevent,physical_location)}} from the sample.json file.
-def parse_sample_json(samples_json: str, convention: str, limit, skipbadfiles):
-
+def parse_sample_json(samples_json: str, convention: str, limit, timeout, workers, skipbadfiles):
+    """
+    Create a dict of form {'dataset':{'uuid': (nevent, physical_location)}}
+    from the provided sample.json file, processing each dataset in parallel.
+    If processing a dataset takes longer than 'timeout' seconds, its worker is restarted.
+    """
     root_dict = {}
-    rootf_uuid = []
 
-    f = open(samples_json)
-    samples = json.load(f)
+    with open(samples_json) as f:
+        samples = json.load(f)
 
     logger.info(f"Retrieving information on root files from {samples_json}.")
-    for name in samples:
-        logger.info(f"Retrieving file information for dataset {name}")
 
-        # Get list of root files in dataset
-        rootf_location = samples[name][:limit]
-        # Remove redirector, eg "root://xrootd-cms.infn.it/"
-        rootf_name = ["/store"+ file.split("store")[-1] for file in rootf_location]
+    # Process each dataset in parallel.
+    def submit_dataset(name, sample_files, progress, global_task_id, spinner_progress):
+        spinner_task_id = spinner_progress.add_task("Individual progress", dataset=name, start=True)
+        try:
+            while True:
+                try:
+                    result = process_dataset(name, sample_files, convention, limit, timeout, skipbadfiles)
+                    logger.info(f"Successfully checked dataset '{name}'")
+                    progress.update(global_task_id, advance=1)
+                    return result
+                except subprocess.TimeoutExpired as e:
+                    logger.warning(f"DAS query timeout in dataset '{name}': {e}. Retrying...")
+                except TimeoutError as e:
+                    logger.warning(f"XRootD timeout in dataset '{name}': {e}. Retrying...")
+                except Exception as e:
+                    logger.error(f"Unexpected error while while processing dataset '{name}': {e}")
+                    raise e
+        # remove the spinner gracefully at the end of the subtask
+        finally:
+            spinner_progress.remove_task(spinner_task_id)
 
-        # Get the location of the unique datasets
-        # Retrieve the file location, eg "/store/data/Run2022C/EGamma/NANOAOD/16Dec2023-v1"
-        rootf_directory = [f.split("/")[:-2] for f in rootf_name]
-        rootf_directory = ["/".join(directory) for directory in rootf_directory]
-        # Get the list of unique location
-        unique_rootf_directory = []
-        for directory in rootf_directory:
-            if directory not in unique_rootf_directory:
-                unique_rootf_directory.append(directory)
-        # And get the first root file in each unique location
-        files_from_unique_directories = []
-        for directory in unique_rootf_directory:
-            files_from_unique_directories.append([rootf for rootf in rootf_name if directory in rootf][0])
+    # Define global progress bar (overall)
+    global_progress = Progress(
+        TextColumn("[bold green]Retrieving datasets information -"),
+        TextColumn("[progress.percentage]{task.percentage:>3.1f}%"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TextColumn("•"),
+        TimeElapsedColumn(),
+    )
 
-        # Here we retrieve the original dataset names and status based on the root file list we just retrieved
-        dataset_info = [os.popen(
-                # use the cvmfs source for dasgoclient because it works for everyone
-                # Both local infrastructures with cvmfs and lxplus!
-                ("/cvmfs/cms.cern.ch/common/dasgoclient -query='dataset file={} status=* | grep dataset.name | grep dataset.status'").format(
-                    rootf
-                )
-            ).read() for rootf in files_from_unique_directories]
+    # Define spinner progress bar (for subtasks)
+    spinner_progress = Progress(
+        TextColumn("    "),
+        SpinnerColumn(spinner_name="dots"),
+        TextColumn("[cyan]Checking dataset {task.fields[dataset]}", justify="left"),
+    )
 
-        # Construct the list of original dataset & print a warning if the dataset we are processing is INVALID
-        dataset_list = []
-        for dinfo in dataset_info:
-            dataset_location, dataset_status = dinfo.split()
-            dataset_list.append(dataset_location)
-            if dataset_status not in ["PRODUCTION", "VALID"]:
-                logger.warning(f"{dataset_location} status is {dataset_status}, which is neither VALID nor PRODUCTION. Make sure this is intentional")
+    with Live(Group(global_progress, spinner_progress), refresh_per_second=2):
+        total_samples = len(samples)
+        global_task_id = global_progress.add_task("Global progress", total=total_samples)
 
-        # From the dataset names, we can now retrieve all the root files contained in each dataset
-        nested_file_list = [(os.popen(
-                ("/cvmfs/cms.cern.ch/common/dasgoclient -query='file status=* dataset={} | grep file.name | grep file.nevents'").format(
-                    dataset.strip()
-                )
-            ).read()).splitlines() for dataset in dataset_list]
-        # Flatten the list of all root files
-        file_list = [rootf for file_list in nested_file_list for rootf in file_list]
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            future_results = {}
+            spinner_task_ids = {}
 
-        if convention == "DAS":
-            # Retrieve DAS uuid from root file name
-            rootf_uuid = [file.split("/")[-1].replace(".root","") for file in rootf_name]
-        elif convention == "Legacy":
-            # Retrieve ROOT uuid from root file location using xrootd
-            rootf_uuid = [get_root_uuid_using_xrootd(file, skipbadfiles) for file in track(rootf_location, description=f"[blue]Processing files in {name}...")]
+            # Submit each dataset task
+            for name in samples:
+                future_results[name] = executor.submit(submit_dataset, name, samples[name], global_progress, global_task_id, spinner_progress)
 
-        # Construct the output dict for each dataset
-        root_dict[name] = {}
-        for f in file_list:
-            fname, nev = f.split()
-            nev = int(nev)
-            # We only want the information for the root files specified in the json
-            if fname in rootf_name:
-                # Find the associated information from the list: uuid and physical file location
-                index = rootf_name.index(fname)
-                associated_rootuuid = rootf_uuid[index]
-                if associated_rootuuid == "00000000-0000-0000-0000-000000000000":
-                    logger.debug(f"{fname} could not be accessed by xrootd.")
-                    associated_rootuuid = "failed_"+fname.split("/")[-1].replace(".root","")
-                    nev = -999
-                associated_rootf_location = rootf_location[index]
-                root_dict[name][associated_rootuuid] = (nev, associated_rootf_location)
+            # Handle results and update progress
+            for name, fut in future_results.items():
+                try:
+                    root_dict[name] = fut.result()
+                    logger.debug(f"Successfully retrieved file information for dataset {name}")
+                except Exception as e:
+                    logger.error(f"Failed to process dataset {name}: {e}")
 
-        logger.debug(f"Successfully retrieved file information for dataset {name}")
-        if any("failed" in uuid for uuid in root_dict[name].keys()):
-                number_of_xrootd_fails = sum('failed' in uuid for uuid in root_dict[name].keys())
-                logger.warning(f"{number_of_xrootd_fails} file(s) in {name} could not be accessed by xrootd and have been automatically marked as unprocessed.")
-
+    # Log warning if any dataset encountered xrootd access issues.
+    for name, d in root_dict.items():
+        if any("failed" in uuid for uuid in d.keys()):
+            number_of_xrootd_fails = sum('failed' in uuid for uuid in d.keys())
+            logger.warning(f"{number_of_xrootd_fails} file(s) in {name} could not be accessed by xrootd and have been automatically marked as unprocessed.")
 
     return root_dict
-
 
 # Compare two dataset (uuid and nevents) and return the list of unprocessed samples.
 def compare_data(root_dict, source_dict):
@@ -335,7 +423,7 @@ def main():
     get_proxy()
 
     # Create dicts from sample.json and parquet directory
-    root_dict = parse_sample_json(args.json, args.convention, args.limit, args.skipbadfiles)
+    root_dict = parse_sample_json(args.json, args.convention, args.limit, args.timeout, args.workers, args.skipbadfiles)
     pq_dict = create_pq_dict(args.source, root_dict)
 
     logger.info("Starting creation of output file.")
