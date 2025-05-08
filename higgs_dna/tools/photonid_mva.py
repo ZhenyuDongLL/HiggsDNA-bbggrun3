@@ -10,8 +10,11 @@ def load_photonid_mva(fname: str) -> Optional[xgboost.Booster]:
     try:
         photonid_mva = xgboost.Booster()
         photonid_mva.load_model(fname)
-    except xgboost.core.XGBoostError:
-        warnings.warn(f"SKIPPING photonid_mva, could not find: {fname}")
+    except (xgboost.core.XGBoostError, FileNotFoundError) as e:
+        warnings.warn(
+            f"Could not load photonid MVA model from '{fname}': {e}. Skipping.",
+            stacklevel=2
+        )
         photonid_mva = None
     return photonid_mva
 
