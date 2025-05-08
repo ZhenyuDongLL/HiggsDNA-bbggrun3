@@ -361,6 +361,11 @@ class TagAndProbeProcessor(HggBaseProcessor):
             # candidates need to be flattened since we have each photon as a tag and probe, otherwise it can't be exported to numpy
             tnp_candidates = ak.flatten(tnp_candidates)
 
+            # return if there is no surviving events
+            if len(tnp_candidates) == 0:
+                logger.info("No surviving events in this run, return now!")
+                return {}
+
             # performing the weight corrections after the preselctions
             if self.data_kind == "mc":
 
