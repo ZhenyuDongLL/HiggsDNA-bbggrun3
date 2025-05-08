@@ -8,8 +8,8 @@ from importlib import resources
 from higgs_dna.utils.logger_utils import setup_logger
 from higgs_dna.scripts.postprocessing.remote.slurm import slurm_postprocessing
 from higgs_dna.scripts.postprocessing.remote.htcondor import htcondor_postprocessing
-
 from concurrent.futures import ThreadPoolExecutor
+import yaml
 
 # ---------------------- A few helping functions  ----------------------
 
@@ -38,7 +38,7 @@ def activate_final_fit(path, command):
     os.chdir(current_path)
 
 
-def decompose_string(input_string, era_flag=False):
+def decompose_string(input_string, process_map, era_flag=False):
     """
     Decomposes the input string into process, mass, and era components based on underscores.
 
@@ -49,28 +49,6 @@ def decompose_string(input_string, era_flag=False):
     Returns:
         str: The formatted string in the style process + _ + mass (+ _ + era if era_flag is True).
     """
-    # Map known processes to their keywords
-    process_map = {
-        "GluGluHtoGG": "ggh",
-        "GluGluHto2G": "ggh",
-        "ggh": "ggh",
-        "ttHtoGG": "tth",
-        "ttHto2G": "tth",
-        "tth": "tth",
-        "VHtoGG": "vh",
-        "VHto2G": "vh",
-        "vh": "vh",
-        "VBFHtoGG": "vbf",
-        "VBFHto2G": "vbf",
-        "vbf": "vbf",
-        "bbHtoGG": "bbh",
-        "bbHto2G": "bbh",
-        "DYto2L": "dy",
-        "GG-Box": "ggbox",
-        "GJet": "gjet",
-        "Data": "data"
-        
-    }
 
     parts = input_string.split("_")
 
@@ -269,6 +247,20 @@ def main():
         help="Type of dataset (data or mc).",
     )
     parser.add_option(
+        "--process-map",
+        dest="process_map",
+        type="string",
+        default=None,
+        help="Path to a YAML file defining the process-to-keyword map."
+    )
+    parser.add_option(
+        "--outfiles-map",
+        dest="outfiles_map",
+        type="string",
+        default=None,
+        help="Path to YAML/JSON defining ROOT-output filename templates."
+    )
+    parser.add_option(
         "--time",
         type=str,
         dest="time",
@@ -307,7 +299,25 @@ def main():
         help="If set, the script will process the custom accumulator from the parquet files.",
     )
     (opt, args) = parser.parse_args()
-    
+
+    # load external process_map
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    if opt.process_map:
+        pm_file = opt.process_map
+    else:
+        pm_file = os.path.join(script_dir, "config_jsons", "process_map.yaml")
+
+    with open(pm_file, "r") as f:
+        if pm_file.endswith((".yml", ".yaml")):
+            process_map = yaml.safe_load(f)
+        else:
+            process_map = json.load(f)
+
+    if opt.outfiles_map:
+        outfiles_map_file = os.path.realpath(opt.outfiles_map)
+    else:
+        outfiles_map_file = os.path.join(script_dir, "config_jsons", "outfiles.yaml")
+
     if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
         opt.verbose = "INFO"
     logger = setup_logger(level=opt.verbose)
@@ -408,20 +418,15 @@ def main():
             dirlist_path = f"{OUT_PATH}/dirlist.txt"
             os.system(f"mv {EXEC_PATH}/dirlist.txt {OUT_PATH}/dirlist.txt")
 
-    if opt.genBinning != "":
-        genBinning_str = f"--genBinning {opt.genBinning}"
-    else:
-        genBinning_str = ""
+    genBinning_str = f"--genBinning {opt.genBinning}" if (opt.genBinning != "")  else ""
+    tbasket_str = f"--tbasket-length {opt.root_tbasket_length}" if (opt.root_tbasket_length != "") else ""
+    outfiles_map_str = f"--outfiles-map {outfiles_map_file}" if (opt.outfiles_map != "")  else ""
+    custom_accumulator_str = "--custom-accumulator" if opt.custom_accumulator else ""
 
-    if opt.root_tbasket_length != "":
-        tbasket_str = f"--tbasket-length {opt.root_tbasket_length}"
-    else:
-        tbasket_str = ""
 # Define string if normalisation to be skipped
     skip_normalisation_str = "--skip-normalisation" if opt.skip_normalisation else ""
     merge_data_str = "--merge-all-data" if opt.merge_data else ""
     do_syst_str = "--do-syst" if opt.syst else ""
-    custom_accumulator_str = "--custom-accumulator" if opt.custom_accumulator else ""
 
 # The process var below is the function that will be executed in parallel for each systematic variation. It substitutes the old loop of the systematics to speed up the process.
 # Paths now must be ABSOLUTE!! - CD while multi thread is not a good idea!
@@ -491,7 +496,7 @@ def main():
 
             MKDIRP(target_folder_path)
 
-        command = f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {opt.type} --process {decompose_string(file)} {skip_normalisation_str} {merge_data_str} {do_syst_str}"
+        command = f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {opt.type} --process {decompose_string(file, process_map)} {outfiles_map_str} {skip_normalisation_str} {merge_data_str} {do_syst_str}"
         logger.info(command)
         
         # Execute the command using subprocess.run
@@ -576,7 +581,7 @@ def main():
                 files = fl.readlines()
                 for file in files:
                     file = file.split("\n")[0]
-                    if "data" not in file.lower() and (not "unknown" in decompose_string(file, era_flag=opt.eraFlag)):
+                    if "data" not in file.lower() and (not "unknown" in decompose_string(file, process_map, era_flag=opt.eraFlag)):
                         if os.path.exists(f"{OUT_PATH}/root/{file}"):
                             raise Exception(
                                 f"The selected target path: {OUT_PATH}/root/{file} already exists"
@@ -589,7 +594,7 @@ def main():
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         os.system(
-                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} --abs"
+                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs"
                         )
                     elif "data" in file.lower():
                         if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
@@ -612,12 +617,12 @@ def main():
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} --abs'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs'
                             )
                         else:
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} --abs'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs'
                             )
 
         if opt.ws:
@@ -640,7 +645,7 @@ def main():
                 for dir in files:
                     dir = dir.split("\n")[0]
                     # if MC
-                    if "data" not in dir.lower() and (not "unknown" in decompose_string(dir, era_flag=opt.eraFlag)):
+                    if "data" not in dir.lower() and (not "unknown" in decompose_string(dir, process_map, era_flag=opt.eraFlag)):
                         if os.listdir(f"{IN_PATH}/root/{dir}/"):
                             filename = subprocess.check_output(
                                 f"find {IN_PATH}/root/{dir} -name *.root -type f",
@@ -654,7 +659,7 @@ def main():
                         doNOTAG = ""
                         if ("NOTAG" in cat_dict.keys()):
                             doNOTAG = "--doNOTAG"
-                        command = f"python trees2ws.py {doNOTAG} --inputConfig {opt.config} --productionMode {decompose_string(dir)} --year 2017 {doSystematics} --inputTreeFile {filename}"
+                        command = f"python trees2ws.py {doNOTAG} --inputConfig {opt.config} --productionMode {decompose_string(dir, process_map)} --year 2017 {doSystematics} --inputTreeFile {filename}"
                         activate_final_fit(opt.final_fit, command)
                     elif "data" in dir.lower() and not data_done:
                         if os.listdir(f"{IN_PATH}/root/Data/"):
@@ -679,14 +684,16 @@ def main():
         slurm_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, dirlist_path=dirlist_path, var_dict=var_dict, 
             cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
-            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, time=opt.time, partition=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, time=opt.time, partition=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger, 
+            process_map=process_map, outfiles_map_str=outfiles_map_str
             )
 
     elif ("condor" in opt.batch):
         htcondor_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=CONDOR_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path, 
             var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str, 
-            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, job_flavor=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, job_flavor=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger, 
+            process_map=process_map, outfiles_map_str=outfiles_map_str
         )
 
     # We don't want to leave trash around

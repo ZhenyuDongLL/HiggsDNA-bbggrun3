@@ -24,7 +24,7 @@ def MKDIRP(dirpath, verbose=False, dry_run=False):
     return
 
 
-def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, job_flavor, memory, decompose_string, logger):
+def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, outfiles_map_str, job_flavor, memory, decompose_string, logger, process_map):
 
     job_flavor = job_flavor or "microcentury"
 
@@ -91,9 +91,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
 
                     os.chdir(SCRIPT_DIR)
 
-                    print(f"python3 merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file)} {skip_normalisation_str} {merge_data_str} {do_syst_str}")
+                    print(f"python3 merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file, process_map)} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str}")
                     executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                    executable_file.write(f"    python3 merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file)} {skip_normalisation_str} {merge_data_str} {do_syst_str} || exit 107\n")
+                    executable_file.write(f"    python3 merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file, process_map)} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str} || exit 107\n")
                     executable_file.write("exit 0\n")
                     executable_file.write("fi\n")
                         
@@ -398,7 +398,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(jobs_dir)
                 else:
                     job_file_dir = os.path.realpath(jobs_dir)
-                if "data" not in file.lower() and (not "unknown" in decompose_string(file, era_flag=_opt.eraFlag)):
+                if "data" not in file.lower() and (not "unknown" in decompose_string(file, process_map, era_flag=_opt.eraFlag)):
                     if _opt.logs != "":
                         job_file_executable = os.path.join(CONDOR_PATH, f"{file}_root.sh")
                     else:
@@ -435,7 +435,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                        executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str} || exit 107\n")
+                        executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str} {outfiles_map_str} || exit 107\n")
                         executable_file.write("exit 0\n")
                         executable_file.write("fi\n")
                     os.system(f"chmod 775 {job_file_executable}")
@@ -507,13 +507,13 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str} || exit 107\n")
+                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str} {outfiles_map_str} || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                         else:
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str} || exit 107\n")
+                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} --abs {genBinning_str} {tbasket_str} {outfiles_map_str} || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                 os.system(f"chmod 775 {job_file_executable}")
