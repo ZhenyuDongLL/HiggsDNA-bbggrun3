@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import json
+import yaml
 import ast
 import os
 import glob
@@ -231,15 +232,43 @@ def main():
         help="Optional: Path to the JSON containing the binning at gen-level.",
     )
     parser.add_argument(
-    "--do-b-weight-normalisation",
-    default=False,
-    action="store_true",
-    help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
-   )
+        "--do-b-weight-normalisation",
+        default=False,
+        action="store_true",
+        help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
+    )
+    parser.add_argument(
+        "--outfiles-map",
+        dest="outfiles_map",
+        type=str,
+        default=None,
+        help="Path to YAML/JSON defining ROOT-output filename templates."
+    )
 
     args = parser.parse_args()
     source_path = args.source
     target_path = args.target
+
+    # load outfiles templates
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    if args.outfiles_map:
+        ofm_file = args.outfiles_map
+    else:
+        ofm_file = os.path.join(script_dir, os.pardir, "config_jsons", "outfiles.yaml")
+
+    with open(ofm_file, "r") as f:
+        if ofm_file.endswith((".yml", ".yaml")):
+            templates = yaml.safe_load(f)
+        else:
+            templates = json.load(f)
+
+    # now build the actual outfiles dict by replacing "merged.root"
+    outfiles = {
+        key: target_path.replace("merged.root", tpl)
+        for key, tpl in templates.items()
+    }
+    # ────────────────────────────────────────────────────────────────────────
+ 
 
     # Create target directory if it does not exist
     os.makedirs("/".join(target_path.split('/')[:-1]), exist_ok=True)
@@ -266,70 +295,6 @@ def main():
 
     rename_dict = {
         "mass": "CMS_hgg_mass"
-    }
-
-    outfiles = {
-        "ch": target_path.replace(
-            "merged.root", "output_cHToGG_M125_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "ggh": target_path.replace(
-            "merged.root", "output_GluGluHToGG_M125_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "ggh_125": target_path.replace(
-            "merged.root", "output_GluGluHToGG_M125_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "ggh_120": target_path.replace(
-            "merged.root", "output_GluGluHToGG_M120_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "ggh_130": target_path.replace(
-            "merged.root", "output_GluGluHToGG_M130_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "vbf": target_path.replace(
-            "merged.root", "output_VBFHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vbf_125": target_path.replace(
-            "merged.root", "output_VBFHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vbf_120": target_path.replace(
-            "merged.root", "output_VBFHToGG_M120_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vbf_130": target_path.replace(
-            "merged.root", "output_VBFHToGG_M130_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vh": target_path.replace(
-            "merged.root", "output_VHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vh_125": target_path.replace(
-            "merged.root", "output_VHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vh_120": target_path.replace(
-            "merged.root", "output_VHToGG_M120_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vh_130": target_path.replace(
-            "merged.root", "output_VHToGG_M130_13TeV_amcatnlo_pythia8.root"
-        ),
-        "tth": target_path.replace(
-            "merged.root", "output_TTHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "tth_125": target_path.replace(
-            "merged.root", "output_TTHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "tth_120": target_path.replace(
-            "merged.root", "output_TTHToGG_M120_13TeV_amcatnlo_pythia8.root"
-        ),
-        "tth_130": target_path.replace(
-            "merged.root", "output_TTHToGG_M130_13TeV_amcatnlo_pythia8.root"
-        ),
-        "dy": target_path.replace(
-            "merged.root", "output_DYto2L.root"
-        ),
-        "ggbox": target_path.replace(
-            "merged.root", "output_GG-Box-3Jets_MGG-80.root"
-        ),
-        "gjet": target_path.replace(
-            "merged.root", "output_GJet_DoubleEMEnriched_MGG-80.root"
-        ),
-        "data": target_path.replace("merged.root", "allData.root"),
     }
 
     if args.cats_dict != "":

@@ -5,6 +5,7 @@ import uproot
 import awkward as ak
 import os
 import json
+import yaml
 from importlib import resources
 
 
@@ -79,6 +80,13 @@ def main():
         help="Optional: Path to the JSON containing the binning at gen-level.",
     )
     parser.add_argument(
+        "--outfiles-map",
+        dest="outfiles_map",
+        type=str,
+        default="",
+        help="Path to YAML defining ROOT-output filename scheme."
+    )
+    parser.add_argument(
         "--tbasket-length",
         type=int,
         dest="tbasket_length",
@@ -114,77 +122,33 @@ def main():
     os.makedirs('/'.join(target_path.split("/")[:-1]), exist_ok=True)
 
     df_dict = {}
+    # load outfile‐templates
+    if args.outfiles_map:
+        om_file = args.outfiles_map
+    else:
+        script_dir = os.path.dirname(os.path.realpath(__file__))
+        om_file = os.path.join(script_dir, "config_jsons", "outfiles.yaml")
+
+    with open(om_file, "r") as f:
+        if om_file.endswith((".yml", ".yaml")):
+            templates = yaml.safe_load(f)
+        else:
+            templates = json.load(f)
+
+    # build actual filenames by substituting into target_path
     outfiles = {
-        "ch": target_path.replace(
-            "merged.root", "output_cHToGG_M125_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "ggh": target_path.replace(
-            "merged.root", "output_GluGluHToGG_M125_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "ggh_125": target_path.replace(
-            "merged.root", "output_GluGluHToGG_M125_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "ggh_120": target_path.replace(
-            "merged.root", "output_GluGluHToGG_M120_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "ggh_130": target_path.replace(
-            "merged.root", "output_GluGluHToGG_M130_13TeV_amcatnloFXFX_pythia8.root"
-        ),
-        "vbf": target_path.replace(
-            "merged.root", "output_VBFHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vbf_125": target_path.replace(
-            "merged.root", "output_VBFHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vbf_120": target_path.replace(
-            "merged.root", "output_VBFHToGG_M120_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vbf_130": target_path.replace(
-            "merged.root", "output_VBFHToGG_M130_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vh": target_path.replace(
-            "merged.root", "output_VHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vh_125": target_path.replace(
-            "merged.root", "output_VHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vh_120": target_path.replace(
-            "merged.root", "output_VHToGG_M120_13TeV_amcatnlo_pythia8.root"
-        ),
-        "vh_130": target_path.replace(
-            "merged.root", "output_VHToGG_M130_13TeV_amcatnlo_pythia8.root"
-        ),
-        "tth": target_path.replace(
-            "merged.root", "output_TTHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "tth_125": target_path.replace(
-            "merged.root", "output_TTHToGG_M125_13TeV_amcatnlo_pythia8.root"
-        ),
-        "tth_120": target_path.replace(
-            "merged.root", "output_TTHToGG_M120_13TeV_amcatnlo_pythia8.root"
-        ),
-        "tth_130": target_path.replace(
-            "merged.root", "output_TTHToGG_M130_13TeV_amcatnlo_pythia8.root"
-        ),
-        "dy": target_path.replace(
-            "merged.root", "output_DYto2L.root"
-        ),
-        "ggbox": target_path.replace(
-            "merged.root", "output_GG-Box-3Jets_MGG-80.root"
-        ),
-        "gjet": target_path.replace(
-            "merged.root", "output_GJet_DoubleEMEnriched_MGG-80.root"
-        ),
-        "data": target_path.replace("merged.root", "allData_2017.root"),
+        key: target_path.replace("merged.root", template)
+        for key, template in templates.items()
     }
-# Loading category informations (used for naming of files to read/write)
+
+    # Loading category informations (used for naming of files to read/write)
     if args.cats_dict != "":
         if args.abs:
             cats_path = os.path.realpath(args.cats_dict)
         else:
             cats_path = os.path.join(BASEDIR, args.cats_dict)
         with open(cats_path) as pf:
-        # with resources.open_text("higgs_dna", args.cats_dict) as pf:
+            # with resources.open_text("higgs_dna", args.cats_dict) as pf:
             cat_dict = json.load(pf)
         for cat in cat_dict:
             logger.debug(f"Found category: {cat}")
@@ -319,8 +283,8 @@ def main():
             labels[cat].append([f"DiphotonTree/Data_13TeV_{cat}", cat])
             names[cat] = f"DiphotonTree/Data_13TeV_{cat}"
 
-# Now we want to write the dictionary to a root file, since object systematics don't come from
-# the nominal file we have to separate again the treatment of them from the object ones
+    # Now we want to write the dictionary to a root file, since object systematics don't come from
+    # the nominal file we have to separate again the treatment of them from the object ones
     with uproot.recreate(outfiles[process]) as file:
         logger.debug(outfiles[process])
         # Final fit want a separate tree for each category and variation,
