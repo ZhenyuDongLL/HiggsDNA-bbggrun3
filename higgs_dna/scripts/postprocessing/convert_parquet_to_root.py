@@ -126,8 +126,7 @@ def main():
     if args.outfiles_map:
         om_file = args.outfiles_map
     else:
-        script_dir = os.path.dirname(os.path.realpath(__file__))
-        om_file = os.path.join(script_dir, "config_jsons", "outfiles.yaml")
+        om_file = os.path.join(BASEDIR, "scripts/postprocessing/config_jsons/outfiles.yaml")
 
     with open(om_file, "r") as f:
         if om_file.endswith((".yml", ".yaml")):
