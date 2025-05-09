@@ -1,4 +1,4 @@
-from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
@@ -322,7 +322,7 @@ def get_mass_resolution_smearing(diphotons, mc_flow_corrected=True):
     return diphotons
 
 
-class lowmassProcessor(HggBaseProcessor):
+class lowmassProcessor(HggSkeletonProcessor):
     def __init__(
         self,
         metaconditions: Dict[str, Any],

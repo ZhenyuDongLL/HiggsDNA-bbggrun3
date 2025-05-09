@@ -1,4 +1,4 @@
-from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.systematics import object_systematics as available_object_systematics
 from higgs_dna.systematics import object_corrections as available_object_corrections
 from higgs_dna.systematics import weight_systematics as available_weight_systematics
@@ -36,7 +36,7 @@ from higgs_dna.utils.dumping_utils import (
 logger = logging.getLogger(__name__)
 
 
-class ZeeProcessor(HggBaseProcessor):
+class ZeeProcessor(HggSkeletonProcessor):
     def __init__(
         self,
         metaconditions: Dict[str, Any],

@@ -1,4 +1,4 @@
-from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.chained_quantile import ChainedQuantileRegression
 from higgs_dna.tools.hpc_mva import calculate_ch_vs_ggh_mva, calculate_ch_vs_cb_mva, calculate_ggh_vs_hb_mva
 from higgs_dna.tools.xgb_loader import load_bdt
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-class HplusCharmProcessor(HggBaseProcessor):  # type: ignore
+class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
     def __init__(
         self,
         metaconditions: Dict[str, Any],

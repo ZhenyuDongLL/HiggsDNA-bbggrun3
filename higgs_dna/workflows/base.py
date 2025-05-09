@@ -1,8 +1,5 @@
-from higgs_dna.tools.chained_quantile import ChainedQuantileRegression
-from higgs_dna.tools.diphoton_mva import calculate_retrained_diphoton_mva as calculate_diphoton_mva
-from higgs_dna.tools.xgb_loader import load_bdt
-from higgs_dna.tools.photonid_mva import calculate_photonid_mva, load_photonid_mva
-from higgs_dna.tools.photonid_mva import calculate_photonid_mva_run3, load_photonid_mva_run3
+from higgs_dna.workflows.skeleton import HggSkeletonProcessor
+
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
@@ -26,24 +23,18 @@ from higgs_dna.tools.flow_corrections import apply_flow_corrections_to_photons
 from higgs_dna.tools.mass_decorrelator import decorrelate_mass_resolution
 
 # from higgs_dna.utils.dumping_utils import diphoton_list_to_pandas, dump_pandas
-from higgs_dna.metaconditions import photon_id_mva_weights
-from higgs_dna.metaconditions import diphoton as diphoton_mva_dir
 from higgs_dna.systematics import object_systematics as available_object_systematics
 from higgs_dna.systematics import object_corrections as available_object_corrections
 from higgs_dna.systematics import weight_systematics as available_weight_systematics
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.systematics import apply_systematic_variations_object_level
 
-import functools
-import operator
-import os
 import warnings
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import numpy
 import sys
 import vector
-from coffea import processor
 from coffea.analysis_tools import Weights
 from copy import deepcopy
 
@@ -54,235 +45,48 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
+class HggBaseProcessor(HggSkeletonProcessor):  # type: ignore
     def __init__(
         self,
         metaconditions: Dict[str, Any],
-        systematics: Optional[Dict[str, List[str]]],
-        corrections: Optional[Dict[str, List[str]]],
-        apply_trigger: bool,
-        output_location: Optional[str],
-        taggers: Optional[List[Any]],
-        nano_version: int,
-        bTagEffFileName: Optional[str],
-        trigger_group: str,
-        analysis: str,
-        applyCQR: bool,
-        skipJetVetoMap: bool,
-        year: Optional[Dict[str, List[str]]],
-        fiducialCuts: str,
-        doDeco: bool,
-        Smear_sigma_m: bool,
-        doFlow_corrections: bool,
-        output_format: str,
+        systematics: Dict[str, List[Any]] = None,
+        corrections: Dict[str, List[Any]] = None,
+        apply_trigger: bool = False,
+        output_location: Optional[str] = None,
+        taggers: Optional[List[Any]] = None,
+        nano_version: int = None,
+        bTagEffFileName: Optional[str] = None,
+        trigger_group: str = ".*DoubleEG.*",
+        analysis: str = "mainAnalysis",
+        applyCQR: bool = False,
+        skipJetVetoMap: bool = False,
+        year: Dict[str, List[str]] = None,
+        fiducialCuts: str = "classical",
+        doDeco: bool = False,
+        Smear_sigma_m: bool = False,
+        doFlow_corrections: bool = False,
+        output_format: str = "parquet"
     ) -> None:
-        self.meta = metaconditions
-        self.systematics = systematics if systematics is not None else {}
-        self.corrections = corrections if corrections is not None else {}
-        self.apply_trigger = apply_trigger
-        self.output_location = output_location
-        self.nano_version = nano_version
-        self.bTagEffFileName = bTagEffFileName
-        self.trigger_group = trigger_group
-        self.analysis = analysis
-        self.applyCQR = applyCQR
-        self.skipJetVetoMap = skipJetVetoMap
-        self.year = year if year is not None else {}
-        self.fiducialCuts = fiducialCuts
-        self.doDeco = doDeco
-        self.Smear_sigma_m = Smear_sigma_m
-        self.doFlow_corrections = doFlow_corrections
-        self.output_format = output_format
-        self.name_convention = "Legacy"
-
-        # muon selection cuts
-        self.muon_pt_threshold = 10
-        self.muon_max_eta = 2.4
-        self.mu_id_wp = "medium"
-        self.mu_iso_wp = "tight"
-        self.muon_photon_min_dr = 0.2
-        self.global_muon = True
-        self.muon_max_dxy = None
-        self.muon_max_dz = None
-
-        # electron selection cuts
-        self.electron_pt_threshold = 15
-        self.electron_max_eta = 2.5
-        self.electron_photon_min_dr = 0.2
-        self.el_id_wp = "loose"  # this includes isolation
-        self.electron_max_dxy = None
-        self.electron_max_dz = None
-
-        # jet selection cuts
-        self.jet_jetId = "tightLepVeto"  # can be "tightLepVeto" or "tight": https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
-        self.jet_dipho_min_dr = 0.4
-        self.jet_pho_min_dr = 0.4
-        self.jet_ele_min_dr = 0.4
-        self.jet_muo_min_dr = 0.4
-        self.jet_pt_threshold = 20
-        self.jet_max_eta = 4.7
-        self.bjet_mva = "particleNet"  # Possible choices: particleNet, deepJet, robustParticleTransformer
-        self.bjet_wp = "T"  # Possible choices: L, M, T, XT, XXT
-
-        self.clean_jet_dipho = False
-        self.clean_jet_pho = True
-        self.clean_jet_ele = True
-        self.clean_jet_muo = True
-
-        # diphoton preselection cuts
-        self.min_pt_photon = 25.0
-        self.min_pt_lead_photon = 35.0
-        self.min_mvaid = -0.9
-        self.max_sc_eta = 2.5
-        self.gap_barrel_eta = 1.4442
-        self.gap_endcap_eta = 1.566
-        self.max_hovere = 0.08
-        self.min_full5x5_r9 = 0.8
-        self.max_chad_iso = 20.0
-        self.max_chad_rel_iso = 0.3
-
-        self.min_full5x5_r9_EB_high_r9 = 0.85
-        self.min_full5x5_r9_EE_high_r9 = 0.9
-        self.min_full5x5_r9_EB_low_r9 = 0.5
-        self.min_full5x5_r9_EE_low_r9 = 0.8
-        self.max_trkSumPtHollowConeDR03_EB_low_r9 = (
-            6.0  # for v11, we cut on Photon_pfChargedIsoPFPV
+        super().__init__(
+            metaconditions,
+            systematics=systematics,
+            corrections=corrections,
+            apply_trigger=apply_trigger,
+            nano_version=nano_version,
+            bTagEffFileName=bTagEffFileName,
+            output_location=output_location,
+            taggers=taggers,
+            trigger_group=trigger_group,
+            analysis=analysis,
+            applyCQR=applyCQR,
+            skipJetVetoMap=skipJetVetoMap,
+            year=year,
+            fiducialCuts=fiducialCuts,
+            doDeco=doDeco,
+            Smear_sigma_m=Smear_sigma_m,
+            doFlow_corrections=doFlow_corrections,
+            output_format=output_format
         )
-        self.max_trkSumPtHollowConeDR03_EE_low_r9 = 6.0  # Leaving the names of the preselection cut variables the same to change as little as possible
-        self.max_sieie_EB_low_r9 = 0.015
-        self.max_sieie_EE_low_r9 = 0.035
-        self.max_pho_iso_EB_low_r9 = 4.0
-        self.max_pho_iso_EE_low_r9 = 4.0
-
-        self.eta_rho_corr = 1.5
-        self.low_eta_rho_corr = 0.16544
-        self.high_eta_rho_corr = 0.13212
-        # EA values for Run3 from Egamma
-        self.EA1_EB1 = 0.102056
-        self.EA2_EB1 = -0.000398112
-        self.EA1_EB2 = 0.0820317
-        self.EA2_EB2 = -0.000286224
-        self.EA1_EE1 = 0.0564915
-        self.EA2_EE1 = -0.000248591
-        self.EA1_EE2 = 0.0428606
-        self.EA2_EE2 = -0.000171541
-        self.EA1_EE3 = 0.0395282
-        self.EA2_EE3 = -0.000121398
-        self.EA1_EE4 = 0.0369761
-        self.EA2_EE4 = -8.10369e-05
-        self.EA1_EE5 = 0.0369417
-        self.EA2_EE5 = -2.76885e-05
-
-        logger.debug(f"Setting up processor with metaconditions: {self.meta}")
-
-        if (self.bjet_mva != "deepJet") and (self.nano_version < 12):
-            logger.error(f"\n {self.bjet_mva} is only supported for nanoAOD v12 and above. Please change the bjet_mva to deepJet. Exiting...\n")
-            exit()
-
-        self.taggers = []
-        if taggers is not None:
-            self.taggers = taggers
-            self.taggers.sort(key=lambda x: x.priority)
-
-        self.prefixes = {"pho_lead": "lead", "pho_sublead": "sublead"}
-
-        if not self.doDeco:
-            logger.info("Skipping Mass resolution decorrelation as required")
-        else:
-            logger.info("Performing Mass resolution decorrelation as required")
-
-        # build the chained quantile regressions
-        if self.applyCQR:
-            try:
-                self.chained_quantile: Optional[
-                    ChainedQuantileRegression
-                ] = ChainedQuantileRegression(**self.meta["PhoIdInputCorrections"])
-            except Exception as e:
-                warnings.warn(f"Could not instantiate ChainedQuantileRegression: {e}")
-                self.chained_quantile = None
-        else:
-            logger.info("Skipping CQR as required")
-            self.chained_quantile = None
-
-        # initialize photonid_mva
-        photon_id_mva_dir = os.path.dirname(photon_id_mva_weights.__file__)
-        try:
-            logger.debug(
-                f"Looking for {self.meta['flashggPhotons']['photonIdMVAweightfile_EB']} in {photon_id_mva_dir}"
-            )
-            self.photonid_mva_EB = load_photonid_mva(
-                os.path.join(
-                    photon_id_mva_dir,
-                    self.meta["flashggPhotons"]["photonIdMVAweightfile_EB"],
-                )
-            )
-            self.photonid_mva_EE = load_photonid_mva(
-                os.path.join(
-                    photon_id_mva_dir,
-                    self.meta["flashggPhotons"]["photonIdMVAweightfile_EE"],
-                )
-            )
-        except Exception as e:
-            warnings.warn(f"Could not instantiate PhotonID MVA on the fly: {e}")
-            self.photonid_mva_EB = None
-            self.photonid_mva_EE = None
-
-        # initialize diphoton mva
-        diphoton_weights_dir = os.path.dirname(diphoton_mva_dir.__file__)
-        logger.debug(
-            f"Base path to look for IDMVA weight files: {diphoton_weights_dir}"
-        )
-
-        try:
-            self.diphoton_mva = load_bdt(
-                os.path.join(
-                    diphoton_weights_dir, self.meta["flashggDiPhotonMVA"]["weightFile"]
-                )
-            )
-        except Exception as e:
-            warnings.warn(f"Could not instantiate diphoton MVA: {e}")
-            self.diphoton_mva = None
-
-    def process_extra(self, events: ak.Array) -> ak.Array:
-        raise NotImplementedError
-
-    def apply_filters_and_triggers(self, events: ak.Array) -> ak.Array:
-        # met filters
-        met_filters = self.meta["flashggMetFilters"][self.data_kind]
-        filtered = functools.reduce(
-            operator.and_,
-            (events.Flag[metfilter.split("_")[-1]] for metfilter in met_filters),
-        )
-
-        triggered = ak.ones_like(filtered)
-
-        # Check: Do we apply trigger SF to MC?
-        # If yes: We should not apply the trigger bits to MC
-        # Also take into account case when no corrections are passed by using get instead of simple [] access
-        if "TriggerSF" in self.corrections.get(events.metadata["dataset"], {}) and self.data_kind == "mc":
-            self.apply_trigger = False
-        elif "TriggerSF" not in self.corrections.get(events.metadata["dataset"], {}) and self.data_kind == "mc":
-            logger.warning(
-                "You are running over MC and not applying trigger SF. "
-                "Because of this, the trigger bits will be applied to the MC. "
-                "Please make sure this is what you want. Such a configuration "
-                "should not be used for a final measurement with a Hgg signal MC sample."
-            )
-
-        if self.apply_trigger:
-            trigger_names = []
-            triggers = self.meta["TriggerPaths"][self.trigger_group][self.analysis]
-            hlt = events.HLT
-            for trigger in triggers:
-                actual_trigger = trigger.replace("HLT_", "").replace("*", "")
-                for field in hlt.fields:
-                    if field.startswith(actual_trigger):
-                        trigger_names.append(field)
-            triggered = functools.reduce(
-                operator.or_, (hlt[trigger_name] for trigger_name in trigger_names)
-            )
-
-        return events[filtered & triggered]
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
@@ -1061,82 +865,4 @@ class HggBaseProcessor(processor.ProcessorABC):  # type: ignore
         return histos_etc
 
     def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
-        raise NotImplementedError
-
-    def add_diphoton_mva(
-        self, diphotons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-        return calculate_diphoton_mva(
-            self,
-            (self.diphoton_mva, self.meta["HiggsDNA_DiPhotonMVA"]["inputs"]),
-            diphotons,
-            events,
-        )
-
-    def add_photonid_mva(
-        self, photons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-        photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll * ak.ones_like(
-            photons.pt
-        )
-        counts = ak.num(photons, axis=-1)
-        photons = ak.flatten(photons)
-        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
-        mva_EB = calculate_photonid_mva(
-            (self.photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]), photons
-        )
-        mva_EE = calculate_photonid_mva(
-            (self.photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]), photons
-        )
-        mva = ak.where(isEB, mva_EB, mva_EE)
-        photons["mvaID"] = mva
-
-        return ak.unflatten(photons, counts)
-
-    def add_photonid_mva_run3(
-        self, photons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-
-        preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
-        photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
-
-        rho = events.Rho.fixedGridRhoAll * ak.ones_like(photons.pt)
-        rho = ak.flatten(rho)
-
-        photons = ak.flatten(photons)
-
-        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
-        mva_EB = calculate_photonid_mva_run3(
-            [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]], photons , rho
-        )
-        mva_EE = calculate_photonid_mva_run3(
-            [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]], photons, rho
-        )
-        mva = ak.where(isEB, mva_EB, mva_EE)
-        photons["mvaID_run3"] = mva
-
-        return mva
-
-    def add_corr_photonid_mva_run3(
-        self, photons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-
-        preliminary_path = os.path.join(os.path.dirname(__file__), '../tools/flows/run3_mvaID_models/')
-        photonid_mva_EB, photonid_mva_EE = load_photonid_mva_run3(preliminary_path)
-
-        rho = events.Rho.fixedGridRhoAll * ak.ones_like(photons.pt)
-        rho = ak.flatten(rho)
-
-        photons = ak.flatten(photons)
-
-        # Now calculating the corrected mvaID
-        isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
-        corr_mva_EB = calculate_photonid_mva_run3(
-            [photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB_corr"]], photons, rho
-        )
-        corr_mva_EE = calculate_photonid_mva_run3(
-            [photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE_corr"]], photons, rho
-        )
-        corr_mva = ak.where(isEB, corr_mva_EB, corr_mva_EE)
-
-        return corr_mva
+        pass

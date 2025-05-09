@@ -1,5 +1,5 @@
 from higgs_dna.utils.logger_utils import setup_logger
-from higgs_dna.workflows import DYStudiesProcessor, TagAndProbeProcessor, ZmmyProcessor
+from higgs_dna.workflows import HggBaseProcessor, TagAndProbeProcessor, ZmmyProcessor
 import os
 import subprocess
 from coffea import processor

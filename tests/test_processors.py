@@ -3,7 +3,7 @@ import subprocess
 import json
 import pytest
 from importlib import resources
-from higgs_dna.workflows import DYStudiesProcessor, TagAndProbeProcessor, HHbbggProcessor, HplusCharmProcessor, lowmassProcessor, ParticleLevelProcessor, TopProcessor, ZeeProcessor, ZmmyProcessor, STXSProcessor, BTaggingEfficienciesProcessor
+from higgs_dna.workflows import HggBaseProcessor, TagAndProbeProcessor, HHbbggProcessor, HplusCharmProcessor, lowmassProcessor, ParticleLevelProcessor, TopProcessor, ZeeProcessor, ZmmyProcessor, STXSProcessor, BTaggingEfficienciesProcessor
 from coffea import processor
 
 
@@ -25,7 +25,7 @@ def run_processor(processor_instance, fileset):
 
 
 @pytest.mark.parametrize("processor_class", [
-    DYStudiesProcessor,
+    HggBaseProcessor,
     TagAndProbeProcessor,
     HHbbggProcessor,
     # Hpc Cannot be included in a simple way here since the arguments are not defaulted
@@ -59,7 +59,7 @@ def test_processors(processor_class):
     # These should be appropriate for the processor being tested (e.g. muon for Zmmy or DY for T&P)
     # The skeleton below should be adjusted
 
-    if processor_class == DYStudiesProcessor:
+    if processor_class == HggBaseProcessor:
         MC = "./tests/samples/skimmed_nano/ggH_M125_amcatnlo_v13.root"
         Data = "./tests/samples/skimmed_nano/EGamma_2022E_v13.root"
     elif processor_class == TagAndProbeProcessor:

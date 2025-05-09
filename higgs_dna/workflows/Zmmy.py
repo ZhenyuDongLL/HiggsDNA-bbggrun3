@@ -1,4 +1,4 @@
-from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
 from higgs_dna.selections.lepton_selections_Zmmy import (
@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-class ZmmyProcessor(HggBaseProcessor):
+class ZmmyProcessor(HggSkeletonProcessor):
     def __init__(
         self,
         metaconditions: Dict[str, Any],
@@ -553,7 +553,7 @@ class ZmmyProcessor(HggBaseProcessor):
         pass
 
 
-class ZmmyHist(HggBaseProcessor):
+class ZmmyHist(HggSkeletonProcessor):
     def __init__(
         self,
         metaconditions: Dict[str, Any],
