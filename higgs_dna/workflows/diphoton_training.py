@@ -1,4 +1,4 @@
-from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.chained_quantile import ChainedQuantileRegression
 from higgs_dna.tools.xgb_loader import load_bdt
 from higgs_dna.tools.photonid_mva import load_photonid_mva
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-class DiphoTrainingProcessor(HggBaseProcessor):  # type: ignore
+class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
     def __init__(
         self,
         metaconditions: Dict[str, Any],

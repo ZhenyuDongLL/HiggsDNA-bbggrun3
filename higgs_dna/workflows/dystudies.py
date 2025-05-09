@@ -1,4 +1,4 @@
-from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.systematics import object_systematics as available_object_systematics
 from higgs_dna.systematics import object_corrections as available_object_corrections
 from higgs_dna.systematics import weight_systematics as available_weight_systematics
@@ -23,57 +23,7 @@ from coffea.analysis_tools import Weights
 logger = logging.getLogger(__name__)
 
 
-class DYStudiesProcessor(HggBaseProcessor):
-    def __init__(
-        self,
-        metaconditions: Dict[str, Any],
-        systematics: Dict[str, List[Any]] = None,
-        corrections: Dict[str, List[Any]] = None,
-        apply_trigger: bool = False,
-        output_location: Optional[str] = None,
-        taggers: Optional[List[Any]] = None,
-        nano_version: int = None,
-        bTagEffFileName: Optional[str] = None,
-        trigger_group: str = ".*DoubleEG.*",
-        analysis: str = "mainAnalysis",
-        applyCQR: bool = False,
-        skipJetVetoMap: bool = False,
-        year: Dict[str, List[str]] = None,
-        fiducialCuts: str = "classical",
-        doDeco: bool = False,
-        Smear_sigma_m: bool = False,
-        doFlow_corrections: bool = False,
-        output_format: str = "parquet"
-    ) -> None:
-        super().__init__(
-            metaconditions,
-            systematics=systematics,
-            corrections=corrections,
-            nano_version=nano_version,
-            bTagEffFileName=bTagEffFileName,
-            apply_trigger=apply_trigger,
-            output_location=output_location,
-            taggers=taggers,
-            trigger_group=trigger_group,
-            analysis=analysis,
-            applyCQR=applyCQR,
-            skipJetVetoMap=skipJetVetoMap,
-            year=year,
-            fiducialCuts=fiducialCuts,
-            doDeco=doDeco,
-            Smear_sigma_m=Smear_sigma_m,
-            doFlow_corrections=doFlow_corrections,
-            output_format=output_format
-        )
-
-    def process_extra(self, events: ak.Array) -> ak.Array:
-        return events, {}
-
-    def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
-        pass
-
-
-class TagAndProbeProcessor(HggBaseProcessor):
+class TagAndProbeProcessor(HggSkeletonProcessor):
     def __init__(
         self,
         metaconditions: Dict[str, Any],

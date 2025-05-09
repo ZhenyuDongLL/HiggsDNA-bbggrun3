@@ -1,4 +1,4 @@
-from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.systematics import object_corrections as available_object_corrections
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.utils.dumping_utils import diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas
@@ -17,7 +17,7 @@ from coffea.analysis_tools import Weights
 logger = logging.getLogger(__name__)
 
 
-class ParticleLevelProcessor(HggBaseProcessor):
+class ParticleLevelProcessor(HggSkeletonProcessor):
     def __init__(
         self,
         metaconditions: Dict[str, Any],

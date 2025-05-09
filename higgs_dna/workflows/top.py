@@ -1,4 +1,4 @@
-from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
-class TopProcessor(HggBaseProcessor):  # type: ignore
+class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
     def __init__(
         self,
