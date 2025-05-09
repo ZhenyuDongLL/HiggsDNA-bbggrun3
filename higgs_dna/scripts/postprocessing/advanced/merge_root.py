@@ -249,12 +249,13 @@ def main():
     source_path = args.source
     target_path = args.target
 
+    BASEDIR = resources.files("higgs_dna").joinpath("")
+
     # load outfiles templates
-    script_dir = os.path.dirname(os.path.realpath(__file__))
     if args.outfiles_map:
         ofm_file = args.outfiles_map
     else:
-        ofm_file = os.path.join(script_dir, os.pardir, "config_jsons", "outfiles.yaml")
+        ofm_file = os.path.join(BASEDIR, "scripts/postprocessing/config_jsons/outfiles.yaml")
 
     with open(ofm_file, "r") as f:
         if ofm_file.endswith((".yml", ".yaml")):
@@ -276,8 +277,6 @@ def main():
     notag = True if (args.type == "mc" and args.notag == True) else False
     process = args.process if (args.process != "") else "data" 
     is_data = (args.type == "data") or (args.type == "Data")
-
-    BASEDIR = resources.files("higgs_dna").joinpath("")
 
     if args.genBinning != "":
         if args.abs:

@@ -300,12 +300,13 @@ def main():
     )
     (opt, args) = parser.parse_args()
 
+    BASEDIR = resources.files("higgs_dna").joinpath("")
+
     # load external process_map
-    script_dir = os.path.dirname(os.path.realpath(__file__))
     if opt.process_map:
         pm_file = opt.process_map
     else:
-        pm_file = os.path.join(script_dir, "config_jsons", "process_map.yaml")
+        pm_file = os.path.join(BASEDIR, "scripts/postprocessing/config_jsons/process_map.yaml")
 
     with open(pm_file, "r") as f:
         if pm_file.endswith((".yml", ".yaml")):
@@ -316,7 +317,7 @@ def main():
     if opt.outfiles_map:
         outfiles_map_file = os.path.realpath(opt.outfiles_map)
     else:
-        outfiles_map_file = os.path.join(script_dir, "config_jsons", "outfiles.yaml")
+        outfiles_map_file = os.path.join(BASEDIR, "scripts/postprocessing/config_jsons/outfiles.yaml")
 
     if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
         opt.verbose = "INFO"
@@ -340,7 +341,6 @@ def main():
         + "awk -F'/' '{print $NF}' > dirlist.txt"
         )
     
-    BASEDIR = resources.files("higgs_dna").joinpath("")
 # the key of the var_dict entries is also used as a key for the related root tree branch
 # to be consistent with FinalFit naming scheme you shoud use SystNameUp and SystNameDown,
 # e.g. "FNUFUp": "FNUF_up", "FNUFDown": "FNUF_down"
