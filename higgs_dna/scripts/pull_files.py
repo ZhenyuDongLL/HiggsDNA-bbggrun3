@@ -75,12 +75,14 @@ def copy_xrdcp(logger, target_name, ikey, from_path, to_path):
             # Copy everything
             res = subprocess.run(["xrdcp", "-r", "-f", "-s", fs + from_path, to_path])
 
-            # Emulate the copy_tree function for remote directories
+            # Emulate the copy_tree function for remote directories,
+            # but only flatten the directory we just xrdcp’d in.
+            src_basename = os.path.basename(from_path.rstrip("/"))
             items = os.listdir(to_path)
             top_dirs = [
                 os.path.join(to_path, item)
                 for item in items
-                if os.path.isdir(os.path.join(to_path, item))
+                if item == src_basename and os.path.isdir(os.path.join(to_path, item))
             ]
             if len(top_dirs) == 0:
                 logger.debug(f"No top directories found in {to_path}")
