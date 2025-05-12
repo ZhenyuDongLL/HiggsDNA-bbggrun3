@@ -1,4 +1,5 @@
 from higgs_dna.workflows.base import HggBaseProcessor
+from higgs_dna.workflows.fiducial import HggFiducialProcessor
 from higgs_dna.workflows.dystudies import TagAndProbeProcessor
 from higgs_dna.workflows.HHbbgg import HHbbggProcessor
 from higgs_dna.workflows.particleLevel import ParticleLevelProcessor
@@ -16,6 +17,7 @@ from higgs_dna.workflows.taggers import taggers
 workflows = {}
 
 workflows["base"] = HggBaseProcessor
+workflows["fiducial"] = HggFiducialProcessor
 workflows["tagandprobe"] = TagAndProbeProcessor
 workflows["HHbbgg"] = HHbbggProcessor
 workflows["particleLevel"] = ParticleLevelProcessor

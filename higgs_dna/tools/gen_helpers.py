@@ -169,11 +169,12 @@ def get_higgs_gen_attributes(events: ak.Array) -> ak.Array:
     sublead_pho = gen_photons[:, 1]
     gen_diphoton = lead_pho + sublead_pho
 
+    # Diphoton Variables
     pt = gen_diphoton.pt
     y = 0.5 * np.log((gen_diphoton.energy + gen_diphoton.pz) / (gen_diphoton.energy - gen_diphoton.pz))
     phi = gen_diphoton.phi
 
-    return (pt, y, phi)
+    return (pt, y, phi, lead_pho, sublead_pho)
 
 
 def match_jet(reco_jets, gen_jets, n, fill_value, jet_size=0.4, jet_flav=False):

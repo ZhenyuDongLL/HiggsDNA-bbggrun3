@@ -330,7 +330,7 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
                 diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
                 diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
 
-                GenPTH, GenYH, GenPhiH = get_higgs_gen_attributes(events)
+                GenPTH, GenYH, GenPhiH, _, _ = get_higgs_gen_attributes(events)
 
                 GenPTH = ak.fill_none(GenPTH, -999.0)
                 diphotons['GenPTH'] = GenPTH
