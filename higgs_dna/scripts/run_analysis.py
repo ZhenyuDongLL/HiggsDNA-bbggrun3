@@ -318,7 +318,7 @@ def main():
                         ),
                     )
                 ],
-                retries=20,
+                retries=10,
             )
         elif "condor" in args.executor:
             htex_config = Config(
@@ -357,7 +357,7 @@ def main():
 
         elif "lpc" in args.executor:
             env_extra = [
-                f"export PYTHONPATH=$PYTHONPATH:{os.getcwd()}",
+                "export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH",
             ]
             from lpcjobqueue import LPCCondorCluster
 
@@ -367,6 +367,13 @@ def main():
                 job_script_prologue=env_extra,
             )
         elif "lxplus" in args.executor:
+            env_extra = [
+                "export XRD_RUNFORKHANDLER=1",
+                f"export X509_USER_PROXY={_x509_path}",
+                "export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH",
+                f"export PYTHONPATH=$PYTHONPATH:{str(resources.files('higgs_dna').parent)}:$_CONDOR_SCRATCH_DIR",
+            ]
+
             from dask_lxplus import CernCluster
 
             n_port = 8786
@@ -394,11 +401,7 @@ def main():
                     if args.queue is None
                     else f'"{args.queue}"',
                 },
-                job_script_prologue=[
-                    "export XRD_RUNFORKHANDLER=1",
-                    f"export X509_USER_PROXY={_x509_path}",
-                    "export PYTHONPATH=$PYTHONPATH:$_CONDOR_SCRATCH_DIR",
-                ],
+                job_script_prologue=env_extra,
             )
         elif "slurm" in args.executor:
             cluster = SLURMCluster(
@@ -430,7 +433,7 @@ def main():
         else:
             client = Client(cluster)
         with performance_report(filename="dask-report.html"):
-            executor = processor.DaskExecutor(client=client, retries=50)
+            executor = processor.DaskExecutor(client=client, retries=10)
             run_executor(args, executor, sample_dict, processor_instance)
     elif args.executor == "vanilla_lxplus":
         from higgs_dna.submission.lxplus import LXPlusVanillaSubmitter
