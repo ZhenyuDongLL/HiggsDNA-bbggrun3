@@ -434,7 +434,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
                 # Did not completely update the genJet part of the base processor because HHbbgg has its own way of dealing with it. We may think of a way to use what was developped to improve our gen selection.
                 # Changes that were not replicated here : https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/-/commit/55846b80a83619a9112b95fb8824dfdb71eee0b2
-                GenPTH, GenYH, GenPhiH = get_higgs_gen_attributes(events)
+                GenPTH, GenYH, GenPhiH, _, _ = get_higgs_gen_attributes(events)
                 diphotons['GenPTH'] = ak.fill_none(GenPTH, -999.0)
 
             # baseline modifications to diphotons

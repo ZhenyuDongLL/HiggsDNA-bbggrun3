@@ -138,7 +138,7 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
 
         diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
         diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
-        diphotons['GenPTH'], diphotons['GenYH'], diphotons['GenPhiH'] = get_higgs_gen_attributes(events)
+        diphotons['GenPTH'], diphotons['GenYH'], diphotons['GenPhiH'], _, _ = get_higgs_gen_attributes(events)
 
         genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
         diphotons['GenNJ'] = ak.num(genJets)
