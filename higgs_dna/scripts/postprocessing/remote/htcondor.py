@@ -57,7 +57,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                 else:
                     job_file_dir = os.path.realpath(jobs_dir)
                     
-                if _opt.condor_logs != "":
+                if _opt.logs != "":
                     job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
                     job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
                 else:
@@ -67,7 +67,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     job_file_out = "/dev/null"
                     job_file_err = "/dev/null"
                     job_file_log = "/dev/null"
-                elif _opt.condor_logs != "":
+                elif _opt.logs != "":
                     job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
                     job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
                     job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
@@ -91,15 +91,15 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
 
                     os.chdir(SCRIPT_DIR)
 
-                    print(f"python3 merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file, process_map)} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str}")
+                    print(f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file, process_map)} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str} {tbasket_str}")
                     executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                    executable_file.write(f"    python3 merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file, process_map)} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str} || exit 107\n")
+                    executable_file.write(f"    merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file, process_map)} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str} {tbasket_str} || exit 107\n")
                     executable_file.write("exit 0\n")
                     executable_file.write("fi\n")
                         
                 os.system(f"chmod 775 {job_file_executable}")
                 with open(job_file_submit, "w") as submit_file:
-                    if _opt.condor_logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
+                    if _opt.logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
                     submit_file.write(f"executable = {job_file_executable}\n")
                     submit_file.write("arguments = $(ProcId)\n")
                     submit_file.write(f"output = {job_file_out}\n")
@@ -108,9 +108,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     submit_file.write(f"output_destination = {job_file_dir}\n")
                     submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                     submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                    if _opt.apptainer:
+                    if (_opt.batch == "condor/apptainer"):
                         submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                        submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/higgsdna-project/higgsdna:latest"\n""")
+                        submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
                         submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                     submit_file.write("max_retries = 3\n")
                     submit_file.write("requirements = Machine =!= LastRemoteHost\n")
@@ -118,7 +118,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         submit_file.write(f"request_memory = {memory}\n")
                     submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                     submit_file.write(f"queue\n")
-            if _opt.condor_logs != "":
+            if _opt.logs != "":
                 submit_jobs(CONDOR_PATH)
             else:
                 submit_jobs(OUT_PATH)

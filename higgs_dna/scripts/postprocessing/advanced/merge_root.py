@@ -11,7 +11,6 @@ import pyarrow.parquet as pq
 import numpy as np
 import uproot
 from importlib import resources
-from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
 
 
 def extract_tuples(input_string):
@@ -75,6 +74,21 @@ def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="Ge
 
     return dataset
 
+def split_awkward_arrays_by_length(d, target_length=5000):
+    split_dicts = []
+    max_len = max(len(arr) for arr in d.values())
+    num_chunks = (max_len + target_length - 1) // target_length  # ceiling division
+
+    for i in range(num_chunks):
+        start = i * target_length
+        end = min((i + 1) * target_length, max_len)
+        current_split = {}
+        for key, arr in d.items():
+            current_split[key] = arr.__getitem__(slice(start, end))
+
+        split_dicts.append(current_split)
+
+    return split_dicts
 
 def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_path, cat_dict, gen_binning, logger, rename_dict):
 
@@ -97,7 +111,7 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
 
     logger.info("-" * 125)
     logger.info(
-        f"INFO: Starting parquet file merging. Attempting to read ParquetDataset from {folder_path}, for category: {cat}"
+        f"Attempting to read ParquetDataset from {folder_path}, for category: {cat}"
     )
     if is_data and _args.merge_data:
         path = glob.glob(os.path.join(source_path, '**', '*.parquet'), recursive=True)
@@ -105,9 +119,6 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
         path = folder_path
     dataset = pq.ParquetDataset(path, filters=cat_dict[cat]["cat_filter"])
     logger.info("ParquetDataset read successfully.")
-    logger.info(
-        f"Attempting to merge ROOT file and save to {target_path}."
-    )
 
     # If syst, read less branches to save memory
     if is_syst:
@@ -118,12 +129,6 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
     table = dataset.read()
     eve = awkward.from_arrow(table)
 
-    print("Successfully read from parquet piece with awkward.")
-
-    # '''
-    logger.info(
-        f"Success! Merged ROOT file is located in {target_path}."
-    )
     # If MC then open the merged dataset and add normalised weight column (sumw = efficiency)
     # TODO: can we add column before writing table and prevent re-reading in as awkward array
     if (not is_data) & (not _args.skip_normalisation):
@@ -243,6 +248,13 @@ def main():
         type=str,
         default=None,
         help="Path to YAML/JSON defining ROOT-output filename templates."
+    )
+    parser.add_argument(
+        "--tbasket-length",
+        type=int,
+        dest="tbasket_length",
+        default=5000,
+        help="Length of the tbasket in the ROOT file.",
     )
 
     args = parser.parse_args()
@@ -385,10 +397,6 @@ def main():
                 cat
                 ] = f"DiphotonTree/{process}_125_13TeV_{cat}"
             labels[cat] = []
-        if len(process.split("_"))>1:
-            name_notag = "DiphotonTree/" + process.split('_')[0] + f"_{process.split('_')[-1]}_13TeV_NOTAG"
-        else:    
-            name_notag = "DiphotonTree/" + process + "_125_13TeV_NOTAG"
         # flashggFinalFit needs to have each systematic variation in a different branch
         if args.do_syst:
             for var in variation_dict:
@@ -430,7 +438,7 @@ def main():
         # For MC: {inputTreeDir}/{production-mode}_{mass}_{sqrts}_{category}_{syst}
         # For data: {inputTreeDir}/Data_{sqrts}_{category}
         for cat in cat_dict:
-            logger.debug(f"writing category: {cat}")
+            logger.debug(f"Writing category: {cat}")
 
             if args.do_syst:
                 # check that the category actually contains something, otherwise the flattening step will make the script crash,
@@ -440,7 +448,21 @@ def main():
                         # here I had to add a flattening step to help uproot with the type of the awkward arrays,
                         # if you don't flatten (event if you don't have a nested field) you end up having a type like (len_of_array) * ?type, which make uproot very mad apparently
                         df_dict["NOMINAL"][cat][branch] = awkward.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
-                    file[names[cat]] = df_dict["NOMINAL"][cat]
+
+                    split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], target_length=int(args.tbasket_length))
+
+                    for i, current_dict in enumerate(split_nominal_dict):
+                        logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
+
+                        if args.log == "DEBUG":
+                            array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                            logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+
+                        if i == 0:
+                            file[names[cat]] = current_dict
+                        else:
+                            file[names[cat]].extend(current_dict)
+
                     for syst_name, weight, syst_, c in labels[cat]:
                         # Skip "NOMINAL" as information included in nominal tree
                         if syst_ == "NOMINAL":
@@ -466,7 +488,21 @@ def main():
                                     red_dict[new_key] = df_dict["NOMINAL"][cat][key]
                             
                             logger.info(f"Adding {syst_name}01sigma to out tree...")
-                            file[syst_name + "01sigma"] = red_dict
+                            
+                            split_dict = split_awkward_arrays_by_length(red_dict, target_length=int(args.tbasket_length))
+
+                            for i, current_dict in enumerate(split_dict):
+                                logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
+
+                                if args.log == "DEBUG":
+                                    array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                                    logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+
+                                if i == 0:
+                                    file[syst_name + "01sigma"] = current_dict
+                                else:
+                                    file[syst_name + "01sigma"].extend(current_dict)
+
                         else:
                             red_dict = {}
                             for key, new_key in var_list:
@@ -477,9 +513,23 @@ def main():
                                         red_dict[new_key] = awkward.Array(np.array([], dtype=np.float64))
 
                             logger.info(f"Adding {syst_name}01sigma to out tree...")
-                            file[syst_name + "01sigma"] = red_dict
+
+                            split_dict = split_awkward_arrays_by_length(red_dict, target_length=int(args.tbasket_length))
+
+                            for i, current_dict in enumerate(split_dict):
+                                logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
+
+                                if args.log == "DEBUG":
+                                    array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                                    logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+
+                                if i == 0:
+                                    file[syst_name + "01sigma"] = current_dict
+                                else:
+                                    file[syst_name + "01sigma"].extend(current_dict)
+
                 else:
-                    logger.info(f"no events survived category selection for cat: {cat}")
+                    logger.info(f"No events survived category selection for cat: {cat}")
 
             else:
                 # if there are no syst there is no df_dict["NOMINAL"] entry in the dict
@@ -487,14 +537,39 @@ def main():
                     # same as before
                     for branch in df_dict["NOMINAL"][cat]:
                         df_dict["NOMINAL"][cat][branch] = awkward.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
-                    file[names[cat]] = df_dict["NOMINAL"][cat]
-                    if notag:
-                        file[name_notag] = df_dict["NOMINAL"][cat]  # this is wrong, to be fixed
+                    split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], target_length=int(args.tbasket_length))
+
+                    for i, current_dict in enumerate(split_nominal_dict):
+                        logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
+
+                        if args.log == "DEBUG":
+                            array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                            logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+
+                        if i == 0:
+                            file[names[cat]] = current_dict
+                        else:
+                            file[names[cat]].extend(current_dict)
+
+                    if notag: # this is wrong, to be fixed
+                        split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], target_length=int(args.tbasket_length))
+
+                        for i, current_dict in enumerate(split_nominal_dict):
+                            logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
+
+                            if args.log == "DEBUG":
+                                array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                                logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+
+                            if i == 0:
+                                file[names[cat]] = current_dict
+                            else:
+                                file[names[cat]].extend(current_dict)
                 else:
-                    logger.info(f"no events survived category selection for cat: {cat}")
+                    logger.info(f"No events survived category selection for cat: {cat}")
 
         logger.info(
-            f"Successfully converted parquet file to ROOT file for process {process}."
+            f"Successfully wrote ROOT file for process {process}."
         )
 
 if __name__ == "__main__":
