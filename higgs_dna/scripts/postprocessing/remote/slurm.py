@@ -84,8 +84,8 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
 
                     current_process = decompose_string(file, process_map)
                 
-                print(f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {current_process} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str}")
-                commands.append(f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {current_process} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str}")
+                print(f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {current_process} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str} {tbasket_str}")
+                commands.append(f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {current_process} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str} {tbasket_str}")
                 
                 if (_opt.type.lower() != "data"):
                     random_delay = True
