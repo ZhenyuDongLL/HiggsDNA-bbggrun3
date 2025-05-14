@@ -180,9 +180,8 @@ def main():
     parser.add_option(
         "--verbose",
         dest="verbose",
-        type="string",
-        default="INFO",
-        help="Verbosity level for the logger: INFO (default), DEBUG",
+        action="store_true",
+        help="Debugging verbosity for logger.",
     )
     parser.add_option(
         "--output",
@@ -319,9 +318,9 @@ def main():
     else:
         outfiles_map_file = os.path.join(BASEDIR, "scripts/postprocessing/config_jsons/outfiles.yaml")
 
-    if (opt.verbose != "INFO") and (opt.verbose != "DEBUG"):
-        opt.verbose = "INFO"
-    logger = setup_logger(level=opt.verbose)
+    logger_verbosity = "DEBUG" if opt.verbose else "INFO"
+
+    logger = setup_logger(level=logger_verbosity)
 
     folder_for_dirlist = opt.input
     if opt.batch == "condor/apptainer":
@@ -422,6 +421,7 @@ def main():
     tbasket_str = f"--tbasket-length {opt.root_tbasket_length}" if (opt.root_tbasket_length != "") else ""
     outfiles_map_str = f"--outfiles-map {outfiles_map_file}" if (opt.outfiles_map != "")  else ""
     custom_accumulator_str = "--custom-accumulator" if opt.custom_accumulator else ""
+    verbose_str = "--verbose" if opt.verbose else ""
 
 # Define string if normalisation to be skipped
     skip_normalisation_str = "--skip-normalisation" if opt.skip_normalisation else ""
@@ -430,18 +430,18 @@ def main():
 
 # The process var below is the function that will be executed in parallel for each systematic variation. It substitutes the old loop of the systematics to speed up the process.
 # Paths now must be ABSOLUTE!! - CD while multi thread is not a good idea!
-    def process_var(var, var_dict, IN_PATH, OUT_PATH, SCRIPT_DIR, file, cat_dict, skip_normalisation_str):
+    def process_var(var, var_dict, IN_PATH, OUT_PATH, SCRIPT_DIR, file, cat_dict, verbose_str, skip_normalisation_str):
         target_dir = f"{OUT_PATH}/merged/{file}/{var_dict[var]}"
         MKDIRP(target_dir)
 
-        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {skip_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
+        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {verbose_str} {skip_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
         logger.info(command)
 
         # Execute the command using subprocess.run
         subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
 # Loop to paralelize the loop over the "files", which are the ttH_125_preEE, etc. datasets
-    def process_file(file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisation_str, opt):
+    def process_file(file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, verbose_str, skip_normalisation_str, opt):
         file = file.strip()  # Removes newline characters and leading/trailing whitespace
         if "data" not in file.lower():
             target_path = f"{OUT_PATH}/merged/{file}"
@@ -452,7 +452,7 @@ def main():
             if opt.syst:
                 # Systematic variations processing
                 with ThreadPoolExecutor(max_workers=7) as executor:
-                    futures = [executor.submit(process_var, var, var_dict, IN_PATH, OUT_PATH, SCRIPT_DIR, file, cat_dict_loc, skip_normalisation_str) for var in var_dict]
+                    futures = [executor.submit(process_var, var, var_dict, IN_PATH, OUT_PATH, SCRIPT_DIR, file, cat_dict_loc, verbose_str, skip_normalisation_str) for var in var_dict]
 
                 for future in futures:
                     try:
@@ -461,7 +461,7 @@ def main():
                         logger.error(f"Error processing variable: {e}")
             else:
                 # Single nominal processing for MC
-                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {skip_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
+                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
                 subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
         else:
             # Data processing
@@ -471,10 +471,10 @@ def main():
                 raise Exception(f"The selected target path: {merged_target_path} already exists")
             if not os.path.exists(data_dir_path):
                 MKDIRP(data_dir_path)
-            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict_loc} --is-data {genBinning_str} --abs {custom_accumulator_str}'
+            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data {genBinning_str} --abs {custom_accumulator_str}'
             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
-    def root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, skip_normalisation_str):
+    def root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, verbose_str, skip_normalisation_str):
         file = file.split("\n")[0]
         if opt.merge_data and (opt.type.lower() == "data"):
             source_folder_path = f"{IN_PATH}"
@@ -496,7 +496,7 @@ def main():
 
             MKDIRP(target_folder_path)
 
-        command = f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {opt.type} --process {decompose_string(file, process_map)} {outfiles_map_str} {skip_normalisation_str} {merge_data_str} {do_syst_str}"
+        command = f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {opt.type} --process {decompose_string(file, process_map)} {verbose_str} {outfiles_map_str} {skip_normalisation_str} {merge_data_str} {do_syst_str}"
         logger.info(command)
         
         # Execute the command using subprocess.run
@@ -512,12 +512,12 @@ def main():
                         for j, file in enumerate(files):
                             file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
                             if j > 0: continue
-                            root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, skip_normalisation_str)
+                            root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, verbose_str, skip_normalisation_str)
                     else:
                         print(files)
                         # No more loop over the files, we will use the ThreadPoolExecutor to parallelize the process!
                         with ThreadPoolExecutor(max_workers=8) as executor:
-                            futures = [executor.submit(root_process_var, cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, skip_normalisation_str) for file in files]
+                            futures = [executor.submit(root_process_var, cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, verbose_str, skip_normalisation_str) for file in files]
 
                         # Optionally, wait for all futures to complete and check for exceptions
                         for future in futures:
@@ -540,7 +540,7 @@ def main():
 
                 # No more loop over the files, we will use the ThreadPoolExecutor to parallelize the process!
                 with ThreadPoolExecutor(max_workers=8) as executor:
-                    futures = [executor.submit(process_file, file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, skip_normalisation_str, opt) for file in files]
+                    futures = [executor.submit(process_file, file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, verbose_str, skip_normalisation_str, opt) for file in files]
 
                 # Optionally, wait for all futures to complete and check for exceptions
                 for future in futures:
@@ -558,7 +558,7 @@ def main():
                     if "data" in file.lower() or "DoubleEG" in file:
                         dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                         if len(filenames) > 0:
-                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data {genBinning_str} --abs {custom_accumulator_str}'
+                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data {genBinning_str} {verbose_str} --abs {custom_accumulator_str}'
                             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
                             break
                         else:
@@ -594,7 +594,7 @@ def main():
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         os.system(
-                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs"
+                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs"
                         )
                     elif "data" in file.lower():
                         if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
@@ -617,12 +617,12 @@ def main():
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs'
                             )
                         else:
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs'
                             )
 
         if opt.ws:
@@ -685,7 +685,7 @@ def main():
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, dirlist_path=dirlist_path, var_dict=var_dict, 
             cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
             skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, time=opt.time, partition=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger, 
-            process_map=process_map, outfiles_map_str=outfiles_map_str
+            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str
             )
 
     elif ("condor" in opt.batch):
@@ -693,7 +693,7 @@ def main():
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=CONDOR_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path, 
             var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str, 
             skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, job_flavor=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger, 
-            process_map=process_map, outfiles_map_str=outfiles_map_str
+            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str
         )
 
     # We don't want to leave trash around

@@ -256,7 +256,7 @@ def main():
         default=5000,
         help="Length of the tbasket in the ROOT file.",
     )
-
+    parser.add_argument("--verbose", dest="verbose", action="store_true", help="Debugging verbosity for logger.")
     args = parser.parse_args()
     source_path = args.source
     target_path = args.target
@@ -300,7 +300,9 @@ def main():
     else:
         gen_binning = None
 
-    logger = setup_logger(level="INFO")
+    logger_verbosity = "DEBUG" if args.verbose else "INFO"
+
+    logger = setup_logger(level=logger_verbosity)
 
     logger.warning("Renormalize_BTag_Weights is not implemented yet for the new version of merge_root.py")
 
@@ -454,9 +456,8 @@ def main():
                     for i, current_dict in enumerate(split_nominal_dict):
                         logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
 
-                        if args.log == "DEBUG":
-                            array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
-                            logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+                        array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                        logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                         if i == 0:
                             file[names[cat]] = current_dict
@@ -494,9 +495,8 @@ def main():
                             for i, current_dict in enumerate(split_dict):
                                 logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
 
-                                if args.log == "DEBUG":
-                                    array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
-                                    logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+                                array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                                logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                                 if i == 0:
                                     file[syst_name + "01sigma"] = current_dict
@@ -519,9 +519,8 @@ def main():
                             for i, current_dict in enumerate(split_dict):
                                 logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
 
-                                if args.log == "DEBUG":
-                                    array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
-                                    logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+                                array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                                logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                                 if i == 0:
                                     file[syst_name + "01sigma"] = current_dict
@@ -542,9 +541,8 @@ def main():
                     for i, current_dict in enumerate(split_nominal_dict):
                         logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
 
-                        if args.log == "DEBUG":
-                            array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
-                            logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+                        array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                        logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                         if i == 0:
                             file[names[cat]] = current_dict
@@ -557,9 +555,8 @@ def main():
                         for i, current_dict in enumerate(split_nominal_dict):
                             logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
 
-                            if args.log == "DEBUG":
-                                array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
-                                logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+                            array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                            logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                             if i == 0:
                                 file[names[cat]] = current_dict
