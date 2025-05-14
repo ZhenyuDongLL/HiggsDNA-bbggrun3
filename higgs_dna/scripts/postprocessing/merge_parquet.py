@@ -95,6 +95,12 @@ def main():
         description="Simple utility script to merge all parquet files in one folder."
     )
     parser.add_argument(
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        help="Debugging verbosity for logger.",
+    )
+    parser.add_argument(
         "--source",
         type=str,
         default="",
@@ -169,8 +175,9 @@ def main():
     else:
         gen_binning = None
 
-    logger = setup_logger(level="INFO")
+    logger_verbosity = "DEBUG" if args.verbose else "INFO"
 
+    logger = setup_logger(level=logger_verbosity)
 
     if (
         (len(source_paths) != len(target_paths))

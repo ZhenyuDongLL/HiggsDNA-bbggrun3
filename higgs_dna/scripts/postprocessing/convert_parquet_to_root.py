@@ -33,9 +33,7 @@ def main():
     parser.add_argument("source", type=str, help="Path to input file.")
     parser.add_argument("target", type=str, help="Path to desired output file.")
     parser.add_argument("type", type=str, help="Type of dataset (data or mc).")
-    parser.add_argument(
-        "--log", dest="log", type=str, default="INFO", help="Logger info level"
-    )
+    parser.add_argument("--verbose", dest="verbose", action="store_true", help="Debugging verbosity for logger.")
     parser.add_argument("--process", type=str, default="", help="Production mode.")
     parser.add_argument(
         "--notag",
@@ -99,7 +97,9 @@ def main():
     notag = True if (args.type == "mc" and args.notag == True) else False
     process = args.process if (args.process != "") else "data"
 
-    logger = setup_logger(level=args.log)
+    logger_verbosity = "DEBUG" if args.verbose else "INFO"
+
+    logger = setup_logger(level=logger_verbosity)
 
     BASEDIR = resources.files("higgs_dna").joinpath("")
 
@@ -357,9 +357,8 @@ def main():
                     for i, current_dict in enumerate(split_dict):
                         logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
 
-                        if args.log == "DEBUG":
-                            array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
-                            logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+                        array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                        logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
 
                         if i == 0:
                             file[names[cat]] = current_dict
@@ -374,9 +373,8 @@ def main():
                         for i, current_dict in enumerate(split_dict):
                             logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
 
-                            if args.log == "DEBUG":
-                                array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
-                                logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
+                            array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                            logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
 
                             if i == 0:
                                 file[names[cat]] = current_dict
