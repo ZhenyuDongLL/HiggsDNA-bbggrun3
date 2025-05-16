@@ -273,9 +273,6 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
         exit()
     elif "2016" in year:
         year = "2016"
-    elif "2023" in year:
-        logger.warning("2023 SFs are not yet available, using 2022postEE SFs instead. Do not consider these results as final!")
-        year = "2022postEE"
 
     if year in ["2016", "2017", "2018"]:
         # 2017 file should be renamed with the year in its name...
@@ -321,13 +318,19 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
     elif "2022" in year:
-        # presentation of SF: https://indico.cern.ch/event/1360961/#173-run-3-electron-veto-sfs
+        # presentation of the updated 2022 SF with dR>0.1: https://indico.cern.ch/event/1536748/contributions/6471184/attachments/3056856/5405041/202504_Zmmg_eveto_DRG0p1_ForEG_Updated.pdf 
         if year == "2022preEE":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/preEE_CSEV_SFcorrections.json")
         if year == "2022postEE":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/postEE_CSEV_SFcorrections.json")
-        if "2023" in year:
-            json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/postEE_CSEV_SFcorrections.json")
+        evaluator = correctionlib.CorrectionSet.from_file(json_file)["CSEV_SFs"]
+
+    elif "2023" in year:
+        # presentation of 2023 SF with dR>0.1: https://indico.cern.ch/event/1536748/contributions/6471184/attachments/3056856/5405041/202504_Zmmg_eveto_DRG0p1_ForEG_Updated.pdf
+        if year == "2023preBPix":
+            json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/preBPix_CSEV_SFcorrections.json")
+        if year == "2023postBPix":
+            json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/postBPix_CSEV_SFcorrections.json")    
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["CSEV_SFs"]
 
         if is_correction:
