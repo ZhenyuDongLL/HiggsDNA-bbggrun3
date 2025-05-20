@@ -1276,6 +1276,28 @@ def get_HHbbgg_btag_WPs_json(logger, target_dir, use_xrdcp=False):
     }
     fetch_file("HHbbgg_bTag_WPs", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
+def get_HHbbgg_mbb_reg_model(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/tools/"
+        )
+
+    from_to_dict = {
+        "mbb_model_2022": {
+            "from": "/eos/home-j/jafan/public/mbbModels/mjj_model_2022.onnx",
+            "to": f"{to_prefix}/mjj_model_2022.onnx",
+            "type": "eos",
+        },
+        "mbb_model_2023": {
+            "from": "/eos/home-j/jafan/public/mbbModels/mjj_model_2023.onnx",
+            "to": f"{to_prefix}/mjj_model_2023.onnx",
+            "type": "eos",
+        },
+    }
+    fetch_file("HHbbgg_mbb_reg_model", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
 
 def get_HHbbgg_weight_interference_json(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
@@ -1448,6 +1470,7 @@ def main():
         get_diphoton_id_mva_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_hpc_bdt_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_HHbbgg_btag_WPs_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_HHbbgg_mbb_reg_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_muon_scale_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "GoldenJSON":
@@ -1506,6 +1529,8 @@ def main():
         get_hpc_bdt_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "HHbbgg_bTag_WPs":
         get_HHbbgg_btag_WPs_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "HHbbgg_mbb_reg_model":
+        get_HHbbgg_mbb_reg_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "HHbbgg_weight_interference":
         get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     else:

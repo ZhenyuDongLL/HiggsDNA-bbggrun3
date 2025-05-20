@@ -49,10 +49,12 @@ def test_processors(processor_class):
     # Pull the btagging SF files
     subprocess.run("pull_files.py --target bTag", shell=True)
 
-    # Need to pull some JSONs for HHbbggProcessor
+    # Need to pull some JSONs and ONNXs for HHbbggProcessor
     # wget is used to download the files from the cernbox public link at the moment, should be updated with xrdcp
     subprocess.run("wget -O higgs_dna/tools/WPs_btagging_HHbbgg.json https://cernbox.cern.ch/remote.php/dav/public-files/hOAABXExhgfL5AW/WPs_btagging.json", shell=True)
     subprocess.run("wget -O higgs_dna/tools/Weights_interference_HHbbgg.json https://cernbox.cern.ch/remote.php/dav/public-files/ouOPOW9xLuJ4gM5/Weights_interference.json", shell=True)
+    subprocess.run("wget -O higgs_dna/tools/mjj_model_2023.onnx https://cernbox.cern.ch/remote.php/dav/public-files/ZfAj5DTMn4EPBAG/mjj_model_2023.onnx", shell=True)
+    subprocess.run("wget -O higgs_dna/tools/mjj_model_2022.onnx https://cernbox.cern.ch/remote.php/dav/public-files/UqXkR4Nte1mvBAr/mjj_model_2022.onnx", shell=True)
 
     # Choose datasets to run over appropriately
     # In the future, should specify datasets on eos instead of local files
