@@ -1034,7 +1034,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons[f"{AnType}_CosThetaStar_gg"] = ak.fill_none(getCosThetaStar_gg(HHbbgg), -999.0)
                 diphotons[f"{AnType}_CosThetaStar_jj"] = ak.fill_none(getCosThetaStar_jj(HHbbgg), -999.0)
 
-                if AnType == "nonRes":
+                if AnType in ["nonRes", "nonResReg"]:
                     # Add VBF jets information
                     # HHbbgg = ak.with_name(HHbbgg, "PtEtaPhiMCandidate", behavior=candidate.behavior)
                     # jets = ak.with_name(jets, "PtEtaPhiMCandidate", behavior=candidate.behavior)
