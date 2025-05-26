@@ -370,7 +370,8 @@ def main():
         else:
             df_dict["NOMINAL"] = {}
             for cat, _ in cat_dict.items():
-                dict = get_dataset(args, source_path, cat, is_data, False, source_path, target_path, cat_dict, gen_binning, logger, rename_dict)
+                subfolder_path = os.path.join(source_path, "nominal")
+                dict = get_dataset(args, subfolder_path, cat, is_data, False, source_path, target_path, cat_dict, gen_binning, logger, rename_dict)
                 df_dict["NOMINAL"][cat] = dict
 
     else:
