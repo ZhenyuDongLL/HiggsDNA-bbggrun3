@@ -533,7 +533,7 @@ def main():
                     for j, file in enumerate(files):
                         file = file.split("\n")[0]
                         if opt.merge_data and (opt.type.lower() == "data") and j > 0: continue
-                        root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, skip_normalisation_str)
+                        root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, verbose_str, skip_normalisation_str)
         if opt.merge:
             with open(dirlist_path) as fl:
                 files = fl.readlines()
