@@ -80,9 +80,8 @@ def process_custom_accumulator(source_path, logger):
     for f in source_files:
         try:
             file_accumulator = pq.read_table(f).schema.metadata[b'custom_accumulator']
-        except KeyError as e:
-            logger.error(f"Custom accumulator requested but not found in file {f}")
-            raise e
+        except KeyError:
+            logger.warning(f"Custom accumulator requested but not found in file {f}")
         file_accumulator = file_accumulator.decode("utf-8")
         file_accumulator = ast.literal_eval(file_accumulator)
         for key, value in file_accumulator.items():

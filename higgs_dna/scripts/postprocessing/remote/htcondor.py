@@ -24,7 +24,7 @@ def MKDIRP(dirpath, verbose=False, dry_run=False):
     return
 
 
-def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, outfiles_map_str, job_flavor, memory, decompose_string, logger, verbose_str, process_map):
+def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, outfiles_map_str, job_flavor, memory, decompose_string, logger, verbose_str, process_map, custom_accumulator_str):
 
     job_flavor = job_flavor or "microcentury"
 
@@ -180,9 +180,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                                     MKDIRP(f"{OUT_PATH}/merged/{file}/{var_dict[var]}")
 
                                     os.chdir(SCRIPT_DIR)
-                                    logger.info(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} --abs {genBinning_str}")
+                                    logger.info(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} --abs {genBinning_str} {custom_accumulator_str}")
                                     executable_file.write(f"if [ $1 -eq {i} ]; then\n")
-                                    executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} --abs {genBinning_str} || exit 107\n")
+                                    executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {OUT_PATH}/merged/{file}/{var_dict[var]}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} --abs {genBinning_str} {custom_accumulator_str} || exit 107\n")
                                     executable_file.write("exit 0\n")
                                     executable_file.write("fi\n")
                                     i += 1
@@ -190,9 +190,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             else:
                                 i = 1
                                 os.chdir(SCRIPT_DIR)
-                                print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} --abs {genBinning_str}")
+                                print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} --abs {genBinning_str} {custom_accumulator_str}")
                                 executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} --abs {genBinning_str} || exit 107\n")
+                                executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/{file}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} --abs {genBinning_str} {custom_accumulator_str} || exit 107\n")
                                 executable_file.write("exit 0\n")
                                 executable_file.write("fi\n")
 
@@ -260,9 +260,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             if not os.path.exists(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'):
                                 MKDIRP(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}')
                             os.chdir(SCRIPT_DIR)
-                            print(f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str}')
+                            print(f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}')
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} || exit 107\n")
+                            executable_file.write(f"    merge_parquet.py --source {IN_PATH}/{file}/nominal --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str} || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
 
@@ -335,9 +335,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             executable_file.write("#!/bin/sh\n")
                             dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                             if len(filenames) > 0:
-                                print(f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str}')
+                                print(f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}')
                                 executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                                executable_file.write(f"    merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} || exit 107\n")
+                                executable_file.write(f"    merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split('_')[-1]} --target {OUT_PATH}/merged/Data_{file.split('_')[-1]}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str} || exit 107\n")
                                 executable_file.write("exit 0\n")
                                 executable_file.write("fi\n")
                                 #break
