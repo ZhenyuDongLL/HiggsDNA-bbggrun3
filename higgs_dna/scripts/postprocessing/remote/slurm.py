@@ -35,7 +35,7 @@ def submit_slurm_jobs(directory, suffix=""):
         if file.endswith(f"{suffix}.sh"):
             os.system(f"sbatch {os.path.join(directory, file)}")
 
-def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, outfiles_map_str, time, partition, memory, decompose_string, logger, verbose_str, process_map):
+def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, outfiles_map_str, time, partition, memory, decompose_string, logger, verbose_str, process_map, custom_accumulator_str):
 
     time = time or "01:00:00"
     partition = partition or "short"
@@ -124,16 +124,16 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                                 target_path = f"$TARGET_PATH/merged/{file}/{var_dict[var]}/"
                             else:
                                 os.makedirs(target_path, exist_ok=True)
-                            print(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str}")
-                            commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str}")
+                            print(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str} {custom_accumulator_str}")
+                            commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str} {custom_accumulator_str}")
                         else:
                             target_path = f"{OUT_PATH}/merged/Data_{file.split('_')[-1]}"
                             if (_opt.batch == "slurm/psi"):
                                 target_path = f"$TARGET_PATH/merged/Data_{file.split('_')[-1]}"
                             else:
                                 os.makedirs(target_path, exist_ok=True)
-                            print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str}")
-                            commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str}")
+                            print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
+                            commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
                         
                         create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged", random_delay=True, memory=memory, time=time, partition=partition)
         
@@ -159,16 +159,16 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                                 target_path = f"$TARGET_PATH/merged/{file}/nominal/"
                             else:
                                 os.makedirs(target_path, exist_ok=True)
-                            print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str}")
-                            commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal/ --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str}")
+                            print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str} {custom_accumulator_str}")
+                            commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal/ --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str} {custom_accumulator_str}")
                         else:
                             target_path = f"{OUT_PATH}/merged/Data_{file.split('_')[-1]}"
                             if (_opt.batch == "slurm/psi"):
                                 target_path = f"$TARGET_PATH/merged/Data_{file.split('_')[-1]}"
                             else:
                                 os.makedirs(target_path, exist_ok=True)
-                            print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str}")
-                            commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str}")
+                            print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
+                            commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
                         
                         create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged", memory=memory, time=time, partition=partition)
                 
@@ -200,8 +200,8 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                             target_path = f"$TARGET_PATH/merged/Data_{file.split('_')[-1]}"
                         else:
                             os.makedirs(target_path, exist_ok=True)
-                        print(f"merge_parquet.py --source {IN_PATH}/{file} --target {target_path}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str}")
-                        commands.append(f"merge_parquet.py --source {IN_PATH}/{file} --target {target_path}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str}")
+                        print(f"merge_parquet.py --source {IN_PATH}/{file} --target {target_path}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
+                        commands.append(f"merge_parquet.py --source {IN_PATH}/{file} --target {target_path}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
                     else:
                         logger.info(f'No merged parquet found for {file} in the directory: {target_path}')
                 else:
