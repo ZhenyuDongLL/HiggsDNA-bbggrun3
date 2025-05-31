@@ -201,9 +201,9 @@ class ZmmyProcessor(HggSkeletonProcessor):
                 else:
                     s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon["pt_raw"] = ak.copy(events.Photon.pt)
+            events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
         if s_or_s_ele_applied:
-            events.Electron["pt_raw"] = ak.copy(events.Electron.pt)
+            events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
 
         # object corrections:
         for correction_name in correction_names:
