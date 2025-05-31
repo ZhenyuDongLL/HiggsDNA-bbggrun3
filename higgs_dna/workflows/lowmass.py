@@ -519,9 +519,9 @@ class lowmassProcessor(HggSkeletonProcessor):
                 else:
                     s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon["pt_raw"] = ak.copy(events.Photon.pt)
+            events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
         if s_or_s_ele_applied:
-            events.Electron["pt_raw"] = ak.copy(events.Electron.pt)
+            events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
