@@ -484,13 +484,23 @@ def get_eveto_json(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "2022preEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/preEE_CSEV_SFcorrections.json",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs/preEE_CSEV_SFcorrections.json",
             "to": f"{to_prefix}/2022/preEE_CSEV_SFcorrections.json",
             "type": "eos",
         },
         "2022postEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/postEE_CSEV_SFcorrections.json",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs/postEE_CSEV_SFcorrections.json",
             "to": f"{to_prefix}/2022/postEE_CSEV_SFcorrections.json",
+            "type": "eos",
+        },
+        "2023preBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs/preBPix_CSEV_SFcorrections.json",
+            "to": f"{to_prefix}/2023/preBPix_CSEV_SFcorrections.json",
+            "type": "eos",
+        },
+        "2022postBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs/postBPix_CSEV_SFcorrections.json",
+            "to": f"{to_prefix}/2023/postBPix_CSEV_SFcorrections.json",
             "type": "eos",
         },
     }
