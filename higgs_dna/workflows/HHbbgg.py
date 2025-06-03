@@ -2,7 +2,7 @@ from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
-from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attributes, match_jet
+from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attributes, match_jet, match_fatjet_hbb
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.tools.HHbbgg_mbb_regression import calculate_mbb_regression
 from higgs_dna.selections.photon_selections import photon_preselection
@@ -634,6 +634,22 @@ class HHbbggProcessor(HggSkeletonProcessor):
                             key = f"jet{i+1}_genMatched_Hbb"
                             value = match_jet(jets, gen_b_hbb, i, -999.0)
                             diphotons[key] = ak.fill_none(value, -999.0)
+
+                is_last_copy = events.GenPart.hasFlags(["isLastCopy"])
+                b_mask = (abs(events.GenPart.pdgId) == 5)
+                # This ensures we only keep b's whose mother is Higgs
+                mom_idx = events.GenPart.genPartIdxMother
+                higgs_mother = ak.any(abs(events.GenPart[mom_idx].pdgId) == 25, axis=1)
+
+                # 2) Combine them:
+                final_bs = events.GenPart[b_mask & is_last_copy & higgs_mother]
+                final_bs["charge"] = ak.zeros_like(final_bs.pt)
+                final_bs = ak.with_name(final_bs, "PtEtaPhiMCandidate")
+
+                for i in range(self.num_fatjets_to_store):
+                    key = f"fatjet{i+1}_genMatched_Hbb"
+                    value = match_fatjet_hbb(fatjets, final_bs, i, -999.0, jet_size=0.8)
+                    diphotons[key] = ak.fill_none(value, -999.0)
 
                 #   - boolean array of matched fatjet
                 #   - genPartonFlav array of matched genFatJet
