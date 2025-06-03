@@ -222,3 +222,19 @@ def match_jet(reco_jets, gen_jets, n, fill_value, jet_size=0.4, jet_flav=False):
             ~ak.is_none(ak.firsts(reco_jets_i)), matched_jets_bool, fill_value
         )
         return matched_jets_bool
+
+
+def match_fatjet_hbb(reco_jets, gen_jets, n, fill_value, jet_size=0.8):
+    reco_jets_i = reco_jets[ak.local_index(reco_jets, axis=1) == n]
+    reco_jets_i = ak.pad_none(reco_jets_i, 1, clip=True)
+
+    candidate_jet_matches = ak.cartesian({"reco": reco_jets_i, "gen": gen_jets}, axis=1)
+    candidate_jet_matches["deltaR_jj"] = DeltaR(
+        candidate_jet_matches["reco"], candidate_jet_matches["gen"]
+    )
+
+    # Count number of gen jets within jet_size for each reco jet
+    close_matches = candidate_jet_matches["deltaR_jj"] < jet_size
+    match_count = ak.sum(close_matches, axis=1)
+
+    return ak.fill_none(match_count == 2, fill_value)
