@@ -35,7 +35,7 @@ def submit_slurm_jobs(directory, suffix=""):
         if file.endswith(f"{suffix}.sh"):
             os.system(f"sbatch {os.path.join(directory, file)}")
 
-def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, outfiles_map_str, time, partition, memory, decompose_string, logger, verbose_str, process_map, custom_accumulator_str):
+def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, SLURM_PATH, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, outfiles_map_str, time, partition, memory, decompose_string, logger, verbose_str, process_map, custom_accumulator_str):
 
     time = time or "01:00:00"
     partition = partition or "short"
@@ -44,21 +44,19 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
     if _opt.root_only:
         with open(dirlist_path) as fl:
             files = fl.readlines()
-            log_path = os.getcwd()
-            if _opt.logs is not None:
-                log_path = _opt.logs
+            log_path = SLURM_PATH
 
             for j, file in enumerate(files):
                 if _opt.merge_data and (_opt.type.lower() == "data") and j > 0: continue
                 file = file.split("\n")[0]
-                
+
                 os.makedirs(os.path.join(log_path, file), exist_ok=True)
                 job_script = os.path.join(log_path, file, f"{file}_root.sh")
                 job_out = os.path.join(log_path, file, f"{file}_root.out")
                 job_err = os.path.join(log_path, file, f"{file}_root.err")
-                
+
                 commands = []
-                
+
                 # Handle merge data for data type if applicable
                 if _opt.merge_data and (_opt.type.lower() == "data"):
                     source_folder_path = f"{IN_PATH}"
@@ -83,19 +81,19 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                         os.makedirs(target_folder_path, exist_ok=True)
 
                     current_process = decompose_string(file, process_map)
-                
+
                 print(f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {current_process} {verbose_str} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str} {tbasket_str}")
                 commands.append(f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {current_process} {verbose_str} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str} {tbasket_str}")
-                
+
                 if (_opt.type.lower() != "data"):
                     random_delay = True
                     sleeping = True
                 else:
                     random_delay = False
                     sleeping = False
-                
+
                 create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="root", random_delay=random_delay, memory=memory, time=time, partition=partition)
-        
+
                 submit_slurm_jobs(os.path.join(log_path, file), suffix="root")
                 if sleeping:
                     sleep(2)
@@ -104,9 +102,7 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
     if _opt.merge and not _opt.merge_data:
         with open(dirlist_path) as fl:
             files = fl.readlines()
-            log_path = os.getcwd()
-            if _opt.logs is not None:
-                log_path = _opt.logs
+            log_path = SLURM_PATH
             if _opt.syst:
                 for file in files:
                     for var in var_dict:
@@ -117,7 +113,7 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                         job_err = os.path.join(log_path, file, var_dict[var], f"{file}.err")
 
                         commands = []
-                        
+
                         if "data" not in file.lower():
                             target_path = f"{OUT_PATH}/merged/{file}/{var_dict[var]}/"
                             if (_opt.batch == "slurm/psi"):
@@ -134,25 +130,23 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                                 os.makedirs(target_path, exist_ok=True)
                             print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
                             commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
-                        
+
                         create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged", random_delay=True, memory=memory, time=time, partition=partition)
-        
+
                         submit_slurm_jobs(os.path.join(log_path, file, var_dict[var]))
                         sleep(2)  # Wait 2 seconds before submitting the next job
             else:
                 with open(dirlist_path) as fl:
                     files = fl.readlines()
-                    log_path = os.getcwd()
                     for file in files:
                         file = file.strip()
-                        if _opt.logs is not None:
-                            log_path = _opt.logs
+                        log_path = SLURM_PATH
                         job_script = os.path.join(log_path, f"{file}.sh")
                         job_out = os.path.join(log_path, f"{file}.out")
                         job_err = os.path.join(log_path, f"{file}.err")
 
                         commands = []
-                        
+
                         if "data" not in file.lower():
                             target_path = f"{OUT_PATH}/merged/{file}/nominal/"
                             if (_opt.batch == "slurm/psi"):
@@ -169,28 +163,26 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                                 os.makedirs(target_path, exist_ok=True)
                             print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
                             commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
-                        
+
                         create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="merged", memory=memory, time=time, partition=partition)
-                
+
                 submit_slurm_jobs(log_path)
 
     elif _opt.merge_data:
         j = 0.
         with open(dirlist_path) as fl:
             files = fl.readlines()
-            log_path = os.getcwd()
             for file in files:
                 if j != 0: continue
                 file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
                 file = file.strip()
-                if _opt.logs is not None:
-                    log_path = _opt.logs
+                log_path = SLURM_PATH
                 job_script = os.path.join(log_path, f"{file}_mergeData.sh")
                 job_out = os.path.join(log_path, f"{file}_mergeData.out")
                 job_err = os.path.join(log_path, f"{file}_mergeData.err")
 
                 commands = []
-            
+
                 if "data" in file.lower() or "DoubleEG" in file:
                     target_path = f"{OUT_PATH}/merged/Data_{file.split('_')[-1]}"
                     print(target_path)
@@ -223,11 +215,9 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
             args = ""
         with open(dirlist_path) as fl:
             files = fl.readlines()
-            log_path = os.getcwd()
             for file in files:
                 file = file.strip()
-                if _opt.logs is not None:
-                    log_path = _opt.logs
+                log_path = SLURM_PATH
                 job_script = os.path.join(log_path, f"{file}_root.sh")
                 job_out = os.path.join(log_path, f"{file}_root.out")
                 job_err = os.path.join(log_path, f"{file}_root.err")
@@ -246,7 +236,7 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
 
                     print(f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {target_path}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str}")
                     commands.append(f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {target_path}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str}")
-                
+
                 elif "data" in file.lower():
                     
                     if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
@@ -257,14 +247,14 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, dirlist_path, var_dict, cat_di
                         raise Exception(
                             f'Merged parquet not found at: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
                         )
-                                            
+
                     target_path = f"{OUT_PATH}/root/Data"
                     if (_opt.batch == "slurm/psi"):
                         target_path = f"$TARGET_PATH/root/Data"
-                        
+
                     print(f"convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {target_path}/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str}")
                     commands.append(f"convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {target_path}/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str}")
-                
+
                 create_slurm_script(_opt, file, job_script, job_out, job_err, commands, OUT_PATH=OUT_PATH, mode="root", memory=memory, time=time, partition=partition)
-        
+
             submit_slurm_jobs(log_path, "root")

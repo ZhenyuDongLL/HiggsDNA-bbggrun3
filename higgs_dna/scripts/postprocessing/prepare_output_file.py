@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Author Tiziano Bevilacqua (03/03/2023) and Nico Haerringer (16/07/2024)
 import os
+import sys
 import subprocess
 from optparse import OptionParser
 import json
@@ -205,16 +206,9 @@ def main():
         help="Flag for merging data to an allData file.",
     )
     parser.add_option(
-        "--make-condor-logs",
-        dest="make_condor_logs",
-        action="store_true",
-        default=False,
-        help="Condor log files activated.",
-    )
-    parser.add_option(
         "--batch",
         dest="batch",
-        choices=["condor", "condor/apptainer", "slurm", "slurm/psi", "local", "local/futures"],
+        choices=["condor", "slurm", "slurm/psi", "local", "local/futures"],
         default="local",
         help="Run HTCondor with or without Docker image of HiggsDNA's current master branch or run via SLURM. The slurm/psi option is for use on the PSI Tier 3 only. If local, run with futures. Default: futures.",
     )
@@ -284,6 +278,13 @@ def main():
             "Determines resource allocation and expected queue time. Common flavors include 'espresso', 'microcentury', 'longlunch', etc.",
     )
     parser.add_option(
+        "--apptainer-image",
+        type=str,
+        dest="apptainer_image",
+        default="/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest",
+        help="Specifies the Apptainer image used for the HTCondor submission. ",
+    )
+    parser.add_option(
         "--root-tbasket-length",
         type=int,
         dest="root_tbasket_length",
@@ -300,6 +301,13 @@ def main():
     (opt, args) = parser.parse_args()
 
     BASEDIR = resources.files("higgs_dna").joinpath("")
+
+    if (opt.batch == "condor") or ("slurm" in opt.batch):
+        if not opt.logs:
+            logger.error("You did not specify the log directory for the batch submission. Specify one with --logs /path/to/logs.")
+            sys.exit()
+        else:
+            BATCH_PATH = os.path.realpath(os.path.abspath(opt.logs)) # need real absolute path. otherwise problems can arise on lxplus (between afs and eos) for the condor submission
 
     # load external process_map
     if opt.process_map:
@@ -323,7 +331,7 @@ def main():
     logger = setup_logger(level=logger_verbosity)
 
     folder_for_dirlist = opt.input
-    if opt.batch == "condor/apptainer":
+    if opt.batch == "condor":
         if opt.root and not opt.merge:
             folder_for_dirlist = opt.input + "/merged"
         elif opt.folder_structure != "":
@@ -348,8 +356,11 @@ def main():
         var_dict = {
             "NOMINAL": "nominal",
         }
-        # Creating nominal var_dict temporarily in higgs_dna's base folder
-        var_dict_loc = os.path.join(BASEDIR, "variation.json")
+        # Creating nominal var_dict temporarily in higgs_dna's base folder or the batch log directory
+        if ("slurm" in opt.batch) or (opt.batch == "condor"):
+            var_dict_loc = os.path.join(BATCH_PATH, "variation.json")
+        else:
+            var_dict_loc = os.path.join(BASEDIR, "variation.json")
         with open(var_dict_loc, "w") as file:
             file.write(json.dumps(var_dict))
     else:
@@ -367,8 +378,11 @@ def main():
     else:
         logger.info("You chose to run without cats or you did not specify the path to a categorisation dictionary JSON, so we will only use one inclusive NOTAG category.")
         cat_dict = {"NOTAG": {"cat_filter": [("pt", ">", -1.0)]}}
-        # Creating NOTAG cat_dict temporarily in higgs_dna's base folder
-        cat_dict_loc = os.path.join(BASEDIR, "category.json")
+        # Creating NOTAG cat_dict temporarily in higgs_dna's base folder or the batch log directory
+        if ("slurm" in opt.batch) or (opt.batch == "condor"):
+            cat_dict_loc = os.path.join(BATCH_PATH, "category.json")
+        else:
+            cat_dict_loc = os.path.join(BASEDIR, "category.json")
         with open(cat_dict_loc, "w") as file:
             file.write(json.dumps(cat_dict))
 
@@ -378,10 +392,6 @@ def main():
     SCRIPT_DIR = os.path.dirname(
         os.path.abspath(__file__)
     )  # script directory
-    
-
-    if opt.logs != "":
-        CONDOR_PATH = os.path.realpath(os.path.abspath(opt.logs)) # need real absolute path. otherwise problems can arise on lxplus (between afs and eos)
 
 # I create a dictionary and save it to a temporary json so that this can be shared between the two scripts
 # and then gets deleted to not leave trash around. We have to care for the environment :P.
@@ -394,7 +404,7 @@ def main():
 #     file.write(json.dumps(var_dict))
 
 # Using OUT_PATH for the location of the output if different from the input path
-    if (not opt.batch == "condor/apptainer") and (not "slurm" in opt.batch):
+    if (not opt.batch == "condor") and (not "slurm" in opt.batch):
         if opt.output == "":
             OUT_PATH = IN_PATH
 
@@ -682,28 +692,29 @@ def main():
 
     elif ("slurm" in opt.batch):
         slurm_postprocessing(
-            _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, dirlist_path=dirlist_path, var_dict=var_dict, 
+            _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, SLURM_PATH=BATCH_PATH, dirlist_path=dirlist_path, var_dict=var_dict, 
             cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
-            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, time=opt.time, partition=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger, 
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, time=opt.time, partition=opt.job_flavor,memory=opt.memory, decompose_string=decompose_string, logger=logger,
             process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str
             )
 
-    elif ("condor" in opt.batch):
+    elif opt.batch == "condor":
         htcondor_postprocessing(
-            _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=CONDOR_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path, 
+            _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=BATCH_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path, 
             var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str, 
-            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, job_flavor=opt.job_flavor, memory=opt.memory, decompose_string=decompose_string, logger=logger, 
+            skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, job_flavor=opt.job_flavor, memory=opt.memory,decompose_string=decompose_string, logger=logger,
             process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str
         )
 
     # We don't want to leave trash around
-    if os.path.exists(dirlist_path):
-        os.system(f"rm {dirlist_path}")
-    if ((opt.catDict is None) and (opt.varDict is None)) and (opt.output == ""):
-        if os.path.exists(cat_dict_loc):
-            os.system(f"rm {cat_dict_loc}")
-        if os.path.exists(var_dict_loc):
-            os.system(f"rm {var_dict_loc}")
+    if 'local' in opt.batch:
+        if os.path.exists(dirlist_path):
+            os.system(f"rm {dirlist_path}")
+        if ((opt.catDict is None) and (opt.varDict is None)) and (opt.output == ""):
+            if os.path.exists(cat_dict_loc):
+                os.system(f"rm {cat_dict_loc}")
+            if os.path.exists(var_dict_loc):
+                os.system(f"rm {var_dict_loc}")
 
 if __name__ == "__main__":
     main()
