@@ -317,15 +317,12 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
-    elif "2022" in year:
+    elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
         # presentation of the updated 2022 SF with dR>0.1: https://indico.cern.ch/event/1536748/contributions/6471184/attachments/3056856/5405041/202504_Zmmg_eveto_DRG0p1_ForEG_Updated.pdf
         if year == "2022preEE":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/preEE_CSEV_SFcorrections.json")
         if year == "2022postEE":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/postEE_CSEV_SFcorrections.json")
-        evaluator = correctionlib.CorrectionSet.from_file(json_file)["CSEV_SFs"]
-
-    elif "2023" in year:
         # presentation of 2023 SF with dR>0.1: https://indico.cern.ch/event/1536748/contributions/6471184/attachments/3056856/5405041/202504_Zmmg_eveto_DRG0p1_ForEG_Updated.pdf
         if year == "2023preBPix":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/preBPix_CSEV_SFcorrections.json")
