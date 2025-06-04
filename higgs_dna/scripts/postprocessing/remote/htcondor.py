@@ -46,36 +46,22 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                 file = file.split("\n")[0]
                 # parent_id = 0
                 # MC dataset are identified as everythingthat does not contain "data" or "Data" in the name.
-                if _opt.logs != "":
-                    jobs_dir = CONDOR_PATH
-                else: 
-                    jobs_dir = OUTPATH
+                jobs_dir = CONDOR_PATH
                 if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
                     job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
                 elif ("/eos/cms" in os.path.realpath(jobs_dir)):
                     job_file_dir = "root://eoscms.cern.ch/" + os.path.realpath(jobs_dir)
                 else:
                     job_file_dir = os.path.realpath(jobs_dir)
-                    
-                if _opt.logs != "":
-                    job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
-                    job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
-                else:
-                    job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
-                    job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
-                if not _opt.make_condor_logs:
-                    job_file_out = "/dev/null"
-                    job_file_err = "/dev/null"
-                    job_file_log = "/dev/null"
-                elif _opt.logs != "":
-                    job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
-                    job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
-                    job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
-                else:
-                    job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
-                    job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
-                    job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
-                
+
+                job_file_executable = os.path.join(jobs_dir, f"{file}.sh")
+                job_file_submit = os.path.join(jobs_dir, f"{file}.sub")
+
+
+                job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
+                job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
+                job_file_log = os.path.join(jobs_dir, f"{file}.$(ClusterId).log")
+
                 with open(job_file_executable, "w") as executable_file:
                     executable_file.write("#!/bin/sh\n")
                     if (not _opt.merge_data) or (_opt.type.lower() == "mc"):
@@ -96,10 +82,10 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     executable_file.write(f"    merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {_opt.type} --process {decompose_string(file, process_map)} {verbose_str} {skip_normalisation_str} {merge_data_str} {do_syst_str} {outfiles_map_str} {tbasket_str} || exit 107\n")
                     executable_file.write("exit 0\n")
                     executable_file.write("fi\n")
-                        
+
                 os.system(f"chmod 775 {job_file_executable}")
                 with open(job_file_submit, "w") as submit_file:
-                    if _opt.logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
+                    submit_file.write(f"initialdir = {jobs_dir}\n")
                     submit_file.write(f"executable = {job_file_executable}\n")
                     submit_file.write("arguments = $(ProcId)\n")
                     submit_file.write(f"output = {job_file_out}\n")
@@ -108,20 +94,18 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     submit_file.write(f"output_destination = {job_file_dir}\n")
                     submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                     submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
-                    if (_opt.batch == "condor/apptainer"):
-                        submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                        submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                        submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                    submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
+                    submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
+                    submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                     submit_file.write("max_retries = 3\n")
                     submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                     if memory != None:
                         submit_file.write(f"request_memory = {memory}\n")
+                    submit_file.write(f'getenv = True\n')
                     submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                     submit_file.write(f"queue\n")
-            if _opt.logs != "":
-                submit_jobs(CONDOR_PATH)
-            else:
-                submit_jobs(OUT_PATH)
+            submit_jobs(jobs_dir)
+
     if _opt.merge:
         with open(dirlist_path) as fl:
             files = fl.readlines()
@@ -130,10 +114,8 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     file = file.split("\n")[0]
                     # parent_id = 0
                     # MC dataset are identified as everythingthat does not contain "data" or "Data" in the name.
-                    if _opt.logs != "":
-                        jobs_dir = CONDOR_PATH
-                    else: 
-                        jobs_dir = OUTPATH
+                    jobs_dir = CONDOR_PATH
+
                     if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
                         job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
                     elif ("/eos/cms" in os.path.realpath(jobs_dir)):
@@ -142,25 +124,12 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         job_file_dir = os.path.realpath(jobs_dir)
 
                     if "data" not in file.lower():
-                        if _opt.logs != "":
-                            job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
-                            job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
-                        else:
-                            job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
-                            job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
+                        job_file_executable = os.path.join(jobs_dir, f"{file}.sh")
+                        job_file_submit = os.path.join(jobs_dir, f"{file}.sub")
 
-                        if not _opt.make_condor_logs:
-                            job_file_out = "/dev/null"
-                            job_file_err = "/dev/null"
-                            job_file_log = "/dev/null"
-                        elif _opt.logs != "":
-                            job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
-                            job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
-                            job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
-                        else:
-                            job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
-                            job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
-                            job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
+                        job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
+                        job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
+                        job_file_log = os.path.join(jobs_dir, f"{file}.$(ClusterId).log")
 
                         with open(job_file_executable, "w") as executable_file:
                             executable_file.write("#!/bin/sh\n")
@@ -198,7 +167,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
 
                         os.system(f"chmod 775 {job_file_executable}")
                         with open(job_file_submit, "w") as submit_file:
-                            if _opt.logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
+                            submit_file.write(f"initialdir = {jobs_dir}\n")
                             submit_file.write(f"executable = {job_file_executable}\n")
                             submit_file.write("arguments = $(ProcId)\n")
                             submit_file.write(f"output = {job_file_out}\n")
@@ -208,22 +177,20 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
-                            if (_opt.batch == "condor/apptainer"):
-                                submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                                submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                            submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
+                            submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
+                            submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             if memory != None:
                                 submit_file.write(f"request_memory = {memory}\n")
+                            submit_file.write(f'getenv = True\n')
                             submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                             submit_file.write(f"queue {i}\n")
 
                     else:
-                        if _opt.logs != "":
-                            jobs_dir = CONDOR_PATH
-                        else: 
-                            jobs_dir = OUTPATH
+                        jobs_dir = CONDOR_PATH
+
                         if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
                             job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
                         elif ("/eos/cms" in os.path.realpath(jobs_dir)):
@@ -231,25 +198,12 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         else:
                             job_file_dir = os.path.realpath(jobs_dir)
 
-                        if _opt.logs != "":
-                            job_file_executable = os.path.join(CONDOR_PATH, f"{file}.sh")
-                            job_file_submit = os.path.join(CONDOR_PATH, f"{file}.sub")
-                        else:
-                            job_file_executable = os.path.join(OUT_PATH, f"{file}.sh")
-                            job_file_submit = os.path.join(OUT_PATH, f"{file}.sub")
+                        job_file_executable = os.path.join(jobs_dir, f"{file}.sh")
+                        job_file_submit = os.path.join(jobs_dir, f"{file}.sub")
 
-                        if not _opt.make_condor_logs:
-                            job_file_out = "/dev/null"
-                            job_file_err = "/dev/null"
-                            job_file_log = "/dev/null"
-                        elif _opt.logs != "":
-                            job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
-                            job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
-                            job_file_log = os.path.join(CONDOR_PATH, f"{file}.$(ClusterId).log")
-                        else:
-                            job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
-                            job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
-                            job_file_log = os.path.join(OUT_PATH, f"{file}.$(ClusterId).log")
+                        job_file_out = f"{file}.$(ClusterId).$(ProcId).out"
+                        job_file_err = f"{file}.$(ClusterId).$(ProcId).err"
+                        job_file_log = os.path.join(jobs_dir, f"{file}.$(ClusterId).log")
 
                         with open(job_file_executable, "w") as executable_file:
                             executable_file.write("#!/bin/sh\n")
@@ -268,7 +222,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
 
                         os.system(f"chmod 775 {job_file_executable}")
                         with open(job_file_submit, "w") as submit_file:
-                            if _opt.logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
+                            submit_file.write(f"initialdir = {jobs_dir}\n")
                             submit_file.write(f"executable = {job_file_executable}\n")
                             submit_file.write("arguments = $(ProcId)\n")
                             submit_file.write(f"output = {job_file_out}\n")
@@ -278,20 +232,17 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
-                            if (_opt.batch == "condor/apptainer"):
-                                submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                                submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                            submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
+                            submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
+                            submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             if memory != None:
                                 submit_file.write(f"request_memory = {memory}\n")
+                            submit_file.write(f'getenv = True\n')
                             submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                             submit_file.write(f"queue\n")
-                if _opt.logs != "":
-                    submit_jobs(CONDOR_PATH)
-                else:
-                    submit_jobs(OUT_PATH)
+                submit_jobs(jobs_dir)
 
             # at this point Data will be split in eras if any Data dataset is present, here we merge them again in one allData file to rule them all
             # we also skip this step if there is no Data
@@ -300,10 +251,8 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                 for file in files:
                     if j != 0: continue
                     file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
-                    if _opt.logs != "":
-                        jobs_dir = CONDOR_PATH
-                    else: 
-                        jobs_dir = OUTPATH
+
+                    jobs_dir = CONDOR_PATH
                     if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
                         job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
                     elif ("/eos/cms" in os.path.realpath(jobs_dir)):
@@ -311,25 +260,13 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     else:
                         job_file_dir = os.path.realpath(jobs_dir)
 
-                    if _opt.logs != "":
-                        job_file_executable = os.path.join(CONDOR_PATH, f"{file}_merge_data.sh")
-                        job_file_submit = os.path.join(CONDOR_PATH, f"{file}_merge_data.sub")
-                    else:
-                        job_file_executable = os.path.join(OUT_PATH, f"{file}_merge_data.sh")
-                        job_file_submit = os.path.join(OUT_PATH, f"{file}_merge_data.sub")
+                    job_file_executable = os.path.join(jobs_dir, f"{file}_merge_data.sh")
+                    job_file_submit = os.path.join(jobs_dir, f"{file}_merge_data.sub")
 
-                    if not _opt.make_condor_logs:
-                        job_file_out = "/dev/null"
-                        job_file_err = "/dev/null"
-                        job_file_log = "/dev/null"
-                    elif _opt.logs != "":
-                        job_file_out = f"{file}_merge_data.$(ClusterId).$(ProcId).out"
-                        job_file_err = f"{file}_merge_data.$(ClusterId).$(ProcId).err"
-                        job_file_log = os.path.join(CONDOR_PATH, f"{file}_merge_data.$(ClusterId).log")
-                    else:
-                        job_file_out = f"{file}_merge_data.$(ClusterId).$(ProcId).out"
-                        job_file_err = f"{file}_merge_data.$(ClusterId).$(ProcId).err"
-                        job_file_log = os.path.join(OUT_PATH, f"{file}_merge_data.$(ClusterId).log")
+                    job_file_out = f"{file}_merge_data.$(ClusterId).$(ProcId).out"
+                    job_file_err = f"{file}_merge_data.$(ClusterId).$(ProcId).err"
+                    job_file_log = os.path.join(jobs_dir, f"{file}_merge_data.$(ClusterId).log")
+
                     if "data" in file.lower() or "DoubleEG" in file:
                         with open(job_file_executable, "w") as executable_file:
                             executable_file.write("#!/bin/sh\n")
@@ -344,7 +281,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             else:
                                 logger.info(f'No merged parquet found for {file} in the directory: {OUT_PATH}/merged/Data_{file.split("_")[-1]}')
                         with open(job_file_submit, "w") as submit_file:
-                            if _opt.logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
+                            submit_file.write(f"initialdir = {jobs_dir}\n")
                             submit_file.write(f"executable = {job_file_executable}\n")
                             submit_file.write("arguments = $(ProcId)\n")
                             submit_file.write(f"output = {job_file_out}\n")
@@ -354,22 +291,20 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                             submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                             # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
-                            if (_opt.batch == "condor/apptainer"):
-                                submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                                submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                                submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                            submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
+                            submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
+                            submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                             submit_file.write("max_retries = 3\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             if memory != None:
                                 submit_file.write(f"request_memory = {memory}\n")
+                            submit_file.write(f'getenv = True\n')
                             submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                             submit_file.write(f"queue\n")
                     os.system(f"chmod 775 {job_file_executable}")
                     j += 1
-                if _opt.logs != "":
-                    submit_jobs(CONDOR_PATH, "merge_data")
-                else:
-                    submit_jobs(OUT_PATH, "merge_data")
+                submit_jobs(jobs_dir, "merge_data")
+
 
     if _opt.root:
         logger.info("Starting root step")
@@ -388,10 +323,8 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
             files = fl.readlines()
             for file in files:
                 file = file.split("\n")[0]
-                if _opt.logs != "":
-                    jobs_dir = CONDOR_PATH
-                else: 
-                    jobs_dir = OUTPATH
+                jobs_dir = CONDOR_PATH
+
                 if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
                     job_file_dir = "root://eosuser.cern.ch/" + os.path.realpath(jobs_dir)
                 elif ("/eos/cms" in os.path.realpath(jobs_dir)):
@@ -399,28 +332,15 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                 else:
                     job_file_dir = os.path.realpath(jobs_dir)
                 if "data" not in file.lower() and (not "unknown" in decompose_string(file, process_map, era_flag=_opt.eraFlag)):
-                    if _opt.logs != "":
-                        job_file_executable = os.path.join(CONDOR_PATH, f"{file}_root.sh")
-                    else:
-                        job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
+                    job_file_executable = os.path.join(jobs_dir, f"{file}_root.sh")
 
                     if not _opt.merge:
-                        if _opt.logs != "":
-                            job_file_submit = os.path.join(CONDOR_PATH, f"{file}_root.sub")
-                        else:
-                            job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
-                        if not _opt.make_condor_logs:
-                            job_file_out = "/dev/null"
-                            job_file_err = "/dev/null"
-                            job_file_log = "/dev/null"
-                        elif _opt.logs != "":
-                            job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
-                            job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
-                            job_file_log = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).log")
-                        else:
-                            job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
-                            job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
-                            job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
+                        job_file_submit = os.path.join(jobs_dir, f"{file}_root.sub")
+
+                        job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
+                        job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
+                        job_file_log = os.path.join(jobs_dir, f"{file}_root.$(ClusterId).log")
+
                     with open(job_file_executable, "w") as executable_file:
                         executable_file.write("#!/bin/sh\n")
                         if os.path.exists(f"{OUT_PATH}/root/{file}"):
@@ -440,7 +360,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         executable_file.write("fi\n")
                     os.system(f"chmod 775 {job_file_executable}")
                     with open(job_file_submit, "w") as submit_file:
-                        if _opt.logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
+                        submit_file.write(f"initialdir = {jobs_dir}\n")
                         submit_file.write(f"executable = {job_file_executable}\n")
                         submit_file.write("arguments = $(ProcId)\n")
                         submit_file.write(f"output = {job_file_out}\n")
@@ -450,40 +370,25 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                         submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                         # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
-                        if (_opt.batch == "condor/apptainer"):
-                            submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                            submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                            submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                        submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
+                        submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
+                        submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                         submit_file.write("max_retries = 3\n")
                         submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                         if memory != None:
                             submit_file.write(f"request_memory = {memory}\n")
+                        submit_file.write(f'getenv = True\n')
                         submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                         submit_file.write(f"queue\n")
                 elif "data" in file.lower():
-                    if _opt.logs != "":
-                        job_file_executable = os.path.join(CONDOR_PATH, f"{file}_root.sh")
-                    else:
-                        job_file_executable = os.path.join(OUT_PATH, f"{file}_root.sh")
+                    job_file_executable = os.path.join(jobs_dir, f"{file}_root.sh")
 
                     if not _opt.merge:
-                        if _opt.logs != "":
-                            job_file_submit = os.path.join(CONDOR_PATH, f"{file}_root.sub")
-                        else:
-                            job_file_submit = os.path.join(OUT_PATH, f"{file}_root.sub")
+                        job_file_submit = os.path.join(jobs_dir, f"{file}_root.sub")
 
-                        if not _opt.make_condor_logs:
-                            job_file_out = "/dev/null"
-                            job_file_err = "/dev/null"
-                            job_file_log = "/dev/null"
-                        elif _opt.logs != "":
-                            job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
-                            job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
-                            job_file_log = os.path.join(CONDOR_PATH, f"{file}_root.$(ClusterId).log")
-                        else:
-                            job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
-                            job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
-                            job_file_log = os.path.join(OUT_PATH, f"{file}_root.$(ClusterId).log")
+                        job_file_out = f"{file}_root.$(ClusterId).$(ProcId).out"
+                        job_file_err = f"{file}_root.$(ClusterId).$(ProcId).err"
+                        job_file_log = os.path.join(jobs_dir, f"{file}_root.$(ClusterId).log")
 
                     with open(job_file_executable, "w") as executable_file:
                         executable_file.write("#!/bin/sh\n")
@@ -518,7 +423,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             executable_file.write("fi\n")
                 os.system(f"chmod 775 {job_file_executable}")
                 with open(job_file_submit, "w") as submit_file:
-                    if _opt.logs != "": submit_file.write(f"initialdir = {CONDOR_PATH}\n")
+                    submit_file.write(f"initialdir = {jobs_dir}\n")
                     submit_file.write(f"executable = {job_file_executable}\n")
                     submit_file.write("arguments = $(ProcId)\n")
                     submit_file.write(f"output = {job_file_out}\n")
@@ -528,17 +433,14 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     submit_file.write("on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n")
                     submit_file.write("periodic_release =  (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n")
                     # if _opt.max_materialize != "": submit_file.write(f"max_materialize = {_opt.max_materialize}\n")
-                    if (_opt.batch == "condor/apptainer"):
-                        submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
-                        submit_file.write("""MY.SingularityImage     = "/cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest"\n""")
-                        submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
+                    submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
+                    submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
+                    submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
                     submit_file.write("max_retries = 3\n")
                     submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                     if memory != None:
                         submit_file.write(f"request_memory = {memory}\n")
+                    submit_file.write(f'getenv = True\n')
                     submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                     submit_file.write(f"queue\n")
-        if _opt.logs != "":
-            submit_jobs(CONDOR_PATH, "root")
-        else:
-            submit_jobs(OUT_PATH, "root")
+        submit_jobs(jobs_dir, "root")
