@@ -1326,6 +1326,23 @@ def get_HHbbgg_weight_interference_json(logger, target_dir, use_xrdcp=False):
     }
     fetch_file("HHbbgg_weight_interference", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
+def get_HHbbgg_DNN_bpairing_model(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/tools/"
+        )
+
+    from_to_dict = {
+        "HHbbgg_bpairing": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/ejourdhu/DNN_bpairing/DNN_bpairing_allyears.onnx",
+            "to": f"{to_prefix}/HHbbgg_DNN_bpairing_allyears.onnx",
+            "type": "eos",
+        },
+    }
+    fetch_file("HHbbgg_bpairing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
 def get_muon_scale_smearing(logger, target_dir, use_xrdcp=False):
     # References (not in Central jsonPOG repo yet):
     # https://gitlab.cern.ch/cms-muonPOG/muonscarekit
@@ -1483,6 +1500,7 @@ def main():
         get_HHbbgg_mbb_reg_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_muon_scale_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_HHbbgg_DNN_bpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "GoldenJSON":
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PU":
@@ -1543,6 +1561,8 @@ def main():
         get_HHbbgg_mbb_reg_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "HHbbgg_weight_interference":
         get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "HHbbgg_bpairing":
+        get_HHbbgg_DNN_bpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     else:
         logger.info("Unknown target, exit now!")
         exit(0)
