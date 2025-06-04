@@ -4,6 +4,7 @@ from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
 from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attributes, match_jet, match_fatjet_hbb
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
+from higgs_dna.tools.HHbbgg_bpairing import Compute_DNN_bpairing
 from higgs_dna.tools.HHbbgg_mbb_regression import calculate_mbb_regression
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
@@ -79,7 +80,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
         doDeco: bool = False,
         Smear_sigma_m: bool = False,
         doFlow_corrections: bool = False,
-        output_format: str = "parquet"
+        output_format: str = "parquet",
     ) -> None:
         super().__init__(
             metaconditions,
@@ -102,6 +103,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             output_format=output_format
         )
 
+        self.bbgg_analysis = ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair"]
         self.nano_version = nano_version
 
         # muon selection cuts
@@ -144,9 +146,6 @@ class HHbbggProcessor(HggSkeletonProcessor):
         self.num_jets_to_store = 10
         self.num_fatjets_to_store = 4
         self.num_leptons_to_store = 4
-
-        # Choose which type of analysis :
-        self.bbgg_analysis = ["nonRes", "Res", "nonResReg"]
 
         # Choose fiducial cut
         self.fiducialCuts = "store_flag"  # right now, this is needed even though default for HHbbgg workflow is store_flag as the defualt command line argument for fiducialCuts ('classical') over rides the default of the workflow
@@ -844,10 +843,19 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
             dijets_base = calculate_mbb_regression(model_file, dijets_base)
 
-            for AnType in self.bbgg_analysis :
+            if any("DNNpair" in item for item in self.bbgg_analysis):
+                keras_model = os.path.join(os.path.dirname(__file__), "../tools/DNN_bpairing_allyears.onnx")
+                dijets_base["DNNpair_Score"] = Compute_DNN_bpairing(dijets_base,diphotons,keras_model)
+
+            for AnType in self.bbgg_analysis:
                 dijets = ak.copy(dijets_base)
-                if AnType not in ["nonRes", "Res", "nonResReg"]:
+                if AnType not in ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair"]:
                     raise NotImplementedError
+                if "DNNpair" in AnType :
+                    try :
+                        dijets = dijets[ak.argsort(dijets.DNNpair_Score, ascending=False)]
+                    except ValueError as e:
+                        logger.warning(f"Error sorting dijets: {e}")
                 if AnType == "nonRes":
                     dijets = dijets[dijets["mass"] > 70]
                     self.calc_cut_flow(f"{AnType}_dijet_lower_mass_cut", diphotons[~ak.is_none(ak.firsts(dijets))], metadata)
@@ -855,13 +863,16 @@ class HHbbggProcessor(HggSkeletonProcessor):
                     dijets = dijets[dijets["mass"] < 190]
                     self.calc_cut_flow(f"{AnType}_dijet_upper_mass_cut", diphotons[~ak.is_none(ak.firsts(dijets))], metadata)
                     self.calc_cut_flow(f"{AnType}_dijet_upper_mass_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets))) | (diphotons["n_fatjets"] > 0)], metadata)
-                if AnType == "nonResReg":
+                if "nonResReg" in AnType:
                     dijets = dijets[dijets["mass_DNNreg"] > 70]
                     self.calc_cut_flow(f"{AnType}_dijet_lower_mass_cut", diphotons[~ak.is_none(ak.firsts(dijets))], metadata)
                     self.calc_cut_flow(f"{AnType}_dijet_lower_mass_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets))) | (diphotons["n_fatjets"] > 0)], metadata)
                     dijets = dijets[dijets["mass_DNNreg"] < 190]
                     self.calc_cut_flow(f"{AnType}_dijet_upper_mass_cut", diphotons[~ak.is_none(ak.firsts(dijets))], metadata)
                     self.calc_cut_flow(f"{AnType}_dijet_upper_mass_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets))) | (diphotons["n_fatjets"] > 0)], metadata)
+                if "DNNpair" in AnType:
+                    dijet_DNNpair_Score = choose_jet(dijets.DNNpair_Score, 0, -999.0)
+                    diphotons[f"{AnType}_dijet_DNNpair_Score"] = dijet_DNNpair_Score
 
                 lead_bjet_pt = choose_jet(dijets["first_jet"].pt, 0, -999.0)
                 lead_bjet_eta = choose_jet(dijets["first_jet"].eta, 0, -999.0)
@@ -875,6 +886,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 lead_bjet_jet_idx = choose_jet(dijets["first_jet"].index, 0, -999.0)
                 lead_bjet_rawFactor = choose_jet(dijets["first_jet"].rawFactor, 0, -999.0)
                 lead_bjet_pt_orig = choose_jet(dijets["first_jet"].pt_orig, 0, -999.0)
+                lead_bjet_hFlav = choose_jet(dijets["first_jet"].hFlav, 0, -999.0)
 
                 sublead_bjet_pt = choose_jet(dijets["second_jet"].pt, 0, -999.0)
                 sublead_bjet_eta = choose_jet(dijets["second_jet"].eta, 0, -999.0)
@@ -888,6 +900,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 sublead_bjet_jet_idx = choose_jet(dijets["second_jet"].index, 0, -999.0)
                 sublead_bjet_rawFactor = choose_jet(dijets["second_jet"].rawFactor, 0, -999.0)
                 sublead_bjet_pt_orig = choose_jet(dijets["second_jet"].pt_orig, 0, -999.0)
+                sublead_bjet_hFlav = choose_jet(dijets["second_jet"].hFlav, 0, -999.0)
 
                 MET_2D = ak.Array(
                     {
@@ -989,6 +1002,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons[f"{AnType}_lead_bjet_jet_idx"] = lead_bjet_jet_idx
                 diphotons[f"{AnType}_lead_bjet_rawFactor"] = lead_bjet_rawFactor
                 diphotons[f"{AnType}_lead_bjet_pt_orig"] = lead_bjet_pt_orig
+                diphotons[f"{AnType}_lead_bjet_hFlav"] = lead_bjet_hFlav
 
                 diphotons[f"{AnType}_sublead_bjet_pt"] = sublead_bjet_pt
                 diphotons[f"{AnType}_sublead_bjet_eta"] = sublead_bjet_eta
@@ -1002,6 +1016,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons[f"{AnType}_sublead_bjet_jet_idx"] = sublead_bjet_jet_idx
                 diphotons[f"{AnType}_sublead_bjet_rawFactor"] = sublead_bjet_rawFactor
                 diphotons[f"{AnType}_sublead_bjet_pt_orig"] = sublead_bjet_pt_orig
+                diphotons[f"{AnType}_sublead_bjet_hFlav"] = sublead_bjet_hFlav
 
                 diphotons[f"{AnType}_MET_ptPNetCorr"] = ak.where(lead_bjet_2D.pt != -999.0, MET_2D_PNet.pt, -999.0)
                 diphotons[f"{AnType}_MET_phiPNetCorr"] = ak.where(lead_bjet_2D.pt != -999.0, MET_2D_PNet.phi, -999.0)
@@ -1050,7 +1065,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons[f"{AnType}_CosThetaStar_gg"] = ak.fill_none(getCosThetaStar_gg(HHbbgg), -999.0)
                 diphotons[f"{AnType}_CosThetaStar_jj"] = ak.fill_none(getCosThetaStar_jj(HHbbgg), -999.0)
 
-                if AnType in ["nonRes", "nonResReg"]:
+                if AnType in ["nonRes", "nonResReg", "nonResReg_DNNpair"]:
                     # Add VBF jets information
                     # HHbbgg = ak.with_name(HHbbgg, "PtEtaPhiMCandidate", behavior=candidate.behavior)
                     # jets = ak.with_name(jets, "PtEtaPhiMCandidate", behavior=candidate.behavior)
