@@ -343,6 +343,7 @@ class lowmassProcessor(HggSkeletonProcessor):
         Smear_sigma_m: bool = False,
         doFlow_corrections: bool = False,
         output_format: str = "parquet",
+        e_veto: str = "presel",
     ) -> None:
         super().__init__(
             metaconditions,
@@ -370,9 +371,9 @@ class lowmassProcessor(HggSkeletonProcessor):
         # diphoton preselection cuts
         self.min_pt_photon = 18.0
         self.min_pt_lead_photon = 30.0
-        self.e_veto = "presel"  # presel/single_invert/double_invert
         self.trigger_group = ".*DoubleEG.*"
         self.analysis = "lowMassAnalysis"
+        self.e_veto = e_veto  # presel/single_invert/double_invert
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
@@ -658,6 +659,7 @@ class lowmassProcessor(HggSkeletonProcessor):
             # presel: both photons don't have pixelSeed
             # single_invert: one photon has pixelSeed, another doesn't have pixelSeed
             # double_invert: both photons have pixelSeed
+            logger.debug(f"[ lowmass ] e_veto set to: {self.e_veto}")
             if self.e_veto == "presel":
                 diphotons = diphotons[
                     (diphotons["pho_lead"].pixelSeed < 0.5)

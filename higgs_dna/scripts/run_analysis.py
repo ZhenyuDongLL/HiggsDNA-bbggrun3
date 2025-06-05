@@ -5,6 +5,7 @@ import os
 import sys
 import time
 from typing import List
+from copy import deepcopy
 
 import numpy as np
 import uproot
@@ -124,14 +125,22 @@ def main():
     analysis_name = args.json_analysis_file.split("/")[-1].split(".")[0]
     with open(args.json_analysis_file) as f:
         analysis = json.load(f)
-    workflow = analysis["workflow"]
+    analysis_orig = deepcopy(analysis)
+    workflow = analysis.pop("workflow")
     taggers = analysis.get("taggers", None)
-    metaconditions = analysis["metaconditions"]
-    samplejson = analysis["samplejson"]
-    systematics = analysis["systematics"]
-    corrections = analysis["corrections"]
-    year = analysis["year"]
+    if "taggers" in analysis:
+        analysis.pop("taggers")
+    metaconditions = analysis.pop("metaconditions")
+    samplejson = analysis.pop("samplejson")
+    systematics = analysis.pop("systematics")
+    corrections = analysis.pop("corrections")
+    year = analysis.pop("year")
     bTagEffFileName = analysis.get("bTagEffFileName", None)
+    if "bTagEffFileName" in analysis:
+        analysis.pop("bTagEffFileName")
+    analysis_name_json = analysis.get("analysis", None)
+    if "analysis" in analysis:
+        analysis.pop("analysis")
     logger.info(f"Corrections: {corrections}")
     logger.info(f"Systematics: {systematics}")
     logger.info(f"Year: {year}")
@@ -238,7 +247,7 @@ def main():
                 bTagEffFileName=bTagEffFileName,
                 apply_trigger=args.use_trigger,
                 output_location=args.dump,
-                analysis=args.analysis,
+                analysis=args.analysis if args.analysis else analysis_name_json,
                 trigger_group=args.triggerGroup,
                 taggers=wf_taggers,
                 applyCQR=args.applyCQR,
@@ -249,10 +258,13 @@ def main():
                 Smear_sigma_m=args.Smear_sigma_m,
                 doFlow_corrections=args.doFlow_corrections,
                 output_format=args.output_format,
+                **analysis,
             )  # additional args can go here to configure a processor
     else:
         if workflow == "dystudies":
-            logger.error("You selected the workflow 'dystudies', but it has been renamed to base. Exiting.")
+            logger.error(
+                "You selected the workflow 'dystudies', but it has been renamed to base. Exiting."
+            )
         raise NotImplementedError(f"Workflow '{workflow}' not implemented")
 
     if args.executor not in [
@@ -397,9 +409,9 @@ def main():
                     "error": "dask_job_output.err",
                     "should_transfer_files": "Yes",
                     "when_to_transfer_output": "ON_EXIT",
-                    "+JobFlavour": '"workday"'
-                    if args.queue is None
-                    else f'"{args.queue}"',
+                    "+JobFlavour": (
+                        '"workday"' if args.queue is None else f'"{args.queue}"'
+                    ),
                 },
                 job_script_prologue=env_extra,
             )
@@ -445,7 +457,7 @@ def main():
         args_string = " ".join(sys.argv[1:])
         vanilla_submitter = LXPlusVanillaSubmitter(
             analysis_name,
-            analysis,
+            analysis_orig,
             args.json_analysis_file,
             sample_dict,
             args_string,
