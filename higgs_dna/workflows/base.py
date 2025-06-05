@@ -65,7 +65,7 @@ class HggBaseProcessor(HggSkeletonProcessor):  # type: ignore
         doDeco: bool = False,
         Smear_sigma_m: bool = False,
         doFlow_corrections: bool = False,
-        output_format: str = "parquet"
+        output_format: str = "parquet",
     ) -> None:
         super().__init__(
             metaconditions,
