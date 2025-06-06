@@ -55,7 +55,7 @@ def test_processors(processor_class):
     subprocess.run("wget -O higgs_dna/tools/Weights_interference_HHbbgg.json https://cernbox.cern.ch/remote.php/dav/public-files/ouOPOW9xLuJ4gM5/Weights_interference.json", shell=True)
     subprocess.run("wget -O higgs_dna/tools/mjj_model_2023.onnx https://cernbox.cern.ch/remote.php/dav/public-files/ZfAj5DTMn4EPBAG/mjj_model_2023.onnx", shell=True)
     subprocess.run("wget -O higgs_dna/tools/mjj_model_2022.onnx https://cernbox.cern.ch/remote.php/dav/public-files/UqXkR4Nte1mvBAr/mjj_model_2022.onnx", shell=True)
-    subprocess.run("wget -O higgs_dna/tools/DNN_bpairing_allyears.onnx https://cernbox.cern.ch/remote.php/dav/public-files/2ckEwNSXbUg7okk/DNN_bpairing_allyears.onnx", shell=True)
+    subprocess.run("wget -O higgs_dna/tools/HHbbgg_DNN_bpairing_allyears.onnx https://cernbox.cern.ch/remote.php/dav/public-files/2ckEwNSXbUg7okk/HHbbgg_DNN_bpairing_allyears.onnx", shell=True)
 
     # Choose datasets to run over appropriately
     # In the future, should specify datasets on eos instead of local files

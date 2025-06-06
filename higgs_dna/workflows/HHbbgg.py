@@ -844,7 +844,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             dijets_base = calculate_mbb_regression(model_file, dijets_base)
 
             if any("DNNpair" in item for item in self.bbgg_analysis):
-                keras_model = os.path.join(os.path.dirname(__file__), "../tools/DNN_bpairing_allyears.onnx")
+                keras_model = os.path.join(os.path.dirname(__file__), "../tools/HHbbgg_DNN_bpairing_allyears.onnx")
                 dijets_base["DNNpair_Score"] = Compute_DNN_bpairing(dijets_base,diphotons,keras_model)
 
             for AnType in self.bbgg_analysis:
