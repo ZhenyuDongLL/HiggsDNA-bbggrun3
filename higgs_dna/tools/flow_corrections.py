@@ -227,6 +227,8 @@ class Make_iso_continuous:
         self.n_zero_events = torch.sum(self.iso_equal_zero)
         self.before_transform = tensor.clone().detach()
 
+        self.rng = np.random.default_rng(seed=42)
+
     # Shift the continous part of the continous distribution to (self.shift), and then sample values for the discontinous part
     def shift_and_sample(self, tensor):
 
@@ -236,7 +238,7 @@ class Make_iso_continuous:
         self.lowest_iso_value = 0
 
         tensor[bigger_than_zero] = tensor[bigger_than_zero] + self.shift - self.lowest_iso_value
-        tensor[tensor_zero] = torch.tensor(np.random.triangular(left=0., mode=0, right=self.shift * 0.99, size=tensor[tensor_zero].size()[0]), dtype=tensor[tensor_zero].dtype)
+        tensor[tensor_zero] = torch.tensor(self.rng.triangular(left=0., mode=0, right=self.shift * 0.99, size=tensor[tensor_zero].size()[0]), dtype=tensor[tensor_zero].dtype)
 
         # now a log trasform is applied on top of the smoothing to stretch the events in the 0 traingular and "kill" the iso tails
         tensor = torch.log(1e-3 + tensor)
