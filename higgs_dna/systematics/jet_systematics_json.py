@@ -124,7 +124,7 @@ def jerc_jet(
         logger.debug(
             f"[ jerc_jet ] - JERC for simulation - Year: {year} - Era: {era} - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst} - JER: {apply_jer}, systematics: {jer_syst}"
         )
-    elif "Run" in era and (not hasattr(events, "GenPart")):
+    elif (("Run" in era) or ("Data" in era)) and (not hasattr(events, "GenPart")):
         apply_jec = True
         jec_syst = False
         split_jec_syst = False
@@ -222,16 +222,18 @@ def jerc_jet(
             "RunG": "Summer22EE_22Sep2023_RunG_V2_DATA",
             "MC": "Summer22EE_22Sep2023_V2_MC",
         },
-        # For 2023 era C, different version of the datasets have different JECs
-        # Details: https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/-/issues/220#note_9180675
+        # For 2023 and 2024, the correct era is chosen based on the run the event is in.
+        # Details: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/merge_requests/118
         "2023preBPix": {
+            "Data": "Summer23Prompt23_V2_DATA",
             "RunCv123": "Summer23Prompt23_RunCv123_V1_DATA",
             "RunCv4": "Summer23Prompt23_RunCv4_V1_DATA",
-            "MC": "Summer23Prompt23_V1_MC",
+            "MC": "Summer23Prompt23_V2_MC",
         },
         "2023postBPix": {
+            "Data": "Summer23BPixPrompt23_V3_DATA",
             "RunD": "Summer23BPixPrompt23_RunD_V1_DATA",
-            "MC": "Summer23BPixPrompt23_V1_MC",
+            "MC": "Summer23BPixPrompt23_V3_MC",
         },
     }
     jec = jec_version[year][era]
@@ -243,6 +245,8 @@ def jerc_jet(
     # prepare inputs
     jets_jagged = deepcopy(events.Jet)
     counts = ak.num(jets_jagged)
+    if ("run" not in jets_jagged.fields) and (era == "Data"):
+        jets_jagged["run"] = events.run
     # backup of the original nanoaod jet pt, only for once
     if "pt_nano" not in jets_jagged.fields:
         jets_jagged["pt_nano"] = jets_jagged.pt
@@ -285,6 +289,9 @@ def jerc_jet(
         "JetPhi": jets.phi,
         "Rho": jets.rho_value,
         "JetA": jets.area,
+        **(
+            {"run": jets.run} if (era == "Data") else {}
+        ),
     }
 
     # jec central

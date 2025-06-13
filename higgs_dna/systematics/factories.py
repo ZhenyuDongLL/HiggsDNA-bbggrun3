@@ -82,12 +82,11 @@ def add_jme_corr_syst(corrections_dict, systematics_dict, logger):
             "jec_RunH": partial(jerc_jet, pt=None, era="RunH", level="L1L2L3Res"),
             "jec_pnet_RunH": partial(jerc_jet, pt=None, era="RunH", level="L1L2L3Res", pnet="PNetRegression"),
             "jec_pnetNu_RunH": partial(jerc_jet, pt=None, era="RunH", level="L1L2L3Res", pnet="PNetRegressionPlusNeutrino"),
-            # For 2023 era C, different version of the datasets have different JECs
-            # Details: https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/-/issues/220#note_9180675
-            "jec_RunCv123": partial(jerc_jet, pt=None, era="RunCv123", level="L1L2L3Res"),
+            # For 2023 and 2024, the correct era is chosen based on the run the event is in (except for PNetRegression and PNetRegressionPlusNeutrino)
+            # Details: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/merge_requests/118
+            "jec_Data2023": partial(jerc_jet, pt=None, era="Data", level="L1L2L3Res"),
             "jec_pnet_RunCv123": partial(jerc_jet, pt=None, era="RunCv123", level="L1L2L3Res", pnet="PNetRegression"),
             "jec_pnetNu_RunCv123": partial(jerc_jet, pt=None, era="RunCv123", level="L1L2L3Res", pnet="PNetRegressionPlusNeutrino"),
-            "jec_RunCv4": partial(jerc_jet, pt=None, era="RunCv4", level="L1L2L3Res"),
             "jec_pnet_RunCv4": partial(jerc_jet, pt=None, era="RunCv4", level="L1L2L3Res", pnet="PNetRegression"),
             "jec_pnetNu_RunCv4": partial(jerc_jet, pt=None, era="RunCv4", level="L1L2L3Res", pnet="PNetRegressionPlusNeutrino"),
         }
