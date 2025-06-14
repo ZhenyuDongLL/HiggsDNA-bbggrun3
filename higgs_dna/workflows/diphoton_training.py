@@ -6,6 +6,7 @@ from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attributes
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
+from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
@@ -554,7 +555,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
-                    "jetId": jets.jetId,
+                    "jetId": add_jetId(jets, self.nano_version, self.year[dataset_name][0], flattenUnflatten=True),  # add jet ID based on nano version
                     "n_sv": jets.nSVs if hasattr(jets, "nSVs") else ak.ones_like(jets.pt) * -1.,
                     "n_muons": jets.nMuons if hasattr(jets, "nMuons") else ak.ones_like(jets.pt) * -1.,
                     "n_electrons": jets.nElectrons if hasattr(jets, "nElectrons") else ak.ones_like(jets.pt) * -1.,

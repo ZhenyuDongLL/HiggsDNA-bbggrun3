@@ -11,6 +11,7 @@ from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.flow_corrections import apply_flow_corrections_to_photons
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
+from higgs_dna.tools.jetID import add_jetId
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import logging
@@ -383,12 +384,12 @@ class ZeeProcessor(HggSkeletonProcessor):
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
-                    "jetId": jets.jetId,
+                    "jetId": add_jetId(jets, self.nano_version, self.year[dataset_name][0], flattenUnflatten=True),  # add jet ID based on nano version
                     **(
                         {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chEmEF": jets.chEmEF, "muEF": jets.muEF} if self.nano_version == 12 else {}
                     ),
                     **(
-                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version == 13 else {}
+                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version >= 13 else {}
                     ),
                 }
             )

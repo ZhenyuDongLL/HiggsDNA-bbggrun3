@@ -6,6 +6,7 @@ from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attribu
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.tools.HHbbgg_bpairing import Compute_DNN_bpairing
 from higgs_dna.tools.HHbbgg_mbb_regression import calculate_mbb_regression
+from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
@@ -485,7 +486,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                     "PNetRegPtRawCorr": jets.PNetRegPtRawCorr,
                     "PNetRegPtRawCorrNeutrino": jets.PNetRegPtRawCorrNeutrino,
                     "PNetRegPtRawRes": jets.PNetRegPtRawRes,
-                    "jetId": jets.jetId,
+                    "jetId": add_jetId(jets, self.nano_version, self.year[dataset_name][0], flattenUnflatten=True),  # add jet ID based on nano version
                     "rawFactor": jets.rawFactor,
                     "pt_orig": jets.pt_orig,
                     **(
@@ -493,6 +494,9 @@ class HHbbggProcessor(HggSkeletonProcessor):
                     ),
                     **(
                         {"btagRobustParTAK4B": jets.btagRobustParTAK4B, "btagRobustParTAK4QG": jets.btagRobustParTAK4QG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version == 13 else {}
+                    ),
+                    **(
+                        {"btagUParTAK4B": jets.btagUParTAK4B, "btagUParTAK4QvG": jets.btagUParTAK4QvG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version >= 14 else {}
                     ),
 
                 }
@@ -860,7 +864,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
             if any("DNNpair" in item for item in self.bbgg_analysis):
                 keras_model = os.path.join(os.path.dirname(__file__), "../tools/HHbbgg_DNN_bpairing_allyears.onnx")
-                dijets_base["DNNpair_Score"] = Compute_DNN_bpairing(dijets_base,diphotons,keras_model)
+                dijets_base["DNNpair_Score"] = Compute_DNN_bpairing(dijets_base,diphotons,keras_model,self.nano_version)
 
             for AnType in self.bbgg_analysis:
                 dijets = dijets_base
