@@ -221,7 +221,7 @@ def process_dataset(name: str, sample_files: list, convention: str, limit, timeo
 
     # Get unique directory names
     # Retrieve the file location, eg "/store/data/Run2022C/EGamma/NANOAOD/16Dec2023-v1"
-    rootf_directory = ["/".join(f.split("/")[:-2]) for f in rootf_name]
+    rootf_directory = ["/".join([section for section in f.split("/")[:-1] if not section.isdigit()]) for f in rootf_name]
     unique_rootf_directory = []
     for directory in rootf_directory:
         if directory not in unique_rootf_directory:
