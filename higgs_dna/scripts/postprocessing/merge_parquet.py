@@ -261,7 +261,14 @@ def main():
                 if gen_binning != None:
                     for keys in gen_binning:
                         var_dict = {ast.literal_eval(key): value for key, value in gen_binning[keys].items()}
-                        dataset_arr = filter_and_set_diff_variable(dataset_arr, var_dict, keys, "diffVariable_" + keys)
+                        # If the length of the gen_binning tuple is 5 => Use first element in the tuple as primary selection variable
+                        # Example: ('GenPTH', 0, 15, 'in', '(GenDPhiJ0J1, >=, -3.1416);(GenDPhiJ0J1, <, -2.0944)')
+                        if len(list(var_dict.keys())[0]) == 5:
+                            selectionVariableName = list(var_dict.keys())[0][0]
+                            var_dict = {k[1:]: v for k, v in var_dict.items()}
+                        else:
+                            selectionVariableName = keys
+                        dataset_arr = filter_and_set_diff_variable(dataset_arr, var_dict, selectionVariableName, "diffVariable_" + keys)
 
                 # Add column for unnormalised weight
                 dataset_arr['weight_nominal'] = dataset_arr['weight']
