@@ -45,6 +45,73 @@ logger = logging.getLogger(__name__)
 vector.register_awkward()
 
 
+def DPhiV1V2(vec1, vec2):
+    """
+    Compute the generalized azimuthal angle difference Δφ between two objects
+    based on their transverse directions and spatial separation.
+
+    This observable captures the relative azimuthal orientation of two objects
+    and can be used to study symmetries and angular correlations in a variety
+    of systems.
+
+    The definition used is:
+
+        Δφ = sign_factor * arccos(vt1_hat ⋅ vt2_hat)
+
+    where:
+
+        sign_factor = sign((vt1_hat × vt2_hat) ⋅ z_hat) * sign((v1 - v2) ⋅ z_hat)
+
+    Parameters:
+        v1 (np.ndarray): 3D vector representing the position or momentum of the first object.
+        v2 (np.ndarray): 3D vector representing the position or momentum of the second object.
+        vt1_hat (np.ndarray): Unit vector representing the transverse component of the first object.
+        vt2_hat (np.ndarray): Unit vector representing the transverse component of the second object.
+        z_hat (np.ndarray): Unit vector defining the reference z-axis direction.
+
+    Returns:
+        float: The permutation invariant azimuthal angle difference Δφ in radians.
+
+    Notes:
+        - This definition is frame-independent as long as the transverse plane and z-axis are consistently defined.
+        - Useful in contexts involving angular distributions, symmetry studies, and CP-violation-sensitive observables.
+    """
+    # Extract 3D direction vectors
+    j1dir = vector.Array({"x": vec1.px, "y": vec1.py, "z": vec1.pz})
+    j2dir = vector.Array({"x": vec2.px, "y": vec2.py, "z": vec2.pz})
+
+    # Project to transverse plane (z = 0)
+    jt1 = vector.Array({"x": vec1.px, "y": vec1.py, "z": ak.zeros_like(vec1.px)})
+    jt2 = vector.Array({"x": vec2.px, "y": vec2.py, "z": ak.zeros_like(vec2.px)})
+
+    # Normalize transverse vectors
+    jt1_unit = jt1.unit()
+    jt2_unit = jt2.unit()
+
+    # z-axis unit vector
+    z = vector.Array({
+        "x": ak.zeros_like(vec1.px),
+        "y": ak.zeros_like(vec1.px),
+        "z": ak.ones_like(vec1.px),
+    })
+
+    # Sign from cross and difference
+    cross_sign = ak.where(jt1_unit.cross(jt2_unit).dot(z) > 0, 1.0, ak.where(jt1_unit.cross(jt2_unit).dot(z) < 0, -1.0, 0.0))
+
+    diff_sign = ak.where((j1dir - j2dir).dot(z) > 0, 1.0, ak.where((j1dir - j2dir).dot(z) < 0, -1.0, 0.0))
+
+    # Dot product
+    dot = jt1_unit.dot(jt2_unit)
+
+    # Valid range for acos is [-1, 1]
+    valid = (dot >= -1.0) & (dot <= 1.0)
+
+    # Compute acos only for valid entries
+    dphi = ak.where(valid, numpy.arccos(dot) * diff_sign * cross_sign, -999.0)
+
+    return dphi
+
+
 class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
     def __init__(
         self,
@@ -378,6 +445,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons['gen_first_jet_phi'] = gen_first_jet_phi
 
                 gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
+                gen_first_jet_pz = ak.where(gen_first_jet_eta == -999, -999, gen_first_jet_pz)
                 gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
 
                 with numpy.errstate(divide='ignore', invalid='ignore'):
@@ -397,26 +465,23 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 GenDYHJ0 = ak.fill_none(GenDYHJ0, -999.0)
                 diphotons["GenDYHJ0"] = GenDYHJ0
 
-                GenDPhiHJ0 = gen_first_jet_phi - GenPhiH
-                GenDPhiHJ0_pi_array = ak.full_like(GenDPhiHJ0, 2 * numpy.pi)
-                # Select the smallest angle
-                GenDPhiHJ0 = ak.where(
-                    GenDPhiHJ0 > numpy.pi,
-                    GenDPhiHJ0 - GenDPhiHJ0_pi_array,
-                    GenDPhiHJ0
-                )
-                GenDPhiHJ0 = ak.where(
-                    GenDPhiHJ0 < -numpy.pi,
-                    GenDPhiHJ0 + GenDPhiHJ0_pi_array,
-                    GenDPhiHJ0
-                )
-                # Set all entries above 2*pi to -999
-                GenDPhiHJ0 = ak.where(
-                    numpy.abs(GenDPhiHJ0) > 2 * numpy.pi,
-                    -999,
-                    GenDPhiHJ0
-                )
-                GenDPhiHJ0 = ak.fill_none(GenDPhiHJ0, -999.0)
+                GenHPhi = ak.fill_none(GenPhiH, -999)
+
+                gen_first_jet_vector = vector.Array({
+                    "pt": GenPTJ0,
+                    "eta": gen_first_jet_eta,
+                    "phi": gen_first_jet_phi,
+                    "mass": gen_first_jet_mass
+                })
+
+                gen_H_vector = vector.Array({
+                    "pt": GenPTH,
+                    "eta": GenDiphoton.eta,
+                    "phi": GenHPhi,
+                    "mass": GenDiphoton.mass
+                })
+
+                GenDPhiHJ0 = DPhiV1V2(gen_H_vector, gen_first_jet_vector)
                 diphotons["GenDPhiHJ0"] = GenDPhiHJ0
 
                 #################################
@@ -434,6 +499,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons['gen_second_jet_phi'] = gen_second_jet_phi
 
                 gen_second_jet_pz = GenPTJ1 * numpy.sinh(gen_second_jet_eta)
+                gen_second_jet_pz = ak.where(gen_second_jet_eta == -999, -999, gen_second_jet_pz)
                 gen_second_jet_energy = numpy.sqrt((GenPTJ1**2 * numpy.cosh(gen_second_jet_eta)**2) + gen_second_jet_mass**2)
 
                 with numpy.errstate(divide='ignore', invalid='ignore'):
@@ -458,32 +524,21 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 GenDYJ0J1 = ak.fill_none(GenDYJ0J1, -999.0)
                 diphotons["GenDYJ0J1"] = GenDYJ0J1
 
-                GenDPhiJ0J1 = gen_first_jet_phi - gen_second_jet_phi
-                GenDPhiJ0J1_pi_array = ak.full_like(GenDPhiJ0J1, 2 * numpy.pi)
-                # Select the smallest angle
-                GenDPhiJ0J1 = ak.where(
-                    GenDPhiJ0J1 > numpy.pi,
-                    GenDPhiJ0J1 - GenDPhiJ0J1_pi_array,
-                    GenDPhiJ0J1
-                )
-                GenDPhiJ0J1 = ak.where(
-                    GenDPhiJ0J1 < -numpy.pi,
-                    GenDPhiJ0J1 + GenDPhiJ0J1_pi_array,
-                    GenDPhiJ0J1
-                )
-                # Set all entries above 2*pi to -999
-                GenDPhiJ0J1 = ak.where(
-                    numpy.abs(GenDPhiJ0J1) > 2 * numpy.pi,
-                    -999,
-                    GenDPhiJ0J1
-                )
-                # Set all entries which are precisely 0 to -999
-                GenDPhiJ0J1 = ak.where(
-                    GenDPhiJ0J1 == 0,
-                    -999,
-                    GenDPhiJ0J1
-                )
-                GenDPhiJ0J1 = ak.fill_none(GenDPhiJ0J1, -999.0)
+                gen_first_jet_vector = vector.Array({
+                    "pt": GenPTJ0,
+                    "eta": gen_first_jet_eta,
+                    "phi": gen_first_jet_phi,
+                    "mass": gen_first_jet_mass
+                })
+
+                gen_second_jet_vector = vector.Array({
+                    "pt": GenPTJ1,
+                    "eta": gen_second_jet_eta,
+                    "phi": gen_second_jet_phi,
+                    "mass": gen_second_jet_mass
+                })
+
+                GenDPhiJ0J1 = DPhiV1V2(gen_first_jet_vector, gen_second_jet_vector)
                 diphotons["GenDPhiJ0J1"] = GenDPhiJ0J1
 
                 padded_genJets = genJets[ak.argsort(genJets.pt, ascending=False)]
@@ -512,27 +567,17 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 GenDEtaJ0J1H = ak.fill_none(GenDEtaJ0J1H, -999.0)
                 diphotons["GenDEtaJ0J1H"] = GenDEtaJ0J1H
 
-                GenDijetPhi = ak.fill_none(genDijet.phi, -999.0)
-                GenDPhiHJ0J1 = GenPhiH - GenDijetPhi
-                GenDPhiHJ0J1_pi_array = ak.full_like(GenDPhiHJ0J1, 2 * numpy.pi)
-                # Select the smallest angle
-                GenDPhiHJ0J1 = ak.where(
-                    GenDPhiHJ0J1 > numpy.pi,
-                    GenDPhiHJ0J1 - GenDPhiHJ0J1_pi_array,
-                    GenDPhiHJ0J1
-                )
-                GenDPhiHJ0J1 = ak.where(
-                    GenDPhiHJ0J1 < -numpy.pi,
-                    GenDPhiHJ0J1 + GenDPhiHJ0J1_pi_array,
-                    GenDPhiHJ0J1
-                )
-                # Set all entries above 2*pi to -999
-                GenDPhiHJ0J1 = ak.where(
-                    numpy.abs(GenDPhiHJ0J1) > 2 * numpy.pi,
-                    -999,
-                    GenDPhiHJ0J1
-                )
-                GenDPhiHJ0J1 = ak.fill_none(GenDPhiHJ0J1, -999.0)
+                GenDijetPhi = ak.fill_none(genDijet.phi, -999)
+                GenHPhi = ak.fill_none(GenPhiH, -999)
+
+                gen_dijet_vector = vector.Array({
+                    "pt": genDijet.pt,
+                    "eta": genDijet.eta,
+                    "phi": GenDijetPhi,
+                    "mass": genDijet.mass
+                })
+
+                GenDPhiHJ0J1 = DPhiV1V2(gen_H_vector, gen_dijet_vector)
                 diphotons["GenDPhiHJ0J1"] = GenDPhiHJ0J1
 
                 GenEtaJ0J1 = gen_first_jet_eta - gen_second_jet_eta
@@ -730,6 +775,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             first_jet_phi = choose_jet(jets.phi, 0, -999.0)
             first_jet_mass = choose_jet(jets.mass, 0, -999.0)
             first_jet_pz = PTJ0 * numpy.sinh(first_jet_eta)
+            first_jet_pz = ak.where(first_jet_eta == -999, -999, first_jet_pz)
             first_jet_energy = numpy.sqrt((PTJ0**2 * numpy.cosh(first_jet_eta)**2) + first_jet_mass**2)
 
             with numpy.errstate(divide='ignore', invalid='ignore'):
@@ -753,27 +799,47 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             DYHJ0 = ak.fill_none(DYHJ0, -999.0)
             diphotons["DYHJ0"] = DYHJ0
 
-            DPhiHJ0 = first_jet_phi - diphotons["phi"]
-            DPhiHJ0_pi_array = ak.full_like(DPhiHJ0, 2 * numpy.pi)
-            # Select the smallest angle
-            DPhiHJ0 = ak.where(
-                DPhiHJ0 > numpy.pi,
-                DPhiHJ0 - DPhiHJ0_pi_array,
-                DPhiHJ0
-            )
-            DPhiHJ0 = ak.where(
-                DPhiHJ0 < -numpy.pi,
-                DPhiHJ0 + DPhiHJ0_pi_array,
-                DPhiHJ0
-            )
-            # Set all entries above 2*pi to -999
-            DPhiHJ0 = ak.where(
-                numpy.abs(DPhiHJ0) > 2 * numpy.pi,
-                -999,
-                DPhiHJ0
-            )
-            DPhiHJ0 = ak.fill_none(DPhiHJ0, -999.0)
+            HPhi_ZReplacement = ak.fill_none(diphotons["phi"], 0)
+            J0Phi_ZReplacement = choose_jet(jets.phi, 0, 0)
+
+            HPx = diphotons["pt"] * numpy.cos(HPhi_ZReplacement)
+            HPx = ak.fill_none(HPx, -999)
+            HPx = ak.where(numpy.cos(HPhi_ZReplacement) == 1, -999, HPx)
+            HPy = diphotons["pt"] * numpy.sin(HPhi_ZReplacement)
+            HPy = ak.fill_none(HPy, -999)
+            HPy = ak.where(numpy.sin(HPhi_ZReplacement) == 0, -999, HPy)
+            HPxHat = HPx / numpy.abs(diphotons["pt"])
+            HPxHat = ak.where(numpy.abs(HPxHat) == 1, -999, HPxHat)
+            HPyHat = HPy / numpy.abs(diphotons["pt"])
+            HPyHat = ak.where(numpy.abs(HPyHat) == 1, -999, HPyHat)
+
+            J0Px = PTJ0 * numpy.cos(J0Phi_ZReplacement)
+            J0Px = ak.fill_none(J0Px, -999)
+            J0Px = ak.where(numpy.cos(J0Phi_ZReplacement) == 1, -999, J0Px)
+            J0PxHat = J0Px / numpy.abs(PTJ0)
+            J0PxHat = ak.where(numpy.abs(J0PxHat) == 1, -999, J0PxHat)
+            J0Py = PTJ0 * numpy.sin(J0Phi_ZReplacement)
+            J0Py = ak.where(numpy.sin(J0Phi_ZReplacement) == 0, -999, J0Py)
+            J0Py = ak.fill_none(J0Py, -999)
+            J0PyHat = J0Py / numpy.abs(PTJ0)
+            J0PyHat = ak.where(numpy.abs(J0PyHat) == 1, -999, J0PyHat)
+
+            HPz = diphotons["pt"] * numpy.sinh(diphotons["eta"])
+            HPz = ak.fill_none(HPz, -999.0)
+            J0Pz = PTJ0 * numpy.sinh(first_jet_eta)
+            J0Pz = ak.fill_none(J0Pz, -999.0)
+
+            DPhiHJ0 = ((HPxHat * J0PyHat - HPyHat * J0PxHat) / numpy.abs(HPxHat * J0PyHat - HPyHat * J0PxHat)) * ((HPz - J0Pz) / numpy.abs(HPz - J0Pz)) * numpy.arccos((HPxHat * J0PxHat + HPyHat * J0PyHat))
+            DPhiHJ0 = ak.where(HPz == J0Pz, -999, DPhiHJ0)  # Event contains no jet => DPhiHJ0 will be undefined
+            DPhiHJ0 = ak.where(numpy.abs(HPxHat * J0PxHat + HPyHat * J0PyHat) > 1, -999, DPhiHJ0)  # Either one of the jets is missing => DPhiHJ0 will be undefined
             diphotons["DPhiHJ0"] = DPhiHJ0
+
+            first_jet_vector = vector.Array({
+                "pt": PTJ0,
+                "eta": first_jet_eta,
+                "phi": first_jet_phi,
+                "mass": first_jet_mass
+            })
 
             #################################
             # Next-to-leading Jet Variables #
@@ -784,6 +850,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             second_jet_phi = choose_jet(jets.phi, 1, -999.0)
             second_jet_mass = choose_jet(jets.mass, 1, -999.0)
             second_jet_pz = PTJ1 * numpy.sinh(second_jet_eta)
+            second_jet_pz = ak.where(second_jet_eta == -999, -999, second_jet_pz)
             second_jet_energy = numpy.sqrt((PTJ1**2 * numpy.cosh(second_jet_eta)**2) + second_jet_mass**2)
 
             diphotons["second_jet_eta"] = second_jet_eta
@@ -812,33 +879,23 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             DYJ0J1 = ak.fill_none(DYJ0J1, -999.0)
             diphotons["DYJ0J1"] = DYJ0J1
 
-            DPhiJ0J1 = first_jet_phi - second_jet_phi
-            DPhiJ0J1_pi_array = ak.full_like(DPhiJ0J1, 2 * numpy.pi)
-            # Select the smallest angle
-            DPhiJ0J1 = ak.where(
-                DPhiJ0J1 > numpy.pi,
-                DPhiJ0J1 - DPhiJ0J1_pi_array,
-                DPhiJ0J1
-            )
-            DPhiJ0J1 = ak.where(
-                DPhiJ0J1 < -numpy.pi,
-                DPhiJ0J1 + DPhiJ0J1_pi_array,
-                DPhiJ0J1
-            )
-            # Set all entries above 2*pi to -999
-            DPhiJ0J1 = ak.where(
-                numpy.abs(DPhiJ0J1) > 2 * numpy.pi,
-                -999,
-                DPhiJ0J1
-            )
-            # Set all entries which are precisely 0 to -999
-            DPhiJ0J1 = ak.where(
-                DPhiJ0J1 == 0,
-                -999,
-                DPhiJ0J1
-            )
-            DPhiJ0J1 = ak.fill_none(DPhiJ0J1, -999.0)
+            first_jet_vector = vector.Array({
+                "pt": PTJ0,
+                "eta": first_jet_eta,
+                "phi": first_jet_phi,
+                "mass": first_jet_mass
+            })
+
+            second_jet_vector = vector.Array({
+                "pt": PTJ1,
+                "eta": second_jet_eta,
+                "phi": second_jet_phi,
+                "mass": second_jet_mass
+            })
+
+            DPhiJ0J1 = DPhiV1V2(first_jet_vector, second_jet_vector)
             diphotons["DPhiJ0J1"] = DPhiJ0J1
+
             # First build the dijet system out of the leading and subleading jet (in pt)
             padded_jets = ak.pad_none(jets, 2)
             dijet = padded_jets[:, 0] + padded_jets[:, 1]
@@ -864,28 +921,39 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             DEtaJ0J1H = ak.fill_none(DEtaJ0J1H, -999.0)
             diphotons["DEtaJ0J1H"] = DEtaJ0J1H
 
-            DijetPhi = ak.fill_none(dijet.phi, -999.0)
-            DiphotonPhi = ak.fill_none(diphotons["phi"], -999.0)
-            DPhiHJ0J1 = DiphotonPhi - DijetPhi
-            DPhiHJ0J1_pi_array = ak.full_like(DPhiHJ0J1, 2 * numpy.pi)
-            # Select the smallest angle
-            DPhiHJ0J1 = ak.where(
-                DPhiHJ0J1 > numpy.pi,
-                DPhiHJ0J1 - DPhiHJ0J1_pi_array,
-                DPhiHJ0J1
-            )
-            DPhiHJ0J1 = ak.where(
-                DPhiHJ0J1 < -numpy.pi,
-                DPhiHJ0J1 + DPhiHJ0J1_pi_array,
-                DPhiHJ0J1
-            )
-            # Set all entries above 2*pi to -999
-            DPhiHJ0J1 = ak.where(
-                numpy.abs(DPhiHJ0J1) > 2 * numpy.pi,
-                -999,
-                DPhiHJ0J1
-            )
-            DPhiHJ0J1 = ak.fill_none(DPhiHJ0J1, -999.0)
+            HPhi_ZReplacement = ak.fill_none(diphotons.phi, 0)
+            DijetPhi_ZReplacement = ak.fill_none(dijet.phi, 0)
+
+            HPx = diphotons.pt * numpy.cos(HPhi_ZReplacement)
+            HPx = ak.fill_none(HPx, -999)
+            HPx = ak.where(numpy.cos(HPhi_ZReplacement) == 1, -999, HPx)
+            HPy = diphotons.pt * numpy.sin(HPhi_ZReplacement)
+            HPy = ak.fill_none(HPy, -999)
+            HPy = ak.where(numpy.sin(HPhi_ZReplacement) == 0, -999, HPy)
+            HPxHat = HPx / numpy.abs(diphotons.pt)
+            HPxHat = ak.where(numpy.abs(HPxHat) == 1, -999, HPxHat)
+            HPyHat = HPy / numpy.abs(diphotons.pt)
+            HPyHat = ak.where(numpy.abs(HPyHat) == 1, -999, HPyHat)
+
+            J0J1Px = dijet.pt * numpy.cos(DijetPhi_ZReplacement)
+            J0J1Px = ak.fill_none(J0J1Px, -999)
+            J0J1Px = ak.where(numpy.cos(DijetPhi_ZReplacement) == 1, -999, J0J1Px)
+            J0J1PxHat = J0J1Px / numpy.abs(dijet.pt)
+            J0J1PxHat = ak.where(numpy.abs(J0J1PxHat) == 1, -999, J0J1PxHat)
+            J0J1Py = dijet.pt * numpy.sin(DijetPhi_ZReplacement)
+            J0J1Py = ak.where(numpy.sin(DijetPhi_ZReplacement) == 0, -999, J0J1Py)
+            J0J1Py = ak.fill_none(J0J1Py, -999)
+            J0J1PyHat = J0J1Py / numpy.abs(dijet.pt)
+            J0J1PyHat = ak.where(numpy.abs(J0J1PyHat) == 1, -999, J0J1PyHat)
+
+            HPz = diphotons.pt * numpy.sinh(diphotons.eta)
+            HPz = ak.fill_none(HPz, -999.0)
+            J0J1Pz = dijet.pt * numpy.sinh(dijet.eta)
+            J0J1Pz = ak.fill_none(J0J1Pz, -999.0)
+
+            DPhiHJ0J1 = ((HPxHat * J0J1PyHat - HPyHat * J0J1PxHat) / numpy.abs(HPxHat * J0J1PyHat - HPyHat * J0J1PxHat)) * ((HPz - J0J1Pz) / numpy.abs(HPz - J0J1Pz)) * numpy.arccos((HPxHat * J0J1PxHat + HPyHat * J0J1PyHat))
+            DPhiHJ0J1 = ak.where(HPz == J0J1Pz, -999, DPhiHJ0J1)  # Event contains no jet => DPhiHJ0J1 will be undefined
+            DPhiHJ0J1 = ak.where(numpy.abs(HPxHat * J0J1PxHat + HPyHat * J0J1PyHat) > 1, -999, DPhiHJ0J1)  # Either one of the jets is missing => DPhiHJ0J1 will be undefined
             diphotons["DPhiHJ0J1"] = DPhiHJ0J1
 
             EtaJ0J1 = first_jet_eta - second_jet_eta
