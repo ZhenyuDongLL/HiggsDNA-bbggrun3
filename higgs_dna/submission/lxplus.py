@@ -198,7 +198,7 @@ class LXPlusVanillaSubmitter:
                         submit_file.write("getenv = True\n")
                         submit_file.write(f'+JobFlavour = "{self.queue}"\n')
                         submit_file.write('on_exit_remove = (ExitBySignal == False) && (ExitCode == 0)\n')
-                        submit_file.write('on_exit_hold = (ExitBySignal == True) && (ExitCode != 0)\n')
+                        submit_file.write('on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n')
                         submit_file.write('periodic_release = (NumJobStarts < 3) && ((CurrentTime - EnteredCurrentStatus) > 600)\n')
                         submit_file.write('max_retries = 3\n')
                         submit_file.write('requirements = Machine =!= LastRemoteHost\n')
