@@ -1,6 +1,9 @@
 import awkward as ak
 import numba
 import numpy as np
+import vector
+
+vector.register_awkward()
 
 
 def choose_jet(jets_variable, n, fill_value):
@@ -124,3 +127,70 @@ def trigger_match(
     trig_matched_locs = n_of_trigger_matches >= 1
 
     return trig_matched_locs
+
+
+def DPhiV1V2(vec1, vec2):
+    """
+    Compute the generalized azimuthal angle difference Δφ between two objects
+    based on their transverse directions and spatial separation.
+
+    This observable captures the relative azimuthal orientation of two objects
+    and can be used to study symmetries and angular correlations in a variety
+    of systems.
+
+    The definition used is:
+
+        Δφ = sign_factor * arccos(vt1_hat ⋅ vt2_hat)
+
+    where:
+
+        sign_factor = sign((vt1_hat × vt2_hat) ⋅ z_hat) * sign((v1 - v2) ⋅ z_hat)
+
+    Parameters:
+        v1 (np.ndarray): 3D vector representing the position or momentum of the first object.
+        v2 (np.ndarray): 3D vector representing the position or momentum of the second object.
+        vt1_hat (np.ndarray): Unit vector representing the transverse component of the first object.
+        vt2_hat (np.ndarray): Unit vector representing the transverse component of the second object.
+        z_hat (np.ndarray): Unit vector defining the reference z-axis direction.
+
+    Returns:
+        float: The permutation invariant azimuthal angle difference Δφ in radians.
+
+    Notes:
+        - This definition is frame-independent as long as the transverse plane and z-axis are consistently defined.
+        - Useful in contexts involving angular distributions, symmetry studies, and CP-violation-sensitive observables.
+    """
+    # Extract 3D direction vectors
+    j1dir = ak.zip({"x": vec1.px, "y": vec1.py, "z": vec1.pz}, with_name="Vector3D")
+    j2dir = ak.zip({"x": vec2.px, "y": vec2.py, "z": vec2.pz}, with_name="Vector3D")
+
+    # Project to transverse plane (z = 0)
+    jt1 = ak.zip({"x": vec1.px, "y": vec1.py, "z": ak.zeros_like(vec1.px)}, with_name="Vector3D")
+    jt2 = ak.zip({"x": vec2.px, "y": vec2.py, "z": ak.zeros_like(vec2.px)}, with_name="Vector3D")
+
+    # Normalize transverse vectors
+    jt1_unit = jt1.unit()
+    jt2_unit = jt2.unit()
+
+    # z-axis unit vector
+    z = ak.zip({
+        "x": ak.zeros_like(vec1.px),
+        "y": ak.zeros_like(vec1.px),
+        "z": ak.ones_like(vec1.px),
+    }, with_name="Vector3D")
+
+    # Sign from cross and difference
+    cross_sign = ak.where(jt1_unit.cross(jt2_unit).dot(z) > 0, 1.0, ak.where(jt1_unit.cross(jt2_unit).dot(z) < 0, -1.0, 0.0))
+
+    diff_sign = ak.where((j1dir - j2dir).dot(z) > 0, 1.0, ak.where((j1dir - j2dir).dot(z) < 0, -1.0, 0.0))
+
+    # Dot product
+    dot = jt1_unit.dot(jt2_unit)
+
+    # Valid range for acos is [-1, 1]
+    valid = (dot >= -1.0) & (dot <= 1.0)
+
+    # Compute acos only for valid entries
+    dphi = ak.where(valid, np.arccos(dot) * diff_sign * cross_sign, -999.0)
+
+    return dphi
