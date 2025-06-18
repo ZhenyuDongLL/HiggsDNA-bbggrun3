@@ -136,7 +136,15 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
         if gen_binning != None:
             for keys in gen_binning:
                 var_dict = {ast.literal_eval(key): value for key, value in gen_binning[keys].items()}
-                eve = filter_and_set_diff_variable(eve, var_dict, keys, "diffVariable_" + keys)
+                # If the length of the gen_binning tuple is 5 => Use first element in the tuple as primary selection variable
+                # Example: ('GenPTH', 0, 15, 'in', '(GenDPhiJ0J1, >=, -3.1416);(GenDPhiJ0J1, <, -2.0944)')
+                if len(list(var_dict.keys())[0]) == 5:
+                    selectionVariableName = list(var_dict.keys())[0][0]
+                    # Remove the first element from the Tuples, as it is defined in selectionVariableName
+                    var_dict = {k[1:]: v for k, v in var_dict.items()}
+                else:
+                    selectionVariableName = keys
+                eve = filter_and_set_diff_variable(eve, var_dict, selectionVariableName, "diffVariable_" + keys)
         # Add column for unnormalised weight
         eve['weight_nominal'] = eve['weight']
         if len(eve) > 0:
