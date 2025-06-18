@@ -26,6 +26,7 @@ def run_processor(processor_instance, fileset):
 
 @pytest.mark.parametrize("processor_class", [
     HggBaseProcessor,
+    HggFiducialProcessor,
     TagAndProbeProcessor,
     HHbbggProcessor,
     # Hpc Cannot be included in a simple way here since the arguments are not defaulted

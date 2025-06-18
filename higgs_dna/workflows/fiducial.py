@@ -17,7 +17,7 @@ from higgs_dna.utils.dumping_utils import (
     dump_pandas,
     get_obj_syst_dict,
 )
-from higgs_dna.utils.misc_utils import choose_jet
+from higgs_dna.utils.misc_utils import choose_jet, DPhiV1V2
 from higgs_dna.tools.flow_corrections import apply_flow_corrections_to_photons
 
 from higgs_dna.tools.mass_decorrelator import decorrelate_mass_resolution
@@ -43,73 +43,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 vector.register_awkward()
-
-
-def DPhiV1V2(vec1, vec2):
-    """
-    Compute the generalized azimuthal angle difference Δφ between two objects
-    based on their transverse directions and spatial separation.
-
-    This observable captures the relative azimuthal orientation of two objects
-    and can be used to study symmetries and angular correlations in a variety
-    of systems.
-
-    The definition used is:
-
-        Δφ = sign_factor * arccos(vt1_hat ⋅ vt2_hat)
-
-    where:
-
-        sign_factor = sign((vt1_hat × vt2_hat) ⋅ z_hat) * sign((v1 - v2) ⋅ z_hat)
-
-    Parameters:
-        v1 (np.ndarray): 3D vector representing the position or momentum of the first object.
-        v2 (np.ndarray): 3D vector representing the position or momentum of the second object.
-        vt1_hat (np.ndarray): Unit vector representing the transverse component of the first object.
-        vt2_hat (np.ndarray): Unit vector representing the transverse component of the second object.
-        z_hat (np.ndarray): Unit vector defining the reference z-axis direction.
-
-    Returns:
-        float: The permutation invariant azimuthal angle difference Δφ in radians.
-
-    Notes:
-        - This definition is frame-independent as long as the transverse plane and z-axis are consistently defined.
-        - Useful in contexts involving angular distributions, symmetry studies, and CP-violation-sensitive observables.
-    """
-    # Extract 3D direction vectors
-    j1dir = vector.Array({"x": vec1.px, "y": vec1.py, "z": vec1.pz})
-    j2dir = vector.Array({"x": vec2.px, "y": vec2.py, "z": vec2.pz})
-
-    # Project to transverse plane (z = 0)
-    jt1 = vector.Array({"x": vec1.px, "y": vec1.py, "z": ak.zeros_like(vec1.px)})
-    jt2 = vector.Array({"x": vec2.px, "y": vec2.py, "z": ak.zeros_like(vec2.px)})
-
-    # Normalize transverse vectors
-    jt1_unit = jt1.unit()
-    jt2_unit = jt2.unit()
-
-    # z-axis unit vector
-    z = vector.Array({
-        "x": ak.zeros_like(vec1.px),
-        "y": ak.zeros_like(vec1.px),
-        "z": ak.ones_like(vec1.px),
-    })
-
-    # Sign from cross and difference
-    cross_sign = ak.where(jt1_unit.cross(jt2_unit).dot(z) > 0, 1.0, ak.where(jt1_unit.cross(jt2_unit).dot(z) < 0, -1.0, 0.0))
-
-    diff_sign = ak.where((j1dir - j2dir).dot(z) > 0, 1.0, ak.where((j1dir - j2dir).dot(z) < 0, -1.0, 0.0))
-
-    # Dot product
-    dot = jt1_unit.dot(jt2_unit)
-
-    # Valid range for acos is [-1, 1]
-    valid = (dot >= -1.0) & (dot <= 1.0)
-
-    # Compute acos only for valid entries
-    dphi = ak.where(valid, numpy.arccos(dot) * diff_sign * cross_sign, -999.0)
-
-    return dphi
 
 
 class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
@@ -467,19 +400,19 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
 
                 GenHPhi = ak.fill_none(GenPhiH, -999)
 
-                gen_first_jet_vector = vector.Array({
+                gen_first_jet_vector = ak.zip({
                     "pt": GenPTJ0,
                     "eta": gen_first_jet_eta,
                     "phi": gen_first_jet_phi,
                     "mass": gen_first_jet_mass
-                })
+                }, with_name="Momentum4D")
 
-                gen_H_vector = vector.Array({
+                gen_H_vector = ak.zip({
                     "pt": GenPTH,
                     "eta": GenDiphoton.eta,
                     "phi": GenHPhi,
                     "mass": GenDiphoton.mass
-                })
+                }, with_name="Momentum4D")
 
                 GenDPhiHJ0 = DPhiV1V2(gen_H_vector, gen_first_jet_vector)
                 diphotons["GenDPhiHJ0"] = GenDPhiHJ0
@@ -524,19 +457,19 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 GenDYJ0J1 = ak.fill_none(GenDYJ0J1, -999.0)
                 diphotons["GenDYJ0J1"] = GenDYJ0J1
 
-                gen_first_jet_vector = vector.Array({
+                gen_first_jet_vector = ak.zip({
                     "pt": GenPTJ0,
                     "eta": gen_first_jet_eta,
                     "phi": gen_first_jet_phi,
                     "mass": gen_first_jet_mass
-                })
+                }, with_name="Momentum4D")
 
-                gen_second_jet_vector = vector.Array({
+                gen_second_jet_vector = ak.zip({
                     "pt": GenPTJ1,
                     "eta": gen_second_jet_eta,
                     "phi": gen_second_jet_phi,
                     "mass": gen_second_jet_mass
-                })
+                }, with_name="Momentum4D")
 
                 GenDPhiJ0J1 = DPhiV1V2(gen_first_jet_vector, gen_second_jet_vector)
                 diphotons["GenDPhiJ0J1"] = GenDPhiJ0J1
@@ -570,12 +503,12 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 GenDijetPhi = ak.fill_none(genDijet.phi, -999)
                 GenHPhi = ak.fill_none(GenPhiH, -999)
 
-                gen_dijet_vector = vector.Array({
+                gen_dijet_vector = ak.zip({
                     "pt": genDijet.pt,
                     "eta": genDijet.eta,
                     "phi": GenDijetPhi,
                     "mass": genDijet.mass
-                })
+                }, with_name="Momentum4D")
 
                 GenDPhiHJ0J1 = DPhiV1V2(gen_H_vector, gen_dijet_vector)
                 diphotons["GenDPhiHJ0J1"] = GenDPhiHJ0J1
@@ -834,12 +767,12 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             DPhiHJ0 = ak.where(numpy.abs(HPxHat * J0PxHat + HPyHat * J0PyHat) > 1, -999, DPhiHJ0)  # Either one of the jets is missing => DPhiHJ0 will be undefined
             diphotons["DPhiHJ0"] = DPhiHJ0
 
-            first_jet_vector = vector.Array({
+            first_jet_vector = ak.zip({
                 "pt": PTJ0,
                 "eta": first_jet_eta,
                 "phi": first_jet_phi,
                 "mass": first_jet_mass
-            })
+            }, with_name="Momentum4D")
 
             #################################
             # Next-to-leading Jet Variables #
@@ -879,19 +812,19 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             DYJ0J1 = ak.fill_none(DYJ0J1, -999.0)
             diphotons["DYJ0J1"] = DYJ0J1
 
-            first_jet_vector = vector.Array({
+            first_jet_vector = ak.zip({
                 "pt": PTJ0,
                 "eta": first_jet_eta,
                 "phi": first_jet_phi,
                 "mass": first_jet_mass
-            })
+            }, with_name="Momentum4D")
 
-            second_jet_vector = vector.Array({
+            second_jet_vector = ak.zip({
                 "pt": PTJ1,
                 "eta": second_jet_eta,
                 "phi": second_jet_phi,
                 "mass": second_jet_mass
-            })
+            }, with_name="Momentum4D")
 
             DPhiJ0J1 = DPhiV1V2(first_jet_vector, second_jet_vector)
             diphotons["DPhiJ0J1"] = DPhiJ0J1
