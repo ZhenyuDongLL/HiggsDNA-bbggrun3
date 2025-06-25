@@ -74,8 +74,19 @@ def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="Ge
 
     return dataset
 
-def split_awkward_arrays_by_length(d, target_length=5000):
+def split_awkward_arrays_by_length(d, logger, target_length=5000):
     split_dicts = []
+
+    # Check if the dictionary is empty or contains only empty arrays
+    checker = 0
+    for key, arr in d.items():
+        if len(arr) == 0:
+            checker += 1
+    if checker:
+        logger.debug("Dictionary contains empty arrays, skipping splitting awkward array by length.")
+        split_dicts.append(d)
+        return split_dicts
+
     max_len = max(len(arr) for arr in d.values())
     num_chunks = (max_len + target_length - 1) // target_length  # ceiling division
 
@@ -460,7 +471,7 @@ def main():
                         # if you don't flatten (event if you don't have a nested field) you end up having a type like (len_of_array) * ?type, which make uproot very mad apparently
                         df_dict["NOMINAL"][cat][branch] = awkward.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
 
-                    split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], target_length=int(args.tbasket_length))
+                    split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
                     for i, current_dict in enumerate(split_nominal_dict):
                         logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
@@ -499,7 +510,7 @@ def main():
                             
                             logger.info(f"Adding {syst_name}01sigma to out tree...")
                             
-                            split_dict = split_awkward_arrays_by_length(red_dict, target_length=int(args.tbasket_length))
+                            split_dict = split_awkward_arrays_by_length(red_dict, logger, target_length=int(args.tbasket_length))
 
                             for i, current_dict in enumerate(split_dict):
                                 logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
@@ -523,7 +534,7 @@ def main():
 
                             logger.info(f"Adding {syst_name}01sigma to out tree...")
 
-                            split_dict = split_awkward_arrays_by_length(red_dict, target_length=int(args.tbasket_length))
+                            split_dict = split_awkward_arrays_by_length(red_dict, logger, target_length=int(args.tbasket_length))
 
                             for i, current_dict in enumerate(split_dict):
                                 logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
@@ -545,7 +556,7 @@ def main():
                     # same as before
                     for branch in df_dict["NOMINAL"][cat]:
                         df_dict["NOMINAL"][cat][branch] = awkward.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
-                    split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], target_length=int(args.tbasket_length))
+                    split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
                     for i, current_dict in enumerate(split_nominal_dict):
                         logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
@@ -559,7 +570,7 @@ def main():
                             file[names[cat]].extend(current_dict)
 
                     if notag: # this is wrong, to be fixed
-                        split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], target_length=int(args.tbasket_length))
+                        split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
                         for i, current_dict in enumerate(split_nominal_dict):
                             logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
