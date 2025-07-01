@@ -363,6 +363,9 @@ def get_trigger_json(logger, target_dir, use_xrdcp=False):
             resource_dir, "../higgs_dna/systematics/JSONs/TriggerSF"
         )
 
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/ingredients"
+    trigger_subfolder_name = "dipho_trigger_effs"
+
     from_to_dict = {
         "2016_lead": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/2016/TriggerSF_lead_2016.json",
@@ -395,23 +398,43 @@ def get_trigger_json(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "2022preEE_lead": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/TriggerSF_lead_2022_preEE.json",
+            "from": os.path.join(path_to_ingredients, "2022", trigger_subfolder_name, "TriggerSF_lead_2022_preEE.json"),
             "to": f"{to_prefix}/2022preEE/TriggerSF_lead_2022preEE.json",
             "type": "eos",
         },
         "2022preEE_sublead": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/TriggerSF_sublead_2022_preEE.json",
+            "from": os.path.join(path_to_ingredients, "2022", trigger_subfolder_name, "TriggerSF_sublead_2022_preEE.json"),
             "to": f"{to_prefix}/2022preEE/TriggerSF_sublead_2022preEE.json",
             "type": "eos",
         },
         "2022postEE_lead": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/TriggerSF_lead_2022_postEE.json",
+            "from": os.path.join(path_to_ingredients, "2022", trigger_subfolder_name, "TriggerSF_lead_2022_postEE.json"),
             "to": f"{to_prefix}/2022postEE/TriggerSF_lead_2022postEE.json",
             "type": "eos",
         },
         "2022postEE_sublead": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/TriggerSF_sublead_2022_postEE.json",
+            "from": os.path.join(path_to_ingredients, "2022", trigger_subfolder_name, "TriggerSF_sublead_2022_postEE.json"),
             "to": f"{to_prefix}/2022postEE/TriggerSF_sublead_2022postEE.json",
+            "type": "eos",
+        },
+        "2023preBPix_lead": {
+            "from": os.path.join(path_to_ingredients, "2023", trigger_subfolder_name, "TriggerSF_lead_2023preBPix.json"),
+            "to": f"{to_prefix}/2023preBPix/TriggerSF_lead_2023preBPix.json",
+            "type": "eos",
+        },
+        "2023preBPix_sublead": {
+            "from": os.path.join(path_to_ingredients, "2023", trigger_subfolder_name, "TriggerSF_sublead_2023preBPix.json"),
+            "to": f"{to_prefix}/2023preBPix/TriggerSF_sublead_2023preBPix.json",
+            "type": "eos",
+        },
+        "2023postBPix_lead": {
+            "from": os.path.join(path_to_ingredients, "2023", trigger_subfolder_name, "TriggerSF_lead_2023BPix.json"),
+            "to": f"{to_prefix}/2023postBPix/TriggerSF_lead_2023postBPix.json",
+            "type": "eos",
+        },
+        "2023postBPix_sublead": {
+            "from": os.path.join(path_to_ingredients, "2023", trigger_subfolder_name, "TriggerSF_sublead_2023BPix.json"),
+            "to": f"{to_prefix}/2023postBPix/TriggerSF_sublead_2023postBPix.json",
             "type": "eos",
         },
     }
@@ -1385,7 +1408,6 @@ def main():
     )
 
     parser.add_argument(
-        "-t",
         "--target",
         dest="target",
         help="Choose the target to download (default: %(default)s)",
