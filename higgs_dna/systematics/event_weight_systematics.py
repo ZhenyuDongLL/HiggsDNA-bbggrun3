@@ -500,11 +500,8 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
         exit()
     elif "2016" in year:
         year = "2016"
-    elif "2023" in year:
-        logger.warning("2023 SFs are not yet available, using 2022postEE SFs instead. Do not consider these results as final!")
-        year = "2022postEE"
 
-    if year in ["2016", "2017", "2018", "2022preEE", "2022postEE"]:
+    if year in ["2016", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
         json_file_lead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_lead_{year}.json")
         json_file_sublead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_sublead_{year}.json")
 
@@ -551,7 +548,7 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
-    elif "2022" in year:
+    elif "2022" or "2023" in year:
 
         # If flow corrections are applied, we use the raw (uncorrected) r9 for the trigger SF evaluation
         if hasattr(photons["pho_lead"], 'raw_r9'):
