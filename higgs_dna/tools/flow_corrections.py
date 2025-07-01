@@ -84,6 +84,10 @@ def calculate_flow_corrections(photon: ak.Array, events, inputs_list, isolation_
         flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
         path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2023_model/')
         flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+    elif ('2024' in year):
+        flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
+        path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2024_model/')
+        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
     else:
         print('\nThere is no model trained for this specific year!! - Exiting')
         sys.exit(0)
@@ -109,8 +113,7 @@ def calculate_flow_corrections(photon: ak.Array, events, inputs_list, isolation_
     flow_conditions = torch.tensor(flow_conditions)
     flow_inputs = torch.tensor(flow_inputs)
 
-    # Performing the transformations in the inputs and conditions arrays
-    input_tensor, conditions_tensor, input_mean_for_std, input_std_for_std, condition_mean_for_std,condition_std_for_std, vector_for_iso_constructors_mc = perform_pre_processing(flow_inputs,flow_conditions,isolation_indexes , path_means_std)
+    input_tensor, conditions_tensor, input_mean_for_std, input_std_for_std, condition_mean_for_std,condition_std_for_std, vector_for_iso_constructors_mc = perform_pre_processing(flow_inputs,flow_conditions,isolation_indexes,path_means_std,year=year)
 
     samples = apply_flow(input_tensor, conditions_tensor, flow)
 
@@ -160,7 +163,7 @@ def apply_flow(input_tensor : torch.tensor, conditions_tensor : torch.tensor, fl
     return samples
 
 
-def perform_pre_processing(input_tensor : torch.tensor, conditions_tensor : torch.tensor, isolation_indexes, path=False):
+def perform_pre_processing(input_tensor : torch.tensor, conditions_tensor : torch.tensor, isolation_indexes, path=False, year='2022PostEE'):
 
     # Fist we make the isolation variables transformations
     # The indexes_for_iso_transform arrays point to the indexes in the inputs where the isolation variables are
@@ -172,7 +175,10 @@ def perform_pre_processing(input_tensor : torch.tensor, conditions_tensor : torc
 
         # since hoe has very low values, the shift value (value until traingular events are sampled) must be diferent here
         if (index == 6):
-            vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.001))
+            if year == '2024':
+                vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.002))
+            else:
+                vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.001))
         else:
             vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu')))
 
