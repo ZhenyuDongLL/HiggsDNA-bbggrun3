@@ -861,6 +861,11 @@ def get_Flow_files(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2023_model/",
             "type": "eos",
         },
+        "2024": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/Flows/",
+            "to": f"{to_prefix}/2024_model/",
+            "type": "eos",
+        },
     }
     fetch_file("Flows", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -1602,3 +1607,4 @@ if __name__ == "__main__":
 # python pull_files.py --target GoldenJSON
 # python pull_files.py --target cTag
 # python pull_files.py --target GoldenJSON --target-dir ./test_json --log-dir ./json-log --analysis goldenjson_test
+
