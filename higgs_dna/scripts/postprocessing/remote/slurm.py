@@ -192,8 +192,8 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, SLURM_PATH, dirlist_path, var_
                             target_path = f"$TARGET_PATH/merged/Data_{file.split('_')[-1]}"
                         else:
                             os.makedirs(target_path, exist_ok=True)
-                        print(f"merge_parquet.py --source {IN_PATH}/{file} --target {target_path}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
-                        commands.append(f"merge_parquet.py --source {IN_PATH}/{file} --target {target_path}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
+                        print(f"merge_parquet.py --source {IN_PATH}/ --target {target_path}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
+                        commands.append(f"merge_parquet.py --source {IN_PATH}/ --target {target_path}/allData_ --cats {cat_dict_loc} {verbose_str} --is-data --abs {genBinning_str} {custom_accumulator_str}")
                     else:
                         logger.info(f'No merged parquet found for {file} in the directory: {target_path}')
                 else:
