@@ -400,21 +400,10 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
 
                 GenHPhi = ak.fill_none(GenPhiH, -999)
 
-                gen_first_jet_vector = ak.zip({
-                    "pt": GenPTJ0,
-                    "eta": gen_first_jet_eta,
-                    "phi": gen_first_jet_phi,
-                    "mass": gen_first_jet_mass
-                }, with_name="Momentum4D")
-
-                gen_H_vector = ak.zip({
-                    "pt": GenPTH,
-                    "eta": GenDiphoton.eta,
-                    "phi": GenHPhi,
-                    "mass": GenDiphoton.mass
-                }, with_name="Momentum4D")
-
-                GenDPhiHJ0 = DPhiV1V2(gen_H_vector, gen_first_jet_vector)
+                GenDPhiHJ0 = gen_first_jet_phi - GenHPhi
+                GenDPhiHJ0 = (GenDPhiHJ0 + numpy.pi) % (2 * numpy.pi) - numpy.pi
+                GenDPhiHJ0 = ak.where(GenHPhi == -999, -999, GenDPhiHJ0)
+                GenDPhiHJ0 = ak.where(gen_first_jet_phi == -999, -999, GenDPhiHJ0)
                 diphotons["GenDPhiHJ0"] = GenDPhiHJ0
 
                 #################################
@@ -503,14 +492,10 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 GenDijetPhi = ak.fill_none(genDijet.phi, -999)
                 GenHPhi = ak.fill_none(GenPhiH, -999)
 
-                gen_dijet_vector = ak.zip({
-                    "pt": genDijet.pt,
-                    "eta": genDijet.eta,
-                    "phi": GenDijetPhi,
-                    "mass": genDijet.mass
-                }, with_name="Momentum4D")
-
-                GenDPhiHJ0J1 = DPhiV1V2(gen_H_vector, gen_dijet_vector)
+                GenDPhiHJ0J1 = GenDijetPhi - GenPhiH
+                GenDPhiHJ0J1 = (GenDPhiHJ0J1 + numpy.pi) % (2 * numpy.pi) - numpy.pi
+                GenDPhiHJ0J1 = ak.where(GenHPhi == -999, -999, GenDPhiHJ0J1)
+                GenDPhiHJ0J1 = ak.where(GenDijetPhi == -999, -999, GenDPhiHJ0J1)
                 diphotons["GenDPhiHJ0J1"] = GenDPhiHJ0J1
 
                 GenEtaJ0J1 = gen_first_jet_eta - gen_second_jet_eta
@@ -732,47 +717,12 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             DYHJ0 = ak.fill_none(DYHJ0, -999.0)
             diphotons["DYHJ0"] = DYHJ0
 
-            HPhi_ZReplacement = ak.fill_none(diphotons["phi"], 0)
-            J0Phi_ZReplacement = choose_jet(jets.phi, 0, 0)
-
-            HPx = diphotons["pt"] * numpy.cos(HPhi_ZReplacement)
-            HPx = ak.fill_none(HPx, -999)
-            HPx = ak.where(numpy.cos(HPhi_ZReplacement) == 1, -999, HPx)
-            HPy = diphotons["pt"] * numpy.sin(HPhi_ZReplacement)
-            HPy = ak.fill_none(HPy, -999)
-            HPy = ak.where(numpy.sin(HPhi_ZReplacement) == 0, -999, HPy)
-            HPxHat = HPx / numpy.abs(diphotons["pt"])
-            HPxHat = ak.where(numpy.abs(HPxHat) == 1, -999, HPxHat)
-            HPyHat = HPy / numpy.abs(diphotons["pt"])
-            HPyHat = ak.where(numpy.abs(HPyHat) == 1, -999, HPyHat)
-
-            J0Px = PTJ0 * numpy.cos(J0Phi_ZReplacement)
-            J0Px = ak.fill_none(J0Px, -999)
-            J0Px = ak.where(numpy.cos(J0Phi_ZReplacement) == 1, -999, J0Px)
-            J0PxHat = J0Px / numpy.abs(PTJ0)
-            J0PxHat = ak.where(numpy.abs(J0PxHat) == 1, -999, J0PxHat)
-            J0Py = PTJ0 * numpy.sin(J0Phi_ZReplacement)
-            J0Py = ak.where(numpy.sin(J0Phi_ZReplacement) == 0, -999, J0Py)
-            J0Py = ak.fill_none(J0Py, -999)
-            J0PyHat = J0Py / numpy.abs(PTJ0)
-            J0PyHat = ak.where(numpy.abs(J0PyHat) == 1, -999, J0PyHat)
-
-            HPz = diphotons["pt"] * numpy.sinh(diphotons["eta"])
-            HPz = ak.fill_none(HPz, -999.0)
-            J0Pz = PTJ0 * numpy.sinh(first_jet_eta)
-            J0Pz = ak.fill_none(J0Pz, -999.0)
-
-            DPhiHJ0 = ((HPxHat * J0PyHat - HPyHat * J0PxHat) / numpy.abs(HPxHat * J0PyHat - HPyHat * J0PxHat)) * ((HPz - J0Pz) / numpy.abs(HPz - J0Pz)) * numpy.arccos((HPxHat * J0PxHat + HPyHat * J0PyHat))
-            DPhiHJ0 = ak.where(HPz == J0Pz, -999, DPhiHJ0)  # Event contains no jet => DPhiHJ0 will be undefined
-            DPhiHJ0 = ak.where(numpy.abs(HPxHat * J0PxHat + HPyHat * J0PyHat) > 1, -999, DPhiHJ0)  # Either one of the jets is missing => DPhiHJ0 will be undefined
+            HPhi = ak.fill_none(diphotons.phi, -999)
+            DPhiHJ0 = first_jet_phi - HPhi
+            DPhiHJ0 = (DPhiHJ0 + numpy.pi) % (2 * numpy.pi) - numpy.pi
+            DPhiHJ0 = ak.where(HPhi == -999, -999, DPhiHJ0)
+            DPhiHJ0 = ak.where(first_jet_phi == -999, -999, DPhiHJ0)
             diphotons["DPhiHJ0"] = DPhiHJ0
-
-            first_jet_vector = ak.zip({
-                "pt": PTJ0,
-                "eta": first_jet_eta,
-                "phi": first_jet_phi,
-                "mass": first_jet_mass
-            }, with_name="Momentum4D")
 
             #################################
             # Next-to-leading Jet Variables #
@@ -837,6 +787,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons["MassJ0J1"] = MassJ0J1
 
             DijetEta = ak.fill_none(dijet.eta, -999.0)
+            DijetPhi = ak.fill_none(dijet.phi, -999.0)
             DiphotonEta = ak.fill_none(diphotons["eta"], -999.0)
             DEtaJ0J1H = DijetEta - DiphotonEta
             # Set all entries which are precisely 0 to -999
@@ -854,39 +805,10 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             DEtaJ0J1H = ak.fill_none(DEtaJ0J1H, -999.0)
             diphotons["DEtaJ0J1H"] = DEtaJ0J1H
 
-            HPhi_ZReplacement = ak.fill_none(diphotons.phi, 0)
-            DijetPhi_ZReplacement = ak.fill_none(dijet.phi, 0)
-
-            HPx = diphotons.pt * numpy.cos(HPhi_ZReplacement)
-            HPx = ak.fill_none(HPx, -999)
-            HPx = ak.where(numpy.cos(HPhi_ZReplacement) == 1, -999, HPx)
-            HPy = diphotons.pt * numpy.sin(HPhi_ZReplacement)
-            HPy = ak.fill_none(HPy, -999)
-            HPy = ak.where(numpy.sin(HPhi_ZReplacement) == 0, -999, HPy)
-            HPxHat = HPx / numpy.abs(diphotons.pt)
-            HPxHat = ak.where(numpy.abs(HPxHat) == 1, -999, HPxHat)
-            HPyHat = HPy / numpy.abs(diphotons.pt)
-            HPyHat = ak.where(numpy.abs(HPyHat) == 1, -999, HPyHat)
-
-            J0J1Px = dijet.pt * numpy.cos(DijetPhi_ZReplacement)
-            J0J1Px = ak.fill_none(J0J1Px, -999)
-            J0J1Px = ak.where(numpy.cos(DijetPhi_ZReplacement) == 1, -999, J0J1Px)
-            J0J1PxHat = J0J1Px / numpy.abs(dijet.pt)
-            J0J1PxHat = ak.where(numpy.abs(J0J1PxHat) == 1, -999, J0J1PxHat)
-            J0J1Py = dijet.pt * numpy.sin(DijetPhi_ZReplacement)
-            J0J1Py = ak.where(numpy.sin(DijetPhi_ZReplacement) == 0, -999, J0J1Py)
-            J0J1Py = ak.fill_none(J0J1Py, -999)
-            J0J1PyHat = J0J1Py / numpy.abs(dijet.pt)
-            J0J1PyHat = ak.where(numpy.abs(J0J1PyHat) == 1, -999, J0J1PyHat)
-
-            HPz = diphotons.pt * numpy.sinh(diphotons.eta)
-            HPz = ak.fill_none(HPz, -999.0)
-            J0J1Pz = dijet.pt * numpy.sinh(dijet.eta)
-            J0J1Pz = ak.fill_none(J0J1Pz, -999.0)
-
-            DPhiHJ0J1 = ((HPxHat * J0J1PyHat - HPyHat * J0J1PxHat) / numpy.abs(HPxHat * J0J1PyHat - HPyHat * J0J1PxHat)) * ((HPz - J0J1Pz) / numpy.abs(HPz - J0J1Pz)) * numpy.arccos((HPxHat * J0J1PxHat + HPyHat * J0J1PyHat))
-            DPhiHJ0J1 = ak.where(HPz == J0J1Pz, -999, DPhiHJ0J1)  # Event contains no jet => DPhiHJ0J1 will be undefined
-            DPhiHJ0J1 = ak.where(numpy.abs(HPxHat * J0J1PxHat + HPyHat * J0J1PyHat) > 1, -999, DPhiHJ0J1)  # Either one of the jets is missing => DPhiHJ0J1 will be undefined
+            DPhiHJ0J1 = DijetPhi - HPhi
+            DPhiHJ0J1 = (DPhiHJ0J1 + numpy.pi) % (2 * numpy.pi) - numpy.pi
+            DPhiHJ0J1 = ak.where(HPhi == -999, -999, DPhiHJ0J1)
+            DPhiHJ0J1 = ak.where(DijetPhi == -999, -999, DPhiHJ0J1)
             diphotons["DPhiHJ0J1"] = DPhiHJ0J1
 
             EtaJ0J1 = first_jet_eta - second_jet_eta
