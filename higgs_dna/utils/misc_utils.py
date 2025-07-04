@@ -180,9 +180,9 @@ def DPhiV1V2(vec1, vec2):
     }, with_name="Vector3D")
 
     # Sign from cross and difference
-    cross_sign = ak.where(jt1_unit.cross(jt2_unit).dot(z) > 0, 1.0, ak.where(jt1_unit.cross(jt2_unit).dot(z) < 0, -1.0, 0.0))
+    cross_sign = ak.where(jt1_unit.cross(jt2_unit).dot(z) > 0, 1.0, ak.where(jt1_unit.cross(jt2_unit).dot(z) <= 0, -1.0, 0.0))
 
-    diff_sign = ak.where((j1dir - j2dir).dot(z) > 0, 1.0, ak.where((j1dir - j2dir).dot(z) < 0, -1.0, 0.0))
+    diff_sign = ak.where((j1dir - j2dir).dot(z) > 0, 1.0, ak.where((j1dir - j2dir).dot(z) <= 0, -1.0, 0.0))
 
     # Dot product
     dot = jt1_unit.dot(jt2_unit)

@@ -110,12 +110,11 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
         logger.info(
             "Extracting sum of gen weights (before selection) from metadata of files to be merged."
         )
-        sum_genw_beforesel_arr = []
         source_files = glob.glob("%s/*.parquet" % folder_path)
         sum_genw_beforesel = 0
         for f in source_files:
             sum_genw_beforesel += float(pq.read_table(f).schema.metadata[b'sum_genw_presel'])
-        sum_genw_beforesel_arr.append(sum_genw_beforesel)
+        logger.debug(f"sum_genw_beforesel {(sum_genw_beforesel)}")
         logger.info(
             "Successfully extracted sum of gen weights (before selection)"
         )
@@ -156,12 +155,15 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
                 else:
                     selectionVariableName = keys
                 eve = filter_and_set_diff_variable(eve, var_dict, selectionVariableName, "diffVariable_" + keys)
+        syst_weight_fields = [field for field in eve.fields if (("weight_" in field) and ("Up" in field or "Down" in field))]
+        logger.debug(f"Found systematic weight fields: {syst_weight_fields}")
         # Add column for unnormalised weight
         eve['weight_nominal'] = eve['weight']
         if len(eve) > 0:
-            eve['weight'] = eve['weight'] / sum_genw_beforesel_arr[0]
+            for weight_field in ["weight"] + syst_weight_fields:
+                eve[weight_field] = eve[weight_field] / sum_genw_beforesel
             logger.info(
-                "Successfully added normalised weight column to dataset"
+                "Successfully added normalised weight column and normalized weights of the systematics to dataset"
             )
         else:
             logger.info(
