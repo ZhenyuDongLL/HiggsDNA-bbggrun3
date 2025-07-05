@@ -12,7 +12,7 @@ After cloning the repo and accessing it with the usual::
         cd HiggsDNA
 
 one can create a conda environment with the main needed dependencies.
-We recommend accessing conda through [Miniforge](https://github.com/conda-forge/miniforge) as it is a minimal conda installer that only installs conda-forge packages by default.
+We recommend accessing conda through `Miniforge <https://github.com/conda-forge/miniforge>`_ as it is a minimal conda installer that only installs conda-forge packages by default.
 After instaling Miniforge, you can create the environment with the following commands::
 
         # We recommend python 3.12 but in principle, 3.11 and 3.10 are fine too.
