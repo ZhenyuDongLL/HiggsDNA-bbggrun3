@@ -22,16 +22,19 @@ def jetIdFlags_v1213(jets, nano_version):
             (jets.jetId & (1 << 1)) > 0,  # Tight criteria for abs_eta <= 2.7
             ak.where(
                 (abs_eta > 2.7) & (abs_eta <= 3.0),
-                ((jets.jetId & (1 << 1)) > 0) & (jets.neHEF < 0.99),  # Tight criteria for 2.7 < abs_eta <= 3.0
-                ((jets.jetId & (1 << 1)) > 0) & (jets.neEmEF < 0.4)  # Tight criteria for 3.0 < abs_eta
-            )
+                # Tight criteria for 2.7 < abs_eta <= 3.0
+                ((jets.jetId & (1 << 1)) > 0) & (jets.neHEF < 0.99),
+                # Tight criteria for 3.0 < abs_eta
+                ((jets.jetId & (1 << 1)) > 0) & (jets.neEmEF < 0.4),
+            ),
         )
 
         # Default tight lepton veto
         passJetIdTightLepVeto = ak.where(
             abs_eta <= 2.7,
-            passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),  # add lepton veto for abs_eta <= 2.7
-            passJetIdTight  # No lepton veto for 2.7 < abs_eta
+            passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),
+            # add lepton veto for abs_eta <= 2.7
+            passJetIdTight,  # No lepton veto for 2.7 < abs_eta
         )
     else:
         # Default tight for NanoAOD version 13
@@ -44,20 +47,23 @@ def jetIdFlags_v1213(jets, nano_version):
             & (jets.chMultiplicity > 0),  # Tight criteria for abs_eta <= 2.6
             ak.where(
                 (abs_eta > 2.6) & (abs_eta <= 2.7),
-                (jets.neHEF < 0.9) & (jets.neEmEF < 0.99),  # Tight criteria for 2.6 < abs_eta <= 2.7
+                # Tight criteria for 2.6 < abs_eta <= 2.7
+                (jets.neHEF < 0.9) & (jets.neEmEF < 0.99),
                 ak.where(
                     (abs_eta > 2.7) & (abs_eta <= 3.0),
                     jets.neHEF < 0.99,  # Tight criteria for 2.7 < abs_eta <= 3.0
-                    (jets.neMultiplicity >= 2) & (jets.neEmEF < 0.4)  # Tight criteria for abs_eta > 3.0
-                )
-            )
+                    # Tight criteria for abs_eta > 3.0
+                    (jets.neMultiplicity >= 2) & (jets.neEmEF < 0.4),
+                ),
+            ),
         )
 
         # Default tight lepton veto
         passJetIdTightLepVeto = ak.where(
             abs_eta <= 2.7,
-            passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),  # add lepton veto for abs_eta <= 2.7
-            passJetIdTight  # No lepton veto for 2.7 < abs_eta
+            passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),
+            # add lepton veto for abs_eta <= 2.7
+            passJetIdTight,  # No lepton veto for 2.7 < abs_eta
         )
 
     return passJetIdTight, passJetIdTightLepVeto
@@ -67,42 +73,112 @@ def getBTagMVACut(mva_name, mva_wp, year):
     mva_name_to_btag_wp_name = {
         "particleNet": "particleNet_wp_values",
         "deepJet": "deepJet_wp_values",
-        "robustParticleTransformer": "robustParticleTransformer_wp_values"
+        "robustParticleTransformer": "robustParticleTransformer_wp_values",
     }
 
-    # Based on recommendations for the tight QCD WP seen here: https://btv-wiki.docs.cern.ch/PerformanceCalibration/#working-points
+    # Based on recommendations for the tight QCD WP seen here:
+    # https://btv-wiki.docs.cern.ch/PerformanceCalibration/#working-points
     btag_correction_configs = {
         "2016preVFP": {
-            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2016preVFP_UL/btagging.json.gz")
+            "file": os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "systematics",
+                "JSONs",
+                "bTagSF",
+                "2016preVFP_UL/btagging.json.gz",
+            )
         },
         "2016postVFP": {
-            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2016postVFP_UL/btagging.json.gz")
+            "file": os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "systematics",
+                "JSONs",
+                "bTagSF",
+                "2016postVFP_UL/btagging.json.gz",
+            )
         },
         "2017": {
-            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2017_UL/btagging.json.gz")
+            "file": os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "systematics",
+                "JSONs",
+                "bTagSF",
+                "2017_UL/btagging.json.gz",
+            )
         },
         "2018": {
-            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2018_UL/btagging.json.gz")
+            "file": os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "systematics",
+                "JSONs",
+                "bTagSF",
+                "2018_UL/btagging.json.gz",
+            )
         },
-        "2022preEE":{
-            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2022_Summer22/btagging.json.gz")
+        "2022preEE": {
+            "file": os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "systematics",
+                "JSONs",
+                "bTagSF",
+                "2022_Summer22/btagging.json.gz",
+            )
         },
-        "2022postEE":{
-            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2022_Summer22EE/btagging.json.gz")
+        "2022postEE": {
+            "file": os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "systematics",
+                "JSONs",
+                "bTagSF",
+                "2022_Summer22EE/btagging.json.gz",
+            )
         },
-        "2023preBPix":{
-            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2023_Summer23/btagging.json.gz")
+        "2023preBPix": {
+            "file": os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "systematics",
+                "JSONs",
+                "bTagSF",
+                "2023_Summer23/btagging.json.gz",
+            )
         },
-        "2023postBPix":{
-            "file": os.path.join(os.path.dirname(__file__), "..", "systematics", "JSONs", "bTagSF", "2023_Summer23BPix/btagging.json.gz")
+        "2023postBPix": {
+            "file": os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "systematics",
+                "JSONs",
+                "bTagSF",
+                "2023_Summer23BPix/btagging.json.gz",
+            )
         },
     }
-    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    avail_years = [
+        "2016preVFP",
+        "2016postVFP",
+        "2017",
+        "2018",
+        "2022preEE",
+        "2022postEE",
+        "2023preBPix",
+        "2023postBPix",
+    ]
     if year not in avail_years:
-        logger.warning(f"\n BTV correctionlib for {year} not found! Don't cut on the selected B-Tag MVA. The b-related variables are most likely not correct.\n")
+        logger.warning(
+            f"\n BTV correctionlib for {year} not found! Don't cut on the selected B-Tag MVA. The b-related variables are most likely not correct.\n"
+        )
         return -999.0
 
-    mva_cut_value = correctionlib.CorrectionSet.from_file(btag_correction_configs[year]['file'])[mva_name_to_btag_wp_name[mva_name]].evaluate(mva_wp)
+    mva_cut_value = correctionlib.CorrectionSet.from_file(
+        btag_correction_configs[year]["file"]
+    )[mva_name_to_btag_wp_name[mva_name]].evaluate(mva_wp)
 
     return mva_cut_value
 
@@ -115,14 +191,21 @@ def select_jets(
     electrons: ak.highlevel.Array,
     taus: ak.highlevel.Array = None,
 ) -> ak.highlevel.Array:
-    # jet id selection: https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
+    # jet id selection:
+    # https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
     if (self.nano_version == 12) or (self.nano_version == 13):
-        passJetIdTight, passJetIdTightLepVeto = jetIdFlags_v1213(jets, self.nano_version)
+        passJetIdTight, passJetIdTightLepVeto = jetIdFlags_v1213(
+            jets, self.nano_version
+        )
         if self.jet_jetId == "tight":  # Select jetId 2 or 6
-            logger.info("Applying jetID recipe of NanoAOD version %s", self.nano_version)
+            logger.info(
+                "Applying jetID recipe of NanoAOD version %s", self.nano_version
+            )
             jetId_cut = passJetIdTight
         elif self.jet_jetId == "tightLepVeto":  # Select jetId 6
-            logger.info("Applying jetID recipe of NanoAOD version %s", self.nano_version)
+            logger.info(
+                "Applying jetID recipe of NanoAOD version %s", self.nano_version
+            )
             jetId_cut = passJetIdTight & passJetIdTightLepVeto
         else:
             jetId_cut = ak.ones_like(jets.pt) > 0
@@ -304,6 +387,10 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
             os.path.dirname(__file__),
             "../systematics/JSONs/POG/JME/2023_Summer23BPix/jetvetomaps.json.gz",
         ),
+        "2024": os.path.join(
+            os.path.dirname(__file__),
+            "../systematics/JSONs/POG/JME/2024_Winter24/jetvetomaps.json.gz",
+        ),
     }
     key_map = {
         "2016preVFP": "Summer19UL16_V1",
@@ -314,6 +401,7 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         "2022postEE": "Summer22EE_23Sep2023_RunEFG_V1",
         "2023preBPix": "Summer23Prompt23_RunC_V1",
         "2023postBPix": "Summer23BPixPrompt23_RunD_V1",
+        "2024": "Winter24Prompt2024BCDEFGHI_V1",
     }
 
     logger.debug(
@@ -329,7 +417,8 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         _cset_json["corrections"][0]["data"]["content"][0]["value"]["edges"][0][-1],
     )
     # phi value must be within [-np.pi,np.pi]. Though values beyond are observed.
-    # Might due to the accuracy of nanoaod format. So clip the values to be within the first and last bin centers
+    # Might due to the accuracy of nanoaod format. So clip the values to be
+    # within the first and last bin centers
     low_phi, high_phi = (
         (
             _cset_json["corrections"][0]["data"]["content"][0]["value"]["edges"][1][0]
@@ -357,25 +446,47 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
 
     # ref: https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVRun3Analysis#From_JME
     # and: https://cms-talk.web.cern.ch/t/jet-veto-maps-for-run3/57850/6
-
     input_dict = {
         "type": "jetvetomap",
         "eta": jets.eta,
         "phi": np.clip(jets.phi, low_phi, high_phi),
     }
-
     if (self.nano_version == 12) or (self.nano_version == 13):
         passJetIdTight, _ = jetIdFlags_v1213(jets, self.nano_version)
         jetId_cut = passJetIdTight
     else:
-        jetId_cut = ((jets.jetId == 2) | (jets.jetId == 6))
-
+        jetId_cut = (jets.jetId == 2) | (jets.jetId == 6)
     input_dict["type"] = "jetvetomap"
     inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
     vetomap = cset[key_map[year]].evaluate(*(inputs))
-    flag_veto_jet = (np.abs(vetomap) > 0) & ((jets.pt > 15) & (jetId_cut) & ((jets.chEmEF + jets.neEmEF) < 0.9) & (jets.muonIdx1 == -1) & (jets.muonIdx2 == -1))
-    sel_obj.add("vetomap", flag_veto_jet)
-
+    if year == "2024":
+        input_dict_notFPix = {
+            "type": "jetvetomap_fpix",
+            "eta": jets.eta,
+            "phi": np.clip(jets.phi, low_phi, high_phi),
+        }
+        input_dict_notFPix["type"] = "jetvetomap_fpix"
+        inputs_notFPix = [
+            input_dict_notFPix[input.name] for input in cset[key_map[year]].inputs
+        ]
+        vetomap_notFPix = cset[key_map[year]].evaluate(*(inputs_notFPix))
+        flag_veto_jet = ((np.abs(vetomap) > 0) | (np.abs(vetomap_notFPix) > 0)) & (
+            (jets.pt > 15)
+            & (jetId_cut)
+            & ((jets.chEmEF + jets.neEmEF) < 0.9)
+            & (jets.muonIdx1 == -1)
+            & (jets.muonIdx2 == -1)
+        )
+        sel_obj.add("vetomap", flag_veto_jet)
+    else:
+        flag_veto_jet = (np.abs(vetomap) > 0) & (
+            (jets.pt > 15)
+            & (jetId_cut)
+            & ((jets.chEmEF + jets.neEmEF) < 0.9)
+            & (jets.muonIdx1 == -1)
+            & (jets.muonIdx2 == -1)
+        )
+        sel_obj.add("vetomap", flag_veto_jet)
     sel_veto_jet = sel_obj.all(*(sel_obj.names))
     sel_good_jet = ~ak.Array(sel_veto_jet)
     logger.debug(

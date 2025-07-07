@@ -166,19 +166,33 @@ def jerc_jet(
         ),
         "2022preEE": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2022_Summer22/jet_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2022_Summer22/jet_jerc"
+            + pnetFlag
+            + ".json.gz",
         ),
         "2022postEE": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2022_Summer22EE/jet_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2022_Summer22EE/jet_jerc"
+            + pnetFlag
+            + ".json.gz",
         ),
         "2023preBPix": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2023_Summer23/jet_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2023_Summer23/jet_jerc"
+            + pnetFlag
+            + ".json.gz",
         ),
         "2023postBPix": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2023_Summer23BPix/jet_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2023_Summer23BPix/jet_jerc"
+            + pnetFlag
+            + ".json.gz",
+        ),
+        "2024": os.path.join(
+            os.path.dirname(__file__),
+            "../systematics/JSONs/POG/JME/2024_Winter24/jet_jerc"
+            + pnetFlag
+            + ".json.gz",
         ),
     }
     jec_version = {
@@ -235,6 +249,7 @@ def jerc_jet(
             "RunD": "Summer23BPixPrompt23_RunD_V1_DATA",
             "MC": "Summer23BPixPrompt23_V3_MC",
         },
+        "2024": {"Data": "Winter24Prompt24_V3_DATA", "MC": "Winter24Prompt24_V3_MC"},
     }
     jec = jec_version[year][era]
     tag_jec = "_".join([jec, level, algo])
@@ -257,16 +272,22 @@ def jerc_jet(
         if pnet == "PNetRegression":
             pnetFactor = jets_jagged.PNetRegPtRawCorr
         if pnet == "PNetRegressionPlusNeutrino":
-            pnetFactor = jets_jagged.PNetRegPtRawCorr * jets_jagged.PNetRegPtRawCorrNeutrino
-        jets_jagged["pt_raw"] = jets_jagged.pt * (1 - jets_jagged.rawFactor) * pnetFactor
+            pnetFactor = (
+                jets_jagged.PNetRegPtRawCorr * jets_jagged.PNetRegPtRawCorrNeutrino
+            )
+        jets_jagged["pt_raw"] = (
+            jets_jagged.pt * (1 - jets_jagged.rawFactor) * pnetFactor
+        )
         jets_jagged["mass_raw"] = jets_jagged.mass * (1 - jets_jagged.rawFactor)
-    # avoid using hasattr(jets_jagged, "rho"). Same name as the coffea vector property of rho: https://github.com/CoffeaTeam/coffea/blob/0e43daf8e40ccec44efb2622777354ebd0424b84/src/coffea/nanoevents/methods/vector.py#L482
+    # avoid using hasattr(jets_jagged, "rho"). Same name as the coffea vector
+    # property of rho:
+    # https://github.com/CoffeaTeam/coffea/blob/0e43daf8e40ccec44efb2622777354ebd0424b84/src/coffea/nanoevents/methods/vector.py#L482
     if "rho_value" not in jets_jagged.fields:
         try:
             jets_jagged["rho_value"] = (
                 ak.ones_like(jets_jagged.pt) * events.Rho.fixedGridRhoFastjetAll
             )
-        except:
+        except BaseException:
             # UL datasets have different naming convention
             jets_jagged["rho_value"] = (
                 ak.ones_like(jets_jagged.pt) * events.fixedGridRhoFastjetAll
@@ -274,7 +295,8 @@ def jerc_jet(
     # create the gen_matched pt, only for once
     if ("pt_gen" not in jets_jagged.fields) and (apply_jer or jer_syst):
         # TODO: finalize the gen-matching algorithms
-        # current follow coffea example: https://github.com/CoffeaTeam/coffea/blob/16db8f663e40dafd2399d32862c20e3faa5542be/binder/applying_corrections.ipynb#L423
+        # current follow coffea example:
+        # https://github.com/CoffeaTeam/coffea/blob/16db8f663e40dafd2399d32862c20e3faa5542be/binder/applying_corrections.ipynb#L423
         jets_jagged["pt_gen"] = ak.fill_none(jets_jagged.matched_gen.pt, -99999)
     # create the eventid, only for once
     if ("event_id" not in jets_jagged.fields) and (apply_jer or jer_syst):
@@ -289,9 +311,7 @@ def jerc_jet(
         "JetPhi": jets.phi,
         "Rho": jets.rho_value,
         "JetA": jets.area,
-        **(
-            {"run": jets.run} if (era == "Data") else {}
-        ),
+        **({"run": jets.run} if (era == "Data") else {}),
     }
 
     # jec central
@@ -335,7 +355,8 @@ def jerc_jet(
         # update evaluate dictionary
         eval_dict.update(
             {
-                "JetPt": jets.pt if pnet == "" else jets.pt_nano,  # JER SFs for PNet run on stadandard jets
+                # JER SFs for PNet run on stadandard jets
+                "JetPt": jets.pt if pnet == "" else jets.pt_nano,
                 "GenPt": jets.pt_gen,
                 "EventID": jets.event_id,
             }
@@ -372,7 +393,8 @@ def jerc_jet(
             jets["pt_jer_syst_down"] = jets.pt * jersmear
             jets["mass_jer_syst_down"] = jets.mass * jersmear
         if apply_jer:
-            # to avoid the sf: jer*jer_up or jer*jer_down, update the jer pt/mass after calculation of the jer up/down
+            # to avoid the sf: jer*jer_up or jer*jer_down, update the jer
+            # pt/mass after calculation of the jer up/down
             jets["pt"] = jets["pt_jer"]
             jets["mass"] = jets["mass_jer"]
 
@@ -385,7 +407,7 @@ def jerc_jet(
             tag_jec_syst = "_".join([jec, "Total", algo])
             try:
                 sf = cset[tag_jec_syst]
-            except:
+            except BaseException:
                 logger.error(
                     f"[ jerc_jet ] No JEC systematic: {tag_jec_syst} - Year: {year} - Era: {era}"
                 )
@@ -588,13 +610,43 @@ def jerc_jet(
                     "jec_syst_TimePtEta": "TimePtEta",
                     "jec_syst_Total": "Total",
                 },
+                "2024": {
+                    "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
+                    "jec_syst_AbsoluteScale": "AbsoluteScale",
+                    "jec_syst_AbsoluteStat": "AbsoluteStat",
+                    "jec_syst_FlavorQCD": "FlavorQCD",
+                    "jec_syst_Fragmentation": "Fragmentation",
+                    "jec_syst_PileUpDataMC": "PileUpDataMC",
+                    "jec_syst_PileUpPtBB": "PileUpPtBB",
+                    "jec_syst_PileUpPtEC1": "PileUpPtEC1",
+                    "jec_syst_PileUpPtEC2": "PileUpPtEC2",
+                    "jec_syst_PileUpPtHF": "PileUpPtHF",
+                    "jec_syst_PileUpPtRef": "PileUpPtRef",
+                    "jec_syst_RelativeFSR": "RelativeFSR",
+                    "jec_syst_RelativeJEREC1": "RelativeJEREC1",
+                    "jec_syst_RelativeJEREC2": "RelativeJEREC2",
+                    "jec_syst_RelativeJERHF": "RelativeJERHF",
+                    "jec_syst_RelativePtBB": "RelativePtBB",
+                    "jec_syst_RelativePtEC1": "RelativePtEC1",
+                    "jec_syst_RelativePtEC2": "RelativePtEC2",
+                    "jec_syst_RelativePtHF": "RelativePtHF",
+                    "jec_syst_RelativeBal": "RelativeBal",
+                    "jec_syst_RelativeSample": "RelativeSample",
+                    "jec_syst_RelativeStatEC": "RelativeStatEC",
+                    "jec_syst_RelativeStatFSR": "RelativeStatFSR",
+                    "jec_syst_RelativeStatHF": "RelativeStatHF",
+                    "jec_syst_SinglePionECAL": "SinglePionECAL",
+                    "jec_syst_SinglePionHCAL": "SinglePionHCAL",
+                    "jec_syst_TimePtEta": "TimePtEta",
+                    "jec_syst_Total": "Total",
+                },
             }
             for i in jec_syst_regrouped[year]:
                 # get the total uncertainty
                 tag_jec_syst = "_".join([jec, jec_syst_regrouped[year][i], algo])
                 try:
                     sf = cset[tag_jec_syst]
-                except:
+                except BaseException:
                     logger.error(
                         f"[ jerc_jet ] No JEC systematic: {tag_jec_syst} - Year: {year} - Era: {era}"
                     )

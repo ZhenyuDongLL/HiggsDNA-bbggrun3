@@ -46,6 +46,8 @@ def select_lumis(
         year = "2022"
     elif "2023" in year:
         year = "2023"
+    elif "2024" in year:
+        year = "2024"
     else:
         pass
     lumimask = LumiMask(goldenJson_dict[year])
