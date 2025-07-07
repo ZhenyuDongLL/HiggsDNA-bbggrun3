@@ -1052,6 +1052,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
 def get_pileup(logger, target_dir, use_xrdcp=False):
     # Base URL for pileup JSONs
     base_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/LUM"
+    eos_path_2024Preliminary = "/eos/cms/store/user/evourlio/pileupJson_forHiggsDNA"
 
     if target_dir is not None:
         to_prefix = target_dir
@@ -1099,6 +1100,11 @@ def get_pileup(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/pileup_2023postBPix.json.gz",
             "type": "cvmfs",
         },
+        "2024": {
+             "from": f"{eos_path_2024Preliminary}/2024/puWeights.json.gz",
+             "to": f"{to_prefix}/pileup_2024.json.gz",
+             "type": "eos",
+         },
     }
 
     fetch_file("Pileup", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
