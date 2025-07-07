@@ -175,7 +175,7 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
             and ("Smearing_Trad" not in correction_names and "Smearing_IJazZ" not in correction_names and "Smearing2G_IJazZ" not in correction_names)
         ):
             warnings.warn(
-                "Smearing_Trad or  Smearing_IJazZ or Smearing2G_IJazZ should be specified in the corrections field in .json in order to smear the mass!"
+                "Smearing_Trad or Smearing_IJazZ or Smearing2G_IJazZ should be specified in the corrections field in .json in order to smear the mass!"
             )
             sys.exit(0)
 
@@ -572,6 +572,7 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
                     ]._partition_key.replace("/", "_")
                     + ".%s" % self.output_format
                 )
+                fname = (fname.replace("%2F","")).replace("%3B1","")
                 subdirs = []
                 if "dataset" in events.metadata:
                     subdirs.append(events.metadata["dataset"])

@@ -15,11 +15,11 @@ one can create a conda environment with the main needed dependencies.
 We recommend accessing conda through `Miniforge <https://github.com/conda-forge/miniforge>`_ as it is a minimal conda installer that only installs conda-forge packages by default.
 After instaling Miniforge, you can create the environment with the following commands::
 
-        # We recommend python 3.12 but in principle, 3.11 and 3.10 are fine too.
-        conda create -n higgs-dna python=3.12 xrootd
+        # We recommend python 3.11 but in principle, 3.10 and 3.9 are fine too.
+        conda create -n higgs-dna python=3.11 xrootd
         # You can also use mamba instead of conda, which may be faster but the latest
         # miniforge releases use mamba as the default solver anyways so there is no benefit.
-        mamba create -n higgs-dna python=3.12 xrootd
+        mamba create -n higgs-dna python=3.11 xrootd
 
         conda activate higgs-dna
 

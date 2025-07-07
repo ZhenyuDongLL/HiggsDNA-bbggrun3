@@ -195,7 +195,7 @@ def calculate_retrained_diphoton_mva(
         ak.fill_none(ak.pad_none(events.OtherPV.z, 3, axis=1), -999.0)
     )
     PV_z = ak.to_numpy(events.PV.z)
-    events.OtherPV.z = ak.from_numpy(OtherPV_z)
+    events["OtherPV", "z"] = ak.from_numpy(OtherPV_z)
     # reshaping to match OtherPV_z
     PV_z = numpy.full_like(
         numpy.arange(3 * len(PV_z)).reshape(len(PV_z), 3), 1, dtype=float

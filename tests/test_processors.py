@@ -3,7 +3,7 @@ import subprocess
 import json
 import pytest
 from importlib import resources
-from higgs_dna.workflows import HggBaseProcessor, HggFiducialProcessor, TagAndProbeProcessor, HHbbggProcessor, HplusCharmProcessor, lowmassProcessor, ParticleLevelProcessor, TopProcessor, ZeeProcessor, ZmmyProcessor, STXSProcessor, BTaggingEfficienciesProcessor
+from higgs_dna.workflows import HggBaseProcessor, HggFiducialProcessor, TagAndProbeProcessor, HHbbggProcessor, HplusCharmProcessor, LowMassProcessor, ParticleLevelProcessor, TopProcessor, ZeeProcessor, ZmmyProcessor, STXSProcessor, BTaggingEfficienciesProcessor
 from coffea import processor
 
 
@@ -32,7 +32,7 @@ def run_processor(processor_instance, fileset):
     # Hpc Cannot be included in a simple way here since the arguments are not defaulted
     #HplusCharmProcessor,
     # Unclear to me why low mass does not work here, unit test should also be designed for this processor
-    #lowmassProcessor,
+    #LowMassProcessor,
     ParticleLevelProcessor,
     TopProcessor,
     ZeeProcessor,
@@ -75,7 +75,7 @@ def test_processors(processor_class):
     elif processor_class == HplusCharmProcessor:
         MC = "./tests/samples/skimmed_nano/ggH_M125_amcatnlo_v13.root"
         Data = "./tests/samples/skimmed_nano/EGamma_2022E_v13.root"
-    elif processor_class == lowmassProcessor:
+    elif processor_class == LowMassProcessor:
         MC = "./tests/samples/skimmed_nano/ggH_M125_amcatnlo_v13.root"
         Data = "./tests/samples/skimmed_nano/EGamma_2022E_v13.root"
     elif processor_class == ParticleLevelProcessor:
