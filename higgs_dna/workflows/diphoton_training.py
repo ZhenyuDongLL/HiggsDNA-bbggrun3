@@ -56,9 +56,10 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
         systematics: Optional[Dict[str, List[str]]] = None,
         corrections: Optional[Dict[str, List[str]]] = None,
         apply_trigger: bool = False,
-        nano_version: int = 13,
         output_location: Optional[str] = None,
         taggers: Optional[List[Any]] = None,
+        nano_version: int = 13,
+        bTagEffFileName: Optional[str] = None,
         trigger_group: str = ".*DoubleEG.*",
         analysis: str = "mainAnalysis",
         applyCQR: bool = False,
@@ -76,6 +77,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
             corrections=corrections,
             apply_trigger=apply_trigger,
             nano_version=nano_version,
+            bTagEffFileName=bTagEffFileName,
             output_location=output_location,
             taggers=taggers,
             trigger_group=trigger_group,
@@ -336,31 +338,48 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
         except KeyError:
             systematic_names = []
 
-        # If --Smear-sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt scpectrum need to be smeared in order to properly calculate the smeared sigma_m_m
+        # If --Smear-sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt spectrum need to be smeared in order to properly calculate the smeared sigma_m_m
         if (
             self.data_kind == "mc"
             and self.Smear_sigma_m
-            and ("Smearing" not in correction_names and "Et_dependent_Smearing" not in correction_names)
+            and ("Smearing_Trad" not in correction_names and "Smearing_IJazZ" not in correction_names and "Smearing2G_IJazZ" not in correction_names)
         ):
             warnings.warn(
-                "Smearing or Et_dependent_Smearing should be specified in the corrections field in .json in order to smear the mass!"
+                "Smearing_Trad or Smearing_IJazZ or Smearing2G_IJazZ should be specified in the corrections field in .json in order to smear the mass!"
             )
             sys.exit(0)
+
+        # save raw pt if we use scale/smearing corrections
+        # These needs to be before the smearing of the mass resolution in order to have the raw pt for the function
+        s_or_s_applied = False
+        s_or_s_ele_applied = False
+        for correction in correction_names:
+            if "scale" or "smearing" in correction.lower():
+                if "Electron" in correction:
+                    s_or_s_ele_applied = True
+                else:
+                    s_or_s_applied = True
+        if s_or_s_applied:
+            events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
+        if s_or_s_ele_applied:
+            events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
         if self.data_kind == "data" and self.Smear_sigma_m:
-            if "Scale" in correction_names:
-                correction_name = "Smearing"
-            elif "Et_dependent_Scale" in correction_names:
-                correction_name = "Et_dependent_Smearing"
+            if "Scale_Trad" in correction_names:
+                correction_name = "Smearing_Trad"
+            elif "Scale_IJazZ" in correction_names:
+                correction_name = "Smearing_IJazZ"
+            elif "Scale2G_IJazZ" in correction_names:
+                correction_name = "Smearing2G_IJazZ"
             else:
                 logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
                 sys.exit(0)
 
             logger.info(
                 f"""
-                \nApplying correction {correction_name} to dataset {dataset_name}\n
+                Applying correction {correction_name} to dataset {dataset_name}\n
                 This is only for the addition of the smearing term to the sigma_m_over_m in data\n
                 """
             )
@@ -539,8 +558,11 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                     "nConst": jets.nConstituents if hasattr(jets, "nConstituents") else ak.ones_like(jets.pt) * -1.,
                     "neHEF": jets.neHEF if hasattr(jets, "neHEF") else ak.ones_like(jets.pt) * -1.,
                     "neEmEF": jets.neEmEF if hasattr(jets, "neEmEF") else ak.ones_like(jets.pt) * -1.,
+                    "neMultiplicity": jets.neMultiplicity if hasattr(jets, "neMultiplicity") else ak.ones_like(jets.pt) * -1.,
                     "chHEF": jets.chHEF if hasattr(jets, "chHEF") else ak.ones_like(jets.pt) * -1.,
                     "chEmEF": jets.neHEF if hasattr(jets, "chEmEF") else ak.ones_like(jets.pt) * -1.,
+                    "chMultiplicity": jets.chMultiplicity if hasattr(jets, "chMultiplicity") else ak.ones_like(jets.pt) * -1.,
+                    "muEF": jets.muEF if hasattr(jets, "muEF") else ak.ones_like(jets.pt) * -1.,
                 }
             )
             jets = ak.with_name(jets, "PtEtaPhiMCandidate")
@@ -747,7 +769,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
             dipho_events["first_jet_phi"] = first_jet_phi
             dipho_events["first_jet_mass"] = first_jet_mass
             dipho_events["first_jet_charge"] = first_jet_charge
-            dipho_events["first_jet_hFlav"] = ak.values_astype(first_jet_hFlav, numpy.int)
+            dipho_events["first_jet_hFlav"] = ak.values_astype(first_jet_hFlav, int)
             dipho_events["first_jet_DeepFlavour_CvsL"] = first_jet_DeepFlavour_CvsL
             dipho_events["first_jet_DeepFlavour_CvsB"] = first_jet_DeepFlavour_CvsB
 
@@ -914,12 +936,12 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
 
                 # decorrelate flow corrected smeared sigma_m_over_m
                 if (self.doFlow_corrections and self.Smear_sigma_m):
-                    if self.data_kind == "data" and "Et_dependent_Scale" in correction_names:
+                    if self.data_kind == "data" and ("Scale_IJazZ" in correction_names or "Scale2G_IJazZ" in correction_names):
                         diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
-                    elif self.data_kind == "mc" and "Et_dependent_Smearing" in correction_names:
+                    elif self.data_kind == "mc" and ("Smearing2G_IJazZ" in correction_names or "Smearing_IJazZ" in correction_names):
                         diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
                     else:
-                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0])
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = decorrelate_mass_resolution(diphotons, type="corr_smeared", year=self.year[dataset_name][0], IsSAS_ET_Dependent=True)
 
                 # Instead of the nominal sigma_m_over_m, we will use the smeared version of it -> (https://indico.cern.ch/event/1319585/#169-update-on-the-run-3-mass-r)
                 # else:
