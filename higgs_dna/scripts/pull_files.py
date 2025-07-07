@@ -1016,6 +1016,15 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             ),
             "type": "eos",
         },
+        "2024_Winter24": {
+            "from": os.path.join(base_path, "2024_Winter24"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2024_Winter24",
+            ),
+            "type": "eos",
+
+            },
     }
 
     fetch_file("JetMET", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
