@@ -12,6 +12,7 @@ from higgs_dna.selections.lepton_selections import select_electrons, select_muon
 from higgs_dna.selections.jet_selections import select_jets, select_fatjets, jetvetomap
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import (
+    apply_naming_convention,
     diphoton_ak_array,
     dump_ak_array,
     diphoton_list_to_pandas,
@@ -105,6 +106,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
         self.bbgg_analysis = ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair"]
         self.nano_version = nano_version
+        self.name_convention = "DAS"
 
         # muon selection cuts
         self.muon_pt_threshold = 15
@@ -1540,13 +1542,8 @@ class HHbbggProcessor(HggSkeletonProcessor):
                         ]
                     ]
 
-                fname = (
-                    events.behavior[
-                        "__events_factory__"
-                    ]._partition_key.replace("/", "_")
-                    + ".%s" % self.output_format
-                )
-                fname = (fname.replace("%2F","")).replace("%3B1","")
+                fname = apply_naming_convention(self, events)
+
                 subdirs = []
                 if "dataset" in events.metadata:
                     subdirs.append(events.metadata["dataset"])
