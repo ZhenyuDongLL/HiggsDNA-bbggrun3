@@ -5,7 +5,7 @@ import awkward as ak
 import correctionlib
 import os
 from copy import deepcopy
-from higgs_dna.tools.doublecrystalball import doublecrystalball
+from coffea.lookup_tools.doublecrystalball import doublecrystalball
 import logging
 
 logger = logging.getLogger(__name__)

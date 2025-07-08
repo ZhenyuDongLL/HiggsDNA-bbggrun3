@@ -32,7 +32,7 @@ classifiers = [
 ]
 dependencies = [
   "setuptools<71",
-  "coffea<2023",
+  "coffea>=0.7.29,<2023",
   "awkward<2",
   "vector<=1.4.3",
   "xgboost",
