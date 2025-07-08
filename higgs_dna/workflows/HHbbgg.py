@@ -318,6 +318,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
         original_jets["pt_orig"] = pt_orig
+        original_fatjets = events.FatJet
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
@@ -371,8 +372,10 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
+        jerc_AK8_syst_list, fatjets_dct = get_obj_syst_dict(original_fatjets, ["pt", "mass"])
         # object systematics dictionary
         logger.debug(f"[ jerc systematics ] {jerc_syst_list}")
+        logger.debug(f"[ AK8 jerc systematics ] {jerc_AK8_syst_list}")
 
         # Build the flattened array of all possible variations
         variations_combined = []
@@ -380,6 +383,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
         variations_combined.append(original_electrons.systematics.fields)
         # NOTE: jet jerc systematics are not added with add_systematics
         variations_combined.append(jerc_syst_list)
+        variations_combined.append(jerc_AK8_syst_list)
         # Flatten
         variations_flattened = sum(variations_combined, [])  # Begin with empty list and keep concatenating
         # Attach _down and _up
@@ -392,7 +396,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             # The PNet corrections are applied during the JES application,
             # using the proper corrections tag in the runner.json.
             # As a result, nominal JES need to be applied to the PNet-corrected jets
-            photons, jets = photons_dct["nominal"], jets_dct["nominal"]
+            photons, jets, fatjets = photons_dct["nominal"], jets_dct["nominal"], fatjets_dct["nominal"]
             if variation == "nominal":
                 pass  # Do nothing since we already get the unvaried, but nominally corrected objects above
             elif variation in [*photons_dct]:  # [*dict] gets the keys of the dict since Python >= 3.5
@@ -401,6 +405,8 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 electrons = electrons_dct[variation]
             elif variation in [*jets_dct]:
                 jets = jets_dct[variation]
+            elif variation in [*fatjets_dct]:
+                fatjets = fatjets_dct[variation]
             do_variation = variation  # We can also simplify this a bit but for now it works
 
             if self.chained_quantile is not None:
@@ -532,7 +538,6 @@ class HHbbggProcessor(HggSkeletonProcessor):
             puppiMET = ak.with_name(puppiMET, "PtEtaPhiMCandidate")
 
             # FatJet variables
-            fatjets = events.FatJet
             fatjets["charge"] = ak.zeros_like(fatjets.pt)
             fatjets = ak.with_name(fatjets, "PtEtaPhiMCandidate")
 

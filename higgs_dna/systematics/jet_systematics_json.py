@@ -117,12 +117,13 @@ def jerc_jet(
     split_jec_syst=False,
     apply_jer=False,
     jer_syst=False,
+    AK8=False,
     pnet="",
 ):
     # first, check if it's data or MC
     if era == "MC" and hasattr(events, "GenPart"):
         logger.debug(
-            f"[ jerc_jet ] - JERC for simulation - Year: {year} - Era: {era} - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst} - JER: {apply_jer}, systematics: {jer_syst}"
+            f"[ jerc_jet ] - JERC for simulation - Year: {year} - Era: {era} - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst}, AK8: {AK8}, PNet: {pnet} - JER: {apply_jer}, systematics: {jer_syst}"
         )
     elif (("Run" in era) or ("Data" in era)) and (not hasattr(events, "GenPart")):
         apply_jec = True
@@ -131,7 +132,7 @@ def jerc_jet(
         apply_jer = False
         jer_syst = False
         logger.debug(
-            f"[ jerc_jet ] - JERC for Data - Year: {year} - Era: {era} - Only JEC to be applied - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst} - JER: {apply_jer}, systematics: {jer_syst}"
+            f"[ jerc_jet ] - JERC for Data - Year: {year} - Era: {era} - Only JEC to be applied - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst}, AK8: {AK8}, PNet: {pnet} - JER: {apply_jer}, systematics: {jer_syst}"
         )
     else:
         logger.error(f"[ jerc_jet ] - Era: {era} doesn't match the input dataset")
@@ -143,56 +144,52 @@ def jerc_jet(
     else:
         algo = "AK4PFchs"
 
+    if AK8:
+        algo = "AK8PFPuppi"
+
     pnetFlag = ""
     if pnet != "":
         pnetFlag = "_PNet"
+    jetType = "jet"
+    if AK8:
+        jetType = "fatJet"
     # jec json file
     jerc_json = {
         "2016preVFP": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2016preVFP_UL/jet_jerc.json.gz",
+            "../systematics/JSONs/POG/JME/2016preVFP_UL/" + jetType + "_jerc.json.gz",
         ),
         "2016postVFP": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2016postVFP_UL/jet_jerc.json.gz",
+            "../systematics/JSONs/POG/JME/2016postVFP_UL/" + jetType + "_jerc.json.gz",
         ),
         "2017": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2017_UL/jet_jerc.json.gz",
+            "../systematics/JSONs/POG/JME/2017_UL/" + jetType + "_jerc.json.gz",
         ),
         "2018": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2018_UL/jet_jerc.json.gz",
+            "../systematics/JSONs/POG/JME/2018_UL/" + jetType + "_jerc.json.gz",
         ),
         "2022preEE": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2022_Summer22/jet_jerc"
-            + pnetFlag
-            + ".json.gz",
+            "../systematics/JSONs/POG/JME/2022_Summer22/" + jetType + "_jerc" + pnetFlag + ".json.gz",
         ),
         "2022postEE": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2022_Summer22EE/jet_jerc"
-            + pnetFlag
-            + ".json.gz",
+            "../systematics/JSONs/POG/JME/2022_Summer22EE/" + jetType + "_jerc" + pnetFlag + ".json.gz",
         ),
         "2023preBPix": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2023_Summer23/jet_jerc"
-            + pnetFlag
-            + ".json.gz",
+            "../systematics/JSONs/POG/JME/2023_Summer23/" + jetType + "_jerc" + pnetFlag + ".json.gz",
         ),
         "2023postBPix": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2023_Summer23BPix/jet_jerc"
-            + pnetFlag
-            + ".json.gz",
+            "../systematics/JSONs/POG/JME/2023_Summer23BPix/" + jetType + "_jerc" + pnetFlag + ".json.gz",
         ),
         "2024": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2024_Winter24/jet_jerc"
-            + pnetFlag
-            + ".json.gz",
+            "../systematics/JSONs/POG/JME/2024_Winter24/" + jetType + "_jerc" + pnetFlag + ".json.gz",
         ),
     }
     jec_version = {
@@ -258,7 +255,11 @@ def jerc_jet(
     cset = correctionlib.CorrectionSet.from_file(jerc_json[year])
 
     # prepare inputs
-    jets_jagged = deepcopy(events.Jet)
+    if AK8:
+        jets_jagged = deepcopy(events.FatJet)
+    else:
+        jets_jagged = deepcopy(events.Jet)
+
     counts = ak.num(jets_jagged)
     if ("run" not in jets_jagged.fields) and (era == "Data"):
         jets_jagged["run"] = events.run
@@ -384,14 +385,17 @@ def jerc_jet(
             jets["pt_jer"] = jets.pt * jersmear
             jets["mass_jer"] = jets.mass * jersmear
         if jer_syst:
+            jetTag = "jer"
+            if AK8:
+                jetTag = "jer_AK8"
             # jer up
             eval_dict, jersmear = get_jersmear(eval_dict, ceval_jer, jer_sf_tag, "up")
-            jets["pt_jer_syst_up"] = jets.pt * jersmear
-            jets["mass_jer_syst_up"] = jets.mass * jersmear
+            jets[f"pt_{jetTag}_syst_up"] = jets.pt * jersmear
+            jets[f"mass_{jetTag}_syst_up"] = jets.mass * jersmear
             # jer down
             eval_dict, jersmear = get_jersmear(eval_dict, ceval_jer, jer_sf_tag, "down")
-            jets["pt_jer_syst_down"] = jets.pt * jersmear
-            jets["mass_jer_syst_down"] = jets.mass * jersmear
+            jets[f"pt_{jetTag}_syst_down"] = jets.pt * jersmear
+            jets[f"mass_{jetTag}_syst_down"] = jets.mass * jersmear
         if apply_jer:
             # to avoid the sf: jer*jer_up or jer*jer_down, update the jer
             # pt/mass after calculation of the jer up/down
@@ -402,6 +406,9 @@ def jerc_jet(
     if jec_syst:
         # update evaluate dictionary
         eval_dict.update({"JetPt": jets.pt})
+        jetTag = "jec"
+        if AK8:
+            jetTag = "jec_AK8"
         if not split_jec_syst:
             # get the total uncertainty
             tag_jec_syst = "_".join([jec, "Total", algo])
@@ -420,10 +427,10 @@ def jerc_jet(
             corr_up_variation = 1 + sf_delta
             corr_down_variation = 1 - sf_delta
 
-            jets["pt_jec_syst_Total_up"] = jets.pt * corr_up_variation
-            jets["pt_jec_syst_Total_down"] = jets.pt * corr_down_variation
-            jets["mass_jec_syst_Total_up"] = jets.mass * corr_up_variation
-            jets["mass_jec_syst_Total_down"] = jets.mass * corr_down_variation
+            jets[f"pt_{jetTag}_syst_Total_up"] = jets.pt * corr_up_variation
+            jets[f"pt_{jetTag}_syst_Total_down"] = jets.pt * corr_down_variation
+            jets[f"mass_{jetTag}_syst_Total_up"] = jets.mass * corr_up_variation
+            jets[f"mass_{jetTag}_syst_Total_down"] = jets.mass * corr_down_variation
         else:
             jec_syst_regrouped = {
                 "2016preVFP": {
@@ -659,10 +666,16 @@ def jerc_jet(
                 corr_up_variation = 1 + sf_delta
                 corr_down_variation = 1 - sf_delta
 
-                jets[f"pt_{i}_up"] = jets.pt * corr_up_variation
-                jets[f"pt_{i}_down"] = jets.pt * corr_down_variation
-                jets[f"mass_{i}_up"] = jets.mass * corr_up_variation
-                jets[f"mass_{i}_down"] = jets.mass * corr_down_variation
+                i_name = i
+                if AK8:
+                    i_name = i.replace("jec_", "jec_AK8_")
+                jets[f"pt_{i_name}_up"] = jets.pt * corr_up_variation
+                jets[f"pt_{i_name}_down"] = jets.pt * corr_down_variation
+                jets[f"mass_{i_name}_up"] = jets.mass * corr_up_variation
+                jets[f"mass_{i_name}_down"] = jets.mass * corr_down_variation
     jets_jagged = ak.unflatten(jets, counts)
-    events.Jet = jets_jagged
+    if AK8:
+        events.FatJet = jets_jagged
+    else:
+        events.Jet = jets_jagged
     return events
