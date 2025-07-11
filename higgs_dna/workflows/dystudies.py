@@ -306,7 +306,7 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
             Since the pileup rw is calculated at a event level, we will have only one weight for event
             But since we are saving ak.flatten(tnp_candidates) , we need the n_event_tnp_cand to unroll the weights to each tnp candidate at the event
             """
-            n_event_tnp_cand = [numpy.ones(n_tnp_candidates) for n_tnp_candidates in ak.num(tnp_candidates[flat_tag_and_probe_mask])]
+            n_event_tnp_cand = ak.to_numpy(ak.num(tnp_candidates[flat_tag_and_probe_mask]))
 
             # candidates need to be flattened since we have each photon as a tag and probe, otherwise it can't be exported to numpy
             tnp_candidates = ak.flatten(tnp_candidates)
@@ -377,16 +377,16 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
                                 "Adding systematic weight variations to nominal output file."
                             )
                         for modifier in event_weights.variations:
-                            df["weight_" + modifier] = numpy.hstack(event_weights.weight(
+                            df["weight_" + modifier] = numpy.repeat(event_weights.weight(
                                 modifier=modifier
-                            ) * n_event_tnp_cand)
+                            ), n_event_tnp_cand)
 
                     # storing the central weights
-                    df["weight_central"] = numpy.hstack(
-                        (event_weights.weight() / numpy.array(events[flat_tag_and_probe_mask].genWeight)) * n_event_tnp_cand
+                    df["weight_central"] = numpy.repeat(
+                        (event_weights.weight() / numpy.array(events[flat_tag_and_probe_mask].genWeight)), n_event_tnp_cand
                     )
                     # generated weights * other weights (pile up, SF, etc ...)
-                    df["weight"] = numpy.hstack(event_weights.weight() * n_event_tnp_cand)
+                    df["weight"] = numpy.repeat(event_weights.weight(), n_event_tnp_cand)
                     df["weight_no_pu"] = df["tag_weight"]
 
                     # dropping the nominal and varitation weights
