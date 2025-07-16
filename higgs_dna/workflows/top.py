@@ -11,6 +11,7 @@ from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import apply_naming_convention, diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas, get_obj_syst_dict
 from higgs_dna.utils.misc_utils import choose_jet
 from higgs_dna.tools.flow_corrections import apply_flow_corrections_to_photons
+from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets
 
 from higgs_dna.systematics import object_systematics as available_object_systematics
 from higgs_dna.systematics import object_corrections as available_object_corrections
@@ -530,6 +531,15 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                             year=self.year[dataset_name][0],
                         )
                 diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
+
+                # for fiducial phase space definitions
+                diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events[selection_mask], flavour='Classical')
+                diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events[selection_mask], flavour='Geometric')
+                genJets = get_genJets(self, events[selection_mask], pt_cut=self.jet_pt_threshold, eta_cut=2.5)
+                num_bjets = ak.sum(
+                    (genJets.hadronFlavour == 5), axis=-1
+                )
+                diphotons["GenNBJet"] = num_bjets
 
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
