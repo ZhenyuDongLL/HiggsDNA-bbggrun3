@@ -72,6 +72,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
         doDeco: bool = False,
         Smear_sigma_m: bool = False,
         doFlow_corrections: bool = False,
+        validate_with_electrons: bool = False,
         output_format: str = "parquet",
     ) -> None:
         super().__init__(
@@ -92,6 +93,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             doDeco=doDeco,
             Smear_sigma_m=Smear_sigma_m,
             doFlow_corrections=doFlow_corrections,
+            validate_with_electrons=validate_with_electrons,
             output_format=output_format
         )
 
@@ -300,6 +302,13 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             warnings.warn(f"Could not instantiate hpc MVA ggh vs hb: {e}")
             self.ggh_vs_hb_mva = None
 
+        if self.validate_with_electrons:
+            logger.info("Running the analysis with electrons reconstructed as photons. Using dielectron triggers.")
+            self.trigger_group = ".*DoubleEG.*"
+            self.analysis = "Dielectron"
+            self.min_pt_photon = 12.0
+            self.min_pt_lead_photon = 23.0
+
     def process_extra(self, events: ak.Array) -> ak.Array:
         raise NotImplementedError
 
@@ -362,6 +371,12 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
 
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+
+        if self.validate_with_electrons:
+            # select photons with an associated electron and a pixel seed
+            photons_mask = (events.Photon.electronIdx != -1) & (events.Photon.pixelSeed)
+            events["Photon"] = events.Photon[photons_mask]
+            events = events[ak.num(events.Photon) >= 2]
 
         # add veto EE leak branch for photons, could also be used for electrons
         if (
@@ -523,7 +538,10 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                 photons = self.add_photonid_mva(photons, events)
 
             # photon preselection
-            photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
+            if self.validate_with_electrons:
+                photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0], electron_veto=False, revert_electron_veto=True)
+            else:
+                photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
 
             diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 

@@ -120,6 +120,7 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         doDeco: bool,
         Smear_sigma_m: bool,
         doFlow_corrections: bool,
+        validate_with_electrons: bool,
         output_format: str,
     ) -> None:
 
@@ -139,6 +140,7 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         self.doDeco = doDeco
         self.Smear_sigma_m = Smear_sigma_m
         self.doFlow_corrections = doFlow_corrections
+        self.validate_with_electrons = validate_with_electrons
         self.output_format = output_format
         self.name_convention = "Legacy"
 
@@ -211,6 +213,13 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         except Exception as e:
             warnings.warn(f"Could not instantiate diphoton MVA: {e}")
             self.diphoton_mva = None
+
+        if self.validate_with_electrons:
+            logger.info("Running the analysis with electrons reconstructed as photons. Using dielectron triggers.")
+            self.trigger_group = ".*DoubleEG.*"
+            self.analysis = "Dielectron"
+            self.min_pt_photon = 12.0
+            self.min_pt_lead_photon = 23.0
 
     def apply_filters_and_triggers(self, events: ak.Array) -> ak.Array:
         # met filters

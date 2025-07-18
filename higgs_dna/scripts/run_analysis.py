@@ -257,6 +257,7 @@ def main():
                 doDeco=args.doDeco,
                 Smear_sigma_m=args.Smear_sigma_m,
                 doFlow_corrections=args.doFlow_corrections,
+                validate_with_electrons=args.validate_with_electrons,
                 output_format=args.output_format,
                 **analysis,
             )  # additional args can go here to configure a processor

@@ -68,8 +68,11 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
         doDeco: bool = False,
         Smear_sigma_m: bool = False,
         doFlow_corrections: bool = False,
+        validate_with_electrons: bool = False,
         output_format: str = "parquet",
     ) -> None:
+        if validate_with_electrons:
+            raise ValueError(f"Validation with electrons is not supported in {self.__class__.__name__}")
         super().__init__(
             metaconditions,
             systematics=systematics,
