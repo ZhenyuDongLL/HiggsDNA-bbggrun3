@@ -342,6 +342,7 @@ class LowMassProcessor(HggSkeletonProcessor):
         doDeco: bool = False,
         Smear_sigma_m: bool = False,
         doFlow_corrections: bool = False,
+        validate_with_electrons: bool = False,
         output_format: str = "parquet",
         e_veto: str = "presel",
     ) -> None:
@@ -363,17 +364,21 @@ class LowMassProcessor(HggSkeletonProcessor):
             doDeco=doDeco,
             Smear_sigma_m=Smear_sigma_m,
             doFlow_corrections=doFlow_corrections,
+            validate_with_electrons=validate_with_electrons,
             output_format=output_format,
         )
 
         self.nano_version = nano_version
 
         # diphoton preselection cuts
-        self.min_pt_photon = 18.0
-        self.min_pt_lead_photon = 30.0
-        self.trigger_group = ".*DoubleEG.*"
-        self.analysis = "lowMassAnalysis"
-        self.e_veto = e_veto  # presel/single_invert/double_invert
+        if not self.validate_with_electrons:
+            self.min_pt_photon = 18.0
+            self.min_pt_lead_photon = 30.0
+            self.trigger_group = ".*DoubleEG.*"
+            self.analysis = "lowMassAnalysis"
+            self.e_veto = e_veto  # presel/single_invert/double_invert
+        else:
+            self.e_veto = "double_invert"
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
@@ -480,6 +485,12 @@ class LowMassProcessor(HggSkeletonProcessor):
 
         # we need ScEta for corrections and systematics, which is not present in NanoAODv11 but can be calculated using PV
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+
+        if self.validate_with_electrons:
+            # select photons with an associated electron and a pixel seed
+            photons_mask = (events.Photon.electronIdx != -1) & (events.Photon.pixelSeed)
+            events["Photon"] = events.Photon[photons_mask]
+            events = events[ak.num(events.Photon) >= 2]
 
         # add veto EE leak branch for photons, could also be used for electrons
         if (
@@ -652,6 +663,9 @@ class LowMassProcessor(HggSkeletonProcessor):
             photons = photon_preselection_lowmass(
                 self, photons, events, year=self.year[dataset_name][0]
             )
+
+            if self.validate_with_electrons:
+                photons = photons[photons.electronVeto == 0]
 
             diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 

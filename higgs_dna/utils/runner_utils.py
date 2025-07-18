@@ -255,6 +255,12 @@ def get_main_parser():
         help="Perform the mvaID and energyErr corrections with normalizing flows",
     )
     parser.add_argument(
+        "--validate-with-electrons",
+        default=False,
+        action="store_true",
+        help="Perform the analysis using electrons reconstructed as photons",
+    )
+    parser.add_argument(
         "--output-format",
         choices=[
             "root",

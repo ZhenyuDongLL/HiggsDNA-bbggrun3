@@ -81,6 +81,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
         doDeco: bool = False,
         Smear_sigma_m: bool = False,
         doFlow_corrections: bool = False,
+        validate_with_electrons: bool = False,
         output_format: str = "parquet",
     ) -> None:
         super().__init__(
@@ -101,6 +102,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             doDeco=doDeco,
             Smear_sigma_m=Smear_sigma_m,
             doFlow_corrections=doFlow_corrections,
+            validate_with_electrons=validate_with_electrons,
             output_format=output_format
         )
 
@@ -217,6 +219,12 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
         events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+
+        if self.validate_with_electrons:
+            # select photons with an associated electron and a pixel seed
+            photons_mask = (events.Photon.electronIdx != -1) & (events.Photon.pixelSeed)
+            events["Photon"] = events.Photon[photons_mask]
+            events = events[ak.num(events.Photon) >= 2]
 
         # Need to add ScEta variables to electrons for scale and smearing corrections
         electrons = events.Electron
@@ -416,7 +424,10 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 photons = self.add_photonid_mva(photons, events)
 
             # photon preselection
-            photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
+            if self.validate_with_electrons:
+                photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0], electron_veto=False, revert_electron_veto=True)
+            else:
+                photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
 
             diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 
