@@ -188,6 +188,9 @@ higgs_dna/tools/flows/
 # analysis specific stuff
 higgs_dna/tools/lowmass_diphoton_mva/
 higgs_dna/tools/lowmass_dykiller/
+higgs_dna/tools/HHbbgg_DNN_bpairing_allyears.onnx
+higgs_dna/tools/mjj_model_2022.onnx
+higgs_dna/tools/mjj_model_2023.onnx
 
 # metaconditions
 higgs_dna/metaconditions/corrections/2017_Legacy_xgb/
@@ -195,6 +198,8 @@ higgs_dna/metaconditions/corrections/corrections_summary_2017_Legacy_xgb.json
 higgs_dna/metaconditions/diphoton/altDiphoModel_coffea.json
 higgs_dna/metaconditions/diphoton/weights071123_even.xgb
 higgs_dna/metaconditions/diphoton/weights071123_odd.xgb
+higgs_dna/metaconditions/diphoton/weights_DiphotonID_full_run2_250110_even.xgb
+higgs_dna/metaconditions/diphoton/weights_DiphotonID_full_run2_250110_odd.xgb
 higgs_dna/metaconditions/photon_id_mva_weights/*.json
 higgs_dna/metaconditions/hpc_bdt/*.h5
 higgs_dna/metaconditions/hpc_bdt/*.xgb

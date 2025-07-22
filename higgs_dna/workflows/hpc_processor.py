@@ -608,8 +608,11 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                         "nConst": jets.nConstituents if hasattr(jets, "nConstituents") else ak.ones_like(jets.pt) * -1.,
                         "neHEF": jets.neHEF if hasattr(jets, "neHEF") else ak.ones_like(jets.pt) * -1.,
                         "neEmEF": jets.neEmEF if hasattr(jets, "neEmEF") else ak.ones_like(jets.pt) * -1.,
+                        "neMultiplicity": jets.neMultiplicity if hasattr(jets, "neMultiplicity") else ak.ones_like(jets.pt) * -1.,
                         "chHEF": jets.chHEF if hasattr(jets, "chHEF") else ak.ones_like(jets.pt) * -1.,
                         "chEmEF": jets.neHEF if hasattr(jets, "chEmEF") else ak.ones_like(jets.pt) * -1.,
+                        "chMultiplicity": jets.chMultiplicity if hasattr(jets, "chMultiplicity") else ak.ones_like(jets.pt) * -1.,
+                        "muEF": jets.muEF if hasattr(jets, "muEF") else ak.ones_like(jets.pt) * -1.,
                     }
                 )
             else:
@@ -637,8 +640,11 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                         "nConst": jets.nConstituents if hasattr(jets, "nConstituents") else ak.ones_like(jets.pt) * -1.,
                         "neHEF": jets.neHEF if hasattr(jets, "neHEF") else ak.ones_like(jets.pt) * -1.,
                         "neEmEF": jets.neEmEF if hasattr(jets, "neEmEF") else ak.ones_like(jets.pt) * -1.,
+                        "neMultiplicity": jets.neMultiplicity if hasattr(jets, "neMultiplicity") else ak.ones_like(jets.pt) * -1.,
                         "chHEF": jets.chHEF if hasattr(jets, "chHEF") else ak.ones_like(jets.pt) * -1.,
                         "chEmEF": jets.neHEF if hasattr(jets, "chEmEF") else ak.ones_like(jets.pt) * -1.,
+                        "chMultiplicity": jets.chMultiplicity if hasattr(jets, "chMultiplicity") else ak.ones_like(jets.pt) * -1.,
+                        "muEF": jets.muEF if hasattr(jets, "muEF") else ak.ones_like(jets.pt) * -1.,
                     }
                 )
             jets = ak.with_name(jets, "PtEtaPhiMCandidate")
@@ -1077,7 +1083,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             dipho_events["first_jet_phi"] = first_jet_phi
             dipho_events["first_jet_mass"] = first_jet_mass
             dipho_events["first_jet_charge"] = first_jet_charge
-            dipho_events["first_jet_hFlav"] = ak.values_astype(first_jet_hFlav, numpy.int)
+            dipho_events["first_jet_hFlav"] = ak.values_astype(first_jet_hFlav, int)
             dipho_events["first_jet_DeepFlavour_CvsL"] = first_jet_DeepFlavour_CvsL
             dipho_events["first_jet_DeepFlavour_CvsB"] = first_jet_DeepFlavour_CvsB
 
