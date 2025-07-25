@@ -618,7 +618,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             jets_properties = jets.fields
             for i in range(self.num_jets_to_store):  # Number of jets to select
                 for prop in jets_properties:
-                    key = f"jet{i+1}_{prop}"
+                    key = f"jet{i + 1}_{prop}"
                     # Retrieve the value using the choose_jet function
                     value = choose_jet(getattr(jets, prop), i, -999.0)
                     # Store the value in the diphotons dictionary
@@ -632,7 +632,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 genjets["charge"] = ak.zeros_like(genjets.pt)
                 genjets = ak.with_name(genjets, "PtEtaPhiMCandidate")
                 for i in range(self.num_jets_to_store):  # Number of jets to select
-                    for key, jet_flav in [(f"jet{i+1}_genMatched", False), (f"jet{i+1}_genFlav", True)]:
+                    for key, jet_flav in [(f"jet{i + 1}_genMatched", False), (f"jet{i + 1}_genFlav", True)]:
                         # Retrieve the matching boolean using the match_jet function
                         value = match_jet(jets, genjets, i, -999.0, jet_flav=jet_flav)
                         # Store the value in the diphotons dictionary
@@ -648,7 +648,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                         gen_b_hbb["charge"] = ak.zeros_like(gen_b_hbb.pt)
                         gen_b_hbb = ak.with_name(gen_b_hbb, "PtEtaPhiMCandidate")
                         for i in range(self.num_jets_to_store):  # Number of jets to select
-                            key = f"jet{i+1}_genMatched_Hbb"
+                            key = f"jet{i + 1}_genMatched_Hbb"
                             value = match_jet(jets, gen_b_hbb, i, -999.0)
                             diphotons[key] = ak.fill_none(value, -999.0)
 
@@ -664,14 +664,14 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 final_bs = ak.with_name(final_bs, "PtEtaPhiMCandidate")
 
                 for i in range(self.num_fatjets_to_store):
-                    key = f"fatjet{i+1}_genMatched_Hbb"
+                    key = f"fatjet{i + 1}_genMatched_Hbb"
                     value = match_fatjet_hbb(fatjets, final_bs, i, -999.0, jet_size=0.8)
                     diphotons[key] = ak.fill_none(value, -999.0)
 
                 #   - boolean array of matched fatjet
                 #   - genPartonFlav array of matched genFatJet
                 for i in range(self.num_fatjets_to_store):
-                    for key, jet_flav in [(f"fatjet{i+1}_genMatched", False), (f"fatjet{i+1}_genFlav", True)]:
+                    for key, jet_flav in [(f"fatjet{i + 1}_genMatched", False), (f"fatjet{i + 1}_genFlav", True)]:
                         value = match_jet(fatjets, genjetsAK8, i, -999.0, jet_size=0.8, jet_flav=jet_flav)
                         diphotons[key] = value
 
@@ -701,7 +701,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
                     for i in range(2):
                         for prop in gen_properties:
-                            key = f"gentop{i+1}_{prop}"
+                            key = f"gentop{i + 1}_{prop}"
                             value = choose_jet(getattr(gentops, prop), i, -999.0)
                             diphotons[key] = value
 
@@ -720,7 +720,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
                     for i in range(2):
                         for prop in gen_properties:
-                            key = f"genZ{i+1}_{prop}"
+                            key = f"genZ{i + 1}_{prop}"
                             value = choose_jet(getattr(genZs, prop), i, -999.0)
                             diphotons[key] = value
 
@@ -741,7 +741,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
                     for i in range(2):
                         for prop in gen_properties:
-                            key = f"genW{i+1}_{prop}"
+                            key = f"genW{i + 1}_{prop}"
                             value = choose_jet(getattr(genWs, prop), i, -999.0)
                             diphotons[key] = value
 
@@ -1180,7 +1180,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             lepton_properties = leptons.fields
             for i in range(self.num_leptons_to_store):  # Number of leptons to select
                 for prop in lepton_properties:
-                    key = f"lepton{i+1}_{prop}"
+                    key = f"lepton{i + 1}_{prop}"
                     # Retrieve the value using the choose_jet function (which can be used for leptons as well)
                     value = choose_jet(getattr(leptons, prop), i, -999.0)
                     # Store the value in the diphotons dictionary
@@ -1189,7 +1189,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             # ttH Killer vars cont.
             for jet in range(self.num_jets_to_store):
                 for lep in range(self.num_leptons_to_store):
-                    diphotons[f"DeltaR_j{jet+1}l{lep+1}"] = ak.fill_none(DeltaR(ak.firsts(jets[ak.local_index(jets) == jet]), ak.firsts(leptons[ak.local_index(leptons) == lep])), -999.0)
+                    diphotons[f"DeltaR_j{jet + 1}l{lep + 1}"] = ak.fill_none(DeltaR(ak.firsts(jets[ak.local_index(jets) == jet]), ak.firsts(leptons[ak.local_index(leptons) == lep])), -999.0)
             diphotons["DeltaR_b1l1"] = ak.fill_none(DeltaR(HHbbgg.first_jet, ak.firsts(leptons[ak.local_index(leptons) == 0])), -999.0)
             diphotons["DeltaR_b2l1"] = ak.fill_none(DeltaR(HHbbgg.second_jet, ak.firsts(leptons[ak.local_index(leptons) == 0])), -999.0)
             diphotons["DeltaR_b1l2"] = ak.fill_none(DeltaR(HHbbgg.first_jet, ak.firsts(leptons[ak.local_index(leptons) == 1])), -999.0)
@@ -1211,7 +1211,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 genLepton_abs_pdgId = ak.where(genLeptons.pdgId > 0, genLeptons.pdgId, -genLeptons.pdgId)
 
                 for i in range(self.num_leptons_to_store):  # Number of leptons to select
-                    key = f"lepton{i+1}_genMatched"
+                    key = f"lepton{i + 1}_genMatched"
                     # Retrieve the value using the choose_jet function (which can be used for leptons as well)
                     value = match_jet(
                         leptons,
@@ -1280,7 +1280,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                         continue
                     if prop in fatjet_drop_vars.keys():
                         continue
-                    key = f"fatjet{i+1}_{prop}"
+                    key = f"fatjet{i + 1}_{prop}"
                     # Retrieve the value using the choose_jet function (which can be used for fatjets as well)
                     value = choose_jet(fatjets[prop], i, -999.0)
 
@@ -1288,7 +1288,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                         for prop_genJetAK8 in genjetAK8_properties:
                             if prop_genJetAK8 in fatjet_drop_vars["genjetAK8"]:
                                 continue
-                            key_genJetAK8 = f"fatjet{i+1}_genjetAK8_{prop_genJetAK8}"
+                            key_genJetAK8 = f"fatjet{i + 1}_genjetAK8_{prop_genJetAK8}"
                             # Retrieve the value using the choose_jet function (which can also be used here)
                             value_genJetAK8 = choose_jet(genjetsAK8[prop_genJetAK8], value, -999.0)
                             # Store the value in the diphotons dictionary
@@ -1300,7 +1300,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                         for prop_subjet in subjet_properties:
                             if prop_subjet in fatjet_drop_vars[subjet_name]:
                                 continue
-                            key_subjet = f"fatjet{i+1}_{subjet_name}_{prop_subjet}"
+                            key_subjet = f"fatjet{i + 1}_{subjet_name}_{prop_subjet}"
                             # Retrieve the value using the choose_jet function (which can also be used here)
                             value_subjet = choose_jet(subjets[prop_subjet], value, -999.0)
                             # Store the value in the diphotons dictionary
