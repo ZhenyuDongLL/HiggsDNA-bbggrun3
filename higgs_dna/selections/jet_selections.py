@@ -285,6 +285,128 @@ def select_jets(
     )
 
 
+def select_jets_eta_dependent(
+    self,
+    jets: ak.highlevel.Array,
+    diphotons: ak.highlevel.Array,
+    muons: ak.highlevel.Array,
+    electrons: ak.highlevel.Array,
+    taus: ak.highlevel.Array = None,
+) -> ak.highlevel.Array:
+    """
+    Selects jets with eta-dependent pT cuts, added as a temporary fix following
+    https://gitlab.cern.ch/cms-jetmet/coordination/coordination/-/issues/113
+
+    Special args:
+        jet_pt_thresholds (list): Minimum pT thresholds for each eta bin
+        jet_eta_thresholds (list): Absolute eta thresholds for each bin of the selection
+
+    Example usage:
+        jet_pt_thresholds = [20, 50, 30]
+        jet_eta_thresholds = [2.5, 3.0, 4.7]
+        will select all jets that pass: 20 GeV for |eta| < 2.5 ; 50 GeV for 2.5<|eta|<3 ; 30 GeV for |eta|>3
+
+    """
+    jet_pt_thresholds = self.jet_pt_thresholds
+    jet_eta_thresholds = self.jet_eta_thresholds
+    assert len(jet_pt_thresholds) == len(jet_eta_thresholds), f"{jet_pt_thresholds} does not match {jet_eta_thresholds}"
+
+    # Build the eta-dependent pT cut
+    eta_pt_cut = ak.zeros_like(jets.pt, dtype=bool)
+    for i, (pt_threshold, eta_threshold) in enumerate(zip(jet_pt_thresholds, jet_eta_thresholds)):
+        # Handle first eta bin
+        if i == 0:
+            eta_pt_cut = eta_pt_cut | ((abs(jets.eta) < eta_threshold) & (jets.pt >= pt_threshold))
+        # Handle intermediate eta bins
+        else:
+            eta_pt_cut = eta_pt_cut | ((abs(jets.eta) >= jet_eta_thresholds[i - 1]) & (abs(jets.eta) < eta_threshold) & (jets.pt >= pt_threshold))
+
+    # jet id selection: https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
+    if (self.nano_version == 12) or (self.nano_version == 13):
+        passJetIdTight, passJetIdTightLepVeto = jetIdFlags_v1213(jets, self.nano_version)
+        if self.jet_jetId == "tight":  # Select jetId 2 or 6
+            logger.info("Applying jetID recipe of NanoAOD version %s", self.nano_version)
+            jetId_cut = passJetIdTight
+        elif self.jet_jetId == "tightLepVeto":  # Select jetId 6
+            logger.info("Applying jetID recipe of NanoAOD version %s", self.nano_version)
+            jetId_cut = passJetIdTight & passJetIdTightLepVeto
+        else:
+            jetId_cut = ak.ones_like(jets.pt) > 0
+            logger.warning("[ select_jets ] - No JetId applied")
+    else:
+        if self.jet_jetId == "tight":
+            jetId_cut = jets.jetId >= 2
+        elif self.jet_jetId == "tightLepVeto":
+            jetId_cut = jets.jetId == 6
+        else:
+            jetId_cut = ak.ones_like(jets.pt) > 0
+            logger.warning("[ select_jets ] - No JetId applied")
+    logger.debug(
+        f"[ select_jets ] - Total: {ak.sum(ak.flatten((ak.ones_like(jets.pt) > 0)))} - Pass tight jetId: {ak.sum(ak.flatten(jetId_cut))}"
+    )
+    eta_cut = abs(jets.eta) < self.jet_max_eta
+    dr_dipho_cut = ak.ones_like(eta_pt_cut) > 0
+    if (self.clean_jet_dipho) & (ak.num(diphotons.pt, axis=0) > 0):
+        dr_dipho_cut = delta_r_mask(jets, diphotons, self.jet_dipho_min_dr)
+
+    if (self.clean_jet_pho) & (ak.num(diphotons.pt, axis=0) > 0):
+        lead = ak.zip(
+            {
+                "pt": diphotons.pho_lead.pt,
+                "eta": diphotons.pho_lead.eta,
+                "phi": diphotons.pho_lead.phi,
+                "mass": diphotons.pho_lead.mass,
+                "charge": diphotons.pho_lead.charge,
+            }
+        )
+        lead = ak.with_name(lead, "PtEtaPhiMCandidate")
+        sublead = ak.zip(
+            {
+                "pt": diphotons.pho_sublead.pt,
+                "eta": diphotons.pho_sublead.eta,
+                "phi": diphotons.pho_sublead.phi,
+                "mass": diphotons.pho_sublead.mass,
+                "charge": diphotons.pho_sublead.charge,
+            }
+        )
+        sublead = ak.with_name(sublead, "PtEtaPhiMCandidate")
+        dr_pho_lead_cut = delta_r_mask(jets, lead, self.jet_pho_min_dr)
+        dr_pho_sublead_cut = delta_r_mask(jets, sublead, self.jet_pho_min_dr)
+    else:
+        dr_pho_lead_cut = jets.pt > -1
+        dr_pho_sublead_cut = jets.pt > -1
+
+    if (self.clean_jet_ele) & (ak.num(electrons.pt, axis=0) > 0):
+        dr_electrons_cut = delta_r_mask(jets, electrons, self.jet_ele_min_dr)
+    else:
+        dr_electrons_cut = jets.pt > -1
+
+    if (self.clean_jet_muo) & (ak.num(muons.pt, axis=0) > 0):
+        dr_muons_cut = delta_r_mask(jets, muons, self.jet_muo_min_dr)
+    else:
+        dr_muons_cut = jets.pt > -1
+
+    if taus is not None:
+        if (self.clean_jet_tau) & (ak.num(taus.pt, axis=0) > 0):
+            dr_taus_cut = delta_r_mask(jets, taus, self.jet_tau_min_dr)
+        else:
+            dr_taus_cut = jets.pt > -1
+    else:
+        dr_taus_cut = jets.pt > -1
+
+    return (
+        (jetId_cut)
+        & (eta_pt_cut)
+        & (eta_cut)
+        & (dr_dipho_cut)
+        & (dr_pho_lead_cut)
+        & (dr_pho_sublead_cut)
+        & (dr_electrons_cut)
+        & (dr_muons_cut)
+        & (dr_taus_cut)
+    )
+
+
 def select_fatjets(
     self,
     fatjets: ak.highlevel.Array,

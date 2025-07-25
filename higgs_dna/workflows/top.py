@@ -445,7 +445,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             jet_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagPNetCvB", "btagPNetCvL", "btagPNetQvG", "btagPNetTauVJet", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
             for i in range(num_jets):
                 for prop in jet_properties:
-                    key = f"jet{i+1}_{prop}"
+                    key = f"jet{i + 1}_{prop}"
                     value = choose_jet(getattr(jets, prop), i, -999.0)
                     # Store the value in the diphotons dictionary
                     diphotons[key] = value
@@ -478,7 +478,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             num_leptons = 2  # Number of leptons to select
             for i in range(num_leptons):
                 for prop in lepton_properties:
-                    key = f"lepton{i+1}_{prop}"
+                    key = f"lepton{i + 1}_{prop}"
                     # Retrieve the value using the choose_jet function (which can be used for leptons as well)
                     value = choose_jet(getattr(leptons, prop), i, -999.0)
                     # Store the value in the diphotons dictionary
