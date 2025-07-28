@@ -643,8 +643,9 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                 )
                 diphotons["weight"] = ak.ones_like(diphotons["event"])
 
-            # select events within standard HGG mass window only, after all corrections & systematics were applied
-            diphotons = diphotons[(diphotons.mass > 100) & (diphotons.mass < 180)]
+            if not self.validate_with_electrons:
+                # select events within standard HGG mass window only, after all corrections & systematics were applied
+                diphotons = diphotons[(diphotons.mass > 100) & (diphotons.mass < 180)]
 
             if self.output_location is not None:
                 if self.output_format == "root":

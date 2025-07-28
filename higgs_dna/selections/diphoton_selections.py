@@ -64,7 +64,10 @@ def apply_fiducial_cut_det_level(
         diphotons['pass_fiducial_geometric'] = fid_geometric
 
     elif self.fiducialCuts == 'classical_noIso':
-        fid_det_passed = (diphotons.pho_lead.pt / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (diphotons.mass > 100) & (diphotons.mass < 180)
+        mass_cut = (diphotons.mass > 100) & (diphotons.mass < 180)
+        fid_det_passed = (diphotons.pho_lead.pt / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4)
+        if not self.validate_with_electrons:
+            fid_det_passed = fid_det_passed & mass_cut
 
     elif self.fiducialCuts == 'none':
         fid_det_passed = diphotons.pho_lead.pt > -10  # This is a very dummy way but I do not know how to make a true array of outer shape of diphotons
