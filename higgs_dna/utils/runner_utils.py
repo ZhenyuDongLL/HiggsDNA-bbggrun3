@@ -269,6 +269,12 @@ def get_main_parser():
         default="parquet",
         help="Output format (default: %(default)s).",
     )
+    parser.add_argument(
+        "--files-per-job",
+        type=int,
+        default=1,
+        help="Files per job to process (default: %(default)s). ",
+    )
     return parser
 
 

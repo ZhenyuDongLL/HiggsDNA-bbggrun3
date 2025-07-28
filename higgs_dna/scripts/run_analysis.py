@@ -464,6 +464,7 @@ def main():
             args_string,
             queue=args.queue if args.queue is not None else "workday",
             memory=args.memory,
+            files_per_job=args.files_per_job,
         )
         output = vanilla_submitter.submit()
 
