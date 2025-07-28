@@ -47,6 +47,7 @@ class LXPlusVanillaSubmitter:
         args_string,
         queue="longlunch",
         memory="10GB",
+        files_per_job=1,
         cluster_per_sample=True,
     ):
         self.datetime_extension = subprocess.getoutput("date +%Y%m%d_%H%M%S")
@@ -70,10 +71,11 @@ class LXPlusVanillaSubmitter:
         for sample in sample_dict:
             self.json_analysis_files[sample] = []
             self.json_sample_files[sample] = []
-            for fl in sample_dict[sample]:
+            for i in range(0, len(sample_dict[sample]), files_per_job):
+                sub_sample_files = sample_dict[sample][i:i + files_per_job]
                 sample_to_dump = {}
-                sample_to_dump[sample] = [fl]
-                root_file_name = fl.split("/")[-1].split(".")[0]
+                sample_to_dump[sample] = sub_sample_files
+                root_file_name = i
                 sample_file_name = os.path.join(
                     self.input_dir, f"{sample}-{root_file_name}.json"
                 )
