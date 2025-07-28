@@ -270,6 +270,20 @@ def main():
             "Value should include a unit (e.g., '2GB', '4096MB').",
     )
     parser.add_option(
+        "--n-workers",
+        type=int,
+        dest="n_workers",
+        default=4,
+        help="Number of workers to use to parallelize the merging over datasets. Only used in local processing. ",
+    )
+    parser.add_option(
+        "--n-workers-syst",
+        type=int,
+        dest="n_workers_syst",
+        default=2,
+        help="Number of workers to use to parallelize the merging over systematic variations. Only used in local processing. ",
+    )
+    parser.add_option(
         "--job-flavor",
         type=str,
         dest="job_flavor",
@@ -461,7 +475,7 @@ def main():
 
             if opt.syst:
                 # Systematic variations processing
-                with ThreadPoolExecutor(max_workers=7) as executor:
+                with ThreadPoolExecutor(max_workers=opt.n_workers_syst) as executor:
                     futures = [executor.submit(process_var, var, var_dict, IN_PATH, OUT_PATH, SCRIPT_DIR, file, cat_dict_loc, verbose_str, skip_normalisation_str) for var in var_dict]
 
                 for future in futures:
@@ -526,7 +540,7 @@ def main():
                     else:
                         print(files)
                         # No more loop over the files, we will use the ThreadPoolExecutor to parallelize the process!
-                        with ThreadPoolExecutor(max_workers=8) as executor:
+                        with ThreadPoolExecutor(max_workers=opt.n_workers) as executor:
                             futures = [executor.submit(root_process_var, cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, verbose_str, skip_normalisation_str) for file in files]
 
                         # Optionally, wait for all futures to complete and check for exceptions
@@ -549,7 +563,7 @@ def main():
                 files = fl.readlines()
 
                 # No more loop over the files, we will use the ThreadPoolExecutor to parallelize the process!
-                with ThreadPoolExecutor(max_workers=8) as executor:
+                with ThreadPoolExecutor(max_workers=opt.n_workers) as executor:
                     futures = [executor.submit(process_file, file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, verbose_str, skip_normalisation_str, opt) for file in files]
 
                 # Optionally, wait for all futures to complete and check for exceptions
