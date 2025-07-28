@@ -52,11 +52,15 @@ def diphoton_list_to_pandas(self, diphotons: ak.Array) -> pandas.DataFrame:
         if len(prefix) > 0:
             for subfield in ak.fields(diphotons[field]):
                 if subfield != "__systematics__":
-                    output[f"{prefix}_{subfield}"] = ak.to_numpy(
-                        diphotons[field][subfield]
-                    )
+                    thearray = ak.to_numpy(diphotons[field][subfield])
+                    output[f"{prefix}_{subfield}"] = thearray
         else:
-            output[field] = ak.to_numpy(diphotons[field])
+            thearray = ak.to_numpy(diphotons[field])
+            if thearray.ndim == 2:
+                for i in range(thearray.shape[1]):
+                    output[f"{field}_{i}"] = thearray[:, i]
+            else:
+                output[field] = thearray
     return output
 
 
