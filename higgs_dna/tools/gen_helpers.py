@@ -74,11 +74,22 @@ def get_fiducial_flag(events: ak.Array, flavour: str = "Geometric") -> ak.Array:
     return fiducial_flag
 
 
-def get_genJets(self, events: ak.Array, pt_cut, eta_cut) -> ak.Array:
-    GenJets = events.GenJet
+def get_genJets(
+    events: ak.Array,
+    pt_cut,
+    eta_cut,
+    jet_pho_min_dr=0.4,
+    jet_ele_min_dr=0.4,
+    jet_muo_min_dr=0.4,
+    electron_pt_threshold=15.0,
+    electron_max_eta=2.5,
+    muon_pt_threshold=10.0,
+    muon_max_eta=2.4,
+) -> ak.Array:
     # We decide to clean based on dR criteria and not use partonFlavour as this is easier to reproduce
     # The commented option below is also interesting, removing jets that have not been matched to a coloured parton...
     # GenJets = GenJets[GenJets.partonFlavour != 0]
+    GenJets = events.GenJet
 
     if 'iso' in events.GenPart.fields:
         # Note: iso is a relative quantity
@@ -94,7 +105,6 @@ def get_genJets(self, events: ak.Array, pt_cut, eta_cut) -> ak.Array:
     # Separate leading and subleading photons
     lead_pho = GenIsolatedPhotons[:, 0]
     sublead_pho = GenIsolatedPhotons[:, 1]
-
     diphotons = lead_pho + sublead_pho
 
     if (ak.num(diphotons.pt, axis=0) > 0):
@@ -116,8 +126,8 @@ def get_genJets(self, events: ak.Array, pt_cut, eta_cut) -> ak.Array:
             }
         )
         sublead = ak.with_name(sublead, "PtEtaPhiMCandidate")
-        dr_pho_lead_cut = delta_r_mask(GenJets, lead, self.jet_pho_min_dr)
-        dr_pho_sublead_cut = delta_r_mask(GenJets, sublead, self.jet_pho_min_dr)
+        dr_pho_lead_cut = delta_r_mask(GenJets, lead, jet_pho_min_dr)
+        dr_pho_sublead_cut = delta_r_mask(GenJets, sublead, jet_pho_min_dr)
     else:
         dr_pho_lead_cut = GenJets.pt > -1
         dr_pho_sublead_cut = GenJets.pt > -1
@@ -126,10 +136,20 @@ def get_genJets(self, events: ak.Array, pt_cut, eta_cut) -> ak.Array:
     GenLeptons = events.GenPart[(abs(events.GenPart.pdgId) == 11) | (abs(events.GenPart.pdgId) == 13) & (events.GenPart.status == 1)]
     # # 11: Electron, 13: Muon
     if 'iso' in events.GenPart.fields:
-        SelGenElectrons = GenLeptons[(abs(GenLeptons.pdgId) == 11) & (GenLeptons.pt > self.electron_pt_threshold) & (abs(GenLeptons.eta) < self.electron_max_eta) & (GenLeptons.iso < 0.2)]
-        SelGenMuons = GenLeptons[(abs(GenLeptons.pdgId) == 13) & (GenLeptons.pt > self.muon_pt_threshold) & (abs(GenLeptons.eta) < self.muon_max_eta) & (GenLeptons.iso < 0.2)]
-        dr_electrons_mask = delta_r_mask(GenJets, SelGenElectrons, self.jet_ele_min_dr)
-        dr_muons_mask = delta_r_mask(GenJets, SelGenMuons, self.jet_muo_min_dr)
+        SelGenElectrons = GenLeptons[
+            (abs(GenLeptons.pdgId) == 11)
+            & (GenLeptons.pt > electron_pt_threshold)
+            & (abs(GenLeptons.eta) < electron_max_eta)
+            & (GenLeptons.iso < 0.2)
+        ]
+        SelGenMuons = GenLeptons[
+            (abs(GenLeptons.pdgId) == 13)
+            & (GenLeptons.pt > muon_pt_threshold)
+            & (abs(GenLeptons.eta) < muon_max_eta)
+            & (GenLeptons.iso < 0.2)
+        ]
+        dr_electrons_mask = delta_r_mask(GenJets, SelGenElectrons, jet_ele_min_dr)
+        dr_muons_mask = delta_r_mask(GenJets, SelGenMuons, jet_muo_min_dr)
     else:
         logger.info("Careful: You are running over a sample that is nanoAOD v13 or older where the genPart collection does not contain the iso field")
         logger.info("Overlap removal for counting GenJets wrt to leptons will not be performed.")

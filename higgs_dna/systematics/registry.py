@@ -23,7 +23,8 @@ from .event_weight_systematics import (
     bTagShapeSF,
     bTagFixedWP,
     Zpt,
-    muonSFs
+    muonSFs,
+    Higgs_plus_HF_syst,
 )
 from .jet_systematics import (
     jet_pt_scale_dummy,
@@ -341,6 +342,14 @@ weight_systematics = {
     "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_MediumID_DEN_TrackerMuons", is_correction=False),
     "MuonIsoTightSF_IdMedium": partial(muonSFs, SF_name="NUM_TightPFIso_DEN_MediumID", is_correction=False),
     "MuonIsoLooseSF_IdMedium": partial(muonSFs, SF_name="NUM_LoosePFIso_DEN_MediumID", is_correction=False),
+    "Higgs_plus_b_pt20_syst50": partial(Higgs_plus_HF_syst, min_pt=20, flav="b", rel_unc=0.5),
+    "Higgs_plus_b_pt25_syst50": partial(Higgs_plus_HF_syst, min_pt=25, flav="b", rel_unc=0.5),
+    "Higgs_plus_b_pt20_syst100": partial(Higgs_plus_HF_syst, min_pt=20, flav="b", rel_unc=1.0),
+    "Higgs_plus_b_pt25_syst100": partial(Higgs_plus_HF_syst, min_pt=25, flav="b", rel_unc=1.0),
+    "Higgs_plus_c_pt20_syst50": partial(Higgs_plus_HF_syst, min_pt=20, flav="c", rel_unc=0.5),
+    "Higgs_plus_c_pt25_syst50": partial(Higgs_plus_HF_syst, min_pt=25, flav="c", rel_unc=0.5),
+    "Higgs_plus_c_pt20_syst100": partial(Higgs_plus_HF_syst, min_pt=20, flav="c", rel_unc=1.0),
+    "Higgs_plus_c_pt25_syst100": partial(Higgs_plus_HF_syst, min_pt=25, flav="c", rel_unc=1.0),
 }
 
 # functions correcting nominal event weights to be placed here

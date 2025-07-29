@@ -5,6 +5,7 @@ from scipy.interpolate import interp1d
 import correctionlib
 import awkward as ak
 from higgs_dna.utils.misc_utils import choose_jet
+from higgs_dna.tools.gen_helpers import get_genJets
 import logging
 import ast
 
@@ -2035,5 +2036,65 @@ def muonSFs(muons, weights, year="2022preEE", SF_name="NUM_TightID_DEN_TrackerMu
         sfdown = _sf_down / _sf
 
     weights.add(name=SF_name, weight=sf, weightUp=sfup, weightDown=sfdown)
+
+    return weights
+
+
+def Higgs_plus_HF_syst(events, weights, flav="b", pt_min=25, rel_unc=0.5, **kwargs):
+    """
+    Apply a flat systematic uncertainty for ggH or VBF events with Higgs plus heavy-flavor (b or c) jets.
+
+    This function assigns a relative weight variation to events containing at least one
+    generated heavy-flavor jet (identified via hadronFlavour == 5 for b or 4 for c) with
+    transverse momentum above `pt_min` and pseudorapidity |eta| < 2.5. Events without such jets
+    receive no uncertainty.
+
+    Parameters
+    ----------
+    events : ak.Array
+        The event record, typically a NanoAOD-format awkward array.
+    weights : coffea.analysis_tools.Weights
+        The Weights object to which the systematic weights will be added.
+    flav : {"b", "c"}, optional
+        The heavy-flavor type to consider ("b" for b-jets, "c" for c-jets).
+    pt_min : float, optional
+        Minimum transverse momentum (pT) threshold for heavy-flavor jet selection in GeV.
+    rel_unc : float, optional
+        Relative uncertainty to apply (e.g., 0.5 for ±50%).
+
+    Returns
+    -------
+    weights : coffea.analysis_tools.Weights
+        The modified Weights object with the added systematic uncertainty named
+        "Higgs_plus_b_syst" or "Higgs_plus_c_syst", depending on the chosen flavor.
+
+    Raises
+    ------
+    ValueError
+        If `flav` is not one of "b" or "c".
+    """
+
+    logger.info(
+        f"Applying Higgs plus {flav} systematic uncertainty with rel_unc={rel_unc}.\
+        Make sure you apply it only on ggH or VBF samples."
+    )
+
+    genJets = get_genJets(events=events, pt_cut=pt_min, eta_cut=2.5)
+
+    if flav == "b":
+        SF_name = "Higgs_plus_b_syst"
+        flav = 5
+    elif flav == "c":
+        SF_name = "Higgs_plus_c_syst"
+        flav = 4
+    else:
+        raise ValueError("flav must be either 'b' or 'c'")
+
+    num_HF_jets = ak.sum((genJets.hadronFlavour == flav), axis=-1)
+
+    up = ak.where(num_HF_jets > 0, 1 + rel_unc, 1.0)
+    down = ak.where(num_HF_jets > 0, 1 - rel_unc, 1.0)
+
+    weights.add(name=SF_name, weight=ak.ones_like(up), weightUp=up, weightDown=down)
 
     return weights
