@@ -562,7 +562,18 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                 GenPTH = ak.fill_none(GenPTH, -999.0)
                 diphotons['GenPTH'] = GenPTH
 
-                genJets = get_genJets(self, events, pt_cut=20., eta_cut=2.5)
+                genJets = get_genJets(
+                    events,
+                    pt_cut=20.,
+                    eta_cut=2.5,
+                    jet_pho_min_dr=self.jet_pho_min_dr,
+                    jet_ele_min_dr=self.jet_ele_min_dr,
+                    jet_muo_min_dr=self.jet_muo_min_dr,
+                    electron_pt_threshold=self.electron_pt_threshold,
+                    electron_max_eta=self.electron_max_eta,
+                    muon_pt_threshold=self.muon_pt_threshold,
+                    muon_max_eta=self.muon_max_eta,
+                )
                 diphotons['GenNJ'] = ak.num(genJets)
                 GenPTJ0 = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
                 diphotons['GenPTJ0'] = GenPTJ0

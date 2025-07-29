@@ -546,7 +546,18 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                 # for fiducial phase space definitions
                 diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events[selection_mask], flavour='Classical')
                 diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events[selection_mask], flavour='Geometric')
-                genJets = get_genJets(self, events[selection_mask], pt_cut=self.jet_pt_threshold, eta_cut=2.5)
+                genJets = get_genJets(
+                    events[selection_mask],
+                    pt_cut=self.jet_pt_threshold,
+                    eta_cut=2.5,
+                    jet_pho_min_dr=self.jet_pho_min_dr,
+                    jet_ele_min_dr=self.jet_ele_min_dr,
+                    jet_muo_min_dr=self.jet_muo_min_dr,
+                    electron_pt_threshold=self.electron_pt_threshold,
+                    electron_max_eta=self.electron_max_eta,
+                    muon_pt_threshold=self.muon_pt_threshold,
+                    muon_max_eta=self.muon_max_eta,
+                )
                 num_bjets = ak.sum(
                     (genJets.hadronFlavour == 5), axis=-1
                 )

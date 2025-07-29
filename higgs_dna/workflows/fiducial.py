@@ -336,7 +336,18 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
 
                 GenPTH, GenYH, GenPhiH, GenLeadPho, GenSubleadPho = get_higgs_gen_attributes(events)
-                genJets = get_genJets(self, events, pt_cut=30., eta_cut=2.5)
+                genJets = get_genJets(
+                    events,
+                    pt_cut=30.,
+                    eta_cut=2.5,
+                    jet_pho_min_dr=self.jet_pho_min_dr,
+                    jet_ele_min_dr=self.jet_ele_min_dr,
+                    jet_muo_min_dr=self.jet_muo_min_dr,
+                    electron_pt_threshold=self.electron_pt_threshold,
+                    electron_max_eta=self.electron_max_eta,
+                    muon_pt_threshold=self.muon_pt_threshold,
+                    muon_max_eta=self.muon_max_eta,
+                )
 
                 ######################
                 # Diphoton Variables #
