@@ -205,13 +205,20 @@ object_systematics = {
             "varying_function": partial(Electron_Smearing_Trad, is_correction=False),
         },
     },
-    # Muon scale and smearing
-    "MuonScaRe": {
+    "MuonScale": {
         "object": "Muon",
         "args": {
             "kind": "UpDownSystematic",
             "what": "pt",
-            "varying_function": partial(muon_pt_scare, is_correction=False),
+            "varying_function": partial(muon_pt_scare, is_correction=False, unc_type="Scale"),
+        },
+    },
+    "MuonResolution": {
+        "object": "Muon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "pt",
+            "varying_function": partial(muon_pt_scare, is_correction=False, unc_type="Resolution"),
         },
     },
     "energyErrShift": {
