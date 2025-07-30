@@ -1273,11 +1273,16 @@ def get_diphoton_id_mva_weights(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(resource_dir, "../higgs_dna/metaconditions/diphoton")
 
     from_to_dict = {
+        "Run2": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/Run2/diphoton_id_mva_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        },
         "2017": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/diphoton_id_mva_weights/",
             "to": to_prefix,
             "type": "eos",
-        }
+        },
     }
 
     fetch_file("DiphotonIDMVA", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
@@ -1291,6 +1296,11 @@ def get_hpc_bdt_weights(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(resource_dir, "../higgs_dna/metaconditions/hpc_bdt")
 
     from_to_dict = {
+        "Run2": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/Run2/hpc_bdt_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        },
         "2016": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/hpc_bdt_weights/",
             "to": to_prefix,
