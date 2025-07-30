@@ -5,7 +5,7 @@ import yaml
 import ast
 import os
 import glob
-import awkward
+import awkward as ak
 from higgs_dna.utils.logger_utils import setup_logger
 import pyarrow.parquet as pq
 import numpy as np
@@ -70,7 +70,7 @@ def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="Ge
                 tuple_list = extract_tuples(additionalConditions)
                 for additionalCondition in tuple_list:
                     condition = condition & extract_filter(dataset, additionalCondition)
-            dataset[diffVariableName] = awkward.where(condition, diffId, dataset[diffVariableName])
+            dataset[diffVariableName] = ak.where(condition, diffId, dataset[diffVariableName])
 
     return dataset
 
@@ -137,7 +137,7 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
 
     # Load the piece into an Awkward Array
     table = dataset.read()
-    eve = awkward.from_arrow(table)
+    eve = ak.from_arrow(table)
 
     # If MC then open the merged dataset and add normalised weight column (sumw = efficiency)
     # TODO: can we add column before writing table and prevent re-reading in as awkward array
@@ -177,6 +177,14 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
     logger.info("-" * 125)
     return renamed_dict
 
+def create_empty_tree(keys=["CMS_hgg_mass"]):
+    """
+    Create a dict with an empty awkward array for all expected keys.
+    """
+    empty_dict = {}
+    for key in keys:
+        empty_dict[key] = ak.Array(np.array([], dtype=np.float64))
+    return empty_dict
 
 def main():
     parser = argparse.ArgumentParser(
@@ -463,7 +471,12 @@ def main():
         # For data: {inputTreeDir}/Data_{sqrts}_{category}
         for cat in cat_dict:
             logger.debug(f"Writing category: {cat}")
-
+            # in case the current category is empty, we use this to get the field names later
+            fallback = next((c for c in cat_dict if len(df_dict["NOMINAL"][c]["weight"]) > 0), None)
+            if fallback is not None:
+                fallback_field_names = list(df_dict["NOMINAL"][fallback].keys())
+            else:
+                print("No non-empty category found!")
             if args.do_syst:
                 # check that the category actually contains something, otherwise the flattening step will make the script crash,
                 # an improvement (not sure if needed) may be to also write an empty TTree to not confuse FinalFit
@@ -471,7 +484,7 @@ def main():
                     for branch in df_dict["NOMINAL"][cat]:
                         # here I had to add a flattening step to help uproot with the type of the awkward arrays,
                         # if you don't flatten (event if you don't have a nested field) you end up having a type like (len_of_array) * ?type, which make uproot very mad apparently
-                        df_dict["NOMINAL"][cat][branch] = awkward.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
+                        df_dict["NOMINAL"][cat][branch] = ak.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
 
                     split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
@@ -530,9 +543,9 @@ def main():
                             for key, new_key in var_list:
                                 if syst_ in df_dict and cat in df_dict[syst_] and key in df_dict[syst_][cat]:
                                     if len(df_dict[syst_][cat][key]) > 0:
-                                        red_dict[new_key] = awkward.flatten(df_dict[syst_][cat][key], 0)
+                                        red_dict[new_key] = ak.flatten(df_dict[syst_][cat][key], 0)
                                     else: # Handle cases where the array is empty
-                                        red_dict[new_key] = awkward.Array(np.array([], dtype=np.float64))
+                                        red_dict[new_key] = ak.Array(np.array([], dtype=np.float64))
 
                             logger.info(f"Adding {syst_name}01sigma to out tree...")
 
@@ -550,14 +563,21 @@ def main():
                                     file[syst_name + "01sigma"].extend(current_dict)
 
                 else:
-                    logger.info(f"No events survived category selection for cat: {cat}")
+                    logger.info(f"No events survived category selection for cat: {cat}. Empty tree will be written.")
+                    file[names[cat]] = create_empty_tree(fallback_field_names)
+
+                    # now for each syst variation, do the same empty tree
+                    for syst_name, weight, syst_, c in labels[cat]:
+                        if syst_ == "NOMINAL":
+                            continue
+                        file[syst_name + "01sigma"] = create_empty_tree(fallback_field_names)
 
             else:
                 # if there are no syst there is no df_dict["NOMINAL"] entry in the dict
                 if len(df_dict["NOMINAL"][cat][[*df_dict["NOMINAL"][cat]][0]]):
                     # same as before
                     for branch in df_dict["NOMINAL"][cat]:
-                        df_dict["NOMINAL"][cat][branch] = awkward.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
+                        df_dict["NOMINAL"][cat][branch] = ak.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
                     split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
                     for i, current_dict in enumerate(split_nominal_dict):
@@ -585,7 +605,8 @@ def main():
                             else:
                                 file[names[cat]].extend(current_dict)
                 else:
-                    logger.info(f"No events survived category selection for cat: {cat}")
+                    logger.info(f"No events survived category selection for cat: {cat}. Empty tree will be written.")
+                    file[names[cat]] = create_empty_tree(fallback_field_names)
 
         logger.info(
             f"Successfully wrote ROOT file for process {process}."
