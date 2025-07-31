@@ -143,6 +143,10 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         self.validate_with_electrons = validate_with_electrons
         self.output_format = output_format
         self.name_convention = "Legacy"
+        # no diphoton and photon id mva unless specified
+        self.photonid_mva_EB = None
+        self.photonid_mva_EE = None
+        self.diphoton_mva = None
 
         logger.debug(f"Setting up processor with metaconditions: {self.meta}")
 
@@ -174,45 +178,6 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         else:
             logger.info("Skipping CQR as required")
             self.chained_quantile = None
-
-        # initialize photonid_mva
-        photon_id_mva_dir = os.path.dirname(photon_id_mva_weights.__file__)
-        try:
-            logger.debug(
-                f"Looking for {self.meta['flashggPhotons']['photonIdMVAweightfile_EB']} in {photon_id_mva_dir}"
-            )
-            self.photonid_mva_EB = load_photonid_mva(
-                os.path.join(
-                    photon_id_mva_dir,
-                    self.meta["flashggPhotons"]["photonIdMVAweightfile_EB"],
-                )
-            )
-            self.photonid_mva_EE = load_photonid_mva(
-                os.path.join(
-                    photon_id_mva_dir,
-                    self.meta["flashggPhotons"]["photonIdMVAweightfile_EE"],
-                )
-            )
-        except Exception as e:
-            warnings.warn(f"Could not instantiate PhotonID MVA on the fly: {e}")
-            self.photonid_mva_EB = None
-            self.photonid_mva_EE = None
-
-        # initialize diphoton mva
-        diphoton_weights_dir = os.path.dirname(diphoton_mva_dir.__file__)
-        logger.debug(
-            f"Base path to look for IDMVA weight files: {diphoton_weights_dir}"
-        )
-
-        try:
-            self.diphoton_mva = load_bdt(
-                os.path.join(
-                    diphoton_weights_dir, self.meta["flashggDiPhotonMVA"]["weightFile"]
-                )
-            )
-        except Exception as e:
-            warnings.warn(f"Could not instantiate diphoton MVA: {e}")
-            self.diphoton_mva = None
 
         if self.validate_with_electrons:
             logger.info("Running the analysis with electrons reconstructed as photons. Using dielectron triggers.")
@@ -258,6 +223,30 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
             )
 
         return events[filtered & triggered]
+
+    def initialize_photonid_mva(self) -> None:
+        # initialize photonid_mva
+        photon_id_mva_dir = os.path.dirname(photon_id_mva_weights.__file__)
+        try:
+            logger.debug(
+                f"Looking for {self.meta['flashggPhotons']['photonIdMVAweightfile_EB']} in {photon_id_mva_dir}"
+            )
+            self.photonid_mva_EB = load_photonid_mva(
+                os.path.join(
+                    photon_id_mva_dir,
+                    self.meta["flashggPhotons"]["photonIdMVAweightfile_EB"],
+                )
+            )
+            self.photonid_mva_EE = load_photonid_mva(
+                os.path.join(
+                    photon_id_mva_dir,
+                    self.meta["flashggPhotons"]["photonIdMVAweightfile_EE"],
+                )
+            )
+        except Exception as e:
+            warnings.warn(f"Could not instantiate PhotonID MVA on the fly: {e}")
+            self.photonid_mva_EB = None
+            self.photonid_mva_EE = None
 
     def add_photonid_mva(
         self, photons: ak.Array, events: ak.Array
@@ -324,6 +313,23 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         corr_mva = ak.where(isEB, corr_mva_EB, corr_mva_EE)
 
         return corr_mva
+
+    def initialize_diphoton_mva(self) -> None:
+        # initialize diphoton mva
+        diphoton_weights_dir = os.path.dirname(diphoton_mva_dir.__file__)
+        logger.debug(
+            f"Base path to look for IDMVA weight files: {diphoton_weights_dir}"
+        )
+
+        try:
+            self.diphoton_mva = load_bdt(
+                os.path.join(
+                    diphoton_weights_dir, self.meta["flashggDiPhotonMVA"]["weightFile"]
+                )
+            )
+        except Exception as e:
+            warnings.warn(f"Could not instantiate diphoton MVA: {e}")
+            self.diphoton_mva = None
 
     def add_diphoton_mva(
         self, diphotons: ak.Array, events: ak.Array
