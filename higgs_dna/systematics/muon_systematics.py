@@ -21,9 +21,7 @@ def get_rndm(eta, nL, cset):
 
     # get random number following the CB
     # we need reproducible random numbers since in the systematics call, the previous correction needs to be cancelled out
-    rng = np.random.default_rng(
-        seed=abs(np.float32(eta[0]).view('int32'))
-    )
+    rng = np.random.default_rng(seed=abs(np.float32(eta[0]).view("int32")))
     rndm_f = rng.random(len(eta))
 
     dcb_f = doublecrystalball(alpha_f, alpha_f, n_f, n_f, mean_f, sigma_f)

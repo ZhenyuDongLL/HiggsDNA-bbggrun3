@@ -166,7 +166,7 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
     _pt = ak.flatten(egm_object.pt)
 
     # we need reproducible random numbers since in the systematics call, the previous correction needs to be cancelled out
-    rng = np.random.default_rng(seed=125)
+    rng = np.random.default_rng(seed=abs(np.float32(eta[0]).view("int32")))
 
     if year == "2022preEE":
         path_json = os.path.join(os.path.dirname(__file__), f'JSONs/scaleAndSmearing/SS{object_type}_Rereco2022BCD.json')
