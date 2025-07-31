@@ -27,20 +27,24 @@ def SF_photon_ID(
         logger.warning("If you need the SFs for the central Egamma MVA ID for Run 2 UL, take action yourself or contact us!")
         exit()
 
-    if "2023" in year:
-        logger.warning("2023 SFs are not yet available, using 2022postEE SFs instead. Do not consider these results as final!")
-        year = "2022postEE"
-
     if year == "2022preEE":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2022/PhotonIDMVA_2022PreEE.json")
     elif year == "2022postEE":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2022/PhotonIDMVA_2022PostEE.json")
+    elif year == "2023preBPix":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023preBPix/IDMVA0p19_2023PreBPiX.json")
+    elif year == "2023postBPix":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023postBPix/IDMVA0p19_2023PostBPiX.json")
 
-    evaluator = correctionlib.CorrectionSet.from_file(json_file)["PhotonIDMVA_SF"]
+    if "2023" in year:
+        evaluator = correctionlib.CorrectionSet.from_file(json_file)["IDMVA_SF"]
+    else:
+        evaluator = correctionlib.CorrectionSet.from_file(json_file)["PhotonIDMVA_SF"]
 
     # In principle, we should use the fully correct formula https://indico.cern.ch/event/1360948/contributions/5783762/attachments/2788516/4870824/24_02_02_HIG-23-014_PreAppPres.pdf#page=7
     # However, if the SF is pt-binned, the approximation of the multiplication of the two SFs is fully exact
-    if "2022" in year:
+    # N.B. These phoID SFs are computed for the workin point optimised for the fiducial XS analysis (0.25 for 22, and 0.19 for 23)
+    if "2022" in year or "2023" in year:
         if is_correction:
             # only calculate correction to nominal weight
             sf_lead = evaluator.evaluate(
@@ -57,6 +61,7 @@ def SF_photon_ID(
             # only calculate systs
 
             sf = np.ones(len(weights._weight))
+
             sf_lead = evaluator.evaluate(
                 abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "nominal"
             )
@@ -386,9 +391,6 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
         exit()
     elif "2016" in year:
         year = "2016"
-    elif "2023" in year:
-        logger.warning("2023 SFs are not yet available, using 2022postEE SFs instead. Do not consider these results as final!")
-        year = "2022postEE"
 
     if year in ["2016", "2017", "2018"]:
         json_file = os.path.join(os.path.dirname(__file__), f"JSONs/Preselection/{year}/PreselSF_{year}.json")
@@ -396,10 +398,14 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2022/Preselection_2022PreEE.json")
     elif year == "2022postEE":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2022/Preselection_2022PostEE.json")
+    elif year == "2023preBPix":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023preBPix/Preselection_2023PreBPix.json")
+    elif year == "2023postBPix":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2023PostBPiX.json")
 
     if year in ["2016", "2017", "2018"]:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["PreselSF"]
-    elif "2022" in year:
+    elif "2022" in year or "2023" in year:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["Preselection_SF"]
 
     if year in ["2016", "2017", "2018"]:
@@ -444,7 +450,8 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
 
     # In principle, we should use the fully correct formula https://indico.cern.ch/event/1360948/contributions/5783762/attachments/2788516/4870824/24_02_02_HIG-23-014_PreAppPres.pdf#page=7
     # However, if the SF is pt-binned, the approximation of the multiplication of the two SFs is fully exact
-    elif "2022" in year:
+    # N.B. The preselection SFs for Run3 are without the loose photon ID cut
+    elif "2022" in year or "2023" in year:
         if is_correction:
             # only calculate correction to nominal weight
             sf_lead = evaluator.evaluate(

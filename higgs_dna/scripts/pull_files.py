@@ -451,6 +451,9 @@ def get_presel_json(logger, target_dir, use_xrdcp=False):
     # Old ones with puely restricted probe and non-conservative uncertainties: "/eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SFs/preselection/restrictedProbe"
     # Old ones with restricted probe and conservative uncertainties: /eos/cms/store/group/phys_higgs/cmshgg/earlyRun3Hgg/SFs/preselection/restrictedProbeConservativeUncs
 
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/ingredients"
+    presel_subfolder_name = "presel_SF"
+
     from_to_dict = {
         "2016": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/2016/PreselSF_2016.json",
@@ -475,6 +478,16 @@ def get_presel_json(logger, target_dir, use_xrdcp=False):
         "2022postEE": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/HggSFsSuman19Apr2024/Preselection_2022PostEE_Final.json",
             "to": f"{to_prefix}/2022/Preselection_2022PostEE.json",
+            "type": "eos",
+        },
+        "2023preBPix": {
+            "from": os.path.join(path_to_ingredients, "2023", presel_subfolder_name, "Preselection_2023PreBPiX.json"),
+            "to": f"{to_prefix}/2023preBPix/Preselection_2023PreBPix.json",
+            "type": "eos",
+        },
+        "2023postBPix": {
+            "from": os.path.join(path_to_ingredients, "2023", presel_subfolder_name, "Preselection_2023PostBPiX.json"),
+            "to": f"{to_prefix}/2023postBPix/Preselection_2023PostBPiX.json",
             "type": "eos",
         },
     }
@@ -620,6 +633,9 @@ def get_photonid_json(logger, target_dir, use_xrdcp=False):
             resource_dir, "../higgs_dna/systematics/JSONs/SF_photon_ID"
         )
 
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/ingredients"
+    phoID_subfolder_name = "phoID_SF"
+
     from_to_dict = {
         "2016preVFP": {
             "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM/2016preVFP_UL/photon.json.gz",
@@ -649,6 +665,16 @@ def get_photonid_json(logger, target_dir, use_xrdcp=False):
         "2022postEE": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/fmausolf/HiggsDNA_JSONs/HggSFsSuman19Apr2024/PhotonIDMVA_2022PostEE_Final.json",
             "to": f"{to_prefix}/2022/PhotonIDMVA_2022PostEE.json",
+            "type": "eos",
+        },
+        "2023preBPix": {
+            "from": os.path.join(path_to_ingredients, "2023", phoID_subfolder_name, "IDMVA0p19_2023PreBPiX.json"),
+            "to": f"{to_prefix}/2023preBPix/IDMVA0p19_2023PreBPiX.json",
+            "type": "eos",
+        },
+        "2023postBPix": {
+            "from": os.path.join(path_to_ingredients, "2023", phoID_subfolder_name, "IDMVA0p19_2023PostBPiX.json"),
+            "to": f"{to_prefix}/2023postBPix/IDMVA0p19_2023PostBPiX.json",
             "type": "eos",
         },
     }
