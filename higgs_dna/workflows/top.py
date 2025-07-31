@@ -427,34 +427,64 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             events["sel_muons"] = muons
             events["sel_electrons"] = electrons
 
-            n_bjets_loose = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva,mva_wp='L',year=self.year[dataset_name][0])])
-            n_bjets_medium = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva,mva_wp='M',year=self.year[dataset_name][0])])
-            n_bjets_tight = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva,mva_wp='T',year=self.year[dataset_name][0])])
-
+            # Standard jet and bjet counting (pt > 20 GeV)
             n_jets = ak.num(jets)
-            diphotons["JetHT"] = ak.sum(jets.pt,axis=1)
+            n_jets_forward = ak.num(jets[np.abs(jets.eta) > 2.5])
+            n_jets_central = ak.num(jets[np.abs(jets.eta) <= 2.5])
+            n_bjets_loose = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='L', year=self.year[dataset_name][0])])
+            n_bjets_medium = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='M', year=self.year[dataset_name][0])])
+            n_bjets_tight = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='T', year=self.year[dataset_name][0])])
+
+            # Jet and bjet counting with pt > 25 GeV
+            jets_25 = jets[jets.pt > 25]
+            n_jets_25 = ak.num(jets_25)
+            n_jets_forward_25 = ak.num(jets_25[np.abs(jets_25.eta) > 2.5])
+            n_jets_central_25 = ak.num(jets_25[np.abs(jets_25.eta) <= 2.5])
+            n_bjets_loose_25 = ak.num(jets_25[jets_25.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='L', year=self.year[dataset_name][0])])
+            n_bjets_medium_25 = ak.num(jets_25[jets_25.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='M', year=self.year[dataset_name][0])])
+            n_bjets_tight_25 = ak.num(jets_25[jets_25.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='T', year=self.year[dataset_name][0])])
+
+            # Store all jet and bjet counting variables in diphotons
+            diphotons["n_jets"] = n_jets
+            diphotons["n_jets_forward"] = n_jets_forward
+            diphotons["n_jets_central"] = n_jets_central
+            diphotons["n_bjets_loose"] = n_bjets_loose
+            diphotons["n_bjets_medium"] = n_bjets_medium
+            diphotons["n_bjets_tight"] = n_bjets_tight
+            diphotons["JetHT"] = ak.sum(jets.pt, axis=1)
+
+            diphotons["n_jets_25"] = n_jets_25
+            diphotons["n_jets_forward_25"] = n_jets_forward_25
+            diphotons["n_jets_central_25"] = n_jets_central_25
+            diphotons["n_bjets_loose_25"] = n_bjets_loose_25
+            diphotons["n_bjets_medium_25"] = n_bjets_medium_25
+            diphotons["n_bjets_tight_25"] = n_bjets_tight_25
+            diphotons["JetHT_25"] = ak.sum(jets_25.pt, axis=1)
 
             btag_score = jets.btagRobustParTAK4B
-            max_bTag_score = ak.max(btag_score,axis=1)
-            diphotons["max_btag_score"] = ak.fill_none(max_bTag_score,-999.0)
-            btag_score = ak.where(btag_score == max_bTag_score[:,None],-999.0,btag_score)
-            diphotons["secondmax_bTag_score"] = ak.fill_none(ak.max(btag_score,axis=1),-999.0)
-            del btag_score
+            max_btag_score = ak.max(btag_score, axis=1)
+            diphotons["max_btag_score"] = ak.fill_none(max_btag_score, -999.0)
+            second_btag_score = ak.where(btag_score == max_btag_score[:, None], -999.0, btag_score)
+            diphotons["secondmax_bTag_score"] = ak.fill_none(ak.max(second_btag_score, axis=1), -999.0)
+
+            # For jets with pt > 25 GeV
+            btag_score_25 = jets_25.btagRobustParTAK4B
+            max_btag_score_25 = ak.max(btag_score_25, axis=1)
+            diphotons["max_btag_score_25"] = ak.fill_none(max_btag_score_25, -999.0)
+            second_btag_score_25 = ak.where(btag_score_25 == max_btag_score_25[:, None], -999.0, btag_score_25)
+            diphotons["secondmax_bTag_score_25"] = ak.fill_none(ak.max(second_btag_score_25, axis=1), -999.0)
 
             num_jets = 8
-            jet_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagPNetCvB", "btagPNetCvL", "btagPNetQvG", "btagPNetTauVJet", "btagRobustParTAK4B", "btagRobustParTAK4CvB", "btagRobustParTAK4CvL", "btagRobustParTAK4QG"]
+            jet_properties = [
+                "pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagPNetCvB", "btagPNetCvL",
+                "btagPNetQvG", "btagPNetTauVJet", "btagRobustParTAK4B", "btagRobustParTAK4CvB",
+                "btagRobustParTAK4CvL", "btagRobustParTAK4QG"
+            ]
             for i in range(num_jets):
                 for prop in jet_properties:
                     key = f"jet{i + 1}_{prop}"
                     value = choose_jet(getattr(jets, prop), i, -999.0)
-                    # Store the value in the diphotons dictionary
                     diphotons[key] = value
-            diphotons["n_jets"] = n_jets
-            diphotons["n_bjets_loose"] = n_bjets_loose
-            diphotons["n_bjets_medium"] = n_bjets_medium
-            diphotons["n_bjets_tight"] = n_bjets_tight
-            diphotons["n_jets_forward"] = ak.num(jets[np.abs(jets.eta) > 2.5])
-            diphotons["n_jets_central"] = ak.num(jets[np.abs(jets.eta) < 2.5])
 
             # Adding a 'generation' field to electrons and muons
             electrons['generation'] = ak.ones_like(electrons.pt)
@@ -654,6 +684,8 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                 )
                 diphotons["weight"] = ak.ones_like(diphotons["event"])
 
+            # save some disk space, as this analysis targets top quark decays, we can remove events without any jet
+            diphotons = diphotons[diphotons.n_jets > 0]
             if not self.validate_with_electrons:
                 # select events within standard HGG mass window only, after all corrections & systematics were applied
                 diphotons = diphotons[(diphotons.mass > 100) & (diphotons.mass < 180)]
