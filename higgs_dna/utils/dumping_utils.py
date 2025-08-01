@@ -210,7 +210,7 @@ def dump_ak_array(
         else os.path.join(location, os.path.join(merged_subdirs, fname))
     )
 
-    pa_table = ak.to_arrow_table(akarr)
+    pa_table = ak.to_arrow_table(akarr, extensionarray=False)
     # If metadata is not None then write to pyarrow table
     if metadata:
         merged_metadata = {**metadata, **(pa_table.schema.metadata or {})}
