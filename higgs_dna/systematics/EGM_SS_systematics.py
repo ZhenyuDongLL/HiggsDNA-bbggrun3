@@ -3,7 +3,6 @@ import awkward as ak
 import correctionlib
 import os
 import sys
-from copy import deepcopy
 import logging
 
 logger = logging.getLogger(__name__)
@@ -82,14 +81,14 @@ def EGM_Scale_Trad(pt, events, year="2022postEE", is_correction=True, restrictio
             correction = evaluator.evaluate("total_correction", gain, run, eta, r9, _pt)
             pt_corr = _pt * correction
 
-            corrected_egm_object = deepcopy(egm_object)
+            corrected_egm_object = egm_object
             pt_corr = ak.unflatten(pt_corr, counts)
             corrected_egm_object["pt"] = pt_corr
 
             if is_electron:
-                events.Electron = corrected_egm_object
+                events["Electron"] = corrected_egm_object
             else:
-                events.Photon = corrected_egm_object
+                events["Photon"] = corrected_egm_object
 
         return events
 
@@ -199,7 +198,7 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
             rho = evaluator.evaluate("rho", eta, r9)
             smearing = rng.normal(loc=1., scale=rho)
             pt_corr = _pt * smearing
-            corrected_egm_object = deepcopy(egm_object)
+            corrected_egm_object = egm_object
             pt_corr = ak.unflatten(pt_corr, counts)
             rho_corr = ak.unflatten(rho, counts)
 
@@ -213,9 +212,9 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
             corrected_egm_object["rho_smear"] = rho_corr
 
             if is_electron:
-                events.Electron = corrected_egm_object
+                events["Electron"] = corrected_egm_object
             else:
-                events.Photon = corrected_egm_object
+                events["Photon"] = corrected_egm_object
         return events
 
     else:
@@ -321,14 +320,14 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
 
         correction = scale_evaluator.evaluate("scale", run, eta, r9, AbsScEta, pt_raw, gain)
         pt_corr = pt_raw * correction
-        corrected_egm_object = deepcopy(egm_object)
+        corrected_egm_object = egm_object
         pt_corr = ak.unflatten(pt_corr, counts)
         corrected_egm_object["pt"] = pt_corr
 
         if is_electron:
-            events.Electron = corrected_egm_object
+            events["Electron"] = corrected_egm_object
         else:
-            events.Photon = corrected_egm_object
+            events["Photon"] = corrected_egm_object
         return events
 
     else:
@@ -448,7 +447,7 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
 
     if is_correction:
         pt_corr = pt_raw * correction
-        corrected_egm_object = deepcopy(egm_object)
+        corrected_egm_object = egm_object
         pt_corr = ak.unflatten(pt_corr, counts)
         # For the 2G case, also take the rho_corr from the 1G case as advised by Fabrice
         # Otherwise, the sigma_m/m will be lower on average, new CDFs will be needed etc. not worth the hassle
@@ -476,9 +475,9 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
         corrected_egm_object["rho_smear"] = rho_corr
 
         if is_electron:
-            events.Electron = corrected_egm_object
+            events["Electron"] = corrected_egm_object
         else:
-            events.Photon = corrected_egm_object
+            events["Photon"] = corrected_egm_object
 
         return events
 

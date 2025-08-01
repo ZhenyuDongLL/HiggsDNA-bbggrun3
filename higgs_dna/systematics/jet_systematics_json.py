@@ -1,4 +1,3 @@
-from copy import deepcopy
 import gzip
 import awkward as ak
 import numpy as np
@@ -256,9 +255,9 @@ def jerc_jet(
 
     # prepare inputs
     if AK8:
-        jets_jagged = deepcopy(events.FatJet)
+        jets_jagged = events.FatJet
     else:
-        jets_jagged = deepcopy(events.Jet)
+        jets_jagged = events.Jet
 
     counts = ak.num(jets_jagged)
     if ("run" not in jets_jagged.fields) and (era == "Data"):
@@ -675,7 +674,7 @@ def jerc_jet(
                 jets[f"mass_{i_name}_down"] = jets.mass * corr_down_variation
     jets_jagged = ak.unflatten(jets, counts)
     if AK8:
-        events.FatJet = jets_jagged
+        events["FatJet"] = jets_jagged
     else:
-        events.Jet = jets_jagged
+        events["Jet"] = jets_jagged
     return events

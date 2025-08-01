@@ -33,7 +33,7 @@ def add_diphoton_mva_inputs_for_lowmass(diphotons, events, mc_flow_corrected=Fal
     # * sigma wrong vertex
     ## references:
     ## 1. https://github.com/cms-analysis/flashgg/blob/dev_legacy_runII/Taggers/plugins/DiPhotonMVAProducer.cc#L230
-    ## 2. https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/-/blob/master/higgs_dna/tools/diphoton_mva.py?ref_type=heads
+    ## 2. https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/-/blob/master/higgs_dna/tools/diphoton_mva.py?ref_type=heads
     def calc_displacement(photons: ak.Array, events: ak.Array) -> vector.Vector3D:
         """
         Calculate displacement for photon shower position in the calorimeter wrt PV

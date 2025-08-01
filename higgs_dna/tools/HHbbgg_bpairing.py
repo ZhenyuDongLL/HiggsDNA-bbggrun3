@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def CreatePairs(j1, j2, diphotons_notsort):
 
-    diphotons = ak.firsts(ak.copy(diphotons_notsort))
+    diphotons = ak.firsts(diphotons_notsort)
 
     photon_lead = ak.zip(
         {
@@ -155,7 +155,7 @@ def getCosThetaStar_CS(dijet, diphoton, ebeam=6800):
 def Compute_DNN_bpairing(dijets, diphotons, keras_model):
 
     original_count = ak.num(dijets, axis=1)
-    dijet = ak.copy(dijets[ak.local_index(dijets, axis=1) < 10])
+    dijet = dijets[ak.local_index(dijets, axis=1) < 10]
 
     var = [
         'lead_bjet_pt',

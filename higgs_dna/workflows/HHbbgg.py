@@ -52,7 +52,6 @@ import os
 import json
 import vector
 from coffea.analysis_tools import Weights
-from copy import deepcopy
 
 import logging
 
@@ -217,8 +216,12 @@ class HHbbggProcessor(HggSkeletonProcessor):
         if self.data_kind == "data":
             events = remove_EcalBadCalibCrystal_events(events)
 
+        # add zero photon mass
+        # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
+        events["Photon"] = self.add_zero_photon_mass(events.Photon)
+
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
-        events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+        events["Photon"] = add_photon_SC_eta(events.Photon, events.PV)
 
         if self.validate_with_electrons:
             # select photons with an associated electron and a pixel seed
@@ -231,17 +234,17 @@ class HHbbggProcessor(HggSkeletonProcessor):
         electrons["ScEta"] = electrons.eta + electrons.deltaEtaSC
         electrons["isScEtaEB"] = numpy.abs(electrons.ScEta) < 1.4442
         electrons["isScEtaEE"] = numpy.abs(electrons.ScEta) > 1.566
-        events.Electron = electrons
+        events["Electron"] = electrons
 
         # add veto EE leak branch for photons, could also be used for electrons
         if (
             self.year[dataset_name][0] == "2022EE"
             or self.year[dataset_name][0] == "2022postEE"
         ):
-            events.Photon = veto_EEleak_flag(self, events.Photon)
-            events.Photon = events.Photon[events.Photon.vetoEELeak]
-            events.Electron = veto_EEleak_flag(self, events.Electron)
-            events.Electron = events.Electron[events.Electron.vetoEELeak]
+            events["Photon"] = veto_EEleak_flag(self, events.Photon)
+            events["Photon"] = events.Photon[events.Photon.vetoEELeak]
+            events["Electron"] = veto_EEleak_flag(self, events.Electron)
+            events["Electron"] = events.Electron[events.Electron.vetoEELeak]
 
         # read which systematics and corrections to process
         try:
@@ -275,9 +278,9 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 else:
                     s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
+            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
         if s_or_s_ele_applied:
-            events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
+            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -302,7 +305,8 @@ class HHbbggProcessor(HggSkeletonProcessor):
             events = varying_function(events=events, year=self.year[dataset_name][0])
 
         # Keep a copy of the original, JES-corrected, non-PNet-regressed variables
-        pt_orig = ak.copy(events.Jet["pt"])
+        events["Jet"] = ak.with_field(events.Jet, events.Jet.pt, "pt_orig")
+        events["FatJet"] = ak.with_field(events.FatJet, events.FatJet.pt, "pt_orig")
 
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():
@@ -325,7 +329,6 @@ class HHbbggProcessor(HggSkeletonProcessor):
         original_electrons = events.Electron
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
-        original_jets["pt_orig"] = pt_orig
         original_fatjets = events.FatJet
 
         # Computing the normalizing flow correction
@@ -365,17 +368,13 @@ class HHbbggProcessor(HggSkeletonProcessor):
         logger.debug(original_photons.systematics.fields)
         for systematic in original_photons.systematics.fields:
             for variation in original_photons.systematics[systematic].fields:
-                # deepcopy to allow for independent calculations on photon variables with CQR
-                photons_dct[f"{systematic}_{variation}"] = deepcopy(
-                    original_photons.systematics[systematic][variation]
-                )
+                photons_dct[f"{systematic}_{variation}"] = original_photons.systematics[systematic][variation]
 
         electrons_dct = {}
         electrons_dct["nominal"] = original_electrons
         logger.debug(original_electrons.systematics.fields)
         for systematic in original_electrons.systematics.fields:
             for variation in original_electrons.systematics[systematic].fields:
-                # no deepcopy here unless we find a case where it's actually needed
                 electrons_dct[f"{systematic}_{variation}"] = original_electrons.systematics[systematic][variation]
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
@@ -452,7 +451,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
 
                 # Did not completely update the genJet part of the base processor because HHbbgg has its own way of dealing with it. We may think of a way to use what was developped to improve our gen selection.
-                # Changes that were not replicated here : https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/-/commit/55846b80a83619a9112b95fb8824dfdb71eee0b2
+                # Changes that were not replicated here : https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/-/commit/55846b80a83619a9112b95fb8824dfdb71eee0b2
                 GenPTH, GenYH, GenPhiH, _, _ = get_higgs_gen_attributes(events)
                 diphotons['GenPTH'] = ak.fill_none(GenPTH, -999.0)
 
@@ -834,8 +833,6 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
             dijets_base = ak.with_name(dijets_base, "PtEtaPhiMCandidate")
 
-            dijets_for_tth_killer = ak.copy(dijets_base)  # needed for a few ttH killer variables
-
             # Selection on the dijet
             dijets_base = dijets_base[(numpy.abs(dijets_base["first_jet"].eta) < 2.5) & (numpy.abs(dijets_base["second_jet"].eta) < 2.5)]
             self.calc_cut_flow("jet_eta_cut", diphotons[~ak.is_none(ak.firsts(dijets_base))], metadata)
@@ -866,7 +863,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 dijets_base["DNNpair_Score"] = Compute_DNN_bpairing(dijets_base,diphotons,keras_model)
 
             for AnType in self.bbgg_analysis:
-                dijets = ak.copy(dijets_base)
+                dijets = dijets_base
                 if AnType not in ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair"]:
                     raise NotImplementedError
                 if "DNNpair" in AnType :
@@ -1065,13 +1062,13 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 b_dijets = ak.firsts(dijets)
                 chi_t0 = getChi_t0(
                     b_dijets,
-                    dijets_for_tth_killer,
+                    dijets_base,
                     n_jets,
                     -999.0,
                 )
                 chi_t1 = getChi_t1(
                     b_dijets,
-                    dijets_for_tth_killer,
+                    dijets_base,
                     n_jets,
                     -999.0,
                 )
@@ -1098,9 +1095,9 @@ class HHbbggProcessor(HggSkeletonProcessor):
                         vbf_jets, 2, fields=("first_jet", "second_jet")
                     )
                     vbf = ak.zip({
-                        "first_jet": vbf_jet_pair["0"],
-                        "second_jet": vbf_jet_pair["1"],
-                        "dijet": vbf_jet_pair["0"] + vbf_jet_pair["1"],
+                        "first_jet": vbf_jet_pair["first_jet"],
+                        "second_jet": vbf_jet_pair["second_jet"],
+                        "dijet": vbf_jet_pair["first_jet"] + vbf_jet_pair["second_jet"],
                     })
                     vbf = vbf[vbf.first_jet.pt > 40.]
                     vbf = vbf[ak.argsort(vbf.dijet.mass, ascending=False)]
@@ -1347,8 +1344,8 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
                 # lowest priority is most important (ascending sort)
                 # leave in order of diphoton pT in case of ties (stable sort)
-                sorted = ak.argsort(diphotons.best_tag, stable=True)
-                diphotons = diphotons[sorted]
+                sorted_gg = ak.argsort(diphotons.best_tag, stable=True)
+                diphotons = diphotons[sorted_gg]
 
             diphotons = ak.firsts(diphotons)
             # set diphotons as part of the event record

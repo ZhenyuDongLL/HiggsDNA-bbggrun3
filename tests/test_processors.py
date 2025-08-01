@@ -1,10 +1,10 @@
-import os
 import subprocess
 import json
 import pytest
 from importlib import resources
 from higgs_dna.workflows import HggBaseProcessor, HggFiducialProcessor, TagAndProbeProcessor, HHbbggProcessor, HplusCharmProcessor, LowMassProcessor, ParticleLevelProcessor, TopProcessor, ZeeProcessor, ZmmyProcessor, STXSProcessor, BTaggingEfficienciesProcessor
 from coffea import processor
+from coffea.nanoevents import NanoAODSchema
 
 
 # Not tested by default since does not start with "test_"
@@ -14,10 +14,10 @@ def run_processor(processor_instance, fileset):
     """
     iterative_run = processor.Runner(
         executor=processor.IterativeExecutor(compression=None),
-        schema=processor.NanoAODSchema,
+        schema=NanoAODSchema,
     )
     out = iterative_run(
-        fileset,
+        fileset=fileset,
         treename="Events",
         processor_instance=processor_instance,
     )

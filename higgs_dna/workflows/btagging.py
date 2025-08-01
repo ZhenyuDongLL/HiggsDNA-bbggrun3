@@ -39,7 +39,6 @@ import awkward as ak
 import numpy
 import sys
 import vector
-from copy import deepcopy
 import pathlib
 import pickle
 
@@ -152,15 +151,19 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
         if self.data_kind == "data":
             events = remove_EcalBadCalibCrystal_events(events)
 
+        # add zero photon mass
+        # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
+        events["Photon"] = self.add_zero_photon_mass(events.Photon)
+
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
-        events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+        events["Photon"] = add_photon_SC_eta(events.Photon, events.PV)
 
         # add veto EE leak branch for photons, could also be used for electrons
         if (
             self.year[dataset_name][0] == "2022EE"
             or self.year[dataset_name][0] == "2022postEE"
         ):
-            events.Photon = veto_EEleak_flag(self, events.Photon)
+            events["Photon"] = veto_EEleak_flag(self, events.Photon)
 
         # read which systematics and corrections to process
         try:
@@ -194,9 +197,9 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
                 else:
                     s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
+            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
         if s_or_s_ele_applied:
-            events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
+            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -282,10 +285,7 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
         logger.debug(original_photons.systematics.fields)
         for systematic in original_photons.systematics.fields:
             for variation in original_photons.systematics[systematic].fields:
-                # deepcopy to allow for independent calculations on photon variables with CQR
-                photons_dct[f"{systematic}_{variation}"] = deepcopy(
-                    original_photons.systematics[systematic][variation]
-                )
+                photons_dct[f"{systematic}_{variation}"] = original_photons.systematics[systematic][variation]
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
@@ -582,8 +582,8 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
 
             if self.output_location is not None:
                 fname = (
-                    events.behavior[
-                        "__events_factory__"
+                    events.attrs[
+                        "@events_factory"
                     ]._partition_key.replace("/", "_")
                     + ".%s" % self.output_format
                 )

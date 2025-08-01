@@ -2,6 +2,7 @@ from coffea import processor
 from abc import abstractmethod
 import awkward as ak
 import numpy
+from coffea.nanoevents.methods import nanoaod
 
 from higgs_dna.tools.xgb_loader import load_bdt
 from higgs_dna.tools.chained_quantile import ChainedQuantileRegression
@@ -340,6 +341,16 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
             diphotons,
             events,
         )
+
+    def add_zero_photon_mass(self, photons: ak.Array) -> ak.Array:
+        """Add zero mass to the Photon object in the events."""
+        # add zero photon mass and charge
+        # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
+        to_zip = {field: photons[field] for field in photons.fields} | {
+            "mass": ak.zeros_like(photons.pt),
+        }
+        new_photons = ak.zip(to_zip, with_name="Photon", behavior=nanoaod.behavior)
+        return new_photons
 
     @abstractmethod
     def process(self, events: ak.Array) -> Dict[Any, Any]:

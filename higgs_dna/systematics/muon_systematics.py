@@ -280,7 +280,7 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
             logger.debug("[ Muon Scale ] Data only need muon pt scale correction")
             muons["pt"] = muons["pt_scalecorr"]
             muons_jagged = ak.unflatten(muons, counts)
-            events.Muon = muons_jagged
+            events["Muon"] = muons_jagged
             return events
         else:
             # * MC needs both scale and resolution corrections
@@ -295,7 +295,7 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
 
             muons["pt"] = muons["pt_scarecorr"]
             muons_jagged = ak.unflatten(muons, counts)
-            events.Muon = muons_jagged
+            events["Muon"] = muons_jagged
             return events
     else:
         if not hasattr(events, "genWeight"):

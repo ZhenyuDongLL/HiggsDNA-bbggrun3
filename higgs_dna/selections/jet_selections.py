@@ -3,7 +3,6 @@ import awkward as ak
 import correctionlib
 import os
 from coffea.analysis_tools import PackedSelection
-from copy import deepcopy
 import numpy as np
 from correctionlib.highlevel import model_auto, open_auto
 import json
@@ -555,7 +554,7 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         )
         / 2,
     )
-    jets_jagged = deepcopy(events.Jet)
+    jets_jagged = events.Jet
     # remove jets out of bin edges
     # https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/JME_2022_Prompt_jetvetomaps.html
     jets_jagged = jets_jagged[

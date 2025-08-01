@@ -40,7 +40,6 @@ import numpy
 import sys
 import vector
 from coffea.analysis_tools import Weights
-from copy import deepcopy
 
 import logging
 
@@ -483,8 +482,12 @@ class LowMassProcessor(HggSkeletonProcessor):
         if self.data_kind == "data":
             events = remove_EcalBadCalibCrystal_events(events)
 
+        # add zero photon mass
+        # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
+        events["Photon"] = self.add_zero_photon_mass(events.Photon)
+
         # we need ScEta for corrections and systematics, which is not present in NanoAODv11 but can be calculated using PV
-        events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+        events["Photon"] = add_photon_SC_eta(events.Photon, events.PV)
 
         if self.validate_with_electrons:
             # select photons with an associated electron and a pixel seed
@@ -497,7 +500,7 @@ class LowMassProcessor(HggSkeletonProcessor):
             self.year[dataset_name][0] == "2022EE"
             or self.year[dataset_name][0] == "2022postEE"
         ):
-            events.Photon = veto_EEleak_flag(self, events.Photon)
+            events["Photon"] = veto_EEleak_flag(self, events.Photon)
 
         # read which systematics and corrections to process
         try:
@@ -531,9 +534,9 @@ class LowMassProcessor(HggSkeletonProcessor):
                 else:
                     s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
+            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
         if s_or_s_ele_applied:
-            events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
+            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -610,10 +613,7 @@ class LowMassProcessor(HggSkeletonProcessor):
         logger.debug(original_photons.systematics.fields)
         for systematic in original_photons.systematics.fields:
             for variation in original_photons.systematics[systematic].fields:
-                # deepcopy to allow for independent calculations on photon variables with CQR
-                photons_dct[f"{systematic}_{variation}"] = deepcopy(
-                    original_photons.systematics[systematic][variation]
-                )
+                photons_dct[f"{systematic}_{variation}"] = original_photons.systematics[systematic][variation]
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
@@ -877,8 +877,8 @@ class LowMassProcessor(HggSkeletonProcessor):
 
                 # lowest priority is most important (ascending sort)
                 # leave in order of diphoton pT in case of ties (stable sort)
-                sorted = ak.argsort(diphotons.best_tag, stable=True)
-                diphotons = diphotons[sorted]
+                sorted_gg = ak.argsort(diphotons.best_tag, stable=True)
+                diphotons = diphotons[sorted_gg]
 
             diphotons = ak.firsts(diphotons)
             # set diphotons as part of the event record
@@ -937,7 +937,7 @@ class LowMassProcessor(HggSkeletonProcessor):
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
                 event_weights = Weights(size=len(events[selection_mask]))
                 # set weights to generator weights
-                event_weights._weight = events["genWeight"][selection_mask]
+                event_weights._weight = ak.to_numpy(events["genWeight"][selection_mask])
 
                 # corrections to event weights:
                 for correction_name in correction_names:
@@ -1110,7 +1110,7 @@ class LowMassProcessor(HggSkeletonProcessor):
                     ]
 
                 fname = (
-                    events.behavior["__events_factory__"]._partition_key.replace(
+                    events.attrs["@events_factory"]._partition_key.replace(
                         "/", "_"
                     )
                     + ".%s" % self.output_format
