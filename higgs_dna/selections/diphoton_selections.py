@@ -40,6 +40,7 @@ def build_diphoton_candidates(photons, min_pt_lead_photon):
 
     # Sort diphoton candidates by pT in descending order
     diphotons = diphotons[ak.argsort(diphotons.pt, ascending=False)]
+    diphotons = ak.with_name(diphotons, "PtEtaPhiMCandidate")
 
     return diphotons
 

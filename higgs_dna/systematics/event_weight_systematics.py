@@ -81,7 +81,8 @@ def SF_photon_ID(
 
             sfdown = (sf_lead - sf_unc_lead) * (sf_sublead - sf_unc_sublead) / _sf
 
-    weights.add(name="SF_photon_ID", weight=sf, weightUp=sfup, weightDown=sfdown)
+    name = "SF_photon_ID_corr" if is_correction else "SF_photon_ID"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
 
     return weights
 
@@ -125,7 +126,8 @@ def Pileup(events, weights, year, is_correction=True, **kwargs):
         sfup = evaluator.evaluate(events.Pileup.nTrueInt, "up") / sf_nom
         sfdown = evaluator.evaluate(events.Pileup.nTrueInt, "down") / sf_nom
 
-    weights.add(name="Pileup", weight=sf, weightUp=sfup, weightDown=sfdown)
+    name = "Pileup_corr" if is_correction else "Pileup"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
 
     return weights
 
@@ -261,7 +263,8 @@ def LooseMvaSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = (sfdown_lead_p_lead * sfdown_sublead_p_sublead + sfdown_lead_p_sublead * sfdown_sublead_p_lead - sfdown_lead_p_lead * sfdown_lead_p_sublead) / _sf
 
-    weights.add(name="LooseMvaSF", weight=sf, weightUp=sfup, weightDown=sfdown)
+    name = "LooseMvaSF_corr" if is_correction else "LooseMvaSF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
 
     return weights
 
@@ -371,7 +374,8 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
             sfup = (sf_lead + unc_lead) * (sf_sublead + unc_sublead) / _sf
             sfdown = (sf_lead - unc_lead) * (sf_sublead - unc_sublead) / _sf
 
-    weights.add(name="ElectronVetoSF", weight=sf, weightUp=sfup, weightDown=sfdown)
+    name = "ElectronVetoSF_corr" if is_correction else "ElectronVetoSF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
 
     return weights
 
@@ -491,7 +495,8 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
 
             sfdown = (sf_lead - sf_unc_lead) * (sf_sublead - sf_unc_sublead) / _sf
 
-    weights.add(name="PreselSF", weight=sf, weightUp=sfup, weightDown=sfdown)
+    name = "PreselSF_corr" if is_correction else "PreselSF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
 
     return weights
 
@@ -630,7 +635,8 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = (sfdown_lead_p_lead * sfdown_sublead_p_sublead + sfdown_lead_p_sublead * sfdown_sublead_p_lead - sfdown_lead_p_lead * sfdown_lead_p_sublead) / _sf
 
-    weights.add(name="TriggerSF", weight=sf, weightUp=sfup, weightDown=sfdown)
+    name = "TriggerSF_corr" if is_correction else "TriggerSF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
 
     return weights
 
@@ -1794,7 +1800,7 @@ def cTagSF(events, weights, is_correction=True, year="2017", **kwargs):
         sfs_down = [ak.values_astype(dummy_sf, np.float) for _ in ctag_systematics]
 
         weights.add_multivariation(
-            name="cTagSF",
+            name="cTagSF_corr",
             weight=sf,
             modifierNames=ctag_systematics,
             weightsUp=sfs_up,
@@ -1973,7 +1979,7 @@ def Zpt(
     logger.debug(f"{systematic}:{key_map[year]}, year: {year} ===> {dataset_name}")
     if is_correction:
         nom = sf.evaluate(input_value["Zpt"])
-        weights.add(name="ZptWeight", weight=nom)
+        weights.add(name="ZptWeight_corr", weight=nom)
     else:
         nom = sf.evaluate(input_value["Zpt"])
         up = sf.evaluate(input_value["Zpt"])
@@ -2042,7 +2048,8 @@ def muonSFs(muons, weights, year="2022preEE", SF_name="NUM_TightID_DEN_TrackerMu
         sfup = _sf_up / _sf
         sfdown = _sf_down / _sf
 
-    weights.add(name=SF_name, weight=sf, weightUp=sfup, weightDown=sfdown)
+    name = SF_name + "_corr" if is_correction else SF_name
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
 
     return weights
 
@@ -2193,5 +2200,6 @@ def electronIDSF(electrons, weights, year, ID_WP, is_correction=True, **kwargs):
         sfdown = ak.prod(sfdown, axis=1)
         sf = np.ones(len(weights._weight))
 
-    weights.add(name=f"ElectronId{ID_WP}SF", weight=sf, weightUp=sfup, weightDown=sfdown)
+    name = f"ElectronId{ID_WP}_SF_corr" if is_correction else f"ElectronId{ID_WP}SF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
     return weights

@@ -182,8 +182,12 @@ class ZmmyProcessor(HggSkeletonProcessor):
         if self.data_kind == "data":
             events = remove_EcalBadCalibCrystal_events(events)
 
+        # add zero photon mass
+        # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
+        events["Photon"] = self.add_zero_photon_mass(events.Photon)
+
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
-        events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+        events["Photon"] = add_photon_SC_eta(events.Photon, events.PV)
 
         # read which systematics and corrections to process
         try:
@@ -205,9 +209,9 @@ class ZmmyProcessor(HggSkeletonProcessor):
                 else:
                     s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
+            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
         if s_or_s_ele_applied:
-            events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
+            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
 
         # object corrections:
         for correction_name in correction_names:
@@ -284,7 +288,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
             ntuple["muon_far_track_ptErr"] = events.mmy.muon_far.ptErr
             # photon
             ## get photon in mmy system
-            photon_in_mmy = ak.copy(events.mmy.photon)
+            photon_in_mmy = events.mmy.photon
             ## Store deltaR first, the other variables should be Normalizing flowed, then be stored
             photon_in_mmy["muon_near_dR"] = photon_in_mmy.delta_r(events.mmy.muon_near)
             photon_in_mmy["muon_far_dR"] = photon_in_mmy.delta_r(events.mmy.muon_far)
@@ -463,7 +467,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
             # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
             event_weights = Weights(size=len(events))
             # _weight will correspond to the product of genWeight and the scale factors
-            event_weights._weight = events["genWeight"]
+            event_weights._weight = ak.to_numpy(events["genWeight"])
 
             # corrections to event weights:
             for correction_name in correction_names:
@@ -540,7 +544,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
         ak_ntuple = ak.Array(ntuple)
         if self.output_location is not None:
             fname = (
-                events.behavior["__events_factory__"]._partition_key.replace("/", "_")
+                events.attrs["@events_factory"]._partition_key.replace("/", "_")
                 + ".parquet"
             )
             subdirs = []
@@ -878,8 +882,8 @@ class ZmmyHist(HggSkeletonProcessor):
             # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
             event_weights = Weights(size=len(events))
             # _weight will correspond to the product of genWeight and the scale factors
-            event_weights._weight = events.genWeight * events.weight_central
-            # event_weights._weight = events.genWeight
+            event_weights._weight = ak.to_numpy(events.genWeight * events.weight_central)
+            # event_weights._weight = ak.to_numpy(events.genWeight)
             # corrections to event weights:
             for correction_name in correction_names:
                 if correction_name in available_weight_corrections:

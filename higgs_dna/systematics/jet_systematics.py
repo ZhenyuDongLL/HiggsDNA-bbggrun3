@@ -154,7 +154,7 @@ def JERC_jet(pt, events, year="2017", skip_JER=False, skip_JEC=False, is_correct
     jet_factory = CorrectedJetsFactory(name_map, jec_stack)
     if is_correction:
         corrected_jets = jet_factory.build(jets, lazy_cache=events_cache)
-        events.Jet = corrected_jets
+        events["Jet"] = corrected_jets
 
         return events
 

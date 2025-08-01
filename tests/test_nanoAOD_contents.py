@@ -6,7 +6,7 @@ def test_nanoAOD_v11():
     """
     Provides a test of the content of an example nanoAOD v11 to ensure that all necessary variables are there.
     """
-    fname = "./tests/samples/skimmed_nano/GJet_v11_Skim.root"
+    fname = {"./tests/samples/skimmed_nano/GJet_v11_Skim.root": "Events"}
     events = NanoEventsFactory.from_root(
         fname,
         schemaclass=NanoAODSchema,

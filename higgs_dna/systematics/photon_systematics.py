@@ -3,7 +3,6 @@ import awkward as ak
 import correctionlib
 import os
 import sys
-from copy import deepcopy
 import logging
 from higgs_dna.systematics.EGM_SS_systematics import EGM_Scale_Trad, EGM_Smearing_Trad, EGM_Scale_IJazZ, EGM_Smearing_IJazZ
 
@@ -85,7 +84,6 @@ def FNUF(pt, events, year="2017", is_correction=True):
     counts = ak.num(events.Photon.pt)
     eta = ak.flatten(events.Photon.ScEta)
     r9 = ak.flatten(events.Photon.r9)
-    _energy = ak.flatten(events.Photon.energy)
     _pt = ak.flatten(events.Photon.pt)
 
     # era/year defined as parameter of the function
@@ -109,15 +107,12 @@ def FNUF(pt, events, year="2017", is_correction=True):
 
     if is_correction:
         correction = evaluator.evaluate("nominal", eta, r9)
-        corr_energy = _energy * correction
         corr_pt = _pt * correction
 
-        corrected_photons = deepcopy(events.Photon)
-        corr_energy = ak.unflatten(corr_energy, counts)
+        corrected_photons = events.Photon
         corr_pt = ak.unflatten(corr_pt, counts)
-        corrected_photons["energy"] = corr_energy
         corrected_photons["pt"] = corr_pt
-        events.Photon = corrected_photons
+        events["Photon"] = corrected_photons
 
         return events
 
@@ -149,7 +144,6 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
     counts = ak.num(events.Photon.pt)
     eta = ak.flatten(events.Photon.ScEta)
     r9 = ak.flatten(events.Photon.r9)
-    _energy = ak.flatten(events.Photon.energy)
     _pt = ak.flatten(events.Photon.pt)
 
     # era/year defined as parameter of the function
@@ -165,15 +159,12 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
 
     if is_correction:
         correction = evaluator.evaluate("nominal", eta, r9)
-        corr_energy = _energy * correction
         corr_pt = _pt * correction
 
-        corrected_photons = deepcopy(events.Photon)
-        corr_energy = ak.unflatten(corr_energy, counts)
+        corrected_photons = events.Photon
         corr_pt = ak.unflatten(corr_pt, counts)
-        corrected_photons["energy"] = corr_energy
         corrected_photons["pt"] = corr_pt
-        events.Photon = corrected_photons
+        events["Photon"] = corrected_photons
 
         return events
 
@@ -203,7 +194,6 @@ def Material(pt, events, year="2017", is_correction=True):
     counts = ak.num(events.Photon.pt)
     eta = ak.flatten(abs(events.Photon.ScEta))
     r9 = ak.flatten(events.Photon.r9)
-    _energy = ak.flatten(events.Photon.energy)
     _pt = ak.flatten(events.Photon.pt)
 
     # era/year defined as parameter of the function, only 2017 is implemented up to now
@@ -225,15 +215,12 @@ def Material(pt, events, year="2017", is_correction=True):
 
     if is_correction:
         correction = evaluator.evaluate("nominal", eta, r9)
-        corr_energy = _energy * correction
         corr_pt = _pt * correction
 
-        corrected_photons = deepcopy(events.Photon)
-        corr_energy = ak.unflatten(corr_energy, counts)
+        corrected_photons = events.Photon
         corr_pt = ak.unflatten(corr_pt, counts)
-        corrected_photons["energy"] = corr_energy
         corrected_photons["pt"] = corr_pt
-        events.Photon = corrected_photons
+        events["Photon"] = corrected_photons
 
         return events
 

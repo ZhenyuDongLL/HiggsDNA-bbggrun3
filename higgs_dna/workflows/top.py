@@ -25,7 +25,6 @@ import awkward as ak
 import numpy as np
 import vector
 from coffea.analysis_tools import Weights
-from copy import deepcopy
 
 import logging
 
@@ -153,8 +152,12 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         if self.data_kind == "data":
             events = remove_EcalBadCalibCrystal_events(events)
 
+        # add zero photon mass
+        # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
+        events["Photon"] = self.add_zero_photon_mass(events.Photon)
+
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
-        events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+        events["Photon"] = add_photon_SC_eta(events.Photon, events.PV)
 
         if self.validate_with_electrons:
             # select photons with an associated electron and a pixel seed
@@ -167,11 +170,11 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         electrons["ScEta"] = electrons.eta + electrons.deltaEtaSC
         electrons["isScEtaEB"] = np.abs(electrons.ScEta) < 1.4442
         electrons["isScEtaEE"] = np.abs(electrons.ScEta) > 1.566
-        events.Electron = electrons
+        events["Electron"] = electrons
 
         # add veto EE leak branch for photons, could also be used for electrons
         if self.year[dataset_name][0] == "2022postEE":
-            events.Photon = veto_EEleak_flag(self, events.Photon)
+            events["Photon"] = veto_EEleak_flag(self, events.Photon)
 
         # read which systematics and corrections to process
         try:
@@ -193,9 +196,9 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                 else:
                     s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
+            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
         if s_or_s_ele_applied:
-            events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
+            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
 
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():
@@ -257,23 +260,18 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         logger.debug(original_photons.systematics.fields)
         for systematic in original_photons.systematics.fields:
             for variation in original_photons.systematics[systematic].fields:
-                # deepcopy to allow for independent calculations on photon variables with CQR
-                photons_dct[f"{systematic}_{variation}"] = deepcopy(
-                    original_photons.systematics[systematic][variation]
-                )
+                photons_dct[f"{systematic}_{variation}"] = original_photons.systematics[systematic][variation]
         electrons_dct = {}
         electrons_dct["nominal"] = original_electrons
         logger.debug(original_electrons.systematics.fields)
         for systematic in original_electrons.systematics.fields:
             for variation in original_electrons.systematics[systematic].fields:
-                # no deepcopy here unless we find a case where it's actually needed
                 electrons_dct[f"{systematic}_{variation}"] = original_electrons.systematics[systematic][variation]
         muons_dct = {}
         muons_dct["nominal"] = original_muons
         logger.debug(original_muons.systematics.fields)
         for systematic in original_muons.systematics.fields:
             for variation in original_muons.systematics[systematic].fields:
-                # no deepcopy here unless we find a case where it's actually needed
                 muons_dct[f"{systematic}_{variation}"] = original_muons.systematics[systematic][variation]
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary

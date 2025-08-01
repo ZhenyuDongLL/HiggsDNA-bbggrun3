@@ -16,7 +16,7 @@ def apply_naming_convention(self, events: ak.Array) -> str:
     """
     DAS_name = events.metadata["filename"]
     DAS_uuid = DAS_name.split("/")[-1].replace(".root", "")
-    name = events.behavior["__events_factory__"]._partition_key.split("/")
+    name = events.attrs["@events_factory"]._partition_key.split("/")
 
     try:
         convention = self.name_convention

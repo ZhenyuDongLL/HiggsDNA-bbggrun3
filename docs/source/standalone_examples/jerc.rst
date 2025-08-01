@@ -7,7 +7,7 @@ The ``JEC`` and ``JER`` could be considered via the `correctionlib <https://gith
 
 The ``JEC`` and ``JER`` correct the 4-momentum of each jet. Thus, both jet *p\T* and *mass* are corrected. So it's not easy to applied the ``JERC`` corrections and systematics seperately as most of the other corrections and systematics. Also, if ``JER`` is considered, the ``JEC`` systematics should be derived based on the ``JER`` corrected jets.
 
-A series of the functions are provided. Some of them also derive **systematics**, so the branches contain systematic variations are added to the jets collection. Then, function ``get_obj_syst_dict`` in `dumping_utils.py <https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/-/blob/master/higgs_dna/utils/dumping_utils.py?ref_type=heads>`_ splits the nominal and variations into the jet systematic dictionary, which has the same structure with the ``photons_dct`` in `base.py <https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/-/blob/master/higgs_dna/workflows/base.py?ref_type=heads>`_.
+A series of the functions are provided. Some of them also derive **systematics**, so the branches contain systematic variations are added to the jets collection. Then, function ``get_obj_syst_dict`` in `dumping_utils.py <https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/-/blob/master/higgs_dna/utils/dumping_utils.py?ref_type=heads>`_ splits the nominal and variations into the jet systematic dictionary, which has the same structure with the ``photons_dct`` in `base.py <https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/-/blob/master/higgs_dna/workflows/base.py?ref_type=heads>`_.
 
 The correction functions and their goals are as following:
 

@@ -8,7 +8,7 @@ version = "0.0.0"
 description = "Tools for running the CMS Higgs to Two Photons Analysis on NanoAOD"
 readme = "README.md"
 license = {text = "BSD-3-Clause"}
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
   { name = "Hgg Group", email = "higgsdna@cern.ch" },
 ]
@@ -23,37 +23,31 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-  "setuptools<71",
-  "coffea>=0.7.29,<2023",
-  "awkward<2",
-  "vector<=1.4.3",
+  "coffea[dask]>=2025.7.0",
   "xgboost",
   "pyaml",
   "rich",
-  "dask>=2021.10.0",
-  "distributed",
-  "dask-jobqueue",
-  "correctionlib",
   "torch",
   "requests",
   "zuko",
   "onnx",
   "onnxruntime",
+  "pyarrow<21.0.0",
 ]
 
 [project.urls]
 Documentation = "https://higgs_dna.readthedocs.io/"
-"Bug Tracker" = "https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/issues"
-Discussions = "https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/discussions"
-Changelog = "https://gitlab.cern.ch/HiggsDNA-project/HiggsDNA/releases"
+"Bug Tracker" = "https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/issues"
+Discussions = "https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/discussions"
+Changelog = "https://gitlab.cern.ch/cms-analysis/general/HiggsDNA/releases"
 
 [project.optional-dependencies]
 dev = ["pytest>=6"]

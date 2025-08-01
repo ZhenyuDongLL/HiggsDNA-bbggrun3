@@ -188,7 +188,7 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
         # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
         event_weights = Weights(size=len(events[selection_mask]))
         # set weights to generator weights
-        event_weights._weight = events["genWeight"][selection_mask]
+        event_weights._weight = ak.to_numpy(events["genWeight"][selection_mask])
         # corrections to event weights:
         for correction_name in correction_names:
             if correction_name in available_weight_corrections:
@@ -216,8 +216,8 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
             else:
                 akarr = diphoton_ak_array(self, diphotons)
             fname = (
-                events.behavior[
-                    "__events_factory__"
+                events.attrs[
+                    "@events_factory"
                 ]._partition_key.replace("/", "_")
                 + ".%s" % self.output_format
             )

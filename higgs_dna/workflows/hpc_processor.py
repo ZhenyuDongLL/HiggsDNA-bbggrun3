@@ -43,7 +43,6 @@ import numpy
 import sys
 import vector
 from coffea.analysis_tools import Weights
-from copy import deepcopy
 
 import logging
 
@@ -369,8 +368,12 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
         # apply filters and triggers
         events = self.apply_filters_and_triggers(events)
 
+        # add zero photon mass
+        # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
+        events["Photon"] = self.add_zero_photon_mass(events.Photon)
+
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
-        events.Photon = add_photon_SC_eta(events.Photon, events.PV)
+        events["Photon"] = add_photon_SC_eta(events.Photon, events.PV)
 
         if self.validate_with_electrons:
             # select photons with an associated electron and a pixel seed
@@ -383,7 +386,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             self.year[dataset_name][0] == "2022EE"
             or self.year[dataset_name][0] == "2022postEE"
         ):
-            events.Photon = veto_EEleak_flag(self, events.Photon)
+            events["Photon"] = veto_EEleak_flag(self, events.Photon)
 
         # read which systematics and corrections to process
         try:
@@ -417,9 +420,9 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                 else:
                     s_or_s_applied = True
         if s_or_s_applied:
-            events.Photon = ak.with_field(events.Photon, ak.copy(events.Photon.pt), "pt_raw")
+            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
         if s_or_s_ele_applied:
-            events.Electron = ak.with_field(events.Electron, ak.copy(events.Electron.pt), "pt_raw")
+            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -496,10 +499,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
         logger.debug(original_photons.systematics.fields)
         for systematic in original_photons.systematics.fields:
             for variation in original_photons.systematics[systematic].fields:
-                # deepcopy to allow for independent calculations on photon variables with CQR
-                photons_dct[f"{systematic}_{variation}"] = deepcopy(
-                    original_photons.systematics[systematic][variation]
-                )
+                photons_dct[f"{systematic}_{variation}"] = original_photons.systematics[systematic][variation]
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
@@ -1051,8 +1051,8 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
 
                 # lowest priority is most important (ascending sort)
                 # leave in order of diphoton pT in case of ties (stable sort)
-                sorted = ak.argsort(diphotons.best_tag, stable=True)
-                diphotons = diphotons[sorted]
+                sorted_gg = ak.argsort(diphotons.best_tag, stable=True)
+                diphotons = diphotons[sorted_gg]
 
             # set diphotons as part of the event record
             dipho_events[f"diphotons_{do_variation}"] = diphotons
@@ -1435,8 +1435,8 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                     # df = diphoton_list_to_pandas(self, diphotons, fields, logger)
                     akarr = diphoton_ak_array(self, diphotons, fields, logger)
                 fname = (
-                    events.behavior[
-                        "__events_factory__"
+                    events.attrs[
+                        "@events_factory"
                     ]._partition_key.replace("/", "_")
                     + ".%s" % self.output_format
                 )
