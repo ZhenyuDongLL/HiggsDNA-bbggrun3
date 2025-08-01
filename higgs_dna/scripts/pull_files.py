@@ -760,7 +760,6 @@ def get_scale_and_smearing(logger, target_dir, use_xrdcp=False):
     unzip_gz_with_gunzip(logger, to_prefix)
 
 
-
 def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
     # see https://twiki.cern.ch/twiki/bin/viewauth/CMS/EgammSFandSSRun3#Scale_And_Smearings_Correctionli for Run 3
     # jsons are not taken from the jsonpog-integration repo because the 2G jsons are not there and the PRNG corrections are removed.
@@ -1082,6 +1081,40 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
     }
 
     fetch_file("JetMET", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
+def get_electron_json(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/POG/EGM/"
+        )
+    base_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM"
+
+    from_to_dict = {
+        "2022preEE": {
+            "from": f"{base_path}/2022_Summer22/electron.json.gz",
+            "to": f"{to_prefix}/2022preEE/electron.json.gz",
+            "type": "cvmfs",
+        },
+        "2022postEE": {
+            "from": f"{base_path}/2022_Summer22EE/electron.json.gz",
+            "to": f"{to_prefix}/2022postEE/electron.json.gz",
+            "type": "cvmfs",
+        },
+        "2023preBPix": {
+            "from": f"{base_path}/2023_Summer23/electron.json.gz",
+            "to": f"{to_prefix}/2023preBPix/electron.json.gz",
+            "type": "cvmfs",
+        },
+        "2023postBPix": {
+            "from": f"{base_path}/2023_Summer23BPix/electron.json.gz",
+            "to": f"{to_prefix}/2023postBPix/electron.json.gz",
+            "type": "cvmfs",
+        },
+    }
+    fetch_file("electron", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
 def get_pileup(logger, target_dir, use_xrdcp=False):
@@ -1490,6 +1523,7 @@ def main():
             "LooseMva",
             "LowMass-DiPhotonMVA",
             "muonSF",
+            "electron",
             "LowMass-DYKilller",
             "CQR",
             "HggPhotonIDMVA",
@@ -1569,6 +1603,7 @@ def main():
         get_eveto_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_lowmass_diphotonmva_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_muon_SFs(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_electron_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_lowmass_dykiller_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_cqr_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_hgg_photon_id_mva_weights(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
@@ -1621,6 +1656,8 @@ def main():
         get_lowmass_diphotonmva_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "muonSF":
         get_muon_SFs(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "electron":
+        get_electron_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "LowMass-DYKilller":
         get_lowmass_dykiller_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "MuonScaRe":

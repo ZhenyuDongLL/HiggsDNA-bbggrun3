@@ -2105,3 +2105,93 @@ def Higgs_plus_HF_syst(events, weights, flav="b", pt_min=25, rel_unc=0.5, **kwar
     weights.add(name=SF_name, weight=ak.ones_like(up), weightUp=up, weightDown=down)
 
     return weights
+
+
+def electronIDSF(electrons, weights, year, ID_WP, is_correction=True, **kwargs):
+    """
+    Apply electron identification scale factors and uncertainties for Run 3 (2022/2023).
+    Documentation: https://twiki.cern.ch/twiki/bin/view/CMS/EgammSFandSSRun3
+
+    Parameters
+    ----------
+    electrons : ak.Array
+        Awkward array of electron objects, must contain pt, eta, and phi fields.
+    weights : coffea.analysis_tools.Weights
+        Weights object to which the electron ID SF will be added.
+    year : str
+        Data-taking period, one of ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"].
+    ID_WP : str
+        Electron ID working point ("Loose", "Medium", "Tight", "wp90iso", "wp80iso").
+    is_correction : bool, optional
+        If True, apply central scale factor. If False, apply up/down systematic variations.
+    **kwargs
+        Additional keyword arguments (unused).
+
+    Returns
+    -------
+    weights : coffea.analysis_tools.Weights
+        The modified Weights object with electron ID SFs added.
+
+    Notes
+    -----
+    Uses EGamma POG JSONs via correctionlib. For 2023, phi is required as input.
+    For events with no electrons, the scale factor is 1.
+    """
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    if year not in avail_years:
+        logger.error(f"\n Only electron ID SFs for the year strings {avail_years} are implemented! \n Exiting. \n")
+        exit()
+
+    # Select the correct JSON file and evaluator key
+    if year == "2022preEE":
+        path_json = os.path.join(os.path.dirname(__file__), f'JSONs/POG/EGM/{year}/electron.json.gz')
+        evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
+        era_label = "2022Re-recoBCD"
+    elif year == "2022postEE":
+        path_json = os.path.join(os.path.dirname(__file__), f'JSONs/POG/EGM/{year}/electron.json.gz')
+        evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
+        era_label = "2022Re-recoE+PromptFG"
+    elif year == "2023preBPix":
+        path_json = os.path.join(os.path.dirname(__file__), f'JSONs/POG/EGM/{year}/electron.json.gz')
+        evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
+        era_label = "2023PromptC"
+    elif year == "2023postBPix":
+        path_json = os.path.join(os.path.dirname(__file__), f'JSONs/POG/EGM/{year}/electron.json.gz')
+        evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
+        era_label = "2023PromptD"
+    else:
+        logger.error("Year not recognized for electron ID SFs.")
+        exit()
+
+    # Flatten arrays for evaluation
+    counts = ak.num(electrons.pt)
+    eta = ak.flatten(electrons.eta)
+    pt = ak.flatten(electrons.pt)
+    phi = ak.flatten(electrons.phi)
+
+    # Evaluate scale factors
+    if is_correction:
+        if "2022" in year:
+            sf = evaluator.evaluate(era_label, "sf", ID_WP, eta, pt)
+        elif "2023" in year:
+            sf = evaluator.evaluate(era_label, "sf", ID_WP, eta, pt, phi)
+        sf = ak.unflatten(sf, counts)
+        sf = ak.prod(sf, axis=1)
+        sfup, sfdown = None, None
+    else:
+        if "2022" in year:
+            sfup = evaluator.evaluate(era_label, "sfup", ID_WP, eta, pt)
+            sfdown = evaluator.evaluate(era_label, "sfdown", ID_WP, eta, pt)
+        elif "2023" in year:
+            sfup = evaluator.evaluate(era_label, "sfup", ID_WP, eta, pt, phi)
+            sfdown = evaluator.evaluate(era_label, "sfdown", ID_WP, eta, pt, phi)
+
+        sfup = ak.unflatten(sfup, counts)
+        sfdown = ak.unflatten(sfdown, counts)
+
+        sfup = ak.prod(sfup, axis=1)
+        sfdown = ak.prod(sfdown, axis=1)
+        sf = np.ones(len(weights._weight))
+
+    weights.add(name=f"ElectronId{ID_WP}SF", weight=sf, weightUp=sfup, weightDown=sfdown)
+    return weights
