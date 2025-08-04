@@ -6,10 +6,18 @@ def select_electrons(
     self,
     electrons: ak.highlevel.Array,
     diphotons: ak.highlevel.Array,
+    keep_transition_region: bool = False
 ) -> ak.highlevel.Array:
     pt_cut = electrons.pt > self.electron_pt_threshold
 
     eta_cut = abs(electrons.eta) < self.electron_max_eta
+
+    if not keep_transition_region:
+        if hasattr(electrons, 'ScEta'):
+            is_transition_region = (abs(electrons.ScEta) > 1.4442) & (abs(electrons.ScEta) < 1.566)
+        else:
+            is_transition_region = (abs(electrons.eta) > 1.4442) & (abs(electrons.eta) < 1.566)
+        eta_cut = eta_cut & (~is_transition_region)
 
     if self.el_id_wp == "WP90":
         id_cut = electrons.mvaIso_WP90
