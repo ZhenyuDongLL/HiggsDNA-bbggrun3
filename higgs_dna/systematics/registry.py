@@ -25,6 +25,7 @@ from .event_weight_systematics import (
     Zpt,
     muonSFs,
     electronIDSF,
+    atLeast1LeptonIdSF,
     Higgs_plus_HF_syst,
 )
 from .jet_systematics import (
@@ -355,6 +356,14 @@ weight_systematics = {
     "ElectronIdSFLoose": partial(electronIDSF, ID_WP="Loose", is_correction=False),
     "ElectronIdSFMedium": partial(electronIDSF, ID_WP="Medium", is_correction=False),
     "ElectronIdSFTight": partial(electronIDSF, ID_WP="Tight", is_correction=False),
+    # SF for analyses requiring at least one lepton which can be e or mu
+    # Choose combination of WPs for e and mu by name as in example below
+    "atLeast1LeptonSF_eleWP90iso_muIDMediumIsoTight": partial(
+        atLeast1LeptonIdSF,
+        ele_ID_WP="wp90iso",
+        mu_SF_names=("NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID"),
+        is_correction=False,
+    ),
     "Higgs_plus_b_pt20_syst50": partial(Higgs_plus_HF_syst, min_pt=20, flav="b", rel_unc=0.5),
     "Higgs_plus_b_pt25_syst50": partial(Higgs_plus_HF_syst, min_pt=25, flav="b", rel_unc=0.5),
     "Higgs_plus_b_pt20_syst100": partial(Higgs_plus_HF_syst, min_pt=20, flav="b", rel_unc=1.0),
@@ -403,4 +412,12 @@ weight_corrections = {
     "ElectronIdSFLoose": partial(electronIDSF, ID_WP="Loose", is_correction=True),
     "ElectronIdSFMedium": partial(electronIDSF, ID_WP="Medium", is_correction=True),
     "ElectronIdSFTight": partial(electronIDSF, ID_WP="Tight", is_correction=True),
+    # SF for analyses requiring at least one lepton which can be e or mu
+    # Choose combination of WPs for e and mu by name as in example below
+    "atLeast1LeptonSF_eleWP90iso_muIDMediumIsoTight": partial(
+        atLeast1LeptonIdSF,
+        ele_ID_WP="wp90iso",
+        mu_SF_names=("NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID"),
+        is_correction=True,
+    ),
 }

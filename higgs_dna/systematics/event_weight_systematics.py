@@ -1994,66 +1994,6 @@ def Zpt(
     return weights
 
 
-def muonSFs(muons, weights, year="2022preEE", SF_name="NUM_TightID_DEN_TrackerMuons", is_correction=True, **kwargs):
-    """
-    Applies muon scale-factors for ID or isolation and corresponding uncertainties.
-    """
-
-    # Run-2 SFs are also available, need to be added to pull_files and here if needed
-    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
-    if year not in avail_years:
-        print(f"\n WARNING: only muon corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
-        exit()
-
-    if year == "2022preEE":
-        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2022_Summer22/muon_Z.json.gz")
-    elif year == "2022postEE":
-        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2022_Summer22EE/muon_Z.json.gz")
-    if year == "2023preBPix":
-        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2023_Summer23/muon_Z.json.gz")
-    elif year == "2023postBPix":
-        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2023_Summer23BPix/muon_Z.json.gz")
-
-    evaluator = correctionlib.CorrectionSet.from_file(json_file)[SF_name]
-
-    # these SFs are for muons above 15 GeV only
-    pt_mask = muons.pt > 15.
-    counts = ak.num(muons.pt[pt_mask])
-
-    muon_pt_flattened = ak.flatten(muons.pt[pt_mask])
-    muon_abseta_flattened = ak.flatten(np.abs(muons.eta[pt_mask]))
-
-    _sf = evaluator.evaluate(muon_abseta_flattened, muon_pt_flattened, "nominal")
-    _sf = ak.unflatten(_sf, counts)
-    _sf = ak.prod(_sf, axis=1)
-
-    if is_correction:
-
-        sf = _sf
-
-        sfup, sfdown = None, None
-
-    else:
-
-        sf = np.ones(len(weights._weight))
-
-        _sf_up = evaluator.evaluate(muon_abseta_flattened, muon_pt_flattened, "systup")
-        _sf_up = ak.unflatten(_sf_up, counts)
-        _sf_up = ak.prod(_sf_up, axis=1)
-
-        _sf_down = evaluator.evaluate(muon_abseta_flattened, muon_pt_flattened, "systdown")
-        _sf_down = ak.unflatten(_sf_down, counts)
-        _sf_down = ak.prod(_sf_down, axis=1)
-
-        sfup = _sf_up / _sf
-        sfdown = _sf_down / _sf
-
-    name = SF_name + "_corr" if is_correction else SF_name
-    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
-
-    return weights
-
-
 def Higgs_plus_HF_syst(events, weights, flav="b", pt_min=25, rel_unc=0.5, **kwargs):
     """
     Apply a flat systematic uncertainty for ggH or VBF events with Higgs plus heavy-flavor (b or c) jets.
@@ -2114,92 +2054,448 @@ def Higgs_plus_HF_syst(events, weights, flav="b", pt_min=25, rel_unc=0.5, **kwar
     return weights
 
 
-def electronIDSF(electrons, weights, year, ID_WP, is_correction=True, **kwargs):
+def electronIDSF(
+    electrons,
+    weights,
+    year,
+    ID_WP,
+    is_correction=True,
+    return_jagged=False,
+    variation="nominal",
+    **kwargs,
+):
     """
-    Apply electron identification scale factors and uncertainties for Run 3 (2022/2023).
+    Electron identification scale factors for Run 3 (2022/2023).
     Documentation: https://twiki.cern.ch/twiki/bin/view/CMS/EgammSFandSSRun3
+    Can either return jagged per-electron SFs for a given variation or add event-level
+    weights to a coffea Weights container. In the latter case, the SF corresponds
+    to the product over all electron SFs in the event.
+    Take note that this is only correct if that number of electrons is required in the event selection.
 
     Parameters
     ----------
     electrons : ak.Array
-        Awkward array of electron objects, must contain pt, eta, and phi fields.
-    weights : coffea.analysis_tools.Weights
-        Weights object to which the electron ID SF will be added.
+        Awkward array with fields at least: pt, eta, and (for 2023) phi.
+    weights : coffea.analysis_tools.Weights or None
+        Weights container to which the event-level weight is added.
+        If return_jagged=True, this is ignored and may be None.
     year : str
-        Data-taking period, one of ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"].
+        One of {"2022preEE","2022postEE","2023preBPix","2023postBPix"}.
     ID_WP : str
-        Electron ID working point ("Loose", "Medium", "Tight", "wp90iso", "wp80iso").
-    is_correction : bool, optional
-        If True, apply central scale factor. If False, apply up/down systematic variations.
-    **kwargs
-        Additional keyword arguments (unused).
+        Electron ID working point, "Loose","Medium","Tight","wp90iso","wp80iso".
+    is_correction : bool, default True
+        If True, use central event-level weight (product over electrons).
+        If False, use up/down variations.
+    return_jagged : bool, default False
+        If True, do not touch `weights`; instead return a jagged ak.Array
+        of per-electron SFs for the requested `variation`.
+    variation : {"nominal","up","down"}, default "nominal"
+        Which variation to evaluate when return_jagged=True.
 
     Returns
     -------
-    weights : coffea.analysis_tools.Weights
-        The modified Weights object with electron ID SFs added.
-
-    Notes
-    -----
-    Uses EGamma POG JSONs via correctionlib. For 2023, phi is required as input.
-    For events with no electrons, the scale factor is 1.
+    weights or ak.Array
+        - If return_jagged=True: jagged ak.Array of per-electron SFs
+          for the requested variation.
+        - Otherwise: the modified Weights object with an event-level
+          weight added.
     """
     avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
-        logger.error(f"\n Only electron ID SFs for the year strings {avail_years} are implemented! \n Exiting. \n")
-        exit()
+        logger.error(f"Only muon corrections for {avail_years} implemented!")
+        raise ValueError(f"Year '{year}' not supported for muon corrections.")
 
-    # Select the correct JSON file and evaluator key
-    if year == "2022preEE":
-        path_json = os.path.join(os.path.dirname(__file__), f'JSONs/POG/EGM/{year}/electron.json.gz')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
-        era_label = "2022Re-recoBCD"
-    elif year == "2022postEE":
-        path_json = os.path.join(os.path.dirname(__file__), f'JSONs/POG/EGM/{year}/electron.json.gz')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
-        era_label = "2022Re-recoE+PromptFG"
-    elif year == "2023preBPix":
-        path_json = os.path.join(os.path.dirname(__file__), f'JSONs/POG/EGM/{year}/electron.json.gz')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
-        era_label = "2023PromptC"
-    elif year == "2023postBPix":
-        path_json = os.path.join(os.path.dirname(__file__), f'JSONs/POG/EGM/{year}/electron.json.gz')
-        evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
-        era_label = "2023PromptD"
-    else:
-        logger.error("Year not recognized for electron ID SFs.")
-        exit()
+    path_json = os.path.join(os.path.dirname(__file__), f"JSONs/POG/EGM/{year}/electron.json.gz")
+    evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
+    era_label = {
+        "2022preEE": "2022Re-recoBCD",
+        "2022postEE": "2022Re-recoE+PromptFG",
+        "2023preBPix": "2023PromptC",
+        "2023postBPix": "2023PromptD",
+    }[year]
 
-    # Flatten arrays for evaluation
+    # flatten inputs for evaluation
     counts = ak.num(electrons.pt)
     eta = ak.flatten(electrons.eta)
     pt = ak.flatten(electrons.pt)
+    # phi only used in 2023; provide zeros-like fallback to keep signatures simple
     phi = ak.flatten(electrons.phi)
 
-    # Evaluate scale factors
+    def _eval(var_key: str):
+        # var_key in {"sf", "sfup", "sfdown"}
+        if "2022" in year:
+            return evaluator.evaluate(era_label, var_key, ID_WP, eta, pt)
+        else:  # 2023 needs phi
+            return evaluator.evaluate(era_label, var_key, ID_WP, eta, pt, phi)
+
+    # return jagged per-electron SFs, if requested
+    if return_jagged:
+        key = "sf" if variation == "nominal" else f"sf{variation}"
+        sf = _eval(key)
+        return ak.unflatten(sf, counts)
+
+    # event-level weight behavior, will apply product over all electrons in the event
+    # central
+    sf_nom = _eval("sf")
+    sf_nom = ak.unflatten(sf_nom, counts)
+    prod_nom = ak.prod(sf_nom, axis=1)
+
     if is_correction:
-        if "2022" in year:
-            sf = evaluator.evaluate(era_label, "sf", ID_WP, eta, pt)
-        elif "2023" in year:
-            sf = evaluator.evaluate(era_label, "sf", ID_WP, eta, pt, phi)
-        sf = ak.unflatten(sf, counts)
-        sf = ak.prod(sf, axis=1)
-        sfup, sfdown = None, None
+        name = f"ElectronId{ID_WP}_SF_corr"
+        weights.add(name=name, weight=prod_nom, weightUp=None, weightDown=None)
+        return weights
+
+    sf_up = _eval("sfup")
+    sf_dn = _eval("sfdown")
+    sf_up = ak.unflatten(sf_up, counts)
+    sf_dn = ak.unflatten(sf_dn, counts)
+    prod_up = ak.prod(sf_up, axis=1)
+    prod_dn = ak.prod(sf_dn, axis=1)
+
+    name = f"ElectronId{ID_WP}SF"
+    weights.add(name=name, weight=np.ones(len(prod_nom)), weightUp=prod_up, weightDown=prod_dn)
+    return weights
+
+
+def muonSFs(muons, weights, year="2022preEE", SF_name="NUM_TightID_DEN_TrackerMuons", is_correction=True, return_jagged=False, variation="nominal", **kwargs):
+    """
+    Can either return jagged per-muon SFs for a given variation or add event-level
+    weights to a coffea Weights container. In the latter case, the SF corresponds
+    to the product over all muons SFs in the event.
+    Take note that this is only correct if that number of muons is required in the event selection.
+
+    Parameters
+    ----------
+    muons : ak.Array
+        Awkward array with fields at least: pt, eta.
+    weights : coffea.analysis_tools.Weights or None
+        Weights container to which the event-level weight is added.
+        If return_jagged=True, this is ignored and may be None.
+    year : str, default "2022preEE"
+        One of {"2022preEE", "2022postEE", "2023preBPix", "2023postBPix"}.
+        Selects the corresponding POG JSON file.
+    SF_name : str, default "NUM_TightID_DEN_TrackerMuons"
+        Name of the correction within the muon POG JSON, for example
+        "NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID",
+        "NUM_LoosePFIso_DEN_MediumID", etc.
+    is_correction : bool, default True
+        If True, add the central event-level weight equal to the product of
+        per-muon nominal SFs over all muons in the event (after pt > 15 GeV).
+        If False, add up/down variations as ratios to nominal (weightUp and
+        weightDown are product(up)/product(nominal) and product(down)/product(nominal)).
+    return_jagged : bool, default False
+        If True, do not touch `weights`; instead return a jagged ak.Array of
+        per-muon SFs for the requested `variation`.
+    variation : {"nominal", "up", "down"}, default "nominal"
+        Which variation to evaluate when return_jagged=True.
+    **kwargs
+        Unused; accepted for a uniform call signature.
+
+    Returns
+    -------
+    weights or ak.Array
+        - If return_jagged=True: jagged ak.Array of per-muon SFs for the
+          requested variation
+        - Otherwise: the modified Weights object with an event-level weight
+          added. For events with no muons passing the pt threshold, the
+          event-level product is 1.
+    """
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    if year not in avail_years:
+        logger.error(f"Only muon corrections for {avail_years} implemented!")
+        raise ValueError(f"Year '{year}' not supported for muon corrections.")
+
+    if year == "2022preEE":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2022_Summer22/muon_Z.json.gz")
+    elif year == "2022postEE":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2022_Summer22EE/muon_Z.json.gz")
+    elif year == "2023preBPix":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2023_Summer23/muon_Z.json.gz")
     else:
-        if "2022" in year:
-            sfup = evaluator.evaluate(era_label, "sfup", ID_WP, eta, pt)
-            sfdown = evaluator.evaluate(era_label, "sfdown", ID_WP, eta, pt)
-        elif "2023" in year:
-            sfup = evaluator.evaluate(era_label, "sfup", ID_WP, eta, pt, phi)
-            sfdown = evaluator.evaluate(era_label, "sfdown", ID_WP, eta, pt, phi)
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2023_Summer23BPix/muon_Z.json.gz")
 
-        sfup = ak.unflatten(sfup, counts)
-        sfdown = ak.unflatten(sfdown, counts)
+    evaluator = correctionlib.CorrectionSet.from_file(json_file)[SF_name]
 
-        sfup = ak.prod(sfup, axis=1)
-        sfdown = ak.prod(sfdown, axis=1)
+    logger.warning("Muon SFs are only applied to muons with pt > 15 GeV. Please ensure this is appropriate for your analysis selection.")
+    # SFs defined for pT > 15 GeV
+    pt_mask = (muons.pt > 15.)
+    counts = ak.num(muons.pt[pt_mask])
+    abseta = ak.flatten(np.abs(muons.eta[pt_mask]))
+    pt = ak.flatten(muons.pt[pt_mask])
+
+    def _eval(var):
+        key = {"nominal":"nominal", "up":"systup", "down":"systdown"}[var]
+        return evaluator.evaluate(abseta, pt, key)
+
+    if return_jagged:
+        sf = _eval({"up":"up", "down":"down"}.get(variation, "nominal"))
+        return ak.unflatten(sf, counts)  # jagged per-muon SFs (only pT>15 included)
+
+    _sf_nom = ak.unflatten(_eval("nominal"), counts)
+    if is_correction:
+        sf = ak.prod(_sf_nom, axis=1)
+        sfup = None
+        sfdown = None
+    else:
+        _sf_up = ak.unflatten(_eval("up"), counts)
+        _sf_down = ak.unflatten(_eval("down"), counts)
         sf = np.ones(len(weights._weight))
+        sfup = ak.prod(_sf_up, axis=1) / ak.prod(_sf_nom, axis=1)
+        sfdown = ak.prod(_sf_down, axis=1) / ak.prod(_sf_nom, axis=1)
 
-    name = f"ElectronId{ID_WP}_SF_corr" if is_correction else f"ElectronId{ID_WP}SF"
+    name = SF_name + "_corr" if is_correction else SF_name
     weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
+    return weights
+
+
+def atLeast1LeptonIdSF(
+    electrons,
+    muons,
+    weights,
+    year,
+    ele_ID_WP="wp90iso",
+    # list of muon SF “components” to multiply per muon (ID, ISO, …)
+    mu_SF_names=("NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID"),
+    name_base="atLeast1LeptonIdSF",
+    is_correction=True,
+    **kwargs,
+):
+    """
+    Event-level SF for analyses requiring ">= 1 lepton (e or mu)" using OR logic and per-lepton SFs.
+
+    This function builds an event weight appropriate for selections that pass when
+    at least one lepton is identified. It combines per-lepton scale factors (SFs)
+    across components (e.g. ID, ISO) into a per-lepton total SF, and then applies
+    the OR probability:
+        w = [1 - (prod_e (1 - SF_e * epsilon_e_MC)) * (prod_mu (1 - SF_mu * epsilon_mu_MC))]
+            / [1 - (prod_e (1 - epsilon_e_MC))     * (prod_mu (1 - epsilon_mu_MC))]
+
+    where epsilon_*_MC are average MC efficiencies for the working points used.
+    For systematics, it creates one nuisance parameter per SF component (electron
+    ID WP and each muon SF name), varying a single component up/down while keeping
+    all other components at nominal, and stores the variations as ratios to the
+    central weight.
+
+    Parameters
+    ----------
+    electrons : ak.Array
+        Awkward Array of selected electrons used by the category. Must provide
+        at least `pt` and `eta` (and `phi` if your electron SFs require it).
+    muons : ak.Array
+        Awkward Array of selected muons used by the category. Must provide
+        at least `pt` and `eta`.
+    weights : coffea.analysis_tools.Weights
+        Weights container to which the event-level weight and NP variations
+        are added.
+    year : str
+        Data-taking period string understood by the underlying SF evaluators,
+        e.g. "2022preEE", "2022postEE", "2023preBPix", "2023postBPix".
+    ele_ID_WP : str, default "wp90iso"
+        Electron ID working point name to use when fetching electron SFs, e.g.
+        "Loose", "Medium", "Tight", "wp90iso", "wp80iso".
+    mu_SF_names : tuple[str] or list[str], default ("NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID")
+        Iterable of muon SF component names to multiply per muon (for example
+        an ID component and an ISO component). Each entry must match a key in
+        the muon POG JSON used by `muonSFs`.
+    name_base : str, default "atLeast1LeptonIdSF"
+        Base name for the weight(s) added to the Weights container. The central
+        weight is stored as `{name_base}`. Per-component NPs are stored as
+        `{name_base}_ele_<comp>` and `{name_base}_mu_<comp>`.
+    is_correction : bool, default True
+        If True, add only the central event-level weight. If False, do not add
+        a central weight here; instead add one nuisance parameter per component,
+        each with Up/Down variations stored as ratios to the central weight.
+
+    Returns
+    -------
+    coffea.analysis_tools.Weights
+        The modified Weights container. In correction mode, a weight named
+        `{name_base}` is added. In systematics mode, one NP per component is
+        added with names `{name_base}_ele_<comp>` and `{name_base}_mu_<comp>`.
+
+    Notes
+    -----
+    - This routine relies on two helpers:
+        * `electronIDSF(..., return_jagged=True, variation in {"nominal","up","down"})`
+        * `muonSFs(..., return_jagged=True, variation in {"nominal","up","down"})`
+      which must return jagged per-lepton SFs for the requested variation.
+    - MC efficiencies are approximated by average constants, taken from POG material.
+      Replace these with maps if you have kinematic-dependent efficiencies.
+    - Events with no leptons receive a weight of 1.0.
+    - The OR logic is appropriate for categories that require at least one lepton.
+      Do not also multiply per-lepton SF products independently in the same
+      category, or you will double count.
+    - Systematic variations:
+        * Electron components: the function varies the electron ID WP component.
+        * Muon components: the function varies each entry in `mu_SF_names`.
+        * Each NP is added with central=1 and Up/Down equal to the ratio of the
+          varied event weight to the central event weight computed here.
+    """
+
+    # we need MC efficiencies, these are functions of kinematics, but we dont have that easily accessible
+    # so we use average values
+    # electron effs from https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedElectronIdentificationRun3
+    def _ele_eff_from_wp(ID_WP: str) -> float:
+        m = {"wp90iso": 0.90, "wp80iso": 0.80, "Loose": 0.90, "Medium": 0.80, "Tight": 0.70}
+        return m.get(ID_WP, 0.90)
+
+    # same for muons
+    # reference: https://muon-wiki.docs.cern.ch/guidelines/corrections/#medium-pt-id-efficiencies
+    def _mu_eff_from_wp(name: str) -> float:
+        if "NUM_MediumID_DEN_TrackerMuons" in name:
+            return 0.985  # between 0.98 and 0.99 mostly
+        elif "NUM_TightID_DEN_TrackerMuons" in name:
+            return 0.97
+        elif "NUM_LooseID_DEN_TrackerMuons" in name:
+            return 0.995
+        # ISO (conditional on ID WPs)
+        if "NUM_TightPFIso_DEN_MediumID" in name:
+            return 0.95
+        elif "NUM_LoosePFIso_DEN_MediumID" in name:
+            return 0.97
+        # other cases, just return a default value
+        logger.warning(f"Muon SF name '{name}' not recognized, using default efficiency of 0.97.")
+        return 0.97
+
+    efficiency_ele = _ele_eff_from_wp(ele_ID_WP)
+    efficiency_mu = 1.0
+    for name in mu_SF_names:
+        efficiency_mu *= _mu_eff_from_wp(name)
+
+    # per-lepton SFs (multiply components)
+    # electrons: currently only ID is supported
+    el_sf_nom = electronIDSF(electrons, weights=None, year=year, ID_WP=ele_ID_WP, return_jagged=True, variation="nominal")
+
+    # muons: multiply over listed components (ID, iso, ...)
+    def _mu_total_sf(variation: str):
+        sf_tot = None
+        for name in mu_SF_names:
+            _sf = muonSFs(muons, weights=None, year=year, SF_name=name, return_jagged=True, variation=variation)
+            sf_tot = _sf if sf_tot is None else (sf_tot * _sf)
+        # if there are no components, fall back to ones
+        return sf_tot if sf_tot is not None else ak.ones_like(muons.pt)
+
+    mu_sf_nom = _mu_total_sf("nominal")
+
+    # build OR ratio
+    # Denominator (MC): prod(1 - eps_MC_total) per flavour, then multiply flavours
+    # ak.prod over jagged axis returns 1.0 for empty lists
+    el_fail_mc = ak.prod(1.0 - efficiency_ele * ak.ones_like(el_sf_nom), axis=1)
+    mu_fail_mc = ak.prod(1.0 - efficiency_mu * ak.ones_like(mu_sf_nom), axis=1)
+    F_mc = el_fail_mc * mu_fail_mc
+
+    # data: replace eps_MC by SF_total * eps_MC
+    el_fail_data_nom = ak.prod(1.0 - el_sf_nom * efficiency_ele, axis=1)
+    mu_fail_data_nom = ak.prod(1.0 - mu_sf_nom * efficiency_mu, axis=1)
+    F_data_nom = el_fail_data_nom * mu_fail_data_nom
+
+    denom = 1.0 - F_mc
+    numer = 1.0 - F_data_nom
+    eps_safe = 1e-12
+    w_nom = numer / np.clip(denom, eps_safe, None)
+
+    # Neutralize events with no leptons at all
+    has_any_lep = (ak.num(electrons.pt) + ak.num(muons.pt)) > 0
+    w_nom = np.where(ak.to_numpy(has_any_lep), ak.to_numpy(w_nom), 1.0)
+
+    if is_correction:
+        weights.add(name=f"{name_base}", weight=w_nom)
+        return weights
+
+    # one NP per component
+    electron_component_names = (ele_ID_WP,)
+    muon_component_names = tuple(mu_SF_names) if isinstance(mu_SF_names, (list, tuple)) else (mu_SF_names,)
+
+    # Cache nominal per-component SFs (so we don't recompute them in each NP)
+    electron_component_sfs_nominal = {}
+    for comp_name in electron_component_names:
+        electron_component_sfs_nominal[comp_name] = electronIDSF(
+            electrons, weights=None, year=year, ID_WP=comp_name,
+            return_jagged=True, variation="nominal"
+        )
+
+    muon_component_sfs_nominal = {}
+    for comp_name in muon_component_names:
+        muon_component_sfs_nominal[comp_name] = muonSFs(
+            muons, weights=None, year=year, SF_name=comp_name,
+            return_jagged=True, variation="nominal"
+        )
+
+    # Build a single list of (flavor, component_name) to vary
+    components_to_vary = []
+    for name in electron_component_names:
+        components_to_vary.append(("ele", name))
+    for name in muon_component_names:
+        components_to_vary.append(("mu", name))
+
+    # Safe arrays for ratios and neutralization
+    w_nom_safe = np.clip(w_nom, eps_safe, None)
+    no_lepton_mask = ~ak.to_numpy(has_any_lep)
+
+    # Unified loop: vary ONE component at a time, others stay nominal
+    for flavor, comp_name in components_to_vary:
+
+        if flavor == "ele":
+            # --- electron component up/down ---
+            el_comp_up = electronIDSF(
+                electrons, weights=None, year=year, ID_WP=comp_name,
+                return_jagged=True, variation="up"
+            )
+            el_comp_dn = electronIDSF(
+                electrons, weights=None, year=year, ID_WP=comp_name,
+                return_jagged=True, variation="down"
+            )
+
+            # Total electron SF where ONLY this component is varied; others nominal
+            el_total_sf_up = el_comp_up
+            el_total_sf_dn = el_comp_dn
+            for other in electron_component_names:
+                if other == comp_name:
+                    continue
+                el_total_sf_up = el_total_sf_up * electron_component_sfs_nominal[other]
+                el_total_sf_dn = el_total_sf_dn * electron_component_sfs_nominal[other]
+
+            # Event OR weight with electrons varied, muons fixed to nominal
+            el_fail_data_up = ak.prod(1.0 - el_total_sf_up * efficiency_ele, axis=1)
+            el_fail_data_dn = ak.prod(1.0 - el_total_sf_dn * efficiency_ele, axis=1)
+            w_up = (1.0 - (el_fail_data_up * mu_fail_data_nom)) / np.clip(denom, eps_safe, None)
+            w_dn = (1.0 - (el_fail_data_dn * mu_fail_data_nom)) / np.clip(denom, eps_safe, None)
+
+        elif flavor == "mu":
+            mu_comp_up = muonSFs(
+                muons, weights=None, year=year, SF_name=comp_name,
+                return_jagged=True, variation="up"
+            )
+            mu_comp_dn = muonSFs(
+                muons, weights=None, year=year, SF_name=comp_name,
+                return_jagged=True, variation="down"
+            )
+
+            # Total muon SF where ONLY this component is varied; others nominal
+            mu_total_sf_up = mu_comp_up
+            mu_total_sf_dn = mu_comp_dn
+            for other in muon_component_names:
+                if other == comp_name:
+                    continue
+                mu_total_sf_up = mu_total_sf_up * muon_component_sfs_nominal[other]
+                mu_total_sf_dn = mu_total_sf_dn * muon_component_sfs_nominal[other]
+
+            # Event OR weight with muons varied, electrons fixed to nominal
+            mu_fail_data_up = ak.prod(1.0 - mu_total_sf_up * efficiency_mu, axis=1)
+            mu_fail_data_dn = ak.prod(1.0 - mu_total_sf_dn * efficiency_mu, axis=1)
+            w_up = (1.0 - (el_fail_data_nom * mu_fail_data_up)) / np.clip(denom, eps_safe, None)
+            w_dn = (1.0 - (el_fail_data_nom * mu_fail_data_dn)) / np.clip(denom, eps_safe, None)
+
+        # Ratios and neutralization
+        r_up = ak.to_numpy(w_up) / w_nom_safe
+        r_dn = ak.to_numpy(w_dn) / w_nom_safe
+        r_up[no_lepton_mask] = 1.0
+        r_dn[no_lepton_mask] = 1.0
+
+        weights.add(
+            name=f"{name_base}_{flavor}_{comp_name}",
+            weight=np.ones_like(w_nom),
+            weightUp=r_up, weightDown=r_dn
+        )
+
     return weights
