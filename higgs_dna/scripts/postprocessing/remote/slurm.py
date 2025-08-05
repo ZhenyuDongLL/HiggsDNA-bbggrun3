@@ -26,7 +26,7 @@ def create_slurm_script(_opt, job_name, script_path, output_path, error_path, co
             script_file.write("\n")
             script_file.write("\n".join(commands))
             script_file.write("\n")
-            script_file.write(f"xrdcp -fr $TARGET_PATH/{mode} root://t3dcachedb.psi.ch:1094//{OUT_PATH}\n")
+            script_file.write(f"xrdcp -fr $TARGET_PATH/{mode} root://t3dcachedb03.psi.ch:1094//{OUT_PATH}\n")
             script_file.write("rm -rf /scratch/$USER/${SLURM_JOB_ID}\n")
 
 
