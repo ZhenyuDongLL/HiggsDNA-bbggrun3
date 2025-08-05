@@ -23,6 +23,7 @@ After instaling Miniforge, you can create the environment with the following com
 
         conda activate higgs-dna
 
+If you use other distributions like `micromamba`, you might need to add a `-c conda-forge` to ensure that he can find `xrootd` in the installation.
 To install the package in editable mode run::
 
         pip install -e .[dev,test]
