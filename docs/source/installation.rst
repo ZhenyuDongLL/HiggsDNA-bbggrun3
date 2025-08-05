@@ -43,7 +43,7 @@ If you want to use the latest image with HiggsDNA already installed in it (i.e. 
         apptainer shell -B /afs -B /cvmfs/cms.cern.ch \
         -B /tmp  -B /eos/cms/ \
         -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} --env KRB5CCNAME="FILE:${XDG_RUNTIME_DIR}/krb5cc" \
-        /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:latest
+        /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest
 
 If you want to also develop you can pull the same image and create a virtual environment inside it::
 
@@ -51,7 +51,7 @@ If you want to also develop you can pull the same image and create a virtual env
         apptainer shell -B /afs -B /cvmfs/cms.cern.ch \
         -B /tmp  -B /eos/cms/ \
         -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} --env KRB5CCNAME="FILE:${XDG_RUNTIME_DIR}/krb5cc" \
-        /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:latest
+        /cvmfs/unpacked.cern.ch/gitlab-registry.cern.ch/cms-analysis/general/higgsdna:lxplus-el9-latest
 
         # create virtual environment 
         python -m venv --system-site-packages myenv
