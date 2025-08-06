@@ -91,6 +91,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
             doDeco=doDeco,
             Smear_sigma_m=Smear_sigma_m,
             doFlow_corrections=doFlow_corrections,
+            validate_with_electrons=validate_with_electrons,
             output_format=output_format
         )
 
