@@ -1564,7 +1564,9 @@ def main():
             "DiphotonIDMVA",
             "HPCBDT",
             "HHbbgg_bTag_WPs",
+            "HHbbgg_mbb_reg_model",
             "HHbbgg_weight_interference",
+            "HHbbgg_bpairing",
             "MuonScaRe"
         ],
     )
