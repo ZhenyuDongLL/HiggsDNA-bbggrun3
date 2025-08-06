@@ -18,6 +18,7 @@ from higgs_dna.systematics import object_corrections as available_object_correct
 from higgs_dna.systematics import weight_systematics as available_weight_systematics
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.systematics import apply_systematic_variations_object_level
+from higgs_dna.systematics.MET_systematics import apply_type1_met_correction
 
 import warnings
 from typing import Any, Dict, List, Optional
@@ -186,19 +187,16 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         except KeyError:
             systematic_names = []
 
-        # save raw pt if we use scale/smearing corrections
-        s_or_s_applied = False
-        s_or_s_ele_applied = False
-        for correction in correction_names:
-            if "scale" or "smearing" in correction.lower():
-                if "Electron" in correction:
-                    s_or_s_ele_applied = True
-                else:
-                    s_or_s_applied = True
-        if s_or_s_applied:
-            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
-        if s_or_s_ele_applied:
-            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
+        # save raw pt for scale/smearing corrections
+        events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
+        events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
+
+        # we need the uncorrected pt for jets, photons, electrons and muons for the type-I MET correction
+        # field pt_raw is already defined in jerc_jet in a different way, so the name should be avoided
+        events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_nano")
+        events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_nano")
+        events["Muon"] = ak.with_field(events.Muon, events.Muon.pt, "pt_nano")
+        events["Jet"] = ak.with_field(events.Jet, events.Jet.pt, "pt_nano")
 
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():
@@ -220,6 +218,12 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         original_jets = events.Jet
         original_electrons = events.Electron
         original_muons = events.Muon
+        met = ak.zip(
+            {"pt": events.PuppiMET.pt, "phi": events.PuppiMET.phi},
+            with_name="MissingET",
+        )
+        # Create (N,1) jagged layout, needed for systematic variations
+        original_met = ak.unflatten(met, ak.ones_like(events.event))
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
@@ -236,7 +240,8 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         collections = {
             "Photon": original_photons,
             "Electron": original_electrons,
-            "Muon": original_muons
+            "Muon": original_muons,
+            "MET": original_met,
         }
 
         # Apply the systematic variations.
@@ -253,6 +258,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         original_photons = collections["Photon"]
         original_electrons = collections["Electron"]
         original_muons = collections["Muon"]
+        original_met = collections["MET"]
 
         # Write systematic variations to dicts
         photons_dct = {}
@@ -261,18 +267,25 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         for systematic in original_photons.systematics.fields:
             for variation in original_photons.systematics[systematic].fields:
                 photons_dct[f"{systematic}_{variation}"] = original_photons.systematics[systematic][variation]
+
         electrons_dct = {}
         electrons_dct["nominal"] = original_electrons
         logger.debug(original_electrons.systematics.fields)
         for systematic in original_electrons.systematics.fields:
             for variation in original_electrons.systematics[systematic].fields:
                 electrons_dct[f"{systematic}_{variation}"] = original_electrons.systematics[systematic][variation]
+
         muons_dct = {}
         muons_dct["nominal"] = original_muons
         logger.debug(original_muons.systematics.fields)
         for systematic in original_muons.systematics.fields:
             for variation in original_muons.systematics[systematic].fields:
                 muons_dct[f"{systematic}_{variation}"] = original_muons.systematics[systematic][variation]
+
+        met_dct = {"nominal": original_met}
+        for syst in original_met.systematics.fields:
+            for var in original_met.systematics[syst].fields:
+                met_dct[f"{syst}_{var}"] = original_met.systematics[syst][var]
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
@@ -283,6 +296,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         variations_combined.append(original_photons.systematics.fields)
         variations_combined.append(original_electrons.systematics.fields)
         variations_combined.append(original_muons.systematics.fields)
+        variations_combined.append(original_met.systematics.fields)
         # NOTE: jet jerc systematics are not added with add_systematics
         variations_combined.append(jerc_syst_list)
         variations_flattened = sum(variations_combined, [])
@@ -295,7 +309,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
         for variation in variations:
             logger.info(f"Processing {variation} samples.\n")
-            photons, electrons, muons, jets = photons_dct["nominal"], electrons_dct["nominal"], muons_dct["nominal"], events.Jet
+            photons, electrons, muons, jets, MET = photons_dct["nominal"], electrons_dct["nominal"], muons_dct["nominal"], events.Jet, met_dct["nominal"]
             if variation == "nominal":
                 pass  # Do nothing since we already get the unvaried, but nominally corrected objets above
             elif variation in [*photons_dct]:  # [*dict] gets the keys of the dict since Python >= 3.5
@@ -310,6 +324,9 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             elif variation in [*jets_dct]:
                 jets = jets_dct[variation]
                 logger.info(f"Replacing nominal jets with variation {variation}.\n")
+            elif variation in [*met_dct]:
+                MET = met_dct[variation]
+                logger.info(f"Replacing nominal MET with variation {variation}.\n")
             do_variation = variation  # We can also simplify this a bit but for now it works
 
             if self.chained_quantile is not None:
@@ -341,6 +358,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             jets = ak.zip(
                 {
                     "pt": jets.pt,
+                    "pt_nano": jets.pt_nano,
                     "eta": jets.eta,
                     "phi": jets.phi,
                     "mass": jets.mass,
@@ -370,6 +388,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             electrons = ak.zip(
                 {
                     "pt": electrons.pt,
+                    "pt_nano": electrons.pt_nano,
                     "eta": electrons.eta,
                     "phi": electrons.phi,
                     "mass": electrons.mass,
@@ -387,6 +406,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             muons = ak.zip(
                 {
                     "pt": muons.pt,
+                    "pt_nano": muons.pt_nano,
                     "eta": muons.eta,
                     "phi": muons.phi,
                     "mass": muons.mass,
@@ -403,6 +423,11 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                 }
             )
             muons = ak.with_name(muons, "PtEtaPhiMCandidate")
+
+            # apply type-I MET correction before selecting (i.e. removing possibly corrected) jets and leptons
+            met_corr = apply_type1_met_correction(MET, objects=(jets, photons, electrons, muons), raw_pt_name="pt_nano")
+            diphotons["met_pt"] = ak.flatten(met_corr.pt)
+            diphotons["met_phi"] = ak.flatten(met_corr.phi)
 
             # lepton cleaning
             electrons = electrons[select_electrons(self, electrons, diphotons)]
@@ -511,9 +536,6 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                     value = choose_jet(getattr(leptons, prop), i, -999.0)
                     # Store the value in the diphotons dictionary
                     diphotons[key] = value
-
-            diphotons["met_pt"] = events.PuppiMET.pt
-            diphotons["met_phi"] = events.PuppiMET.phi
 
             diphotons = ak.firsts(diphotons)
             # set diphotons as part of the event record
