@@ -1214,42 +1214,76 @@ def get_muon_SFs(logger, target_dir, use_xrdcp=False):
         to_prefix = target_dir
     else:
         to_prefix = resource_dir
-
     from_to_dict = {
         "2022preEE": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22/muon_Z.json.gz",
-            "to": os.path.join(
-                to_prefix,
-                "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22/muon_Z.json.gz",
-            ),
+            "from": [
+                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22/muon_Z.json.gz",
+                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22/muon_JPsi.json.gz"
+            ],
+            "to": [
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22/muon_Z.json.gz",
+                ),
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22/muon_JPsi.json.gz",
+                ),
+            ],
             "type": "cvmfs",
         },
         "2022postEE": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22EE/muon_Z.json.gz",
-            "to": os.path.join(
-                to_prefix,
-                "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22EE/muon_Z.json.gz",
-            ),
+            "from": [
+                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22EE/muon_Z.json.gz",
+                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22EE/muon_JPsi.json.gz"
+            ],
+            "to": [
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22EE/muon_Z.json.gz",
+                ),
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22EE/muon_JPsi.json.gz",
+                ),
+            ],
             "type": "cvmfs",
         },
         "2023preBPix": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23/muon_Z.json.gz",
-            "to": os.path.join(
-                to_prefix,
-                "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23/muon_Z.json.gz",
-            ),
+            "from": [
+                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23/muon_Z.json.gz",
+                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23/muon_JPsi.json.gz"
+            ],
+            "to": [
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23/muon_Z.json.gz",
+                ),
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23/muon_JPsi.json.gz",
+                ),
+            ],
             "type": "cvmfs",
         },
         "2023postBPix": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23BPix/muon_Z.json.gz",
-            "to": os.path.join(
-                to_prefix,
-                "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23BPix/muon_Z.json.gz",
-            ),
+            "from": [
+                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23BPix/muon_Z.json.gz",
+                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23BPix/muon_JPsi.json.gz"
+            ],
+            "to": [
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23BPix/muon_Z.json.gz",
+                ),
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23BPix/muon_JPsi.json.gz",
+                ),
+            ],
             "type": "cvmfs",
-        },
+        }
     }
-
     fetch_file("muonSF", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
