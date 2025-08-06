@@ -1442,12 +1442,12 @@ def get_HHbbgg_mbb_reg_model(logger, target_dir, use_xrdcp=False):
 
     from_to_dict = {
         "mbb_model_2022": {
-            "from": "/eos/home-j/jafan/public/mbbModels/mjj_model_2022.onnx",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/jafan/mbbModels/mjj_model_2022.onnx",
             "to": f"{to_prefix}/mjj_model_2022.onnx",
             "type": "eos",
         },
         "mbb_model_2023": {
-            "from": "/eos/home-j/jafan/public/mbbModels/mjj_model_2023.onnx",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/jafan/mbbModels/mjj_model_2023.onnx",
             "to": f"{to_prefix}/mjj_model_2023.onnx",
             "type": "eos",
         },
