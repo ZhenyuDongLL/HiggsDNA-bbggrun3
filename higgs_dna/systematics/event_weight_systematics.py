@@ -2054,18 +2054,18 @@ def Higgs_plus_HF_syst(events, weights, flav="b", pt_min=25, rel_unc=0.5, **kwar
     return weights
 
 
-def electronIDSF(
+def electronSFs(
     electrons,
     weights,
     year,
-    ID_WP,
+    sf_key,
     is_correction=True,
     return_jagged=False,
     variation="nominal",
     **kwargs,
 ):
     """
-    Electron identification scale factors for Run 3 (2022/2023).
+    Electron identification or reconstruction scale factors for Run 3 (2022/2023).
     Documentation: https://twiki.cern.ch/twiki/bin/view/CMS/EgammSFandSSRun3
     Can either return jagged per-electron SFs for a given variation or add event-level
     weights to a coffea Weights container. In the latter case, the SF corresponds
@@ -2075,35 +2075,28 @@ def electronIDSF(
     Parameters
     ----------
     electrons : ak.Array
-        Awkward array with fields at least: pt, eta, and (for 2023) phi.
+        Needs: pt, eta, and (for 2023) phi.
     weights : coffea.analysis_tools.Weights or None
-        Weights container to which the event-level weight is added.
-        If return_jagged=True, this is ignored and may be None.
-    year : str
-        One of {"2022preEE","2022postEE","2023preBPix","2023postBPix"}.
-    ID_WP : str
-        Electron ID working point, "Loose","Medium","Tight","wp90iso","wp80iso".
+        Is modified unless return_jagged=True.
+    year : {"2022preEE","2022postEE","2023preBPix","2023postBPix"}
+    sf_key : str
+        ID WP ("Loose","Medium","Tight","wp90iso","wp80iso") or "Reco".
+        In the "Reco" case, the SFs are obtained in three pt slices and combined into one SF.
     is_correction : bool, default True
-        If True, use central event-level weight (product over electrons).
-        If False, use up/down variations.
+        If True, add central event-level weight only. If False, add up/down variations.
     return_jagged : bool, default False
-        If True, do not touch `weights`; instead return a jagged ak.Array
-        of per-electron SFs for the requested `variation`.
+        If True, return jagged per-electron SFs for `variation`.
     variation : {"nominal","up","down"}, default "nominal"
-        Which variation to evaluate when return_jagged=True.
+        Used only when return_jagged=True.
 
     Returns
     -------
-    weights or ak.Array
-        - If return_jagged=True: jagged ak.Array of per-electron SFs
-          for the requested variation.
-        - Otherwise: the modified Weights object with an event-level
-          weight added.
+    Weights or ak.Array
     """
     avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
-        logger.error(f"Only muon corrections for {avail_years} implemented!")
-        raise ValueError(f"Year '{year}' not supported for muon corrections.")
+        logger.error(f"Only electron corrections for {avail_years} implemented!")
+        raise ValueError(f"Year '{year}' not supported for electron corrections.")
 
     path_json = os.path.join(os.path.dirname(__file__), f"JSONs/POG/EGM/{year}/electron.json.gz")
     evaluator = correctionlib.CorrectionSet.from_file(path_json)["Electron-ID-SF"]
@@ -2114,46 +2107,70 @@ def electronIDSF(
         "2023postBPix": "2023PromptD",
     }[year]
 
-    # flatten inputs for evaluation
+    # Flatten per-electron inputs
     counts = ak.num(electrons.pt)
     eta = ak.flatten(electrons.eta)
     pt = ak.flatten(electrons.pt)
-    # phi only used in 2023; provide zeros-like fallback to keep signatures simple
-    phi = ak.flatten(electrons.phi)
+    phi = ak.flatten(electrons.phi)  # used in 2023
 
-    def _eval(var_key: str):
-        # var_key in {"sf", "sfup", "sfdown"}
-        if "2022" in year:
-            return evaluator.evaluate(era_label, var_key, ID_WP, eta, pt)
-        else:  # 2023 needs phi
-            return evaluator.evaluate(era_label, var_key, ID_WP, eta, pt, phi)
+    def _eval(var_key: str, key: str, eta_in, pt_in, phi_in):
+        """Evaluate a single correction key (ID WP or one reco-slice key) on flat arrays."""
+        if "2023" in year:
+            return evaluator.evaluate(era_label, var_key, key, eta_in, pt_in, phi_in)
+        else:
+            return evaluator.evaluate(era_label, var_key, key, eta_in, pt_in)
 
-    # return jagged per-electron SFs, if requested
+    def _eval_id(var_key: str):
+        """
+        Non-reco case: evaluate once on full arrays.
+        """
+        return _eval(var_key, sf_key, eta, pt, phi)
+
+    def _eval_reco(var_key: str):
+        """Evaluate the three pt slices and scatter back into one flat array."""
+        mask_lt20 = pt < 20
+        mask_20_75 = (pt >= 20) & (pt < 75)
+        mask_ge75 = pt >= 75
+
+        sf_lt20 = _eval(var_key, "RecoBelow20", eta[mask_lt20], pt[mask_lt20], phi[mask_lt20])
+        sf_20_75 = _eval(var_key, "Reco20to75", eta[mask_20_75], pt[mask_20_75], phi[mask_20_75])
+        sf_ge75 = _eval(var_key, "RecoAbove75", eta[mask_ge75], pt[mask_ge75], phi[mask_ge75])
+
+        sf = np.ones(len(pt), dtype=float)
+        sf[np.asarray(mask_lt20)] = ak.to_numpy(sf_lt20)
+        sf[np.asarray(mask_20_75)] = ak.to_numpy(sf_20_75)
+        sf[np.asarray(mask_ge75)] = ak.to_numpy(sf_ge75)
+
+        return ak.Array(sf)
+
+    def _eval_dispatch(var_key: str):
+        if sf_key == "Reco":
+            return _eval_reco(var_key)
+        else:
+            return _eval_id(var_key)
+
+    # Return jagged per-electron SFs if requested
     if return_jagged:
         key = "sf" if variation == "nominal" else f"sf{variation}"
-        sf = _eval(key)
-        return ak.unflatten(sf, counts)
+        sf_flat = _eval_dispatch(key)
+        return ak.unflatten(sf_flat, counts)
+
+    # Event-level weights (product over electrons)
+    sf_nom = ak.unflatten(_eval_dispatch("sf"), counts)
+    prod_nom = ak.prod(sf_nom, axis=1)
+
+    if is_correction:
+        name = "ElectronRecoSF" if sf_key == "reco" else f"ElectronId{sf_key}SF"
+        weights.add(name=name, weight=prod_nom, weightUp=None, weightDown=None)
     else:
-        # event-level weight behavior, will apply product over all electrons in the event
-        # central
-        sf_nom = _eval("sf")
-        sf_nom = ak.unflatten(sf_nom, counts)
-        prod_nom = ak.prod(sf_nom, axis=1)
+        sf_up = ak.unflatten(_eval_dispatch("sfup"), counts)
+        sf_dn = ak.unflatten(_eval_dispatch("sfdown"), counts)
+        prod_up = ak.prod(sf_up, axis=1)
+        prod_dn = ak.prod(sf_dn, axis=1)
+        name = "ElectronRecoSF" if sf_key == "reco" else f"ElectronId{sf_key}SF"
+        weights.add(name=name, weight=np.ones(len(prod_nom)), weightUp=prod_up, weightDown=prod_dn)
 
-        if is_correction:
-            name = f"ElectronId{ID_WP}_SF_corr"
-            weights.add(name=name, weight=prod_nom, weightUp=None, weightDown=None)
-        else:
-            sf_up = _eval("sfup")
-            sf_dn = _eval("sfdown")
-            sf_up = ak.unflatten(sf_up, counts)
-            sf_dn = ak.unflatten(sf_dn, counts)
-            prod_up = ak.prod(sf_up, axis=1)
-            prod_dn = ak.prod(sf_dn, axis=1)
-
-            name = f"ElectronId{ID_WP}SF"
-            weights.add(name=name, weight=np.ones(len(prod_nom)), weightUp=prod_up, weightDown=prod_dn)
-        return weights
+    return weights
 
 
 def muonSFs(muons, weights, year="2022preEE",
@@ -2303,8 +2320,7 @@ def atLeast1LeptonIdSF(
     muons,
     weights,
     year,
-    ele_ID_WP="wp90iso",
-    # list of muon SF “components” to multiply per muon (ID, ISO, …)
+    ele_SF_names=("wp90iso", "Reco"),
     mu_SF_names=("NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID"),
     name_base="atLeast1LeptonIdSF",
     is_correction=True,
@@ -2340,9 +2356,9 @@ def atLeast1LeptonIdSF(
     year : str
         Data-taking period string understood by the underlying SF evaluators,
         e.g. "2022preEE", "2022postEE", "2023preBPix", "2023postBPix".
-    ele_ID_WP : str, default "wp90iso"
-        Electron ID working point name to use when fetching electron SFs, e.g.
-        "Loose", "Medium", "Tight", "wp90iso", "wp80iso".
+    ele_SF_names: str, default ("wp90iso", "Reco")
+        Electron SF component(s) to multiply per electron. Can be a single key
+        (e.g. "wp90iso" or "Reco") or a list/tuple like ["Reco","wp90iso"].
     mu_SF_names : tuple[str] or list[str], default ("NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID")
         Iterable of muon SF component names to multiply per muon (for example
         an ID component and an ISO component). Each entry must match a key in
@@ -2366,7 +2382,7 @@ def atLeast1LeptonIdSF(
     Notes
     -----
     - This routine relies on two helpers:
-        * `electronIDSF(..., return_jagged=True, variation in {"nominal","up","down"})`
+        * `electronSFs(..., return_jagged=True, variation in {"nominal","up","down"})`
         * `muonSFs(..., return_jagged=True, variation in {"nominal","up","down"})`
       which must return jagged per-lepton SFs for the requested variation.
     - MC efficiencies are approximated by average constants, taken from POG material.
@@ -2385,9 +2401,10 @@ def atLeast1LeptonIdSF(
     # we need MC efficiencies, these are functions of kinematics, but we dont have that easily accessible
     # so we use average values
     # electron effs from https://twiki.cern.ch/twiki/bin/view/CMS/CutBasedElectronIdentificationRun3
-    def _ele_eff_from_wp(ID_WP: str) -> float:
-        m = {"wp90iso": 0.90, "wp80iso": 0.80, "Loose": 0.90, "Medium": 0.80, "Tight": 0.70}
-        return m.get(ID_WP, 0.90)
+    # reco: https://cds.cern.ch/record/2747266/files/fulltext.pdf Fig. 4 (Run-2)
+    def _ele_eff_from_wp(sf_key: str) -> float:
+        m = {"wp90iso": 0.90, "wp80iso": 0.80, "Loose": 0.90, "Medium": 0.80, "Tight": 0.70, "Reco": 0.96}
+        return m.get(sf_key, 0.90)
 
     # same for muons
     # reference: https://muon-wiki.docs.cern.ch/guidelines/corrections/#medium-pt-id-efficiencies
@@ -2407,24 +2424,36 @@ def atLeast1LeptonIdSF(
         logger.warning(f"Muon SF name '{name}' not recognized, using default efficiency of 0.97.")
         return 0.97
 
-    efficiency_ele = _ele_eff_from_wp(ele_ID_WP)
+    # Normalize to tuples if only one string is passed
+    electron_component_names = (ele_SF_names if isinstance(ele_SF_names, (list, tuple))
+                                else (ele_SF_names,))
+    muon_component_names = (mu_SF_names if isinstance(mu_SF_names, (list, tuple))
+                            else (mu_SF_names,))
+
+    efficiency_ele = 1.0
+    for name in electron_component_names:
+        efficiency_ele *= _ele_eff_from_wp(name)
     efficiency_mu = 1.0
-    for name in mu_SF_names:
+    for name in muon_component_names:
         efficiency_mu *= _mu_eff_from_wp(name)
 
-    # per-lepton SFs (multiply components)
-    # electrons: currently only ID is supported
-    el_sf_nom = electronIDSF(electrons, weights=None, year=year, ID_WP=ele_ID_WP, return_jagged=True, variation="nominal")
+    # for each lepton, multiply the components with these helper functions
+    def _ele_total_sf(variation: str):
+        sf_tot = None
+        for name in electron_component_names:
+            _sf = electronSFs(electrons, weights=None, year=year, sf_key=name, return_jagged=True, variation=variation)
+            sf_tot = _sf if sf_tot is None else (sf_tot * _sf)
+        return sf_tot if sf_tot is not None else ak.ones_like(electrons.pt)
 
-    # muons: multiply over listed components (ID, iso, ...)
     def _mu_total_sf(variation: str):
         sf_tot = None
-        for name in mu_SF_names:
+        for name in muon_component_names:
             _sf = muonSFs(muons, weights=None, year=year, SF_name=name, return_jagged=True, variation=variation)
             sf_tot = _sf if sf_tot is None else (sf_tot * _sf)
         # if there are no components, fall back to ones
         return sf_tot if sf_tot is not None else ak.ones_like(muons.pt)
 
+    el_sf_nom = _ele_total_sf("nominal")
     mu_sf_nom = _mu_total_sf("nominal")
 
     # build OR ratio
@@ -2452,15 +2481,12 @@ def atLeast1LeptonIdSF(
         weights.add(name=f"{name_base}", weight=w_nom)
         return weights
     else:
-        # one NP per component
-        electron_component_names = (ele_ID_WP,)
-        muon_component_names = tuple(mu_SF_names) if isinstance(mu_SF_names, (list, tuple)) else (mu_SF_names,)
 
         # Cache nominal per-component SFs (so we don't recompute them in each NP)
         electron_component_sfs_nominal = {}
         for comp_name in electron_component_names:
-            electron_component_sfs_nominal[comp_name] = electronIDSF(
-                electrons, weights=None, year=year, ID_WP=comp_name,
+            electron_component_sfs_nominal[comp_name] = electronSFs(
+                electrons, weights=None, year=year, sf_key=comp_name,
                 return_jagged=True, variation="nominal"
             )
 
@@ -2487,12 +2513,12 @@ def atLeast1LeptonIdSF(
 
             if flavor == "ele":
                 # --- electron component up/down ---
-                el_comp_up = electronIDSF(
-                    electrons, weights=None, year=year, ID_WP=comp_name,
+                el_comp_up = electronSFs(
+                    electrons, weights=None, year=year, sf_key=comp_name,
                     return_jagged=True, variation="up"
                 )
-                el_comp_dn = electronIDSF(
-                    electrons, weights=None, year=year, ID_WP=comp_name,
+                el_comp_dn = electronSFs(
+                    electrons, weights=None, year=year, sf_key=comp_name,
                     return_jagged=True, variation="down"
                 )
 
