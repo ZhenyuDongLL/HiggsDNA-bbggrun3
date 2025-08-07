@@ -24,7 +24,7 @@ from .event_weight_systematics import (
     bTagFixedWP,
     Zpt,
     muonSFs,
-    electronIDSF,
+    electronSFs,
     atLeast1LeptonIdSF,
     Higgs_plus_HF_syst,
 )
@@ -351,16 +351,17 @@ weight_systematics = {
     "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_MediumID_DEN_TrackerMuons", is_correction=False),
     "MuonIsoTightSF_IdMedium": partial(muonSFs, SF_name="NUM_TightPFIso_DEN_MediumID", is_correction=False),
     "MuonIsoLooseSF_IdMedium": partial(muonSFs, SF_name="NUM_LoosePFIso_DEN_MediumID", is_correction=False),
-    "ElectronIdSFWP90iso": partial(electronIDSF, ID_WP="wp90iso", is_correction=False),
-    "ElectronIdSFWP80iso": partial(electronIDSF, ID_WP="wp80iso", is_correction=False),
-    "ElectronIdSFLoose": partial(electronIDSF, ID_WP="Loose", is_correction=False),
-    "ElectronIdSFMedium": partial(electronIDSF, ID_WP="Medium", is_correction=False),
-    "ElectronIdSFTight": partial(electronIDSF, ID_WP="Tight", is_correction=False),
+    "ElectronIdSFWP90iso": partial(electronSFs, sf_key="wp90iso", is_correction=False),
+    "ElectronIdSFWP80iso": partial(electronSFs, sf_key="wp80iso", is_correction=False),
+    "ElectronIdSFLoose": partial(electronSFs, sf_key="Loose", is_correction=False),
+    "ElectronIdSFMedium": partial(electronSFs, sf_key="Medium", is_correction=False),
+    "ElectronIdSFTight": partial(electronSFs, sf_key="Tight", is_correction=False),
+    "ElectronRecoSF": partial(electronSFs, sf_key="Reco", is_correction=False),
     # SF for analyses requiring at least one lepton which can be e or mu
     # Choose combination of WPs for e and mu by name as in example below
-    "atLeast1LeptonSF_eleWP90iso_muIDMediumIsoTight": partial(
+    "atLeast1LeptonSF_eleRecoWP90iso_muIDMediumIsoTight": partial(
         atLeast1LeptonIdSF,
-        ele_ID_WP="wp90iso",
+        ele_SF_names=("Reco", "wp90iso"),
         mu_SF_names=("NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID"),
         is_correction=False,
     ),
@@ -407,16 +408,17 @@ weight_corrections = {
     "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_MediumID_DEN_TrackerMuons", is_correction=True),
     "MuonIsoTightSF_IdMedium": partial(muonSFs, SF_name="NUM_TightPFIso_DEN_MediumID", is_correction=True),
     "MuonIsoLooseSF_IdMedium": partial(muonSFs, SF_name="NUM_LoosePFIso_DEN_MediumID", is_correction=True),
-    "ElectronIdSFWP90iso": partial(electronIDSF, ID_WP="wp90iso", is_correction=True),
-    "ElectronIdSFWP80iso": partial(electronIDSF, ID_WP="wp80iso", is_correction=True),
-    "ElectronIdSFLoose": partial(electronIDSF, ID_WP="Loose", is_correction=True),
-    "ElectronIdSFMedium": partial(electronIDSF, ID_WP="Medium", is_correction=True),
-    "ElectronIdSFTight": partial(electronIDSF, ID_WP="Tight", is_correction=True),
+    "ElectronIdSFWP90iso": partial(electronSFs, sf_key="wp90iso", is_correction=True),
+    "ElectronIdSFWP80iso": partial(electronSFs, sf_key="wp80iso", is_correction=True),
+    "ElectronIdSFLoose": partial(electronSFs, sf_key="Loose", is_correction=True),
+    "ElectronIdSFMedium": partial(electronSFs, sf_key="Medium", is_correction=True),
+    "ElectronIdSFTight": partial(electronSFs, sf_key="Tight", is_correction=True),
+    "ElectronRecoSF": partial(electronSFs, sf_key="Reco", is_correction=True),
     # SF for analyses requiring at least one lepton which can be e or mu
     # Choose combination of WPs for e and mu by name as in example below
-    "atLeast1LeptonSF_eleWP90iso_muIDMediumIsoTight": partial(
+    "atLeast1LeptonSF_eleRecoWP90iso_muIDMediumIsoTight": partial(
         atLeast1LeptonIdSF,
-        ele_ID_WP="wp90iso",
+        ele_SF_names=("Reco", "wp90iso"),
         mu_SF_names=("NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID"),
         is_correction=True,
     ),
