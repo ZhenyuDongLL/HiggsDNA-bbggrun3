@@ -32,6 +32,7 @@ classifiers = [
 ]
 dependencies = [
   "coffea[dask]>=2025.7.0",
+  "dask_jobqueue",
   "xgboost",
   "pyaml",
   "rich",
