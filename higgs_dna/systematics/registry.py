@@ -44,6 +44,10 @@ from .muon_systematics import (
     muon_pt_scare
 )
 
+from .MET_systematics import (
+    MET_syst_Unclustered
+)
+
 from functools import partial
 import logging
 
@@ -277,6 +281,14 @@ object_systematics = {
                 skip_JEC=False,
                 is_correction=False,
             ),
+        },
+    },
+    "MET_unclusteredEnergy": {
+        "object": "MET",
+        "args": {
+            "kind": "UpDownMultiSystematic",
+            "what": ["pt", "phi"],
+            "varying_function": MET_syst_Unclustered,
         },
     },
 }
