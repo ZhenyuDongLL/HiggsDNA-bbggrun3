@@ -2160,7 +2160,7 @@ def electronSFs(
     prod_nom = ak.prod(sf_nom, axis=1)
 
     if is_correction:
-        name = "ElectronRecoSF" if sf_key == "reco" else f"ElectronId{sf_key}SF"
+        name = "ElectronRecoSF_corr" if sf_key == "reco" else f"ElectronId{sf_key}SF_corr"
         weights.add(name=name, weight=prod_nom, weightUp=None, weightDown=None)
     else:
         sf_up = ak.unflatten(_eval_dispatch("sfup"), counts)
