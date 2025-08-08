@@ -2173,6 +2173,39 @@ def electronSFs(
     return weights
 
 
+def electron_reco_sf_for_Zee_val_photons(photons, weights, year, is_correction=True, **kwargs):
+    """
+    Electron reconstruction SFs for Z→ee validation photons.
+
+    Builds a (N_events, 2) jagged array from `photons.pho_lead` and
+    `photons.pho_sublead` and forwards it to `electronSFs(..., sf_key="Reco")` as electrons.
+    Intended for use with the `--validate-with-electrons` mode in the processors.
+
+    Parameters
+    ----------
+    photons : ak.Array
+        Diphoton object as in processors, must have `pho_lead` and `pho_sublead`.
+    weights : coffea.analysis_tools.Weights
+    year : {"2022preEE","2022postEE","2023preBPix","2023postBPix"}
+    is_correction : bool, default True
+    **kwargs : ignored
+
+    Returns
+    -------
+    coffea.analysis_tools.Weights
+    """
+    photons_jagged = ak.concatenate(
+        [ak.singletons(photons.pho_lead), ak.singletons(photons.pho_sublead)], axis=1
+    )
+    return electronSFs(
+        electrons=photons_jagged,
+        weights=weights,
+        year=year,
+        is_correction=is_correction,
+        sf_key="Reco",
+    )
+
+
 def muonSFs(muons, weights, year="2022preEE",
             SF_name="NUM_TightID_DEN_TrackerMuons",
             is_correction=True, return_jagged=False, variation="nominal", **kwargs):
