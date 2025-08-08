@@ -25,6 +25,7 @@ from .event_weight_systematics import (
     Zpt,
     muonSFs,
     electronSFs,
+    electron_reco_sf_for_Zee_val_photons,
     atLeast1LeptonIdSF,
     Higgs_plus_HF_syst,
 )
@@ -369,6 +370,7 @@ weight_systematics = {
     "ElectronIdSFMedium": partial(electronSFs, sf_key="Medium", is_correction=False),
     "ElectronIdSFTight": partial(electronSFs, sf_key="Tight", is_correction=False),
     "ElectronRecoSF": partial(electronSFs, sf_key="Reco", is_correction=False),
+    "ElectronRecoSF_Zee_val": partial(electron_reco_sf_for_Zee_val_photons, is_correction=False),
     # SF for analyses requiring at least one lepton which can be e or mu
     # Choose combination of WPs for e and mu by name as in example below
     "atLeast1LeptonSF_eleRecoWP90iso_muIDMediumIsoTight": partial(
@@ -426,6 +428,7 @@ weight_corrections = {
     "ElectronIdSFMedium": partial(electronSFs, sf_key="Medium", is_correction=True),
     "ElectronIdSFTight": partial(electronSFs, sf_key="Tight", is_correction=True),
     "ElectronRecoSF": partial(electronSFs, sf_key="Reco", is_correction=True),
+    "ElectronRecoSF_Zee_val": partial(electron_reco_sf_for_Zee_val_photons, is_correction=True),
     # SF for analyses requiring at least one lepton which can be e or mu
     # Choose combination of WPs for e and mu by name as in example below
     "atLeast1LeptonSF_eleRecoWP90iso_muIDMediumIsoTight": partial(

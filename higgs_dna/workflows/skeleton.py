@@ -186,6 +186,15 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
             self.analysis = "Dielectron"
             self.min_pt_photon = 12.0
             self.min_pt_lead_photon = 23.0
+        else:
+            # check that "ElectronRecoSF_Zee_val" is not part of corrections
+            uses_Zee_val_SF = [ds for ds, corr in self.corrections.items() if "ElectronRecoSF_Zee_val" in corr]
+            if uses_Zee_val_SF:
+                msg = (
+                    "Correction 'ElectronRecoSF_Zee_val' requires --validate-with-electrons. "
+                    f"Remove it from: {', '.join(uses_Zee_val_SF)} or enable validation.")
+                logger.error(msg)
+                raise ValueError(msg)
 
     def apply_filters_and_triggers(self, events: ak.Array) -> ak.Array:
         # met filters
