@@ -465,6 +465,8 @@ def main():
             queue=args.queue if args.queue is not None else "workday",
             memory=args.memory,
             files_per_job=args.files_per_job,
+            cluster_per_sample=args.vlxp_do_cluster_per_sample,
+            max_materialize=args.vlxp_max_materialize,
         )
         output = vanilla_submitter.submit()
 

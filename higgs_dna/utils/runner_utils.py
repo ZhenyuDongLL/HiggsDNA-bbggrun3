@@ -275,6 +275,22 @@ def get_main_parser():
         default=1,
         help="Files per job to process (default: %(default)s). ",
     )
+    parser.add_argument(
+        "--vlxp-do-cluster-per-sample",
+        type=bool,
+        default=True,
+        help="Whether to put all the jobs per sample into a single cluster. If False, one cluster per file is created. Defaults to True."
+    )
+    parser.add_argument(
+        "--vlxp-max-materialize",
+        default=None,
+        help=(
+            "Maximum number of jobs to materialize in a single cluster.\n"
+            "Can be an integer (e.g. 10) or a fraction in (0,1) (e.g. 0.5).\n"
+            "If a fraction is given, it's interpreted as a fraction of total jobs in the sample.\n"
+            "Defaults to None (no limit). Only relevant if --vlxp-do-cluster-per-sample is True."
+        ),
+    )
     return parser
 
 
