@@ -47,6 +47,9 @@ def test_processors(processor_class):
     # Pull the golden JSON file
     subprocess.run("pull_files.py --target GoldenJSON", shell=True)
 
+    # Pull the jetID files
+    subprocess.run("pull_files.py --target JetMET", shell=True)
+
     # Pull the btagging SF files
     subprocess.run("pull_files.py --target bTag", shell=True)
 

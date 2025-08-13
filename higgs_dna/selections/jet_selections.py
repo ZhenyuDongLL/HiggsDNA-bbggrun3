@@ -1,4 +1,5 @@
 from higgs_dna.selections.object_selections import delta_r_mask
+from higgs_dna.tools.jetID import add_jetId
 import awkward as ak
 import correctionlib
 import os
@@ -9,63 +10,6 @@ import json
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-def jetIdFlags_v1213(jets, nano_version):
-    abs_eta = abs(jets.eta)
-
-    if nano_version == 12:
-        # Default tight
-        passJetIdTight = ak.where(
-            abs_eta <= 2.7,
-            (jets.jetId & (1 << 1)) > 0,  # Tight criteria for abs_eta <= 2.7
-            ak.where(
-                (abs_eta > 2.7) & (abs_eta <= 3.0),
-                # Tight criteria for 2.7 < abs_eta <= 3.0
-                ((jets.jetId & (1 << 1)) > 0) & (jets.neHEF < 0.99),
-                # Tight criteria for 3.0 < abs_eta
-                ((jets.jetId & (1 << 1)) > 0) & (jets.neEmEF < 0.4),
-            ),
-        )
-
-        # Default tight lepton veto
-        passJetIdTightLepVeto = ak.where(
-            abs_eta <= 2.7,
-            passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),
-            # add lepton veto for abs_eta <= 2.7
-            passJetIdTight,  # No lepton veto for 2.7 < abs_eta
-        )
-    else:
-        # Default tight for NanoAOD version 13
-        passJetIdTight = ak.where(
-            abs_eta <= 2.6,
-            (jets.neHEF < 0.99)
-            & (jets.neEmEF < 0.9)
-            & (jets.chMultiplicity + jets.neMultiplicity > 1)
-            & (jets.chHEF > 0.01)
-            & (jets.chMultiplicity > 0),  # Tight criteria for abs_eta <= 2.6
-            ak.where(
-                (abs_eta > 2.6) & (abs_eta <= 2.7),
-                # Tight criteria for 2.6 < abs_eta <= 2.7
-                (jets.neHEF < 0.9) & (jets.neEmEF < 0.99),
-                ak.where(
-                    (abs_eta > 2.7) & (abs_eta <= 3.0),
-                    jets.neHEF < 0.99,  # Tight criteria for 2.7 < abs_eta <= 3.0
-                    # Tight criteria for abs_eta > 3.0
-                    (jets.neMultiplicity >= 2) & (jets.neEmEF < 0.4),
-                ),
-            ),
-        )
-
-        # Default tight lepton veto
-        passJetIdTightLepVeto = ak.where(
-            abs_eta <= 2.7,
-            passJetIdTight & (jets.muEF < 0.8) & (jets.chEmEF < 0.8),
-            # add lepton veto for abs_eta <= 2.7
-            passJetIdTight,  # No lepton veto for 2.7 < abs_eta
-        )
-
-    return passJetIdTight, passJetIdTightLepVeto
 
 
 def getBTagMVACut(mva_name, mva_wp, year):
@@ -190,33 +134,13 @@ def select_jets(
     electrons: ak.highlevel.Array,
     taus: ak.highlevel.Array = None,
 ) -> ak.highlevel.Array:
-    # jet id selection:
-    # https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
-    if (self.nano_version == 12) or (self.nano_version == 13):
-        passJetIdTight, passJetIdTightLepVeto = jetIdFlags_v1213(
-            jets, self.nano_version
-        )
-        if self.jet_jetId == "tight":  # Select jetId 2 or 6
-            logger.info(
-                "Applying jetID recipe of NanoAOD version %s", self.nano_version
-            )
-            jetId_cut = passJetIdTight
-        elif self.jet_jetId == "tightLepVeto":  # Select jetId 6
-            logger.info(
-                "Applying jetID recipe of NanoAOD version %s", self.nano_version
-            )
-            jetId_cut = passJetIdTight & passJetIdTightLepVeto
-        else:
-            jetId_cut = ak.ones_like(jets.pt) > 0
-            logger.warning("[ select_jets ] - No JetId applied")
+    if self.jet_jetId == "tight":
+        jetId_cut = jets.jetId >= 2
+    elif self.jet_jetId == "tightLepVeto":
+        jetId_cut = jets.jetId == 6
     else:
-        if self.jet_jetId == "tight":
-            jetId_cut = jets.jetId >= 2
-        elif self.jet_jetId == "tightLepVeto":
-            jetId_cut = jets.jetId == 6
-        else:
-            jetId_cut = ak.ones_like(jets.pt) > 0
-            logger.warning("[ select_jets ] - No JetId applied")
+        jetId_cut = ak.ones_like(jets.pt) > 0
+        logger.warning("[ select_jets ] - No JetId applied")
     logger.debug(
         f"[ select_jets ] - Total: {ak.sum(ak.flatten((ak.ones_like(jets.pt) > 0)))} - Pass tight jetId: {ak.sum(ak.flatten(jetId_cut))}"
     )
@@ -320,26 +244,13 @@ def select_jets_eta_dependent(
         else:
             eta_pt_cut = eta_pt_cut | ((abs(jets.eta) >= jet_eta_thresholds[i - 1]) & (abs(jets.eta) < eta_threshold) & (jets.pt >= pt_threshold))
 
-    # jet id selection: https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
-    if (self.nano_version == 12) or (self.nano_version == 13):
-        passJetIdTight, passJetIdTightLepVeto = jetIdFlags_v1213(jets, self.nano_version)
-        if self.jet_jetId == "tight":  # Select jetId 2 or 6
-            logger.info("Applying jetID recipe of NanoAOD version %s", self.nano_version)
-            jetId_cut = passJetIdTight
-        elif self.jet_jetId == "tightLepVeto":  # Select jetId 6
-            logger.info("Applying jetID recipe of NanoAOD version %s", self.nano_version)
-            jetId_cut = passJetIdTight & passJetIdTightLepVeto
-        else:
-            jetId_cut = ak.ones_like(jets.pt) > 0
-            logger.warning("[ select_jets ] - No JetId applied")
+    if self.jet_jetId == "tight":
+        jetId_cut = jets.jetId >= 2
+    elif self.jet_jetId == "tightLepVeto":
+        jetId_cut = jets.jetId == 6
     else:
-        if self.jet_jetId == "tight":
-            jetId_cut = jets.jetId >= 2
-        elif self.jet_jetId == "tightLepVeto":
-            jetId_cut = jets.jetId == 6
-        else:
-            jetId_cut = ak.ones_like(jets.pt) > 0
-            logger.warning("[ select_jets ] - No JetId applied")
+        jetId_cut = ak.ones_like(jets.pt) > 0
+        logger.warning("[ select_jets ] - No JetId applied")
     logger.debug(
         f"[ select_jets ] - Total: {ak.sum(ak.flatten((ak.ones_like(jets.pt) > 0)))} - Pass tight jetId: {ak.sum(ak.flatten(jetId_cut))}"
     )
@@ -572,11 +483,10 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         "eta": jets.eta,
         "phi": np.clip(jets.phi, low_phi, high_phi),
     }
-    if (self.nano_version == 12) or (self.nano_version == 13):
-        passJetIdTight, _ = jetIdFlags_v1213(jets, self.nano_version)
-        jetId_cut = passJetIdTight
-    else:
-        jetId_cut = (jets.jetId == 2) | (jets.jetId == 6)
+    # recompute jetId before vetomap
+    jets.jetId = add_jetId(jets, self.nano_version, year)
+    jetId_cut = ((jets.jetId == 2) | (jets.jetId == 6))
+
     input_dict["type"] = "jetvetomap"
     inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
     vetomap = cset[key_map[year]].evaluate(*(inputs))

@@ -10,7 +10,7 @@ vector.register_awkward()
 logger = logging.getLogger(__name__)
 
 
-def CreatePairs(j1, j2, diphotons_notsort):
+def CreatePairs(j1, j2, diphotons_notsort, nano_version):
 
     diphotons = ak.firsts(diphotons_notsort)
 
@@ -80,14 +80,14 @@ def CreatePairs(j1, j2, diphotons_notsort):
         "lead_bjet_phi": ak.fill_none(jet1.phi, -999),
         "lead_bjet_mass": ak.fill_none(jet1.mass, - 999),
         "lead_bjet_btagPNetB": ak.fill_none(ak.flatten(ak.pad_none(j1.btagPNetB, 1, axis=1)), -999),
-        "lead_bjet_btagRobustParTAK4B": ak.fill_none(ak.flatten(ak.pad_none(j1.btagRobustParTAK4B, 1, axis=1)), -999),
+        "lead_bjet_btagRobustParTAK4B": ak.fill_none(ak.flatten(ak.pad_none(j1.btagRobustParTAK4B if nano_version <= 13 else j1.btagUParTAK4B, 1, axis=1)), -999),
         "lead_bjet_btagDeepFlav_B": ak.fill_none(ak.flatten(ak.pad_none(j1.btagDeepFlav_B, 1, axis=1)), -999),
         "sublead_bjet_pt": ak.fill_none(jet2.pt, -999),
         "sublead_bjet_eta": ak.fill_none(jet2.eta, -999),
         "sublead_bjet_phi": ak.fill_none(jet2.phi, -999),
         "sublead_bjet_mass": ak.fill_none(jet2.mass, -999),
         "sublead_bjet_btagPNetB": ak.fill_none(ak.flatten(ak.pad_none(j2.btagPNetB, 1, axis=1)), -999),
-        "sublead_bjet_btagRobustParTAK4B": ak.fill_none(ak.flatten(ak.pad_none(j2.btagRobustParTAK4B, 1, axis=1)), -999),
+        "sublead_bjet_btagRobustParTAK4B": ak.fill_none(ak.flatten(ak.pad_none(j2.btagRobustParTAK4B if nano_version <= 13 else j2.btagUParTAK4B, 1, axis=1)), -999),
         "sublead_bjet_btagDeepFlav_B": ak.fill_none(ak.flatten(ak.pad_none(j2.btagDeepFlav_B, 1, axis=1)), -999),
         "DeltaRj1j2": ak.fill_none(DeltaRj1j2, -999),
         "absCosThetaStar_CS": ak.fill_none(getCosThetaStar_CS(dijet,diphoton), -999),
@@ -152,7 +152,7 @@ def getCosThetaStar_CS(dijet, diphoton, ebeam=6800):
     return np.cos(CSaxis.deltaangle(diphotonBoosted))
 
 
-def Compute_DNN_bpairing(dijets, diphotons, keras_model):
+def Compute_DNN_bpairing(dijets, diphotons, keras_model, nano_version):
 
     original_count = ak.num(dijets, axis=1)
     dijet = dijets[ak.local_index(dijets, axis=1) < 10]
@@ -190,7 +190,7 @@ def Compute_DNN_bpairing(dijets, diphotons, keras_model):
         else :
             Isin_dijet = ak.concatenate([Isin_dijet, ak.singletons(ak.where(count1 > i , 1, 0))], axis=1)
 
-        j1j2 = CreatePairs(dijet[ak.local_index(dijet, axis=1) == i]["first_jet"], dijet[ak.local_index(dijet, axis=1) == i]["second_jet"],diphotons)
+        j1j2 = CreatePairs(dijet[ak.local_index(dijet, axis=1) == i]["first_jet"], dijet[ak.local_index(dijet, axis=1) == i]["second_jet"], diphotons, nano_version)
 
         j1j2_pd = pd.DataFrame(j1j2)
         input_data = j1j2_pd[var].to_numpy().astype(np.float32)
