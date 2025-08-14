@@ -913,7 +913,7 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
         )
         # Multiply the scale factore of all jets in a even
 
-        sf = ak.values_astype(dummy_sf, np.float)
+        sf = ak.values_astype(dummy_sf, np.float32)
         sf_central = ak.prod(
             ak.unflatten(_sf_central, counts),
             axis=1
