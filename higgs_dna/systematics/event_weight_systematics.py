@@ -1796,8 +1796,8 @@ def cTagSF(events, weights, is_correction=True, year="2017", **kwargs):
         for nth in _sf:
             sf = sf * nth
 
-        sfs_up = [ak.values_astype(dummy_sf, np.float) for _ in ctag_systematics]
-        sfs_down = [ak.values_astype(dummy_sf, np.float) for _ in ctag_systematics]
+        sfs_up = [ak.values_astype(dummy_sf, np.float32) for _ in ctag_systematics]
+        sfs_down = [ak.values_astype(dummy_sf, np.float32) for _ in ctag_systematics]
 
         weights.add_multivariation(
             name="cTagSF_corr",
