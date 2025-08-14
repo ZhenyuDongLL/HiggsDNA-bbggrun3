@@ -484,7 +484,7 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         "phi": np.clip(jets.phi, low_phi, high_phi),
     }
     # recompute jetId before vetomap
-    jets.jetId = add_jetId(jets, self.nano_version, year)
+    jets["jetId"] = add_jetId(jets, self.nano_version, year)
     jetId_cut = ((jets.jetId == 2) | (jets.jetId == 6))
 
     input_dict["type"] = "jetvetomap"
