@@ -429,6 +429,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             met_corr = apply_type1_met_correction(MET, objects=(jets, photons, electrons, muons), raw_pt_name="pt_nano")
             diphotons["met_pt"] = ak.flatten(met_corr.pt)
             diphotons["met_phi"] = ak.flatten(met_corr.phi)
+            diphotons["met_significance"] = events.MET.significance
 
             # lepton cleaning
             electrons = electrons[select_electrons(self, electrons, diphotons)]
