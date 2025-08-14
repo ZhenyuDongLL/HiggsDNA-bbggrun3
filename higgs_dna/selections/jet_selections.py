@@ -421,7 +421,7 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         ),
         "2024": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2024_Winter24/jetvetomaps.json.gz",
+            "../systematics/JSONs/POG/JME/2024_Summer24/jetvetomaps.json.gz",
         ),
     }
     key_map = {
@@ -433,7 +433,7 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         "2022postEE": "Summer22EE_23Sep2023_RunEFG_V1",
         "2023preBPix": "Summer23Prompt23_RunC_V1",
         "2023postBPix": "Summer23BPixPrompt23_RunD_V1",
-        "2024": "Winter24Prompt2024BCDEFGHI_V1",
+        "2024": "Summer24Prompt24_RunBCDEFGHI_V1",
     }
 
     logger.debug(
@@ -490,34 +490,15 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
     input_dict["type"] = "jetvetomap"
     inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
     vetomap = cset[key_map[year]].evaluate(*(inputs))
-    if year == "2024":
-        input_dict_notFPix = {
-            "type": "jetvetomap_fpix",
-            "eta": jets.eta,
-            "phi": np.clip(jets.phi, low_phi, high_phi),
-        }
-        input_dict_notFPix["type"] = "jetvetomap_fpix"
-        inputs_notFPix = [
-            input_dict_notFPix[input.name] for input in cset[key_map[year]].inputs
-        ]
-        vetomap_notFPix = cset[key_map[year]].evaluate(*(inputs_notFPix))
-        flag_veto_jet = ((np.abs(vetomap) > 0) | (np.abs(vetomap_notFPix) > 0)) & (
-            (jets.pt > 15)
-            & (jetId_cut)
-            & ((jets.chEmEF + jets.neEmEF) < 0.9)
-            & (jets.muonIdx1 == -1)
-            & (jets.muonIdx2 == -1)
-        )
-        sel_obj.add("vetomap", flag_veto_jet)
-    else:
-        flag_veto_jet = (np.abs(vetomap) > 0) & (
-            (jets.pt > 15)
-            & (jetId_cut)
-            & ((jets.chEmEF + jets.neEmEF) < 0.9)
-            & (jets.muonIdx1 == -1)
-            & (jets.muonIdx2 == -1)
-        )
-        sel_obj.add("vetomap", flag_veto_jet)
+
+    flag_veto_jet = (np.abs(vetomap) > 0) & (
+        (jets.pt > 15)
+        & (jetId_cut)
+        & ((jets.chEmEF + jets.neEmEF) < 0.9)
+        & (jets.muonIdx1 == -1)
+        & (jets.muonIdx2 == -1)
+    )
+    sel_obj.add("vetomap", flag_veto_jet)
     sel_veto_jet = sel_obj.all(*(sel_obj.names))
     sel_good_jet = ~ak.Array(sel_veto_jet)
     logger.debug(
