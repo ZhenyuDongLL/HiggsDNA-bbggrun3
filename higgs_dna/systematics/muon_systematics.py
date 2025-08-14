@@ -24,9 +24,27 @@ def get_rndm(eta, nL, cset):
     rng = np.random.default_rng(seed=abs(np.float32(eta[0]).view("int32")))
     rndm_f = rng.random(len(eta))
 
-    dcb_f = doublecrystalball(alpha_f, alpha_f, n_f, n_f, mean_f, sigma_f)
-
-    return dcb_f.ppf(rndm_f)
+    # Avoid SciPy/coffea warnings by not constructing DSCB with invalid parameters.
+    # Valid if: sigma>0, alpha>0, n>1 (all finite). We only evaluate PPF on valid entries.
+    valid = (
+        np.isfinite(sigma_f) & (sigma_f > 0)
+        & np.isfinite(alpha_f) & (alpha_f > 0)
+        & np.isfinite(n_f) & (n_f > 1.001)
+        & np.isfinite(mean_f)
+    )
+    # Build output as NumPy for safe masked assignment, then wrap back to Awkward
+    out_np = np.zeros(len(rndm_f), dtype=float)
+    valid_np = ak.to_numpy(valid)
+    if np.any(valid_np):
+        # Convert valid slices to NumPy to satisfy coffea's doublecrystalball
+        a = ak.to_numpy(alpha_f[valid])
+        n = ak.to_numpy(n_f[valid])
+        m = ak.to_numpy(mean_f[valid])
+        s = ak.to_numpy(sigma_f[valid])
+        dcb_ok = doublecrystalball(a, a, n, n, m, s)
+        out_valid = dcb_ok.ppf(rndm_f[valid_np])
+        out_np[valid_np] = out_valid
+    return ak.Array(out_np)
 
 
 def get_std(pt, eta, nL, cset):
@@ -44,17 +62,14 @@ def get_std(pt, eta, nL, cset):
 
 
 def get_k(eta, var, cset):
-    # obtain parameters from correctionlib
+    # obtain parameters from correctionlib (once)
     k_data_f = cset.get("k_data").evaluate(abs(eta), var)
     k_mc_f = cset.get("k_mc").evaluate(abs(eta), var)
 
-    # obtain parameters from correctionlib
-    k_data_f = cset.get("k_data").evaluate(abs(eta), var)
-    k_mc_f = cset.get("k_mc").evaluate(abs(eta), var)
-
-    # calculate residual smearing factor
-    # return 0 if smearing in MC already larger than in data
-    k_f = ak.where(k_mc_f < k_data_f, (k_data_f**2 - k_mc_f**2) ** 0.5, 0)
+    # NOTE: Avoid RuntimeWarning in sqrt by clamping the argument to >= 0 before sqrt
+    delta = k_data_f**2 - k_mc_f**2
+    delta = ak.where(delta > 0, delta, 0)
+    k_f = ak.where(k_mc_f < k_data_f, np.sqrt(delta), 0)
 
     return k_f
 
@@ -107,6 +122,11 @@ def pt_resol(pt, eta, nL, cset):
 
     pt_corr = filter_boundaries(pt_corr, pt)
 
+    # MUO POG style guard: revert extreme smearing to original pt
+    ratio = pt_corr / pt
+    mask_extreme = (ratio > 2.0) | (ratio < 0.1) | (pt_corr < 0)
+    pt_corr = ak.where(mask_extreme, pt, pt_corr)
+
     return pt_corr
 
 
@@ -149,6 +169,11 @@ def pt_resol_var(pt_woresol, pt_wresol, eta, updn, cset):
         )
     else:
         logger.info("[ Muon Scale ] ERROR: updn must be 'up' or 'dn'")
+
+    # MUO POG-style guardrail also for variations
+    ratio_var = pt_var_f / pt_woresol_f
+    mask_extreme_var = (ratio_var > 2.0) | (ratio_var < 0.1) | (pt_var_f < 0)
+    pt_var_f = ak.where(mask_extreme_var, pt_woresol_f, pt_var_f)
 
     return pt_var_f
 
