@@ -9,7 +9,7 @@ from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
-from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTagMVACut
+from higgs_dna.selections.jet_selections import select_jets_eta_dependent, jetvetomap, getBTagMVACut
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import (
     diphoton_ak_array,
@@ -89,6 +89,10 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             validate_with_electrons=validate_with_electrons,
             output_format=output_format
         )
+
+        # Eta-dependent jet pt cuts
+        self.jet_pt_thresholds = [20, 50, 30]
+        self.jet_eta_thresholds = [2.5, 3.0, 4.7]
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
@@ -340,7 +344,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 genJets = get_genJets(
                     events,
                     pt_cut=30.,
-                    eta_cut=2.5,
+                    eta_cut=4.7,
                     jet_pho_min_dr=self.jet_pho_min_dr,
                     jet_ele_min_dr=self.jet_ele_min_dr,
                     jet_muo_min_dr=self.jet_muo_min_dr,
@@ -545,7 +549,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 # B-Jets
                 # Following the recommendations of https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideBTagMCTools for hadronFlavour
                 # and the Run 2 recommendations for the bjets
-                genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 2.5)
+                genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 4.7)
                 genBJetCondition = genJetCondition & (genJets.hadronFlavour == 5)
                 genJets = ak.with_field(genJets, genBJetCondition, "GenIsBJet")
                 num_bjets = ak.sum(genJets["GenIsBJet"], axis=-1)
@@ -672,7 +676,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
 
             # jet selection and pt ordering
             jets = jets[
-                select_jets(self, jets, diphotons, sel_muons, sel_electrons)
+                select_jets_eta_dependent(self, jets, diphotons, sel_muons, sel_electrons)
             ]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
 
@@ -855,7 +859,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             ###########################
 
             n_jets = ak.num(jets)
-            Njets2p5 = ak.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 2.5)])
+            NJ = ak.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 4.7)])
 
             # B-Jets
             btag_WP = getBTagMVACut(mva_name=self.bjet_mva,
@@ -864,7 +868,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
 
             btag_mva_column = list(btagMVA_selection[self.bjet_mva].keys())[0]
 
-            bJetCondition = (jets.pt > 30) & (abs(jets.eta) < 2.5) & (jets[btag_mva_column] >= btag_WP)
+            bJetCondition = (jets.pt > 30) & (abs(jets.eta) < 4.7) & (jets[btag_mva_column] >= btag_WP)
             jets = ak.with_field(jets, bJetCondition, f"{self.bjet_mva}_IsBJet")
             num_bjets = ak.sum(jets[f"{self.bjet_mva}_IsBJet"], axis=-1)
             diphotons[f"{self.bjet_mva}_NBJet"] = num_bjets
@@ -876,7 +880,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons[f"{self.bjet_mva}_ScorebJ0"] = first_bjet_mva
 
             diphotons["n_jets"] = n_jets
-            diphotons["NJ"] = Njets2p5
+            diphotons["NJ"] = NJ
 
             # Jet Rapidity Observable
             # Iterate over max six largest pt jets to compute tauJC
