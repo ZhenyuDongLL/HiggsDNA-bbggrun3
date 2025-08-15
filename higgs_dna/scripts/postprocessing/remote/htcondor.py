@@ -2,13 +2,16 @@ import os
 import subprocess
 import glob
 
-def submit_jobs(directory, suffix=""):
+def submit_jobs(directory, spool_flag, suffix=""):
     if suffix != "":
         sub_files = glob.glob(f"{directory}/*{suffix}.sub")
     else:
         sub_files = glob.glob(f"{directory}/*.sub")
     for current_file in sub_files:
-        subprocess.run(["condor_submit", "-spool", current_file])
+        if spool_flag:
+            subprocess.run(["condor_submit", "-spool", current_file])
+        else:
+            subprocess.run(["condor_submit", current_file])
 
 
 def MKDIRP(dirpath, verbose=False, dry_run=False):
@@ -104,7 +107,8 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     submit_file.write(f'getenv = True\n')
                     submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                     submit_file.write(f"queue\n")
-            submit_jobs(jobs_dir)
+            spool_flag = True if (job_file_out.startswith("/eos") or job_file_err.startswith("/eos") or job_file_log.startswith("/eos") or job_file_dir.startswith("/eos") or jobs_dir.startswith("/eos")) else False
+            submit_jobs(directory=jobs_dir, spool_flag=spool_flag)
 
     if _opt.merge:
         with open(dirlist_path) as fl:
@@ -242,7 +246,8 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write(f'getenv = True\n')
                             submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                             submit_file.write(f"queue\n")
-                submit_jobs(jobs_dir)
+                spool_flag = True if (job_file_out.startswith("/eos") or job_file_err.startswith("/eos") or job_file_log.startswith("/eos") or job_file_dir.startswith("/eos") or jobs_dir.startswith("/eos")) else False
+                submit_jobs(directory=jobs_dir, spool_flag=spool_flag)
 
             # at this point Data will be split in eras if any Data dataset is present, here we merge them again in one allData file to rule them all
             # we also skip this step if there is no Data
@@ -303,7 +308,8 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write(f"queue\n")
                     os.system(f"chmod 775 {job_file_executable}")
                     j += 1
-                submit_jobs(jobs_dir, "merge_data")
+                spool_flag = True if (job_file_out.startswith("/eos") or job_file_err.startswith("/eos") or job_file_log.startswith("/eos") or job_file_dir.startswith("/eos") or jobs_dir.startswith("/eos")) else False
+                submit_jobs(directory=jobs_dir, spool_flag=spool_flag, suffix="merge_data")
 
 
     if _opt.root:
@@ -443,4 +449,5 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     submit_file.write(f'getenv = True\n')
                     submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                     submit_file.write(f"queue\n")
-        submit_jobs(jobs_dir, "root")
+        spool_flag = True if (job_file_out.startswith("/eos") or job_file_err.startswith("/eos") or job_file_log.startswith("/eos") or job_file_dir.startswith("/eos") or jobs_dir.startswith("/eos")) else False
+        submit_jobs(directory=jobs_dir, spool_flag=spool_flag, suffix="root")
