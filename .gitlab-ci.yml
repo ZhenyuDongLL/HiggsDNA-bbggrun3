@@ -91,14 +91,21 @@ static_analysis:
     #- mypy
 
 unit_test:
-  # Provide access to CMVFS for BTagging SF
   tags: 
     - k8s-cvmfs
+  id_tokens:
+    MY_JOB_JWT: # this is needed, it specifies the aud from which the proxy is requested. 
+        aud: "cms-cat-grid-proxy-service.app.cern.ch"
   stage: test
   before_script:
     - pip install --no-cache-dir -e .[dev]
     - rm -rf /root/.cache /tmp/*
-    - apt-get update && apt-get install -y wget
+    - apt-get update && apt-get install -y wget curl xrootd-client
+    # --- CAT proxy ---
+    - 'proxy=$(curl --fail-with-body -H "Authorization: ${MY_JOB_JWT}" "https://cms-cat-grid-proxy-service.app.cern.ch/api" | tr -d \")'
+    - 'printf "%s" "$proxy" | base64 -d > myproxy'
+    - export X509_USER_PROXY="$PWD/myproxy"
+    - export X509_CERT_DIR=/cvmfs/grid.cern.ch/etc/grid-security/certificates/
   script:
     - pwd
     - ls -l
