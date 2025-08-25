@@ -137,6 +137,12 @@ class LXPlusVanillaSubmitter:
             for sample, analysis_list in self.json_analysis_files.items():
                 base_name = f"AN-{sample}"
                 jobs_dir = os.path.realpath(self.jobs_dir).replace("/eos/home-", "/eos/user/")
+                if "/eos/user" in jobs_dir:
+                    job_dir = "root://eosuser.cern.ch/" + jobs_dir
+                elif "/eos/cms" in jobs_dir:
+                    job_dir = "root://eoscms.cern.ch/" + jobs_dir
+                else:
+                    job_dir = jobs_dir
                 n_jobs = len(analysis_list)
                 max_mat = self._compute_max_materialize(n_jobs)
 
@@ -158,10 +164,10 @@ class LXPlusVanillaSubmitter:
                 with open(job_file_submit, "w") as sub:
                     sub.write(f"executable = {job_file_executable}\n")
                     sub.write("arguments = $(ProcId)\n")
-                    sub.write(f"output = {jobs_dir}/{base_name}.$(ClusterId).$(ProcId).out\n")
-                    sub.write(f"error = {jobs_dir}/{base_name}.$(ClusterId).$(ProcId).err\n")
-                    sub.write(f"log = {jobs_dir}/{base_name}.$(ClusterId).log\n")
-                    sub.write(f"output_destination = root://eosuser.cern.ch/{jobs_dir}\n")
+                    sub.write(f"output = {job_dir}/{base_name}.$(ClusterId).$(ProcId).out\n")
+                    sub.write(f"error = {job_dir}/{base_name}.$(ClusterId).$(ProcId).err\n")
+                    sub.write(f"log = {job_dir}/{base_name}.$(ClusterId).log\n")
+                    sub.write(f"output_destination = {job_dir}\n")
                     sub.write(f"RequestMemory = ifThenElse(isUndefined(MemoryUsage), {self.memory_mb}, int(MemoryUsage * 1.1))\n")
                     sub.write("getenv = True\n")
                     sub.write(f'+JobFlavour = "{self.queue}"\n')
