@@ -11,6 +11,7 @@ import pyarrow.parquet as pq
 import numpy as np
 import uproot
 from importlib import resources
+from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
 
 
 def extract_tuples(input_string):
@@ -110,6 +111,9 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
         logger.info(
             "Extracting sum of gen weights (before selection) from metadata of files to be merged."
         )
+
+        if(_args.do_b_weight_normalisation): IsBtagNorm_sys_arr,WeightSum_preBTag_arr,WeightSum_postBTag_arr,WeightSum_postBTag_sys_arr = Get_WeightSum_Btag([folder_path],logger)
+
         source_files = glob.glob("%s/*.parquet" % folder_path)
         sum_genw_beforesel = 0
         for f in source_files:
@@ -165,6 +169,13 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
             logger.info(
                 "Successfully added normalised weight column and normalized weights of the systematics to dataset"
             )
+            if(_args.do_b_weight_normalisation):
+                if((WeightSum_preBTag_arr[0]/WeightSum_postBTag_arr[0])!=1):
+                    eve = Renormalize_BTag_Weights(eve,target_path,cat,WeightSum_preBTag_arr[0],WeightSum_postBTag_arr[0],WeightSum_postBTag_sys_arr,IsBtagNorm_sys_arr,logger)
+                logger.info(
+                    "Successfully added normalised b weight column."
+                )
+
         else:
             logger.info(
                 "No events survived category selection. Skipping normalisation step."
