@@ -6,6 +6,7 @@ import os
 import pathlib
 import shutil
 import pyarrow.parquet as pq
+import pyarrow as pa
 import uproot
 
 
@@ -211,6 +212,9 @@ def dump_ak_array(
     )
 
     pa_table = ak.to_arrow_table(akarr, extensionarray=False)
+    # Ensure deterministic column ordering in output parquet files to fix reading issue
+    col_names = sorted(pa_table.schema.names)
+    pa_table = pa.table([pa_table.column(n) for n in col_names], names=col_names)
     # If metadata is not None then write to pyarrow table
     if metadata:
         merged_metadata = {**metadata, **(pa_table.schema.metadata or {})}
