@@ -6,6 +6,7 @@ stages:
   - tag docker
   - static analysis
   - test
+  - release
 
 include:
   - project: 'cms-analysis/general/container-image-ci-templates'
@@ -21,6 +22,8 @@ variables:
     ACCELERATED_IMAGE: "true"
     BUILD_ARGS: ""
     SCAN_IMAGE: "false"
+    RELEASE_WEEKLY: "false" # set to true from the piepeline schedules
+    RELEASE_NAME: "" # set from the pipeline schedules as $(date +"v%Y.%m.0_weekly_%V")  
 
 build:
   stage: build
@@ -112,4 +115,17 @@ unit_test:
     - export PYTHONPATH="$PYTHONPATH:."
     - python -c "import sys;print(sys.path)"
     - pytest
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/cli:latest
+  allow_failure: false
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $RELEASE_WEEKLY == "true"' 
+  script:
+    - echo "Release Job"
+  release:
+    tag_name: $RELEASE_NAME
+    description: 'Release at $CI_COMMIT_SHA'
+    ref: '$CI_COMMIT_SHA'
 
