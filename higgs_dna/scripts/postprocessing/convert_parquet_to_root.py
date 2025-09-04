@@ -32,7 +32,7 @@ def main():
     )
     parser.add_argument("source", type=str, help="Path to input file.")
     parser.add_argument("target", type=str, help="Path to desired output file.")
-    parser.add_argument("type", type=str, help="Type of dataset (data or mc).")
+    parser.add_argument("type", type=str, choices=["mc", "MC", "mC", "Mc", "data", "Data", "DATA"], help="Type of dataset (data or mc).")
     parser.add_argument("--verbose", dest="verbose", action="store_true", help="Debugging verbosity for logger.")
     parser.add_argument("--process", type=str, default="", help="Production mode.")
     parser.add_argument(

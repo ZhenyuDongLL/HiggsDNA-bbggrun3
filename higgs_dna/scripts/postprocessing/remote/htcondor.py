@@ -128,6 +128,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         job_file_dir = os.path.realpath(jobs_dir)
 
                     if "data" not in file.lower():
+                        if _opt.type and _opt.type.lower() == "data":
+                            logger.warning(f"Type data selected, but {file} is MC. Ignoring it...")
+                            continue
                         job_file_executable = os.path.join(jobs_dir, f"{file}.sh")
                         job_file_submit = os.path.join(jobs_dir, f"{file}.sub")
 
@@ -193,6 +196,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write(f"queue {i}\n")
 
                     else:
+                        if _opt.type and _opt.type.lower() == "mc":
+                            logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                            continue
                         jobs_dir = CONDOR_PATH
 
                         if ("/eos/home-" in os.path.realpath(jobs_dir)) or ("/eos/user" in os.path.realpath(jobs_dir)):
@@ -273,6 +279,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     job_file_log = os.path.join(jobs_dir, f"{file}_merge_data.$(ClusterId).log")
 
                     if "data" in file.lower() or "DoubleEG" in file:
+                        if _opt.type and _opt.type.lower() == "mc":
+                            logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                            continue
                         with open(job_file_executable, "w") as executable_file:
                             executable_file.write("#!/bin/sh\n")
                             dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
@@ -338,6 +347,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                 else:
                     job_file_dir = os.path.realpath(jobs_dir)
                 if "data" not in file.lower() and (not "unknown" in decompose_string(file, process_map, era_flag=_opt.eraFlag)):
+                    if _opt.type and _opt.type.lower() == "data":
+                        logger.warning(f"Type data selected, but {file} is MC. Ignoring it...")
+                        continue
                     job_file_executable = os.path.join(jobs_dir, f"{file}_root.sh")
 
                     if not _opt.merge:
@@ -387,6 +399,9 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         submit_file.write(f'+JobFlavour = "{job_flavor}"\n')
                         submit_file.write(f"queue\n")
                 elif "data" in file.lower():
+                    if _opt.type and _opt.type.lower() == "mc":
+                        logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                        continue
                     job_file_executable = os.path.join(jobs_dir, f"{file}_root.sh")
 
                     if not _opt.merge:
