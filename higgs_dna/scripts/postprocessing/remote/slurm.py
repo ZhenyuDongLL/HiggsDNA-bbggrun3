@@ -115,6 +115,9 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, SLURM_PATH, dirlist_path, var_
                         commands = []
 
                         if "data" not in file.lower():
+                            if _opt.type and _opt.type.lower() == "data":
+                                logger.warning(f"Type data selected, but {file} is MC. Ignoring it...")
+                                continue
                             target_path = f"{OUT_PATH}/merged/{file}/{var_dict[var]}/"
                             if (_opt.batch == "slurm/psi"):
                                 target_path = f"$TARGET_PATH/merged/{file}/{var_dict[var]}/"
@@ -123,6 +126,9 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, SLURM_PATH, dirlist_path, var_
                             print(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str} {do_b_weight_normalisation_str} {custom_accumulator_str}")
                             commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str} {do_b_weight_normalisation_str} {custom_accumulator_str}")
                         else:
+                            if _opt.type and _opt.type.lower() == "mc":
+                                logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                                continue
                             target_path = f"{OUT_PATH}/merged/Data_{file.split('_')[-1]}"
                             if (_opt.batch == "slurm/psi"):
                                 target_path = f"$TARGET_PATH/merged/Data_{file.split('_')[-1]}"
@@ -148,6 +154,9 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, SLURM_PATH, dirlist_path, var_
                         commands = []
 
                         if "data" not in file.lower():
+                            if _opt.type and _opt.type.lower() == "data":
+                                logger.warning(f"Type data selected, but {file} is MC. Ignoring it...")
+                                continue
                             target_path = f"{OUT_PATH}/merged/{file}/nominal/"
                             if (_opt.batch == "slurm/psi"):
                                 target_path = f"$TARGET_PATH/merged/{file}/nominal/"
@@ -156,6 +165,9 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, SLURM_PATH, dirlist_path, var_
                             print(f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str} {do_b_weight_normalisation_str} {custom_accumulator_str}")
                             commands.append(f"merge_parquet.py --source {IN_PATH}/{file}/nominal/ --target {target_path} --cats {cat_dict_loc} {verbose_str} --abs {genBinning_str} {do_b_weight_normalisation_str} {custom_accumulator_str}")
                         else:
+                            if _opt.type and _opt.type.lower() == "mc":
+                                logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                                continue
                             target_path = f"{OUT_PATH}/merged/Data_{file.split('_')[-1]}"
                             if (_opt.batch == "slurm/psi"):
                                 target_path = f"$TARGET_PATH/merged/Data_{file.split('_')[-1]}"
@@ -184,6 +196,9 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, SLURM_PATH, dirlist_path, var_
                 commands = []
 
                 if "data" in file.lower() or "DoubleEG" in file:
+                    if _opt.type and _opt.type.lower() == "mc":
+                        logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                        continue
                     target_path = f"{OUT_PATH}/merged/Data_{file.split('_')[-1]}"
                     print(target_path)
                     _, _, filenames = next(os.walk(target_path))
@@ -225,6 +240,9 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, SLURM_PATH, dirlist_path, var_
                 commands = []
 
                 if "data" not in file.lower() and (not "unknown" in decompose_string(file, process_map, era_flag=_opt.eraFlag)):
+                    if _opt.type and _opt.type.lower() == "data":
+                        logger.warning(f"Type data selected, but {file} is MC. Ignoring it...")
+                        continue
                     if os.listdir(f"{IN_PATH}/merged/{file}/"):
                         logger.info(f"Found merged files {IN_PATH}/merged/{file}/")
                     else:
@@ -238,6 +256,9 @@ def slurm_postprocessing(_opt, OUT_PATH, IN_PATH, SLURM_PATH, dirlist_path, var_
                     commands.append(f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {target_path}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str}")
 
                 elif "data" in file.lower():
+                    if _opt.type and _opt.type.lower() == "mc":
+                        logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                        continue
                     
                     if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
                         logger.info(

@@ -234,9 +234,10 @@ def main():
     )
     parser.add_option(
         "--type",
-        type=str,
+        type="choice",
         dest="type",
         default="",
+        choices=["mc", "MC", "Mc", "mC", "data", "Data", "DATA", ""],
         help="Type of dataset (data or mc).",
     )
     parser.add_option(
@@ -319,6 +320,12 @@ def main():
         help="If set, the script will process the custom accumulator from the parquet files.",
     )
     (opt, args) = parser.parse_args()
+
+    opt.output = os.path.realpath(opt.output)
+
+    # Create output folder if it does not exist
+    if not os.path.exists(opt.output):
+        MKDIRP(opt.output)
 
     BASEDIR = resources.files("higgs_dna").joinpath("")
 
@@ -425,12 +432,12 @@ def main():
 
 # Using OUT_PATH for the location of the output if different from the input path
     if (not opt.batch == "condor") and (not "slurm" in opt.batch):
-        if opt.output == "":
+        if opt.output == EXEC_PATH:
             OUT_PATH = IN_PATH
 
             dirlist_path = f"{EXEC_PATH}/dirlist.txt"
         else:
-            OUT_PATH = opt.output
+            OUT_PATH = os.path.realpath(opt.output)
 
             dirlist_path = f"{OUT_PATH}/dirlist.txt"
             os.system(f"mv {EXEC_PATH}/dirlist.txt {OUT_PATH}/dirlist.txt")
@@ -475,6 +482,9 @@ def main():
     def process_file(file, IN_PATH, OUT_PATH, SCRIPT_DIR, var_dict, cat_dict, verbose_str, skip_normalisation_str, opt):
         file = file.strip()  # Removes newline characters and leading/trailing whitespace
         if "data" not in file.lower():
+            if opt.type and opt.type.lower() == "data":
+                logger.warning(f"Type data selected, but {file} is MC. Ignoring it...")
+                return
             target_path = f"{OUT_PATH}/merged/{file}"
             if os.path.exists(target_path):
                 raise Exception(f"The selected target path: {target_path} already exists")
@@ -495,6 +505,9 @@ def main():
                 command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} {do_b_weight_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
                 subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
         else:
+            if opt.type and opt.type.lower() == "mc":
+                logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                return
             # Data processing
             merged_target_path = f"{OUT_PATH}/merged/{file}/{file}_merged.parquet"
             data_dir_path = f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'
@@ -587,6 +600,9 @@ def main():
                 for file in files:
                     file = file.split("\n")[0]  # otherwise it contains an end of line and messes up the os.walk() call
                     if "data" in file.lower() or "DoubleEG" in file:
+                        if opt.type and opt.type.lower() == "mc":
+                            logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                            continue
                         dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                         if len(filenames) > 0:
                             command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data {genBinning_str} {verbose_str} --abs {custom_accumulator_str}'
@@ -613,6 +629,9 @@ def main():
                 for file in files:
                     file = file.split("\n")[0]
                     if "data" not in file.lower() and (not "unknown" in decompose_string(file, process_map, era_flag=opt.eraFlag)):
+                        if opt.type and opt.type.lower() == "data":
+                            logger.warning(f"Type data selected, but {file} is MC. Ignoring it...")
+                            continue
                         if os.path.exists(f"{OUT_PATH}/root/{file}"):
                             raise Exception(
                                 f"The selected target path: {OUT_PATH}/root/{file} already exists"
@@ -628,6 +647,9 @@ def main():
                             f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs"
                         )
                     elif "data" in file.lower():
+                        if opt.type and opt.type.lower() == "mc":
+                            logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
+                            continue
                         if os.listdir(f'{IN_PATH}/merged/Data_{file.split("_")[-1]}/'):
                             logger.info(
                                 f'Found merged data files in: {IN_PATH}/merged/Data_{file.split("_")[-1]}/'
