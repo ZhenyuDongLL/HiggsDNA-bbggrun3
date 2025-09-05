@@ -128,4 +128,3 @@ release:
     tag_name: $RELEASE_NAME
     description: 'Release at $CI_COMMIT_SHA'
     ref: '$CI_COMMIT_SHA'
-

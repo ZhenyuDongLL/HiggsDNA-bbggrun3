@@ -5,6 +5,8 @@ import numpy
 import xgboost as xgb
 import logging
 
+from higgs_dna.utils.misc_utils import evaluate_wp
+
 logger = logging.getLogger(__name__)
 
 
@@ -218,6 +220,7 @@ def calculate_ggh_vs_hb_mva(
     mva: Tuple[Tuple[Optional[xgb.Booster], Optional[xgb.Booster]], List[str]],
     diphotons: ak.Array,
     events: ak.Array,
+    year
 ) -> ak.Array:
     """
     Calculate cH vs ggH bdt scores for events.
@@ -243,6 +246,10 @@ def calculate_ggh_vs_hb_mva(
     else:
         pho_lead = "tag"
         pho_sublead = "probe"
+
+    events_bdt["first_jet_wp"] = evaluate_wp(year, events["first_jet_jet_pn_b_plus_c"], events["first_jet_jet_pn_b_vs_c"])
+    events_bdt["second_jet_wp"] = evaluate_wp(year, events["second_jet_jet_pn_b_plus_c"], events["second_jet_jet_pn_b_vs_c"])
+    events_bdt["third_jet_wp"] = evaluate_wp(year, events["third_jet_jet_pn_b_plus_c"], events["third_jet_jet_pn_b_vs_c"])
 
     events_bdt["pt"] = diphotons.pt
     events_bdt["eta"] = diphotons.eta

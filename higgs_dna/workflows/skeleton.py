@@ -151,8 +151,7 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         logger.debug(f"Setting up processor with metaconditions: {self.meta}")
 
         if (self.bjet_mva != "deepJet") and (self.nano_version < 12):
-            logger.error(f"\n {self.bjet_mva} is only supported for nanoAOD v12 and above. Please change the bjet_mva to deepJet. Exiting...\n")
-            exit()
+            logger.warning(f"\n {self.bjet_mva} is supported for nanoAOD v12 and above. Please check to have a valid implementation od the HF tagger score...\n")
 
         self.taggers = []
         if taggers is not None:
