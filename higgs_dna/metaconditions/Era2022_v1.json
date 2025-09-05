@@ -169,6 +169,26 @@
         "weightFile": "flashgg/Taggers/data/STXSmodels/legacyDiphoModelMerged.xml",
         "version": "xgb"
     },
+    "HiggsDNA_DiPhotonMVA" :
+    {
+        "weightFile" : ["weights_DiphotonID_2022_250903_even.xgb", "weights_DiphotonID_2022_250903_odd.xgb"],
+        "version" : "xgb",
+        "inputs": [
+            "sigmaMrv",
+            "sigmaMwv",
+            "PV_score",
+            "vtxProb",
+            "LeadPhoton_pt_mgg",
+            "LeadPhoton_eta",
+            "LeadPhoton_mvaID",
+            "SubleadPhoton_pt_mgg",
+            "SubleadPhoton_eta", 
+            "SubleadPhoton_mvaID",
+            "Diphoton_cos_dPhi",
+            "dZ_1",
+            "dZ_2"
+        ]
+    },
     "flashggJetSystematics": {
         "doHEMuncertainty": true,
         "textFileName": "flashgg/Systematics/data/JEC/Regrouped_Autumn18_V19_MC_UncertaintySources_AK4PFchs.txt",

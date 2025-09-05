@@ -1,5 +1,6 @@
 from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.chained_quantile import ChainedQuantileRegression
+from higgs_dna.tools.diphoton_mva import calculate_multiclass_diphoton_mva
 from higgs_dna.tools.hpc_mva import calculate_ch_vs_ggh_mva, calculate_ch_vs_cb_mva, calculate_ggh_vs_hb_mva
 from higgs_dna.tools.xgb_loader import load_bdt
 from higgs_dna.tools.photonid_mva import load_photonid_mva
@@ -248,6 +249,22 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             warnings.warn(f"Could not instantiate diphoton MVA: {e}")
             self.diphoton_mva = None
 
+        self.multiclass_diphoton_mva = [None, None]
+        try:
+            self.multiclass_diphoton_mva[0] = load_bdt(
+                os.path.join(
+                    diphoton_weights_dir, self.meta["HiggsDNA_DiPhotonMVA_multiclass"]["weightFile"][0]
+                )
+            )
+            self.multiclass_diphoton_mva[1] = load_bdt(
+                os.path.join(
+                    diphoton_weights_dir, self.meta["HiggsDNA_DiPhotonMVA_multiclass"]["weightFile"][1]
+                )
+            )
+        except Exception as e:
+            warnings.warn(f"Could not instantiate multiclass diphoton MVA: {e}")
+            self.multiclass_diphoton_mva = None
+
         # initialize ch vs ggh mva, only useful for run 2 cH yukawa analysis
         hpc_weight_dir = os.path.dirname(hpc_mva_dir.__file__)
         logger.debug(
@@ -314,6 +331,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
+        self.dataset_name = dataset_name
 
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
@@ -362,6 +380,10 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             logger.info("processing MC dataset")
             # Add sum of gen weights before selection for normalisation in postprocessing
             metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
+            genJets = get_genJets(events, pt_cut=10., eta_cut=2.5)
+            had_gen_jets = genJets[ak.argsort(abs(genJets.hadronFlavour), ascending=False, axis=1)]
+            first_had_gen_jet_hadFlav = choose_jet(had_gen_jets.hadronFlavour, 0, -999.0)
+
         else:
             logger.info("processing Data dataset")
             metadata["sum_genw_presel"] = "Data"
@@ -530,13 +552,18 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                 jets = jets_dct[variation]
             do_variation = variation  # We can also simplify this a bit but for now it works
 
-            if self.chained_quantile is not None:
+            if self.chained_quantile is not None and self.data_kind == "mc":
+                logger.warning("Applying CQR")
                 photons = self.chained_quantile.apply(photons, events)
 
             # recompute photonid_mva on the fly
             # NOTE: this does not work properly at the moment, need to fix and in the meantime we use the EGamma ID
-            if self.photonid_mva_EB and self.photonid_mva_EE and self.applyCQR:
-                photons = self.add_photonid_mva(photons, events)
+            if (self.photonid_mva_EB and self.photonid_mva_EE and self.applyCQR) or (self.photonid_mva_EB and self.photonid_mva_EE and self.data_kind == "data"):
+                if self.year[dataset_name][0] in ["2017"]:
+                    logger.warning("Applying photon ID MVA")
+                    photons = self.add_photonid_mva(photons, events)
+                elif self.year[dataset_name][0] in ["2016", "2016pre", "2016post", "2018"]:
+                    logger.warning("Missing input variables correction with either CQR or NF, we will NOT re-evaluate photon ID MVA")
 
             # photon preselection
             if self.validate_with_electrons:
@@ -586,10 +613,17 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons = diphotons[dipho_presel_cut]
             dipho_events = events[dipho_presel_cut]
             jets = jets[dipho_presel_cut]
+            if self.data_kind == "mc":
+                genJets = genJets[dipho_presel_cut]
 
             # baseline modifications to diphotons
             if self.diphoton_mva is not None:
+                logger.warning("Applying diphoton MVA")
                 diphotons, dipho_events = self.add_diphoton_mva(diphotons, dipho_events)
+
+            if self.multiclass_diphoton_mva is not None:
+                logger.warning("Applying multiclass diphoton MVA")
+                diphotons, dipho_events = self.add_multiclass_diphoton_mva(diphotons, dipho_events)
 
             logger.info(f"selected number of events  after diphoton preselection {len(dipho_events)}")
 
@@ -620,11 +654,11 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                         "nConst": jets.nConstituents if hasattr(jets, "nConstituents") else ak.ones_like(jets.pt) * -1.,
                         "neHEF": jets.neHEF if hasattr(jets, "neHEF") else ak.ones_like(jets.pt) * -1.,
                         "neEmEF": jets.neEmEF if hasattr(jets, "neEmEF") else ak.ones_like(jets.pt) * -1.,
-                        "neMultiplicity": jets.neMultiplicity if hasattr(jets, "neMultiplicity") else ak.ones_like(jets.pt) * -1.,
                         "chHEF": jets.chHEF if hasattr(jets, "chHEF") else ak.ones_like(jets.pt) * -1.,
-                        "chEmEF": jets.neHEF if hasattr(jets, "chEmEF") else ak.ones_like(jets.pt) * -1.,
-                        "chMultiplicity": jets.chMultiplicity if hasattr(jets, "chMultiplicity") else ak.ones_like(jets.pt) * -1.,
+                        "chEmEF": jets.chEmEF if hasattr(jets, "chEmEF") else ak.ones_like(jets.pt) * -1.,
                         "muEF": jets.muEF if hasattr(jets, "muEF") else ak.ones_like(jets.pt) * -1.,
+                        "chMultiplicity": jets.chMultiplicity if hasattr(jets, "chMultiplicity") else ak.ones_like(jets.pt) * -1.,
+                        "neMultiplicity": jets.neMultiplicity if hasattr(jets, "neMultiplicity") else ak.ones_like(jets.pt) * -1.,
                     }
                 )
             else:
@@ -654,11 +688,11 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                         "nConst": jets.nConstituents if hasattr(jets, "nConstituents") else ak.ones_like(jets.pt) * -1.,
                         "neHEF": jets.neHEF if hasattr(jets, "neHEF") else ak.ones_like(jets.pt) * -1.,
                         "neEmEF": jets.neEmEF if hasattr(jets, "neEmEF") else ak.ones_like(jets.pt) * -1.,
-                        "neMultiplicity": jets.neMultiplicity if hasattr(jets, "neMultiplicity") else ak.ones_like(jets.pt) * -1.,
                         "chHEF": jets.chHEF if hasattr(jets, "chHEF") else ak.ones_like(jets.pt) * -1.,
-                        "chEmEF": jets.neHEF if hasattr(jets, "chEmEF") else ak.ones_like(jets.pt) * -1.,
-                        "chMultiplicity": jets.chMultiplicity if hasattr(jets, "chMultiplicity") else ak.ones_like(jets.pt) * -1.,
+                        "chEmEF": jets.chEmEF if hasattr(jets, "chEmEF") else ak.ones_like(jets.pt) * -1.,
                         "muEF": jets.muEF if hasattr(jets, "muEF") else ak.ones_like(jets.pt) * -1.,
+                        "chMultiplicity": jets.chMultiplicity if hasattr(jets, "chMultiplicity") else ak.ones_like(jets.pt) * -1.,
+                        "neMultiplicity": jets.neMultiplicity if hasattr(jets, "neMultiplicity") else ak.ones_like(jets.pt) * -1.,
                     }
                 )
             jets = ak.with_name(jets, "PtEtaPhiMCandidate")
@@ -720,6 +754,122 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             )
             sv = ak.with_name(sv, "PtEtaPhiMCandidate")
 
+            if self.data_kind == "mc":
+                particles = ak.zip(
+                    {
+                        "pt": dipho_events.GenPart.pt,
+                        "eta": dipho_events.GenPart.eta,
+                        "phi": dipho_events.GenPart.phi,
+                        "mass": dipho_events.GenPart.mass,
+                        "pdgId": dipho_events.GenPart.pdgId,
+                        "status": dipho_events.GenPart.status,
+                        "statusFlags": dipho_events.GenPart.statusFlags,
+                        "IdxMother": dipho_events.GenPart.genPartIdxMother,
+                        "event": ak.ones_like(dipho_events.GenPart.pt) * dipho_events.event,
+                    }
+                )
+                particles = ak.with_name(particles, "PtEtaPhiMCandidate")
+
+                # here we create a flag to identify the presence of c and b hadrons in the event
+                # we have to massage a bit the arrays due to some issues with old versions of ak that make complicated
+                # to extract the first digit of the pdgId
+                counts = ak.num(particles.pdgId)
+                pdgId = ak.to_numpy(abs(ak.flatten(particles.pdgId)))
+                status = ak.to_numpy(abs(ak.flatten(particles.status)))
+                pt = ak.to_numpy(abs(ak.flatten(particles.pt)))
+                eta = ak.to_numpy(abs(ak.flatten(particles.eta)))
+                str_pdgId = numpy.array(pdgId, str)
+
+                # masks for the different hadron types
+                ME_out_c_mask = numpy.char.startswith(str_pdgId, "4") & (status == 23)
+                ME_out_b_mask = numpy.char.startswith(str_pdgId, "5") & (status == 23)
+                ME_out_g_mask = (str_pdgId == "21") & (status == 23)
+                ME_out_l_mask = ((str_pdgId == "1") | (str_pdgId == "2") | (str_pdgId == "3")) & (status == 23)
+
+                ME_in_c_mask = numpy.char.startswith(str_pdgId, "4") & (status == 21)
+                ME_in_b_mask = numpy.char.startswith(str_pdgId, "5") & (status == 21)
+                ME_in_g_mask = (str_pdgId == "21") & (status == 21)
+                ME_in_l_mask = ((str_pdgId == "1") | (str_pdgId == "2") | (str_pdgId == "3")) & (status == 21)
+
+                c_mask = numpy.char.startswith(str_pdgId, "4") & (status <= 2) & (pt > 5) & (abs(eta) < 4)
+                b_mask = numpy.char.startswith(str_pdgId, "5") & (status <= 2) & (pt > 5) & (abs(eta) < 4)
+
+                # reformat the masks
+                str_pdgId = ak.unflatten(str_pdgId, counts)
+
+                c_mask = ak.unflatten(c_mask, counts)
+                b_mask = ak.unflatten(b_mask, counts)
+
+                ME_out_c_mask = ak.unflatten(ME_out_c_mask, counts)
+                ME_out_b_mask = ak.unflatten(ME_out_b_mask, counts)
+                ME_out_g_mask = ak.unflatten(ME_out_g_mask, counts)
+                ME_out_l_mask = ak.unflatten(ME_out_l_mask, counts)
+
+                ME_in_c_mask = ak.unflatten(ME_in_c_mask, counts)
+                ME_in_b_mask = ak.unflatten(ME_in_b_mask, counts)
+                ME_in_g_mask = ak.unflatten(ME_in_g_mask, counts)
+                ME_in_l_mask = ak.unflatten(ME_in_l_mask, counts)
+
+                D_hadrons = particles[c_mask]
+                B_hadrons = particles[b_mask]
+
+                charmed_had_num = ak.num(D_hadrons)
+                bottom_had_num = ak.num(B_hadrons)
+
+                ME_in_c = particles[ME_in_c_mask]
+                ME_in_b = particles[ME_in_b_mask]
+                ME_in_l = particles[ME_in_l_mask]
+                ME_in_g = particles[ME_in_g_mask]
+
+                ME_out_c = particles[ME_out_c_mask]
+                ME_out_b = particles[ME_out_b_mask]
+                ME_out_l = particles[ME_out_l_mask]
+                ME_out_g = particles[ME_out_g_mask]
+
+                ME_in_charm_num = ak.num(ME_in_c)
+                ME_in_bottom_num = ak.num(ME_in_b)
+                ME_in_light_num = ak.num(ME_in_l)
+                ME_in_gluon_num = ak.num(ME_in_g)
+
+                ME_out_charm_num = ak.num(ME_out_c)
+                ME_out_bottom_num = ak.num(ME_out_b)
+                ME_out_light_num = ak.num(ME_out_l)
+                ME_out_gluon_num = ak.num(ME_out_g)
+
+                gen_jets = ak.zip(
+                    {
+                        "pt": genJets.pt,
+                        "eta": genJets.eta,
+                        "phi": genJets.phi,
+                        "mass": genJets.mass,
+                        "hFlav": genJets.hadronFlavour,
+                        "event": ak.ones_like(genJets.pt) * dipho_events.event,
+                    }
+                )
+            else:
+                charmed_had_num = ak.zeros_like(diphotons.pt)
+                bottom_had_num = ak.zeros_like(diphotons.pt)
+
+                ME_in_c = ak.zeros_like(diphotons.pt)
+                ME_in_b = ak.zeros_like(diphotons.pt)
+                ME_in_l = ak.zeros_like(diphotons.pt)
+                ME_in_g = ak.zeros_like(diphotons.pt)
+
+                ME_out_c = ak.zeros_like(diphotons.pt)
+                ME_out_b = ak.zeros_like(diphotons.pt)
+                ME_out_l = ak.zeros_like(diphotons.pt)
+                ME_out_g = ak.zeros_like(diphotons.pt)
+
+                ME_in_charm_num = ak.zeros_like(diphotons.pt)
+                ME_in_bottom_num = ak.zeros_like(diphotons.pt)
+                ME_in_light_num = ak.zeros_like(diphotons.pt)
+                ME_in_gluon_num = ak.zeros_like(diphotons.pt)
+
+                ME_out_charm_num = ak.zeros_like(diphotons.pt)
+                ME_out_bottom_num = ak.zeros_like(diphotons.pt)
+                ME_out_light_num = ak.zeros_like(diphotons.pt)
+                ME_out_gluon_num = ak.zeros_like(diphotons.pt)
+
             # lepton cleaning
             sel_electrons = electrons[
                 select_electrons(self, electrons, diphotons)
@@ -776,13 +926,27 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             electrons = electrons[ge_1j_cut]
             muons = muons[ge_1j_cut]
             jets = jets[ge_1j_cut]
-            genJets = genJets[ge_1j_cut]
+
+            if self.data_kind == "mc":
+                genJets = genJets[ge_1j_cut]
+                gen_jets = gen_jets[ge_1j_cut]
+
             pt_jets = pt_jets[ge_1j_cut]
             dijets = dijets[ge_1j_cut]
             sv = sv[ge_1j_cut]
             n_jets = n_jets[ge_1j_cut]
             n_b_jets_medium = n_b_jets_medium[ge_1j_cut]
             n_b_jets_loose = n_b_jets_loose[ge_1j_cut]
+            charmed_had_num = charmed_had_num[ge_1j_cut]
+            bottom_had_num = bottom_had_num[ge_1j_cut]
+            ME_in_charm_num = ME_in_charm_num[ge_1j_cut]
+            ME_in_bottom_num = ME_in_bottom_num[ge_1j_cut]
+            ME_in_light_num = ME_in_light_num[ge_1j_cut]
+            ME_in_gluon_num = ME_in_gluon_num[ge_1j_cut]
+            ME_out_charm_num = ME_out_charm_num[ge_1j_cut]
+            ME_out_bottom_num = ME_out_bottom_num[ge_1j_cut]
+            ME_out_light_num = ME_out_light_num[ge_1j_cut]
+            ME_out_gluon_num = ME_out_gluon_num[ge_1j_cut]
 
             dijet_pt = choose_jet(dijets.pt, 0, -999.0)
             dijet_eta = choose_jet(dijets.eta, 0, -999.0)
@@ -838,6 +1002,8 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             second_jet_particleNetAK4_CvsL = choose_jet(jets.particleNetAK4_CvsL, 1, -999.0)
             second_jet_particleNetAK4_CvsB = choose_jet(jets.particleNetAK4_CvsB, 1, -999.0)
             second_jet_particleNetAK4_B = choose_jet(jets.particleNetAK4_B, 1, -999.0)
+            second_jet_jet_pn_b_plus_c = choose_jet(jets.pn_b_plus_c, 1, -1.0)
+            second_jet_jet_pn_b_vs_c = choose_jet(jets.pn_b_vs_c, 1, -1.0)
             second_jet_n_sv = choose_jet(jets.n_sv, 1, -999.0)
 
             second_pt_jet_pt = choose_jet(pt_jets.pt, 1, -999.0)
@@ -857,23 +1023,40 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             third_jet_mass = choose_jet(jets.mass, 2, -999.0)
             third_jet_charge = choose_jet(jets.charge, 2, -999.0)
             third_jet_hFlav = choose_jet(jets.hFlav, 2, -999.0)
+            third_jet_particleNetAK4_CvsL = choose_jet(jets.particleNetAK4_CvsL, 2, -999.0)
+            third_jet_particleNetAK4_CvsB = choose_jet(jets.particleNetAK4_CvsB, 2, -999.0)
+            third_jet_particleNetAK4_B = choose_jet(jets.particleNetAK4_B, 2, -999.0)
+            third_jet_jet_pn_b_plus_c = choose_jet(jets.pn_b_plus_c, 2, -1.0)
+            third_jet_jet_pn_b_vs_c = choose_jet(jets.pn_b_vs_c, 2, -1.0)
 
-            first_sv_pt = choose_jet(sv.pt, 0, -999.0)
-            first_sv_eta = choose_jet(sv.eta, 0, -999.0)
-            first_sv_phi = choose_jet(sv.phi, 0, -999.0)
-            first_sv_mass = choose_jet(sv.mass, 0, -999.0)
-            first_sv_charge = choose_jet(sv.charge, 0, -999.0)
-            first_sv_dlen = choose_jet(sv.dlen, 0, -999.0)
-            first_sv_dlenSig = choose_jet(sv.dlenSig, 0, -999.0)
-            first_sv_dxy = choose_jet(sv.dxy, 0, -999.0)
-            first_sv_dxySig = choose_jet(sv.dxySig, 0, -999.0)
-            first_sv_pAngle = choose_jet(sv.pAngle, 0, -999.0)
-            first_sv_chi2 = choose_jet(sv.chi2, 0, -999.0)
-            first_sv_x = choose_jet(sv.x, 0, -999.0)
-            first_sv_y = choose_jet(sv.y, 0, -999.0)
-            first_sv_z = choose_jet(sv.z, 0, -999.0)
-            first_sv_ndof = choose_jet(sv.ndof, 0, -999.0)
-            first_sv_ntracks = choose_jet(sv.ntracks, 0, -999.0)
+            fourth_jet_pt = choose_jet(jets.pt, 3, -999.0)
+            fourth_jet_eta = choose_jet(jets.eta, 3, -999.0)
+            fourth_jet_phi = choose_jet(jets.phi, 3, -999.0)
+            fourth_jet_mass = choose_jet(jets.mass, 3, -999.0)
+            fourth_jet_charge = choose_jet(jets.charge, 3, -999.0)
+            fourth_jet_hFlav = choose_jet(jets.hFlav, 3, -999.0)
+            fourth_jet_particleNetAK4_CvsL = choose_jet(jets.particleNetAK4_CvsL, 3, -999.0)
+            fourth_jet_particleNetAK4_CvsB = choose_jet(jets.particleNetAK4_CvsB, 3, -999.0)
+            fourth_jet_particleNetAK4_B = choose_jet(jets.particleNetAK4_B, 3, -999.0)
+            fourth_jet_jet_pn_b_plus_c = choose_jet(jets.pn_b_plus_c, 3, -1.0)
+            fourth_jet_jet_pn_b_vs_c = choose_jet(jets.pn_b_vs_c, 3, -1.0)
+
+            # first_sv_pt = choose_jet(sv.pt, 0, -999.0)
+            # first_sv_eta = choose_jet(sv.eta, 0, -999.0)
+            # first_sv_phi = choose_jet(sv.phi, 0, -999.0)
+            # first_sv_mass = choose_jet(sv.mass, 0, -999.0)
+            # first_sv_charge = choose_jet(sv.charge, 0, -999.0)
+            # first_sv_dlen = choose_jet(sv.dlen, 0, -999.0)
+            # first_sv_dlenSig = choose_jet(sv.dlenSig, 0, -999.0)
+            # first_sv_dxy = choose_jet(sv.dxy, 0, -999.0)
+            # first_sv_dxySig = choose_jet(sv.dxySig, 0, -999.0)
+            # first_sv_pAngle = choose_jet(sv.pAngle, 0, -999.0)
+            # first_sv_chi2 = choose_jet(sv.chi2, 0, -999.0)
+            # first_sv_x = choose_jet(sv.x, 0, -999.0)
+            # first_sv_y = choose_jet(sv.y, 0, -999.0)
+            # first_sv_z = choose_jet(sv.z, 0, -999.0)
+            # first_sv_ndof = choose_jet(sv.ndof, 0, -999.0)
+            # first_sv_ntracks = choose_jet(sv.ntracks, 0, -999.0)
 
             first_muon_pt = choose_jet(muons.pt, 0, -999.0)
             first_muon_eta = choose_jet(muons.eta, 0, -999.0)
@@ -888,10 +1071,78 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             first_electron_charge = choose_jet(electrons.charge, 0, -999.0)
 
             if self.data_kind == "mc":
-                gen_first_jet_eta = choose_jet(genJets.eta, 0, -999.0)
-                gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
-                gen_first_jet_phi = choose_jet(genJets.phi, 0, -999.0)
-                gen_first_jet_hflav = choose_jet(genJets.hadronFlavour, 0, -999.0)
+                first_gen_jet_pt = choose_jet(genJets.pt, 0, -999.0)
+                first_gen_jet_eta = choose_jet(genJets.eta, 0, -999.0)
+                first_gen_jet_mass = choose_jet(genJets.mass, 0, -999.0)
+                first_gen_jet_phi = choose_jet(genJets.phi, 0, -999.0)
+                first_gen_jet_hFlav = choose_jet(genJets.hadronFlavour, 0, -999.0)
+                first_gen_jet_hFlav2 = choose_jet(gen_jets.hFlav, 0, -999.0)
+
+                second_gen_jet_pt = choose_jet(genJets.pt, 1, -999.0)
+                second_gen_jet_eta = choose_jet(genJets.eta, 1, -999.0)
+                second_gen_jet_mass = choose_jet(genJets.mass, 1, -999.0)
+                second_gen_jet_phi = choose_jet(genJets.phi, 1, -999.0)
+                second_gen_jet_hFlav = choose_jet(genJets.hadronFlavour, 1, -999.0)
+
+                third_gen_jet_pt = choose_jet(genJets.pt, 2, -999.0)
+                third_gen_jet_eta = choose_jet(genJets.eta, 2, -999.0)
+                third_gen_jet_mass = choose_jet(genJets.mass, 2, -999.0)
+                third_gen_jet_phi = choose_jet(genJets.phi, 2, -999.0)
+                third_gen_jet_hFlav = choose_jet(genJets.hadronFlavour, 2, -999.0)
+
+                fourth_gen_jet_pt = choose_jet(genJets.pt, 3, -999.0)
+                fourth_gen_jet_eta = choose_jet(genJets.eta, 3, -999.0)
+                fourth_gen_jet_mass = choose_jet(genJets.mass, 3, -999.0)
+                fourth_gen_jet_phi = choose_jet(genJets.phi, 3, -999.0)
+                fourth_gen_jet_hFlav = choose_jet(genJets.hadronFlavour, 3, -999.0)
+
+                had_jets = jets[ak.argsort(abs(jets.hFlav), ascending=False, axis=1)]
+                had_gen_jets = genJets[ak.argsort(abs(genJets.hadronFlavour), ascending=False, axis=1)]
+
+                first_had_jet_hadFlav = choose_jet(had_jets.hFlav, 0, -999.0)
+                first_had_gen_jet_hadFlav = choose_jet(had_gen_jets.hadronFlavour, 0, -999.0)
+
+                charmed_flag = (first_had_jet_hadFlav == 4)
+                bottom_flag = (first_had_jet_hadFlav == 5)
+                charmed_flag_gen = (first_had_gen_jet_hadFlav == 4)
+                bottom_flag_gen = (first_had_gen_jet_hadFlav == 5)
+            else:
+                first_gen_jet_pt = ak.ones_like(diphotons.pt) * -999.0
+                first_gen_jet_eta = ak.ones_like(diphotons.pt) * -999.0
+                first_gen_jet_mass = ak.ones_like(diphotons.pt) * -999.0
+                first_gen_jet_phi = ak.ones_like(diphotons.pt) * -999.0
+                first_gen_jet_hFlav = ak.ones_like(diphotons.pt) * -999.0
+                first_gen_jet_hFlav2 = ak.ones_like(diphotons.pt) * -999.0
+
+                second_gen_jet_pt = ak.ones_like(diphotons.pt) * -999.0
+                second_gen_jet_eta = ak.ones_like(diphotons.pt) * -999.0
+                second_gen_jet_mass = ak.ones_like(diphotons.pt) * -999.0
+                second_gen_jet_phi = ak.ones_like(diphotons.pt) * -999.0
+                second_gen_jet_hFlav = ak.ones_like(diphotons.pt) * -999.0
+
+                third_gen_jet_pt = ak.ones_like(diphotons.pt) * -999.0
+                third_gen_jet_eta = ak.ones_like(diphotons.pt) * -999.0
+                third_gen_jet_mass = ak.ones_like(diphotons.pt) * -999.0
+                third_gen_jet_phi = ak.ones_like(diphotons.pt) * -999.0
+                third_gen_jet_hFlav = ak.ones_like(diphotons.pt) * -999.0
+
+                fourth_gen_jet_pt = ak.ones_like(diphotons.pt) * -999.0
+                fourth_gen_jet_eta = ak.ones_like(diphotons.pt) * -999.0
+                fourth_gen_jet_mass = ak.ones_like(diphotons.pt) * -999.0
+                fourth_gen_jet_phi = ak.ones_like(diphotons.pt) * -999.0
+                fourth_gen_jet_hFlav = ak.ones_like(diphotons.pt) * -999.0
+
+                charmed_flag = ak.ones_like(diphotons.pt) * -999.0
+                bottom_flag = ak.ones_like(diphotons.pt) * -999.0
+                charmed_flag_gen = ak.ones_like(diphotons.pt) * -999.0
+                bottom_flag_gen = ak.ones_like(diphotons.pt) * -999.0
+
+            dipho_events["first_jet_jet_pn_b_plus_c"] = first_jet_jet_pn_b_plus_c
+            dipho_events["first_jet_jet_pn_b_vs_c"] = first_jet_jet_pn_b_vs_c
+            dipho_events["second_jet_jet_pn_b_plus_c"] = second_jet_jet_pn_b_plus_c
+            dipho_events["second_jet_jet_pn_b_vs_c"] = second_jet_jet_pn_b_vs_c
+            dipho_events["third_jet_jet_pn_b_plus_c"] = third_jet_jet_pn_b_plus_c
+            dipho_events["third_jet_jet_pn_b_vs_c"] = third_jet_jet_pn_b_vs_c
 
             diphotons["first_jet_pt"] = first_jet_pt
             diphotons["first_jet_eta"] = first_jet_eta
@@ -941,6 +1192,8 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons["second_jet_particleNetAK4_CvsL"] = second_jet_particleNetAK4_CvsL
             diphotons["second_jet_particleNetAK4_CvsB"] = second_jet_particleNetAK4_CvsB
             diphotons["second_jet_particleNetAK4_B"] = second_jet_particleNetAK4_B
+            diphotons["second_jet_jet_pn_b_plus_c"] = second_jet_jet_pn_b_plus_c
+            diphotons["second_jet_jet_pn_b_vs_c"] = second_jet_jet_pn_b_vs_c
             diphotons["second_jet_n_sv"] = second_jet_n_sv
 
             diphotons["second_pt_jet_pt"] = second_pt_jet_pt
@@ -960,28 +1213,65 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons["third_jet_mass"] = third_jet_mass
             diphotons["third_jet_charge"] = third_jet_charge
             diphotons["third_jet_hFlav"] = third_jet_hFlav
+            diphotons["third_jet_particleNetAK4_CvsL"] = third_jet_particleNetAK4_CvsL
+            diphotons["third_jet_particleNetAK4_CvsB"] = third_jet_particleNetAK4_CvsB
+            diphotons["third_jet_particleNetAK4_B"] = third_jet_particleNetAK4_B
+            diphotons["third_jet_jet_pn_b_plus_c"] = third_jet_jet_pn_b_plus_c
+            diphotons["third_jet_jet_pn_b_vs_c"] = third_jet_jet_pn_b_vs_c
 
-            diphotons["gen_first_jet_eta"] = gen_first_jet_eta
-            diphotons["gen_first_jet_mass"] = gen_first_jet_mass
-            diphotons["gen_first_jet_phi"] = gen_first_jet_phi
-            diphotons["gen_first_jet_hflav"] = gen_first_jet_hflav
+            diphotons["fourth_jet_pt"] = fourth_jet_pt
+            diphotons["fourth_jet_eta"] = fourth_jet_eta
+            diphotons["fourth_jet_phi"] = fourth_jet_phi
+            diphotons["fourth_jet_mass"] = fourth_jet_mass
+            diphotons["fourth_jet_charge"] = fourth_jet_charge
+            diphotons["fourth_jet_hFlav"] = fourth_jet_hFlav
+            diphotons["fourth_jet_particleNetAK4_CvsL"] = fourth_jet_particleNetAK4_CvsL
+            diphotons["fourth_jet_particleNetAK4_CvsB"] = fourth_jet_particleNetAK4_CvsB
+            diphotons["fourth_jet_particleNetAK4_B"] = fourth_jet_particleNetAK4_B
+            diphotons["fourth_jet_jet_pn_b_plus_c"] = fourth_jet_jet_pn_b_plus_c
+            diphotons["fourth_jet_jet_pn_b_vs_c"] = fourth_jet_jet_pn_b_vs_c
 
-            diphotons["first_sv_pt"] = first_sv_pt
-            diphotons["first_sv_eta"] = first_sv_eta
-            diphotons["first_sv_phi"] = first_sv_phi
-            diphotons["first_sv_mass"] = first_sv_mass
-            diphotons["first_sv_charge"] = first_sv_charge
-            diphotons["first_sv_dlen"] = first_sv_dlen
-            diphotons["first_sv_dlenSig"] = first_sv_dlenSig
-            diphotons["first_sv_dxy"] = first_sv_dxy
-            diphotons["first_sv_dxySig"] = first_sv_dxySig
-            diphotons["first_sv_pAngle"] = first_sv_pAngle
-            diphotons["first_sv_chi2"] = first_sv_chi2
-            diphotons["first_sv_x"] = first_sv_x
-            diphotons["first_sv_y"] = first_sv_y
-            diphotons["first_sv_z"] = first_sv_z
-            diphotons["first_sv_ndof"] = first_sv_ndof
-            diphotons["first_sv_ntracks"] = first_sv_ntracks
+            diphotons["first_gen_jet_pt"] = first_gen_jet_pt
+            diphotons["first_gen_jet_eta"] = first_gen_jet_eta
+            diphotons["first_gen_jet_mass"] = first_gen_jet_mass
+            diphotons["first_gen_jet_phi"] = first_gen_jet_phi
+            diphotons["first_gen_jet_hFlav"] = first_gen_jet_hFlav
+            diphotons["first_gen_jet_hFlav2"] = first_gen_jet_hFlav2
+
+            diphotons["second_gen_jet_pt"] = second_gen_jet_pt
+            diphotons["second_gen_jet_eta"] = second_gen_jet_eta
+            diphotons["second_gen_jet_mass"] = second_gen_jet_mass
+            diphotons["second_gen_jet_phi"] = second_gen_jet_phi
+            diphotons["second_gen_jet_hFlav"] = second_gen_jet_hFlav
+
+            diphotons["third_gen_jet_pt"] = third_gen_jet_pt
+            diphotons["third_gen_jet_eta"] = third_gen_jet_eta
+            diphotons["third_gen_jet_mass"] = third_gen_jet_mass
+            diphotons["third_gen_jet_phi"] = third_gen_jet_phi
+            diphotons["third_gen_jet_hFlav"] = third_gen_jet_hFlav
+
+            diphotons["fourth_gen_jet_pt"] = fourth_gen_jet_pt
+            diphotons["fourth_gen_jet_eta"] = fourth_gen_jet_eta
+            diphotons["fourth_gen_jet_mass"] = fourth_gen_jet_mass
+            diphotons["fourth_gen_jet_phi"] = fourth_gen_jet_phi
+            diphotons["fourth_gen_jet_hFlav"] = fourth_gen_jet_hFlav
+
+            # diphotons["first_sv_pt"] = first_sv_pt
+            # diphotons["first_sv_eta"] = first_sv_eta
+            # diphotons["first_sv_phi"] = first_sv_phi
+            # diphotons["first_sv_mass"] = first_sv_mass
+            # diphotons["first_sv_charge"] = first_sv_charge
+            # diphotons["first_sv_dlen"] = first_sv_dlen
+            # diphotons["first_sv_dlenSig"] = first_sv_dlenSig
+            # diphotons["first_sv_dxy"] = first_sv_dxy
+            # diphotons["first_sv_dxySig"] = first_sv_dxySig
+            # diphotons["first_sv_pAngle"] = first_sv_pAngle
+            # diphotons["first_sv_chi2"] = first_sv_chi2
+            # diphotons["first_sv_x"] = first_sv_x
+            # diphotons["first_sv_y"] = first_sv_y
+            # diphotons["first_sv_z"] = first_sv_z
+            # diphotons["first_sv_ndof"] = first_sv_ndof
+            # diphotons["first_sv_ntracks"] = first_sv_ntracks
 
             diphotons["first_muon_pt"] = first_muon_pt
             diphotons["first_muon_eta"] = first_muon_eta
@@ -998,6 +1288,22 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons["n_jets"] = n_jets
             diphotons["n_b_jets_medium"] = n_b_jets_medium
             diphotons["n_b_jets_loose"] = n_b_jets_loose
+            diphotons["n_c_had"] = charmed_had_num
+            diphotons["n_b_had"] = bottom_had_num
+            diphotons["charmed_flag"] = charmed_flag
+            diphotons["bottom_flag"] = bottom_flag
+            diphotons["charmed_flag_gen"] = charmed_flag_gen
+            diphotons["bottom_flag_gen"] = bottom_flag_gen
+
+            diphotons["n_ME_c_in"] = ME_in_charm_num
+            diphotons["n_ME_b_in"] = ME_in_bottom_num
+            diphotons["n_ME_l_in"] = ME_in_light_num
+            diphotons["n_ME_g_in"] = ME_in_gluon_num
+
+            diphotons["n_ME_c_out"] = ME_out_charm_num
+            diphotons["n_ME_b_out"] = ME_out_bottom_num
+            diphotons["n_ME_l_out"] = ME_out_light_num
+            diphotons["n_ME_g_out"] = ME_out_gluon_num
 
             diphotons["dijet_pt"] = dijet_pt
             diphotons["dijet_eta"] = dijet_eta
@@ -1072,9 +1378,9 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons["nTau"] = dipho_events.nTau if hasattr(dipho_events, "nTau") else ak.num(dipho_events.Tau)
             diphotons["nMuon"] = dipho_events.nMuon if hasattr(dipho_events, "nMuon") else ak.num(dipho_events.Muon)
             diphotons["nElectron"] = dipho_events.nElectron if hasattr(dipho_events, "nElectron") else ak.num(dipho_events.Electron)
-            diphotons["MET_pt"] = dipho_events.MET.pt
-            diphotons["MET_phi"] = dipho_events.MET.phi
-            diphotons["MET_sumEt"] = dipho_events.MET.sumEt
+            diphotons["MET_pt"] = dipho_events.PuppiMET.pt
+            diphotons["MET_phi"] = dipho_events.PuppiMET.phi
+            diphotons["MET_sumEt"] = dipho_events.PuppiMET.sumEt
             diphotons["MET_significance"] = dipho_events.MET.significance
 
             # SV info
@@ -1142,7 +1448,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons = diphotons[selection_mask]
             # return if there is no surviving events
             if len(diphotons) == 0:
-                logger.info("No surviving events in this run, return now!")
+                logger.debug("No surviving events in this run, return now!")
                 return histos_etc
             if self.data_kind == "mc":
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
@@ -1321,6 +1627,20 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                         "nPU",
                         "rho",
                         "n_jets",
+                        "n_c_had",
+                        "n_b_had",
+                        "n_ME_c_in",
+                        "n_ME_b_in",
+                        "n_ME_l_in",
+                        "n_ME_g_in",
+                        "n_ME_c_out",
+                        "n_ME_b_out",
+                        "n_ME_l_out",
+                        "n_ME_g_out",
+                        "charmed_flag",
+                        "bottom_flag",
+                        "charmed_flag_gen",
+                        "bottom_flag_gen",
                         "n_b_jets_loose",
                         "n_b_jets_medium",
                         "first_jet_pt",
@@ -1367,6 +1687,8 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                         "second_jet_particleNetAK4_CvsB",
                         "second_jet_particleNetAK4_B",
                         "second_jet_n_sv",
+                        "second_jet_jet_pn_b_plus_c",
+                        "second_jet_jet_pn_b_vs_c",
                         "second_pt_jet_pt",
                         "second_pt_jet_eta",
                         "second_pt_jet_phi",
@@ -1381,30 +1703,69 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                         "third_jet_phi",
                         "third_jet_mass",
                         "third_jet_hFlav",
-                        "DeltaPhi_gamma1_cjet",
-                        "DeltaPhi_gamma2_cjet",
-                        "ch_vs_ggh_bdt_score",
-                        "ch_vs_cb_bdt_score",
-                        "ggh_vs_hb_bdt_sig_score",
-                        "ggh_vs_hb_bdt_tth_score",
-                        "ggh_vs_hb_bdt_vh_score",
-                        "ggh_vs_hb_bdt_vbf_score",
-                        "first_sv_pt",
-                        "first_sv_eta",
-                        "first_sv_phi",
-                        "first_sv_mass",
-                        "first_sv_charge",
-                        "first_sv_dlen",
-                        "first_sv_dlenSig",
-                        "first_sv_dxy",
-                        "first_sv_dxySig",
-                        "first_sv_pAngle",
-                        "first_sv_chi2",
-                        "first_sv_x",
-                        "first_sv_y",
-                        "first_sv_z",
-                        "first_sv_ndof",
-                        "first_sv_ntracks",
+                        "third_jet_particleNetAK4_CvsL",
+                        "third_jet_particleNetAK4_CvsB",
+                        "third_jet_particleNetAK4_B",
+                        "third_jet_jet_pn_b_plus_c",
+                        "third_jet_jet_pn_b_vs_c",
+                        "fourth_jet_pt",
+                        "fourth_jet_eta",
+                        "fourth_jet_phi",
+                        "fourth_jet_mass",
+                        "fourth_jet_hFlav",
+                        "fourth_jet_particleNetAK4_CvsL",
+                        "fourth_jet_particleNetAK4_CvsB",
+                        "fourth_jet_particleNetAK4_B",
+                        "fourth_jet_jet_pn_b_plus_c",
+                        "fourth_jet_jet_pn_b_vs_c",
+                        "first_gen_jet_pt",
+                        "first_gen_jet_eta",
+                        "first_gen_jet_phi",
+                        "first_gen_jet_mass",
+                        "first_gen_jet_hFlav",
+                        "first_gen_jet_hFlav2",
+                        "second_gen_jet_pt",
+                        "second_gen_jet_eta",
+                        "second_gen_jet_phi",
+                        "second_gen_jet_mass",
+                        "second_gen_jet_hFlav",
+                        "third_gen_jet_pt",
+                        "third_gen_jet_eta",
+                        "third_gen_jet_phi",
+                        "third_gen_jet_mass",
+                        "third_gen_jet_hFlav",
+                        "fourth_gen_jet_pt",
+                        "fourth_gen_jet_eta",
+                        "fourth_gen_jet_phi",
+                        "fourth_gen_jet_mass",
+                        "fourth_gen_jet_hFlav",
+                        # "DeltaPhi_gamma1_cjet",
+                        # "DeltaPhi_gamma2_cjet",
+                        # "ch_vs_ggh_bdt_score",
+                        # "ch_vs_cb_bdt_score",
+                        # "ggh_vs_hb_bdt_sig_score",
+                        # "ggh_vs_hb_bdt_tth_score",
+                        # "ggh_vs_hb_bdt_vh_score",
+                        # "ggh_vs_hb_bdt_vbf_score",
+                        # "diph_bdt_sig_score",
+                        # "diph_bdt_fk_score",
+                        # "diph_bdt_ph_score",
+                        # "first_sv_pt",
+                        # "first_sv_eta",
+                        # "first_sv_phi",
+                        # "first_sv_mass",
+                        # "first_sv_charge",
+                        # "first_sv_dlen",
+                        # "first_sv_dlenSig",
+                        # "first_sv_dxy",
+                        # "first_sv_dxySig",
+                        # "first_sv_pAngle",
+                        # "first_sv_chi2",
+                        # "first_sv_x",
+                        # "first_sv_y",
+                        # "first_sv_z",
+                        # "first_sv_ndof",
+                        # "first_sv_ntracks",
                         "nTau",
                         "nMuon",
                         "nElectron",
@@ -1423,14 +1784,14 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                         "first_electron_mass",
                         "first_electron_charge",
                         "LeadPhoton_r9",
-                        "LeadPhoton_s4",
-                        "LeadPhoton_sieie",
-                        "LeadPhoton_sieip",
-                        "LeadPhoton_etaWidth",
-                        "LeadPhoton_phiWidth",
-                        "LeadPhoton_pfChargedIsoPFPV",
-                        "LeadPhoton_pfChargedIsoWorstVtx",
-                        "LeadPhoton_pfPhoIso03"
+                        # "LeadPhoton_s4",
+                        # "LeadPhoton_sieie",
+                        # "LeadPhoton_sieip",
+                        # "LeadPhoton_etaWidth",
+                        # "LeadPhoton_phiWidth",
+                        # "LeadPhoton_pfChargedIsoPFPV",
+                        # "LeadPhoton_pfChargedIsoWorstVtx",
+                        # "LeadPhoton_pfPhoIso03"
                     ]
                     for f in diphotons.fields:
                         if "weight" in f:
@@ -1460,6 +1821,16 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
     def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
         pass
 
+    def add_multiclass_diphoton_mva(
+        self, diphotons: ak.Array, events: ak.Array
+    ) -> ak.Array:
+        return calculate_multiclass_diphoton_mva(
+            self,
+            (self.multiclass_diphoton_mva, self.meta["HiggsDNA_DiPhotonMVA_multiclass"]["inputs"]),
+            diphotons,
+            events,
+        )
+
     def add_ch_vs_ggh_mva(
         self, diphotons: ak.Array, events: ak.Array
     ) -> ak.Array:
@@ -1488,4 +1859,5 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             (self.ggh_vs_hb_mva, self.meta["hpcMVA_ggh_vs_hb"]["inputs"]),
             diphotons,
             events,
+            self.year[self.dataset_name][0],
         )
