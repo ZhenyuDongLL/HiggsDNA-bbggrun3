@@ -1407,6 +1407,11 @@ def get_diphoton_id_mva_weights(logger, target_dir, use_xrdcp=False):
             "to": to_prefix,
             "type": "eos",
         },
+        "2022": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/diphoton_id_mva_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        },
     }
 
     fetch_file("DiphotonIDMVA", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
