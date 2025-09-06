@@ -42,7 +42,6 @@ dependencies = [
   "onnx",
   "onnxruntime",
   "pyarrow<21.0.0",
-  "fsspec-xrootd",
 ]
 
 [project.urls]

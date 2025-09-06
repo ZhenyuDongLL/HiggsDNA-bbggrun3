@@ -19,9 +19,6 @@ def EGM_Scale_Trad(pt, events, year="2022postEE", is_correction=True, restrictio
         if is_electron:
             logger.info("WARNING: there are only electrons scale corrections for the year strings [\"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"]! \n Exiting. \n")
             exit()
-        else:
-            object_type = ""
-            egm_object = events.Photon
 
     elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
         if is_electron:
@@ -77,7 +74,7 @@ def EGM_Scale_Trad(pt, events, year="2022postEE", is_correction=True, restrictio
         if hasattr(events, "GenPart"):
             raise ValueError("Scale corrections should only be applied to data!")
 
-        if year in ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]:
+        if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
             # the correction is already applied for Run 2
             logger.info("the scale correction for Run 2  MC is already applied in nAOD, nothing to be done")
         else:
@@ -143,13 +140,10 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
     Applies the photon smearing corrections and corresponding uncertainties (on MC!).
     JSON needs to be pulled first with scripts/pull_files.py
     """
-    if year in ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]:
+    if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
         if is_electron:
             logger.info("WARNING: there are only electrons smearing corrections for the year strings [\"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"]! \n Exiting. \n")
             exit()
-        else:
-            object_type = ""
-            egm_object = events.Photon
 
     elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
         if is_electron:
