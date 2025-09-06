@@ -625,37 +625,6 @@ def get_ctag_json(logger, target_dir, use_xrdcp=False):
     fetch_file("cTag", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
-def get_2D_HF_tag_json(logger, target_dir, use_xrdcp=False):
-    if target_dir is not None:
-        to_prefix = target_dir
-    else:
-        to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/cTagSF/")
-
-    from_to_dict = {
-        "2016preVFP": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/2D_HF_Tagging/flavTaggingSF_2016preVFP_UL.json.gz",
-            "to": f"{to_prefix}/2016/ctagging_2016preVFP.json.gz",
-            "type": "eos",
-        },
-        "2016postVFP": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/2D_HF_Tagging/flavTaggingSF_2016postVFP_UL.json.gz",
-            "to": f"{to_prefix}/2016/ctagging_2016postVFP.json.gz",
-            "type": "eos",
-        },
-        "2017": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/2D_HF_Tagging/flavTaggingSF_2017_UL.json.gz",
-            "to": f"{to_prefix}/2017/ctagging_2017.json.gz",
-            "type": "eos",
-        },
-        "2018": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2018/2D_HF_Tagging/flavTaggingSF_2018_UL.json.gz",
-            "to": f"{to_prefix}/2018/ctagging_2018.json.gz",
-            "type": "eos",
-        },
-    }
-    fetch_file("2D_HFTag", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
-
-
 def get_photonid_json(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
@@ -1575,7 +1544,6 @@ def main():
             "GoldenJSON",
             "cTag",
             "bTag",
-            "2D_HFTag",
             "PhotonID",
             "PU",
             "SS",
@@ -1701,8 +1669,6 @@ def main():
         get_Flow_files(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "cTag":
         get_ctag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
-    elif args.target == "2D_HFTag":
-        get_2D_HF_tag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "bTag":
         get_btag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PhotonID":

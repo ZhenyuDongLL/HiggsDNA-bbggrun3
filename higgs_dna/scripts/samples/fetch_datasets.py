@@ -14,13 +14,7 @@ xrootd_pfx = {
     "Eurasia": "root://xrootd-cms.infn.it/",
     "Yolo": "root://cms-xrd-global.cern.ch/",
 }
-def era_from_name(name: str) -> str:
-    """
-    Extract the era from the dataset short name.
-    Example:
-        "Run2023C_EGamma0_Jan_v1" -> "Run2023C"
-    """
-    return name.split("_", 1)[0]
+
 
 def get_fetcher_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -88,7 +82,7 @@ def get_dataset_dict_grid(fset: Iterable[Iterable[str]], xrd: str, dbs_instance:
     def fetch_dataset(name: str, dataset: str) -> (str, List[str]):
         logger.info(f"Fetching files for dataset '{name}': '{dataset}'")
         private_appendix = "" if not dataset.endswith("/USER") else " instance=prod/phys03"
-        cmd = f"/cvmfs/cms.cern.ch/common/dasgoclient -query=\"file dataset={dataset} instance={dbs_instance}\""
+        cmd = f"/cvmfs/cms.cern.ch/common/dasgoclient -query='instance={dbs_instance} file dataset={dataset}{private_appendix}'"
         logger.debug(f"Executing command: {cmd}")
         while True:
             try:
@@ -233,33 +227,17 @@ def main():
         logger.error("No files were collected. Exiting without creating JSON.")
         sys.exit(1)
 
-    # Merge files into top-level eras (Run2023C, Run2023D)
-    merged_by_era = {}
-    for dataset_name, files in fdict.items():
-
-        era = era_from_name(dataset_name) if "2023" in dataset_name else dataset_name
-        lst = merged_by_era.setdefault(era, [])
-        for f in files:
-            if f not in lst:
-                lst.append(f)
-
-    # Safety check: no files collected
-    if not merged_by_era:
-        logger.error("No files were collected. Exiting.")
-        sys.exit(1)
-
     # Define output JSON file path
     output_json = Path(args.input).with_suffix('.json')
 
-    # Write merged JSON to file
+    # Write the JSON data to the output file
     try:
         with open(output_json, 'w') as fp:
-            json.dump(merged_by_era, fp, indent=4)
-        logger.info(f"Successfully wrote merged JSON file '{output_json}'.")
+            json.dump(fdict, fp, indent=4)
+        logger.info(f"Successfully wrote data to JSON file '{output_json}'.")
     except Exception as e:
-        logger.error(f"Error writing JSON file '{output_json}': {e}")
+        logger.error(f"Error writing to JSON file '{output_json}': {e}")
         sys.exit(1)
-
 
 
 if __name__ == "__main__":
