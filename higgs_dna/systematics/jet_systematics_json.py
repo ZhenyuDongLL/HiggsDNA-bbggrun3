@@ -188,7 +188,7 @@ def jerc_jet(
         ),
         "2024": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2024_Winter24/" + jetType + "_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2024_Summer24/" + jetType + "_jerc" + pnetFlag + ".json.gz",
         ),
     }
     jec_version = {

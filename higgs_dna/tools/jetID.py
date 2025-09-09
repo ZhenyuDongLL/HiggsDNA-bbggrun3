@@ -59,7 +59,7 @@ def add_jetId(jets, nano_version, year, flattenUnflatten=False):
                 ),
                 "2024": os.path.join(
                     os.path.dirname(__file__),
-                    "../systematics/JSONs/POG/JME/2024_Winter24/jetid.json.gz",
+                    "../systematics/JSONs/POG/JME/2024_Summer24/jetid.json.gz",
                 ),
             }
 
