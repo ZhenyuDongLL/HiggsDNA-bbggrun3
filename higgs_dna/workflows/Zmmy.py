@@ -228,6 +228,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
 
         # select muons
         muons = events.Muon
+        muons["charge"] = events.Muon.charge
         good_muons = muons[select_muons_zmmy(self, muons)]
         dimuons = ak.combinations(good_muons, 2, fields=["lead", "sublead"])
         sel_dimuons = (
@@ -256,6 +257,24 @@ class ZmmyProcessor(HggSkeletonProcessor):
             logger.info("No surviving events in this run, return now!")
             return run_summary
 
+        events["Z_mmy"] = events.PV.z + 0.5 * (events["mmy"].dimuon.lead.dz + events["mmy"].dimuon.sublead.dz)
+        Zmmg_vertex_origin = ak.zip(
+            {"x": events.PV.x, "y": events.PV.y, "z": events["Z_mmy"]},
+            with_name="Vector3D",
+        )
+
+        mmy = events["mmy"]
+
+        # compute the new photon array (with its photon_eta_mmy field)
+        new_photons = add_photon_SC_eta(
+            mmy.photon,
+            Zmmg_vertex_origin,
+            IsZmmySCEta=True
+        )
+
+        # Stitch it back into the 'mmy' record
+        events["mmy"] = ak.with_field(mmy, new_photons, "photon")
+
         # fill ntuple
         if self.output_location is not None:
             ntuple = {}
@@ -271,6 +290,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
             ntuple["muon_near_eta"] = events.mmy.muon_near.eta
             ntuple["muon_near_phi"] = events.mmy.muon_near.phi
             ntuple["muon_near_mass"] = events.mmy.muon_near.mass
+            ntuple["muon_near_charge"] = events.mmy.muon_near.charge
             ntuple["muon_near_tunepRelPt"] = events.mmy.muon_near.tunepRelPt
             ntuple["muon_near_tunep_pt"] = (
                 events.mmy.muon_near.pt * events.mmy.muon_near.tunepRelPt
@@ -281,11 +301,14 @@ class ZmmyProcessor(HggSkeletonProcessor):
             ntuple["muon_far_eta"] = events.mmy.muon_far.eta
             ntuple["muon_far_phi"] = events.mmy.muon_far.phi
             ntuple["muon_far_mass"] = events.mmy.muon_far.mass
+            ntuple["muon_far_charge"] = events.mmy.muon_far.charge
             ntuple["muon_far_tunepRelPt"] = events.mmy.muon_far.tunepRelPt
             ntuple["muon_far_tunep_pt"] = (
                 events.mmy.muon_far.pt * events.mmy.muon_far.tunepRelPt
             )
             ntuple["muon_far_track_ptErr"] = events.mmy.muon_far.ptErr
+            ntuple["Z_mmy"] = events.Z_mmy
+            ntuple["eta_mmy"] = events.mmy.photon.photon_eta_mmy
             # photon
             ## get photon in mmy system
             photon_in_mmy = events.mmy.photon
