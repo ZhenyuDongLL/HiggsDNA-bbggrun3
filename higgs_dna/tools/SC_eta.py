@@ -2,14 +2,14 @@ import numpy as np
 import awkward as ak
 
 
-def add_photon_SC_eta(photons: ak.Array, PV: ak.Array) -> ak.Array:
+def add_photon_SC_eta(photons: ak.Array, PV: ak.Array, IsZmmySCEta=False) -> ak.Array:
     """
     Add supercluster eta to photon object, following the implementation from https://github.com/bartokm/GbbMET/blob/026dac6fde5a1d449b2cfcaef037f704e34d2678/analyzer/Analyzer.h#L2487
     In the current NanoAODv11, there is only the photon eta which is the SC eta corrected by the PV position.
     The SC eta is needed to correctly apply a number of corrections and systematics.
     """
 
-    if "superclusterEta" in photons.fields:
+    if "superclusterEta" in photons.fields and IsZmmySCEta is False:
         photons["ScEta"] = photons.superclusterEta
         return photons
 
@@ -64,6 +64,9 @@ def add_photon_SC_eta(photons: ak.Array, PV: ak.Array) -> ak.Array:
         np.tan(sctheta / 2)
     )
 
-    photons["ScEta"] = ScEta
+    if IsZmmySCEta:
+        photons["photon_ScEta_mmy"] = ScEta
+    else:
+        photons["ScEta"] = ScEta
 
     return photons
