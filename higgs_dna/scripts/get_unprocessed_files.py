@@ -11,7 +11,7 @@ import json
 import subprocess
 import os
 
-
+logger = setup_logger(level="INFO")
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
 # - This script creates a json file containing the unprocessed samples, based on a provided sample.json and parquet directory. ----------------------------------------------------#
 # - It can work with the DAS UUID naming convention or the Legacy one, where the UUID is contained in the ROOT file header. -------------------------------------------------------#
