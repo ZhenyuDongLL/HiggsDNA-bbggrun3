@@ -3,8 +3,8 @@ from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
-from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.photon_selections import photon_preselection
+from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTagMVACut
@@ -13,6 +13,7 @@ from higgs_dna.utils.dumping_utils import apply_naming_convention, diphoton_ak_a
 from higgs_dna.utils.misc_utils import choose_jet
 from higgs_dna.tools.flow_corrections import apply_flow_corrections_to_photons
 from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets
+from higgs_dna.tools.Frixione_helper import attach_frixione_isolation_flag_to_diphotons, attach_geninfo_to_photons
 
 from higgs_dna.systematics import object_systematics as available_object_systematics
 from higgs_dna.systematics import object_corrections as available_object_corrections
@@ -85,6 +86,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
         self.el_id_wp = "WP90"
         self.name_convention = "DAS"
+        self.min_mvaid = -0.9
         self.bjet_mva = "robustParticleTransformer"
 
     def process_extra(self, events: ak.Array) -> ak.Array:
@@ -97,6 +99,9 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
         print("\n \t INFO: running top processor. \n")
         dataset_name = events.metadata["dataset"]
+        add_frixione_info = False
+        if dataset_name.startswith(("TTG", "TTto","TGQB", "TJGG", "TBbarQ", "TbarBQ")):
+            add_frixione_info = True
 
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
@@ -342,6 +347,9 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             else:
                 photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
 
+            if (self.data_kind == "mc" and add_frixione_info == True):
+                photons = attach_geninfo_to_photons(self, photons)
+
             diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 
             # Apply the fiducial cut at detector level with helper function
@@ -540,6 +548,9 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                     diphotons[key] = value
 
             diphotons = ak.firsts(diphotons)
+            if (self.data_kind == "mc" and add_frixione_info == True):
+                diphotons = attach_frixione_isolation_flag_to_diphotons(self, events["GenPart"],photons,diphotons,frix_cones=[0.05])
+
             # set diphotons as part of the event record
             events[f"diphotons_{do_variation}"] = diphotons
             # annotate diphotons with event information
