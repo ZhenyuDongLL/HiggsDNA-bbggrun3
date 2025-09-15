@@ -4,7 +4,6 @@ import awkward as ak
 import pandas
 import os
 import pathlib
-import shutil
 import pyarrow.parquet as pq
 import pyarrow as pa
 import uproot
@@ -76,58 +75,23 @@ def dump_pandas(
     Dump a pandas dataframe to disk at location/'/'.join(subdirs)/fname.
     """
     subdirs = subdirs or []
-    xrd_prefix = "root://"
-    pfx_len = len(xrd_prefix)
-    xrootd = False
-    if xrd_prefix in location:
-        try:
-            import XRootD  # type: ignore
-            import XRootD.client  # type: ignore
 
-            xrootd = True
-        except ImportError as err:
-            raise ImportError(
-                "Install XRootD python bindings with: conda install -c conda-forge xroot"
-            ) from err
-    local_file = (
-        os.path.abspath(os.path.join(".", fname))
-        if xrootd
-        else os.path.join(".", fname)
-    )
-    merged_subdirs = "/".join(subdirs) if xrootd else os.path.sep.join(subdirs)
-    destination = (
-        location + merged_subdirs + f"/{fname}"
-        if xrootd
-        else os.path.join(location, os.path.join(merged_subdirs, fname))
-    )
-    if self.output_format == "parquet":
-        pddf.to_parquet(local_file)
+    merged_subdirs = "/".join(subdirs)
+    if merged_subdirs:
+        destination = f"{location.rstrip('/')}/{merged_subdirs}/{fname}"
     else:
-        uproot_file = uproot.recreate(local_file)
-        uproot_file["Event"] = pddf
-        uproot_file.close()
-    if xrootd:
-        copyproc = XRootD.client.CopyProcess()
-        copyproc.add_job(local_file, destination)
-        copyproc.prepare()
-        copyproc.run()
-        client = XRootD.client.FileSystem(
-            location[: location[pfx_len:].find("/") + pfx_len]
-        )
-        status = client.locate(
-            destination[destination[pfx_len:].find("/") + pfx_len + 1 :],
-            XRootD.client.flags.OpenFlags.READ,
-        )
-        assert status[0].ok
-        del client
-        del copyproc
-    else:
+        destination = f"{location.rstrip('/')}/{fname}"
+
+    if not destination.startswith("root://"):
         dirname = os.path.dirname(destination)
         if not os.path.exists(dirname):
             pathlib.Path(dirname).mkdir(parents=True, exist_ok=True)
-        shutil.copy(local_file, destination)
-        assert os.path.isfile(destination)
-    pathlib.Path(local_file).unlink()
+    if self.output_format == "parquet":
+        pddf.to_parquet(destination)
+    else:
+        uproot_file = uproot.recreate(destination)
+        uproot_file["Event"] = pddf
+        uproot_file.close()
 
 
 def diphoton_ak_array_fields(
@@ -186,64 +150,30 @@ def dump_ak_array(
     Dump an awkward array to disk at location/'/'.join(subdirs)/fname.
     """
     subdirs = subdirs or []
-    xrd_prefix = "root://"
-    pfx_len = len(xrd_prefix)
-    xrootd = False
-    if xrd_prefix in location:
-        try:
-            import XRootD  # type: ignore
-            import XRootD.client  # type: ignore
 
-            xrootd = True
-        except ImportError as err:
-            raise ImportError(
-                "Install XRootD python bindings with: conda install -c conda-forge xroot"
-            ) from err
-    local_file = (
-        os.path.abspath(os.path.join(".", fname))
-        if xrootd
-        else os.path.join(".", fname)
-    )
-    merged_subdirs = "/".join(subdirs) if xrootd else os.path.sep.join(subdirs)
-    destination = (
-        location + merged_subdirs + f"/{fname}"
-        if xrootd
-        else os.path.join(location, os.path.join(merged_subdirs, fname))
-    )
+    merged_subdirs = "/".join(subdirs)
+    if merged_subdirs:
+        destination = f"{location.rstrip('/')}/{merged_subdirs}/{fname}"
+    else:
+        destination = f"{location.rstrip('/')}/{fname}"
 
     pa_table = ak.to_arrow_table(akarr, extensionarray=False)
     # Ensure deterministic column ordering in output parquet files to fix reading issue
     col_names = sorted(pa_table.schema.names)
     pa_table = pa.table([pa_table.column(n) for n in col_names], names=col_names)
-    # If metadata is not None then write to pyarrow table
     if metadata:
         merged_metadata = {**metadata, **(pa_table.schema.metadata or {})}
         pa_table = pa_table.replace_schema_metadata(merged_metadata)
 
-    # Write pyarrow table to parquet file
-    pq.write_table(pa_table, local_file)
-
-    if xrootd:
-        copyproc = XRootD.client.CopyProcess()
-        copyproc.add_job(local_file, destination)
-        copyproc.prepare()
-        copyproc.run()
-        client = XRootD.client.FileSystem(
-            location[: location[pfx_len:].find("/") + pfx_len]
-        )
-        status = client.locate(
-            destination[destination[pfx_len:].find("/") + pfx_len + 1 :],
-            XRootD.client.flags.OpenFlags.READ,
-        )
-        assert status[0].ok
-        del client
-        del copyproc
+    if destination.startswith("root://"):
+        import fsspec
+        with fsspec.open(destination, 'wb') as f:
+            pq.write_table(pa_table, f)
     else:
         dirname = os.path.dirname(destination)
-        pathlib.Path(dirname).mkdir(parents=True, exist_ok=True)
-        shutil.copy(local_file, destination)
-        assert os.path.isfile(destination)
-    pathlib.Path(local_file).unlink()
+        if not os.path.exists(dirname):
+            pathlib.Path(dirname).mkdir(parents=True, exist_ok=True)
+        pq.write_table(pa_table, destination)
 
 
 def dress_branches(
