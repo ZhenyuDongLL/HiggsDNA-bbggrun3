@@ -285,7 +285,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                 histos_etc[dataset_name]["nPos"] - histos_etc[dataset_name]["nNeg"]
             )
             histos_etc[dataset_name]["genWeightSum"] = float(
-                ak.sum(events.genWeight)
+                numpy.sum(events.genWeight.to_numpy())
             )
         else:
             histos_etc[dataset_name]["nTot"] = int(len(events))
@@ -314,7 +314,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
         if self.data_kind == "mc":
             logger.info("processing MC dataset")
             # Add sum of gen weights before selection for normalisation in postprocessing
-            metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
+            metadata["sum_genw_presel"] = str(numpy.sum(events.genWeight.to_numpy()))
         else:
             logger.info("processing Data dataset")
             metadata["sum_genw_presel"] = "Data"
