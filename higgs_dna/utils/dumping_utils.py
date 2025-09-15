@@ -2,6 +2,7 @@ from typing import List, Optional
 
 import awkward as ak
 import pandas
+import copy
 import os
 import pathlib
 import shutil
@@ -314,7 +315,7 @@ def get_obj_syst_dict(obj_ak: ak.Array, var_new: Optional[List[str]] = ["pt"]):
     obj_syst_dict = {"nominal": obj_nom}
     for isyst in syst_list:
         for ivariation in replace_dict[isyst]:
-            obj_tmp = ak.copy(obj_nom)
+            obj_tmp = copy.copy(obj_nom)
             for ivariable in replace_dict[isyst][ivariation]:
                 obj_tmp[ivariable] = obj_ak[replace_dict[isyst][ivariation][ivariable]]
             obj_syst_dict.update({f"{isyst}_{ivariation}": obj_tmp})
