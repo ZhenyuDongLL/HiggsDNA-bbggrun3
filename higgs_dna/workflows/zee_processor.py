@@ -118,7 +118,7 @@ class ZeeProcessor(HggSkeletonProcessor):
                 histos_etc[dataset_name]["nPos"] - histos_etc[dataset_name]["nNeg"]
             )
             histos_etc[dataset_name]["genWeightSum"] = float(
-                ak.sum(events.genWeight)
+                numpy.sum(events.genWeight.to_numpy())
             )
         else:
             histos_etc[dataset_name]["nTot"] = int(len(events))
@@ -146,7 +146,7 @@ class ZeeProcessor(HggSkeletonProcessor):
 
         if self.data_kind == "mc":
             # Add sum of gen weights before selection for normalisation in postprocessing
-            metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
+            metadata["sum_genw_presel"] = str(numpy.sum(events.genWeight.to_numpy()))
         else:
             metadata["sum_genw_presel"] = "Data"
 

@@ -142,7 +142,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
             run_summary[dataset]["nEff"] = int(
                 run_summary[dataset]["nPos"] - run_summary[dataset]["nNeg"]
             )
-            run_summary[dataset]["genWeightSum"] = float(ak.sum(events.genWeight))
+            run_summary[dataset]["genWeightSum"] = float(np.sum(events.genWeight.to_numpy()))
         else:
             run_summary[dataset]["nTot"] = int(len(events))
             run_summary[dataset]["nPos"] = int(run_summary[dataset]["nTot"])
@@ -167,7 +167,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
 
         if self.data_kind == "mc":
             # Add sum of gen weights before selection for normalisation in postprocessing
-            metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
+            metadata["sum_genw_presel"] = str(np.sum(events.genWeight.to_numpy()))
         else:
             metadata["sum_genw_presel"] = "Data"
 

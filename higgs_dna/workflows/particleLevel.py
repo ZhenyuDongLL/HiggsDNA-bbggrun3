@@ -94,7 +94,7 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
                 histos_etc[dataset_name]["nPos"] - histos_etc[dataset_name]["nNeg"]
             )
             histos_etc[dataset_name]["genWeightSum"] = float(
-                ak.sum(events.genWeight)
+                numpy.sum(events.genWeight.to_numpy())
             )
         else:
             histos_etc[dataset_name]["nTot"] = int(len(events))
@@ -104,7 +104,7 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
             histos_etc[dataset_name]["genWeightSum"] = float(len(events))
 
         # Add sum of gen weights before selection for normalisation in postprocessing
-        metadata["sum_genw_presel"] = str(ak.sum(events.genWeight))
+        metadata["sum_genw_presel"] = str(numpy.sum(events.genWeight.to_numpy()))
 
         # read which systematics and corrections to process
         try:
