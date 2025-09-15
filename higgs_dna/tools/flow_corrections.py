@@ -236,7 +236,11 @@ class Make_iso_continuous:
         # Use a reproducible seed that only depends on the used data
         # This is to ensure that the random sampling is consistent when running the code again with same settings
         # We can call tensor[0] here since the tensor is always 1D (sliced single iso variable)
-        self.rng = np.random.default_rng(seed=abs(np.float32(tensor[0].item()).view("int32")))
+        if len(tensor) > 0:
+            seed = abs(np.float32(tensor[0].item()).view("int32"))
+        else:
+            seed = 42
+        self.rng = np.random.default_rng(seed=seed)
 
     # Shift the continous part of the continous distribution to (self.shift), and then sample values for the discontinous part
     def shift_and_sample(self, tensor):

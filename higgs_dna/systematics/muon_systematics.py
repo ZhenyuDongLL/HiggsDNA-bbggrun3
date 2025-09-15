@@ -21,7 +21,11 @@ def get_rndm(eta, nL, cset):
 
     # get random number following the CB
     # we need reproducible random numbers since in the systematics call, the previous correction needs to be cancelled out
-    rng = np.random.default_rng(seed=abs(np.float32(eta[0]).view("int32")))
+    if len(eta) > 0:
+        seed = abs(np.float32(eta[0]).view("int32"))
+    else:
+        seed = 42
+    rng = np.random.default_rng(seed=seed)
     rndm_f = rng.random(len(eta))
 
     # Avoid SciPy/coffea warnings by not constructing DSCB with invalid parameters.
