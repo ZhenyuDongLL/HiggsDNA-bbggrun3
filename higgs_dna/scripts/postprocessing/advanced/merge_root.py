@@ -142,6 +142,19 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
     # Load the piece into an Awkward Array
     table = dataset.read()
     eve = ak.from_arrow(table)
+    # ------------------------------------------------------------------
+    # Guarantee the counter branch for the ragged array "weight_LHEScale".
+    # Uproot expects the counter to be present **and** of type int32.
+    if "nweight_LHEScale" not in eve.fields:
+        logger.debug("nweight_LHEScale missing - creating with constant 9 (int32).")
+        # keep as plain NumPy to preserve native little‑endian dtype
+        eve["nweight_LHEScale"] = np.full(len(eve), 9, dtype=np.int32)
+    else:
+        # Cast to int32 to satisfy uproot's leaf‑list requirement; keep as NumPy array
+        logger.debug("nweight_LHEScale exists - casting to int32 for ROOT compatibility.")
+        # keep as plain NumPy to preserve native little‑endian dtype
+        eve["nweight_LHEScale"] = np.asarray(eve["nweight_LHEScale"], dtype=np.int32)
+    # ------------------------------------------------------------------
 
     # If MC then open the merged dataset and add normalised weight column (sumw = efficiency)
     # TODO: can we add column before writing table and prevent re-reading in as awkward array
@@ -188,13 +201,29 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
     logger.info("-" * 125)
     return renamed_dict
 
-def create_empty_tree(keys=["CMS_hgg_mass"]):
+def ensure_nweight_LHEScale(d):
+    """
+    Guarantee that the dictionary `d` contains the branch `nweight_LHEScale`.
+    If it is missing, a constant array with value 9 is inserted.
+    """
+    if "nweight_LHEScale" not in d:
+        some_key = next(iter(d))
+        arr_len  = len(d[some_key])
+        d["nweight_LHEScale"] = np.full(arr_len, 9, dtype=np.int32)
+    else:
+        d["nweight_LHEScale"] = np.asarray(d["nweight_LHEScale"], dtype=np.int32)
+    return d
+
+def create_empty_tree(keys=["CMS_hgg_mass", "nweight_LHEScale"]):
     """
     Create a dict with an empty awkward array for all expected keys.
     """
     empty_dict = {}
     for key in keys:
-        empty_dict[key] = ak.Array(np.array([], dtype=np.float64))
+        if key == "nweight_LHEScale":
+            empty_dict[key] = np.array([], dtype=np.int32)
+        else:
+            empty_dict[key] = np.array([], dtype=np.float64)
     return empty_dict
 
 def main():
@@ -500,6 +529,7 @@ def main():
                     split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
                     for i, current_dict in enumerate(split_nominal_dict):
+                        current_dict = ensure_nweight_LHEScale(current_dict)
                         logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
 
                         array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
@@ -539,6 +569,7 @@ def main():
                             split_dict = split_awkward_arrays_by_length(red_dict, logger, target_length=int(args.tbasket_length))
 
                             for i, current_dict in enumerate(split_dict):
+                                current_dict = ensure_nweight_LHEScale(current_dict)
                                 logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
 
                                 array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
@@ -563,6 +594,7 @@ def main():
                             split_dict = split_awkward_arrays_by_length(red_dict, logger, target_length=int(args.tbasket_length))
 
                             for i, current_dict in enumerate(split_dict):
+                                current_dict = ensure_nweight_LHEScale(current_dict)
                                 logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
 
                                 array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
@@ -592,20 +624,24 @@ def main():
                     split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
                     for i, current_dict in enumerate(split_nominal_dict):
+                        current_dict = ensure_nweight_LHEScale(current_dict)
                         logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
 
                         array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
                         logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                         if i == 0:
+                            current_dict = ensure_nweight_LHEScale(current_dict)
                             file[names[cat]] = current_dict
                         else:
+                            current_dict = ensure_nweight_LHEScale(current_dict)
                             file[names[cat]].extend(current_dict)
 
                     if notag: # this is wrong, to be fixed
                         split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
                         for i, current_dict in enumerate(split_nominal_dict):
+                            current_dict = ensure_nweight_LHEScale(current_dict)
                             logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
 
                             array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}

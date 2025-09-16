@@ -6,6 +6,7 @@ import awkward as ak
 import os
 import json
 import yaml
+import numpy as np
 from importlib import resources
 
 
@@ -25,6 +26,18 @@ def split_awkward_arrays_by_length(d, target_length=5000):
 
     return split_dicts
 
+def ensure_nweight_LHEScale(d):
+    """
+    Guarantee that the dictionary `d` contains the branch `nweight_LHEScale`.
+    If it is missing, a constant array with value 9 is inserted.
+    """
+    if "nweight_LHEScale" not in d:
+        some_key = next(iter(d))
+        arr_len  = len(d[some_key])
+        d["nweight_LHEScale"] = np.full(arr_len, 9, dtype=np.int32)
+    else:
+        d["nweight_LHEScale"] = np.asarray(d["nweight_LHEScale"], dtype=np.int32)
+    return d
 
 def main():
     parser = argparse.ArgumentParser(
@@ -191,6 +204,20 @@ def main():
                 )
 
                 eve = ak.from_parquet(var_path)
+                
+                # ------------------------------------------------------------------
+                # Guarantee the counter branch for the ragged array "weight_LHEScale".
+                # Uproot expects the counter to be present **and** of type int32.
+                if "nweight_LHEScale" not in eve.fields:
+                    logger.debug("nweight_LHEScale missing - creating with constant 9 (int32).")
+                    # keep as plain NumPy to preserve native little‑endian dtype
+                    eve["nweight_LHEScale"] = np.full(len(eve), 9, dtype=np.int32)
+                else:
+                    # Cast to int32 to satisfy uproot's leaf‑list requirement; keep as NumPy array
+                    logger.debug("nweight_LHEScale exists - casting to int32 for ROOT compatibility.")
+                    # keep as plain NumPy to preserve native little‑endian dtype
+                    eve["nweight_LHEScale"] = np.asarray(eve["nweight_LHEScale"], dtype=np.int32)
+                # ------------------------------------------------------------------
 
                 logger.info("Successfully read from parquet file with awkward.")
 
@@ -214,6 +241,20 @@ def main():
             )
 
             eve = ak.from_parquet(var_path)
+            
+            # ------------------------------------------------------------------
+            # Guarantee the counter branch for the ragged array "weight_LHEScale".
+            # Uproot expects the counter to be present **and** of type int32.
+            if "nweight_LHEScale" not in eve.fields:
+                logger.debug("nweight_LHEScale missing - creating with constant 9 (int32).")
+                # keep as plain NumPy to preserve native little‑endian dtype
+                eve["nweight_LHEScale"] = np.full(len(eve), 9, dtype=np.int32)
+            else:
+                # Cast to int32 to satisfy uproot's leaf‑list requirement; keep as NumPy array
+                logger.debug("nweight_LHEScale exists - casting to int32 for ROOT compatibility.")
+                # keep as plain NumPy to preserve native little‑endian dtype
+                eve["nweight_LHEScale"] = np.asarray(eve["nweight_LHEScale"], dtype=np.int32)
+            # ------------------------------------------------------------------
 
             logger.info("Successfully read from parquet file with awkward.")
 
@@ -301,8 +342,10 @@ def main():
                         # here I had to add a flattening step to help uproot with the type of the awkward arrays,
                         # if you don't flatten (event if you don't have a nested field) you end up having a type like (len_of_array) * ?type, which make uproot very mad apparently
                         df_dict["NOMINAL"][cat][branch] = ak.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
+                    df_dict["NOMINAL"][cat] = ensure_nweight_LHEScale(df_dict["NOMINAL"][cat])
                     file[names[cat]] = df_dict["NOMINAL"][cat]
                     if notag:
+                        df_dict["NOMINAL"][cat] = ensure_nweight_LHEScale(df_dict["NOMINAL"][cat])
                         file[name_notag] = df_dict["NOMINAL"][cat]  # this is wrong, to be fixed
                     for syst_name, weight, syst_, c in labels[cat]:
                         # Skip "NOMINAL" as information included in nominal tree
@@ -355,6 +398,7 @@ def main():
                     split_dict = split_awkward_arrays_by_length(df_dict[cat], target_length=int(args.tbasket_length))
 
                     for i, current_dict in enumerate(split_dict):
+                        current_dict = ensure_nweight_LHEScale(current_dict)
                         logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
 
                         array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
@@ -371,6 +415,7 @@ def main():
 
                         split_dict = split_awkward_arrays_by_length(df_dict[cat], target_length=int(args.tbasket_length))
                         for i, current_dict in enumerate(split_dict):
+                            current_dict = ensure_nweight_LHEScale(current_dict)
                             logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
 
                             array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
