@@ -276,10 +276,10 @@ def get_main_parser():
         help="Files per job to process (default: %(default)s). ",
     )
     parser.add_argument(
-        "--vlxp-do-cluster-per-sample",
-        type=bool,
-        default=True,
-        help="Whether to put all the jobs per sample into a single cluster. If False, one cluster per file is created. Defaults to True."
+        "--vlxp-dont-cluster-per-sample",
+        dest="vlxp_dont_cluster_per_sample",
+        action="store_true",
+        help="Disable clustering jobs per sample. Default: cluster per sample."
     )
     parser.add_argument(
         "--vlxp-max-materialize",
