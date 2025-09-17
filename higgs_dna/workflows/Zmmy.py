@@ -472,6 +472,10 @@ class ZmmyProcessor(HggSkeletonProcessor):
         photons["trkSumPtSolidConeDR04"] = ntuple["photon_trkSumPtSolidConeDR04"]
         photons["trkSumPtHollowConeDR03"] = ntuple["photon_trkSumPtHollowConeDR03"]
 
+        # Beamspot variables
+        ntuple["BeamSpot_sigmaZ"] = events.BeamSpot.sigmaZ
+        ntuple["BeamSpot_sigmaZError"] = events.BeamSpot.sigmaZError
+
         if self.data_kind == "mc":
             # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
             ntuple["dZ"] = events.GenVtx.z - events.PV.z

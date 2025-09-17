@@ -967,6 +967,9 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             # nPV just for validation of pileup reweighting
             diphotons["nPV"] = events.PV.npvs
             diphotons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll
+            # Beamspot variables
+            diphotons["BeamSpot_sigmaZ"] = events.BeamSpot.sigmaZ
+            diphotons["BeamSpot_sigmaZError"] = events.BeamSpot.sigmaZError
             # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
             if self.data_kind == "mc":
                 diphotons["genWeight"] = events.genWeight

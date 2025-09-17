@@ -239,6 +239,9 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
             # nPV just for validation of pileup reweighting
             photons["nPV"] = events.PV.npvs
             photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll
+            # Beamspot variables
+            photons["BeamSpot_sigmaZ"] = events.BeamSpot.sigmaZ
+            photons["BeamSpot_sigmaZError"] = events.BeamSpot.sigmaZError
 
             # TODO: HLT matching for data
 
