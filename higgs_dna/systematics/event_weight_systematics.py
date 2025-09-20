@@ -21,7 +21,7 @@ def SF_photon_ID(
     Take action yourself or contact us if you need those!
     """
     # era/year defined as parameter of the function
-    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
     if year not in avail_years:
         logger.warning(f"\n WARNING: only photon ID SFs for the year strings {avail_years} are already implemented! \n Exiting. \n")
         logger.warning("If you need the SFs for the central Egamma MVA ID for Run 2 UL, take action yourself or contact us!")
@@ -35,8 +35,12 @@ def SF_photon_ID(
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023preBPix/IDMVA0p19_2023PreBPiX.json")
     elif year == "2023postBPix":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023postBPix/IDMVA0p19_2023PostBPiX.json")
+    # preliminary 2024 results, has to be changed once the official SFs are available
+    elif year == "2024":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023postBPix/IDMVA0p19_2023PostBPiX.json")
 
-    if "2023" in year:
+
+    if "2023" in year or "2024" in year:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["IDMVA_SF"]
     else:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["PhotonIDMVA_SF"]
@@ -44,7 +48,7 @@ def SF_photon_ID(
     # In principle, we should use the fully correct formula https://indico.cern.ch/event/1360948/contributions/5783762/attachments/2788516/4870824/24_02_02_HIG-23-014_PreAppPres.pdf#page=7
     # However, if the SF is pt-binned, the approximation of the multiplication of the two SFs is fully exact
     # N.B. These phoID SFs are computed for the workin point optimised for the fiducial XS analysis (0.25 for 22, and 0.19 for 23)
-    if "2022" in year or "2023" in year:
+    if "2022" in year or "2023" in year or "2024" in year:
         if is_correction:
             # only calculate correction to nominal weight
             sf_lead = evaluator.evaluate(
@@ -278,7 +282,7 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
     if year not in avail_years:
         logger.warning(f"\n WARNING: only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
@@ -328,7 +332,7 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
-    elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
+    elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
         # presentation of the updated 2022 SF with dR>0.1: https://indico.cern.ch/event/1536748/contributions/6471184/attachments/3056856/5405041/202504_Zmmg_eveto_DRG0p1_ForEG_Updated.pdf
         if year == "2022preEE":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/preEE_CSEV_SFcorrections.json")
@@ -338,6 +342,9 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
         if year == "2023preBPix":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/preBPix_CSEV_SFcorrections.json")
         if year == "2023postBPix":
+            json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/postBPix_CSEV_SFcorrections.json")
+        # Preliminary 2024 results, has to be changed once the official SFs are available
+        if year == "2024":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/postBPix_CSEV_SFcorrections.json")
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["CSEV_SFs"]
 
@@ -389,7 +396,7 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
     if year not in avail_years:
         logger.warning(f"\n WARNING: only PreselSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
@@ -406,10 +413,13 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023preBPix/Preselection_2023PreBPix.json")
     elif year == "2023postBPix":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2023PostBPiX.json")
+    # For 2024 use 2023postBPix SFs for now. This is only a placeholder until 2024 SFs are available!
+    elif year == "2024":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2023PostBPiX.json")
 
     if year in ["2016", "2017", "2018"]:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["PreselSF"]
-    elif "2022" in year or "2023" in year:
+    elif "2022" in year or "2023" in year or "2024" in year:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["Preselection_SF"]
 
     if year in ["2016", "2017", "2018"]:
@@ -455,7 +465,7 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
     # In principle, we should use the fully correct formula https://indico.cern.ch/event/1360948/contributions/5783762/attachments/2788516/4870824/24_02_02_HIG-23-014_PreAppPres.pdf#page=7
     # However, if the SF is pt-binned, the approximation of the multiplication of the two SFs is fully exact
     # N.B. The preselection SFs for Run3 are without the loose photon ID cut
-    elif "2022" in year or "2023" in year:
+    elif "2022" in year or "2023" in year or "2024" in year:
         if is_correction:
             # only calculate correction to nominal weight
             sf_lead = evaluator.evaluate(
@@ -509,16 +519,21 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
     if year not in avail_years:
         logger.warning(f"\n WARNING: only TriggerSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
     elif "2016" in year:
         year = "2016"
 
-    if year in ["2016", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
-        json_file_lead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_lead_{year}.json")
-        json_file_sublead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_sublead_{year}.json")
+    if year in ["2016", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
+        if year == "2024":
+            # For 2024 use 2023postBPix SFs for now. This is only a placeholder until 2024 SFs are available!
+            json_file_lead = os.path.join(os.path.dirname(__file__), "JSONs/TriggerSF/2023postBPix/TriggerSF_lead_2023postBPix.json")
+            json_file_sublead = os.path.join(os.path.dirname(__file__), "JSONs/TriggerSF/2023postBPix/TriggerSF_sublead_2023postBPix.json")
+        else:
+            json_file_lead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_lead_{year}.json")
+            json_file_sublead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_sublead_{year}.json")
 
     evaluator_lead = correctionlib.CorrectionSet.from_file(json_file_lead)["TriggerSF"]
     evaluator_sublead = correctionlib.CorrectionSet.from_file(json_file_sublead)["TriggerSF"]
@@ -563,7 +578,7 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
-    elif "2022" or "2023" in year:
+    elif "2022" or "2023" in year or "2024" in year:
 
         # If flow corrections are applied, we use the raw (uncorrected) r9 for the trigger SF evaluation
         if hasattr(photons["pho_lead"], 'raw_r9'):
@@ -759,7 +774,7 @@ def PartonShower(photons, events, weights, dataset_name, **kwargs):
 
 
 def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", **kwargs):
-    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
     if year not in avail_years:
         print(f"\n WARNING: only scale corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
@@ -837,6 +852,14 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
             "systs": btag_systematics,
         },
         "2023postBPix":{
+            "file": os.path.join(
+                inputFilePath , "2023_Summer23BPix/btagging.json.gz"
+            ),
+            "method": ShapeSF_name,
+            "systs": btag_systematics,
+        },
+        # 2024 is still preliminary! Will be changed once official SFs are available
+        "2024":{
             "file": os.path.join(
                 inputFilePath , "2023_Summer23BPix/btagging.json.gz"
             ),

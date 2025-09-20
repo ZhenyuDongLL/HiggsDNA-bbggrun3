@@ -119,6 +119,10 @@ def jerc_jet(
     AK8=False,
     pnet="",
 ):
+    # preliminary, must be changed when corrections for 2024 are there
+    if year == "2024":
+        year = "2023postBPix"
+    
     # first, check if it's data or MC
     if era == "MC" and hasattr(events, "GenPart"):
         logger.debug(
