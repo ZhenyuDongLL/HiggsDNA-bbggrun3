@@ -3,7 +3,13 @@ import awkward as ak
 import correctionlib
 import os
 import sys
+from copy import deepcopy
 import logging
+import awkward as ak
+
+def _set_egm_object(events, name, obj):
+    # returns a NEW events array with the field replaced/added
+    return ak.with_field(events, obj, name)
 
 logger = logging.getLogger(__name__)
 
@@ -81,14 +87,13 @@ def EGM_Scale_Trad(pt, events, year="2022postEE", is_correction=True, restrictio
             correction = evaluator.evaluate("total_correction", gain, run, eta, r9, _pt)
             pt_corr = _pt * correction
 
-            corrected_egm_object = egm_object
+            corrected_egm_object = deepcopy(egm_object)
             pt_corr = ak.unflatten(pt_corr, counts)
             corrected_egm_object["pt"] = pt_corr
-
             if is_electron:
-                events["Electron"] = corrected_egm_object
+                events = _set_egm_object(events, "Electron", corrected_egm_object)
             else:
-                events["Photon"] = corrected_egm_object
+                events = _set_egm_object(events, "Photon", corrected_egm_object)
 
         return events
 
@@ -165,11 +170,7 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
     _pt = ak.flatten(egm_object.pt)
 
     # we need reproducible random numbers since in the systematics call, the previous correction needs to be cancelled out
-    if len(eta) > 0:
-        seed = abs(np.float32(eta[0]).view("int32"))
-    else:
-        seed = 42
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng(seed=125)
 
     if year == "2022preEE":
         path_json = os.path.join(os.path.dirname(__file__), f'JSONs/scaleAndSmearing/SS{object_type}_Rereco2022BCD.json')
@@ -202,7 +203,7 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
             rho = evaluator.evaluate("rho", eta, r9)
             smearing = rng.normal(loc=1., scale=rho)
             pt_corr = _pt * smearing
-            corrected_egm_object = egm_object
+            corrected_egm_object = deepcopy(egm_object)
             pt_corr = ak.unflatten(pt_corr, counts)
             rho_corr = ak.unflatten(rho, counts)
 
@@ -216,9 +217,9 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
             corrected_egm_object["rho_smear"] = rho_corr
 
             if is_electron:
-                events["Electron"] = corrected_egm_object
+                events = _set_egm_object(events, "Electron", corrected_egm_object)
             else:
-                events["Photon"] = corrected_egm_object
+                events = _set_egm_object(events, "Photon", corrected_egm_object)
         return events
 
     else:
@@ -264,12 +265,16 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
     JSONs need to be pulled first with scripts/pull_files.py.
     The IJazZ corrections are independent and detached from the Egamma corrections.
     """
+    use_mvaID = False
     if is_electron:
         object_type = "Ele"
         egm_object = events.Electron
     else:
         object_type = "Pho"
         egm_object = events.Photon
+        # adding mvaID dependence for 2024 https://indico.cern.ch/event/1499928/contributions/6503638/attachments/3067375/5426071/Hgg_250515_SaS2024.pdf
+        if year in ["2024"]:
+            use_mvaID = True
 
     # for later unflattening:
     counts = ak.num(egm_object.pt)
@@ -279,6 +284,9 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
     eta = ak.flatten(egm_object.ScEta)
     AbsScEta = abs(eta)
     r9 = ak.flatten(egm_object.r9)
+    # 2024 photon-SaS are derived as function of mvaID
+    if use_mvaID:
+        mvaID = ak.flatten(egm_object.mvaID)
     # scale uncertainties are applied on the smeared pt but computed from the raw pt
     pt_raw = ak.flatten(egm_object.pt_raw)
     _pt = ak.flatten(egm_object.pt)
@@ -295,13 +303,14 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
         "2022preEE": f"EGMScalesSmearing_{object_type}_2022preEE",
         "2022postEE": f"EGMScalesSmearing_{object_type}_2022postEE",
         "2023preBPix": f"EGMScalesSmearing_{object_type}_2023preBPIX",
-        "2023postBPix": f"EGMScalesSmearing_{object_type}_2023postBPIX"
+        "2023postBPix": f"EGMScalesSmearing_{object_type}_2023postBPIX",
+        "2024": f"EGMScalesSmearing_{object_type}_2024" + ("_mvaID" if use_mvaID else ""),
     }
 
     ending = ".v1.json"
 
     if year not in valid_years_paths:
-        logger.error("The correction for the selected year is not implemented yet! Valid year tags are [\"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"] \n Exiting. \n")
+        logger.error("The correction for the selected year is not implemented yet! Valid year tags are [\"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\", \"2024\"] \n Exiting. \n")
         sys.exit(1)
 
     else:
@@ -321,17 +330,19 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
         # scale is a residual correction on data to match MC calibration. Check if is MC, throw error in this case.
         if hasattr(events, "GenPart"):
             raise ValueError("Scale corrections should only be applied to data!")
-
-        correction = scale_evaluator.evaluate("scale", run, eta, r9, AbsScEta, pt_raw, gain)
+        if use_mvaID:
+            correction = scale_evaluator.evaluate("scale", run, eta, r9, AbsScEta, mvaID, pt_raw, gain)
+        else:
+            correction = scale_evaluator.evaluate("scale", run, eta, r9, AbsScEta, pt_raw, gain)
         pt_corr = pt_raw * correction
-        corrected_egm_object = egm_object
+        corrected_egm_object = deepcopy(egm_object)
         pt_corr = ak.unflatten(pt_corr, counts)
         corrected_egm_object["pt"] = pt_corr
 
         if is_electron:
-            events["Electron"] = corrected_egm_object
+            events = _set_egm_object(events, "Electron", corrected_egm_object)
         else:
-            events["Photon"] = corrected_egm_object
+            events = _set_egm_object(events, "Photon", corrected_egm_object)
         return events
 
     else:
@@ -344,13 +355,15 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
         corr_down_variation = smear_and_syst_evaluator.evaluate('scale_down', pt_raw, r9, AbsScEta)
 
         if restriction == "EB":
-            corr_up_variation[ak.to_numpy(ak.flatten(egm_object.isScEtaEE))] = 1.
-            corr_up_variation[ak.to_numpy(ak.flatten(egm_object.isScEtaEE))] = 1.
+            mask = ak.to_numpy(ak.flatten(egm_object.isScEtaEE))
+            corr_up_variation[mask] = 1.
+            corr_down_variation[mask] = 1.
         elif restriction == "EE":
-            corr_up_variation[ak.to_numpy(ak.flatten(egm_object.isScEtaEB))] = 1.
-            corr_up_variation[ak.to_numpy(ak.flatten(egm_object.isScEtaEB))] = 1.
+            mask = ak.to_numpy(ak.flatten(egm_object.isScEtaEB))
+            corr_up_variation[mask] = 1.
+            corr_down_variation[mask] = 1.
         elif restriction is not None:
-            logger.error("The restriction is not implemented yet! Valid options are [\"EB\", \"EE\"] \n Exiting. \n")
+            logger.error('The restriction is not implemented yet! Valid options are ["EB","EE"] \n Exiting. \n')
             sys.exit(1)
 
         # Coffea does the unflattenning step itself and sets this value as pt of the up/down variations
@@ -358,12 +371,32 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
         return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * _pt[:, None]
 
 
-def double_smearing(std_normal, std_flat, mu, sigma1, sigma2, frac):
-    # compute the two smearing scales from the gaussian draws
-    scales = np.array([1 + sigma1 * std_normal, mu * (1 + sigma2 * std_normal)])
-    # select the gaussian based on the relative fraction and the flat draw
-    binom = (std_flat > frac).astype(int)
-    return scales[binom, np.arange(len(mu))]
+def double_smearing(std_normal, std_flat, mu, sigma, sigma_scale, frac, old_convention=True):
+    """
+    Function to compute the double Gaussian smearing
+
+    Args:
+        std_normal (np.ndarray): Standard normal distribution
+        std_flat (np.ndarray): Standard flat distribution
+        mu (np.ndarray): Mean of the central Gaussian
+        sigma (np.ndarray): Sigma of the central Gaussian
+        sigma_scale (np.ndarray): Relative sigma of the tail Gaussian ie sigma_tail = sigma_scale * sigma_central
+        frac (np.ndarray): Fraction of the tail Gaussian
+    Returns:
+        np.ndarray: Smearing value
+    """
+    # Compute the two possible scale values
+    scale1 = 1 + sigma * std_normal
+    if old_convention:
+        # old convention use reso2 instead of sigma_scale
+        scale2 = mu * (1 + sigma_scale * std_normal)
+    else:
+        scale2 = mu * (1 + sigma_scale * sigma * std_normal)
+
+    # Compute binomial selection
+    binom = std_flat > frac
+
+    return np.where(binom, scale2, scale1)
 
 
 def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians="1G", is_electron=False):
@@ -371,13 +404,19 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
     Applies the photon smearing corrections and corresponding uncertainties (on MC!).
     JSON needs to be pulled first with scripts/pull_files.py
     """
-
+    use_mvaID = False
+    reso2_name = "reso2"
     if is_electron:
         object_type = "Ele"
         egm_object = events.Electron
     else:
         object_type = "Pho"
         egm_object = events.Photon
+        # adding mvaID dependence for 2024 https://indico.cern.ch/event/1499928/contributions/6503638/attachments/3067375/5426071/Hgg_250515_SaS2024.pdf
+        # change in the gaussian tail resolution convention
+        if year in ["2024"]:
+            use_mvaID = True
+            reso2_name = "reso_scale"
 
     # for later unflattening:
     counts = ak.num(egm_object.pt)
@@ -401,13 +440,14 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
         "2022preEE": f"EGMScalesSmearing_{object_type}_2022preEE",
         "2022postEE": f"EGMScalesSmearing_{object_type}_2022postEE",
         "2023preBPix": f"EGMScalesSmearing_{object_type}_2023preBPIX",
-        "2023postBPix": f"EGMScalesSmearing_{object_type}_2023postBPIX"
+        "2023postBPix": f"EGMScalesSmearing_{object_type}_2023postBPIX",
+        "2024": f"EGMScalesSmearing_{object_type}_2024" + ("_mvaID" if use_mvaID else ""),
     }
 
     ending = ".v1.json"
 
     if year not in valid_years_paths:
-        logger.error("The correction for the selected year is not implemented yet! Valid year tags are [\"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"] \n Exiting. \n")
+        logger.error("The correction for the selected year is not implemented yet! Valid year tags are [\"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\", \"2024\"] \n Exiting. \n")
         sys.exit(1)
 
     else:
@@ -445,13 +485,14 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
             random_generator.evaluate('stdflat', pt_raw, r9, AbsScEta, event_number),
             smear_and_syst_evaluator.evaluate('mu', pt_raw, r9, AbsScEta),
             smearing,
-            smear_and_syst_evaluator.evaluate('reso2', pt_raw, r9, AbsScEta),
-            smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta)
+            smear_and_syst_evaluator.evaluate(reso2_name, pt_raw, r9, AbsScEta),
+            smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta),
+            old_convention=not use_mvaID
         )
 
     if is_correction:
         pt_corr = pt_raw * correction
-        corrected_egm_object = egm_object
+        corrected_egm_object = deepcopy(egm_object)
         pt_corr = ak.unflatten(pt_corr, counts)
         # For the 2G case, also take the rho_corr from the 1G case as advised by Fabrice
         # Otherwise, the sigma_m/m will be lower on average, new CDFs will be needed etc. not worth the hassle
@@ -478,11 +519,11 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
 
         corrected_egm_object["rho_smear"] = rho_corr
 
+        corrected_egm_object["pt"] = pt_corr
         if is_electron:
-            events["Electron"] = corrected_egm_object
+            events = _set_egm_object(events, "Electron", corrected_egm_object)
         else:
-            events["Photon"] = corrected_egm_object
-
+            events = _set_egm_object(events, "Photon", corrected_egm_object)
         return events
 
     else:
@@ -498,8 +539,9 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
                 random_generator.evaluate('stdflat', pt_raw, r9, AbsScEta, event_number),
                 smear_and_syst_evaluator.evaluate('mu', pt_raw, r9, AbsScEta),
                 smear_and_syst_evaluator.evaluate('smear_up', pt_raw, r9, AbsScEta),
-                smear_and_syst_evaluator.evaluate('reso2', pt_raw, r9, AbsScEta),
-                smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta)
+                smear_and_syst_evaluator.evaluate(reso2_name, pt_raw, r9, AbsScEta),
+                smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta),
+                old_convention=not use_mvaID
             )
 
             corr_down_variation = double_smearing(
@@ -507,8 +549,9 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
                 random_generator.evaluate('stdflat', pt_raw, r9, AbsScEta, event_number),
                 smear_and_syst_evaluator.evaluate('mu', pt_raw, r9, AbsScEta),
                 smear_and_syst_evaluator.evaluate('smear_down', pt_raw, r9, AbsScEta),
-                smear_and_syst_evaluator.evaluate('reso2', pt_raw, r9, AbsScEta),
-                smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta)
+                smear_and_syst_evaluator.evaluate(reso2_name, pt_raw, r9, AbsScEta),
+                smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta),
+                old_convention=not use_mvaID
             )
 
         # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
