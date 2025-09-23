@@ -534,7 +534,7 @@ def get_eveto_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2023/preBPix_CSEV_SFcorrections.json",
             "type": "eos",
         },
-        "2022postBPix": {
+        "2023postBPix": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs/postBPix_CSEV_SFcorrections.json",
             "to": f"{to_prefix}/2023/postBPix_CSEV_SFcorrections.json",
             "type": "eos",
