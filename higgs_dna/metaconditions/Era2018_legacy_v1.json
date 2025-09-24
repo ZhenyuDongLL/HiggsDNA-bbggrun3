@@ -337,5 +337,22 @@
         "MVAweights_VsttH" : "flashgg/Taggers/data/TMVA_THQLeptonicTag_tHq_Vs_ttH_BDT.weights.xml",
         "MVAThreshold_VsAllBkg" : 0.08,
         "MVAThreshold_VsttH" : -0.06
+    }, 
+
+    "HPC_ctag_WPs": { 
+        "description": "HPC c-tagging working points for 2018, [wp_id, [b_plus_c_lo, b_plus_c_high], [b_vs_c_lo, b_vs_c_high]]",
+        "wps": [
+            [0, [0, 0.1], [0, 1]], 
+            [40, [0.1, 0.2], [0, 1]],
+            [41, [0.2, 0.5], [0, 1]],
+            [42, [0.5, 1], [0.15, 0.4]],
+            [43, [0.5, 1], [0.05, 0.15]],
+            [44, [0.5, 1], [0, 0.05]],
+            [50, [0.5, 1], [0.40, 0.70]],
+            [51, [0.5, 1], [0.70, 0.88]],
+            [52, [0.5, 1], [0.88, 0.96]],
+            [53, [0.5, 1], [0.96, 0.99]],
+            [54, [0.5, 1], [0.99, 1]]
+        ]   
     }
 }

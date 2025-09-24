@@ -36,7 +36,7 @@
     {
         "photonIdMVAweightfile_EB" : "XGB_Model_Barrel_SA_phoID_UL2017_woCorr.json",
         "photonIdMVAweightfile_EE" : "XGB_Model_Endcap_SA_phoID_UL2017_woCorr.json",
-        "inputs_EB":
+        "inputs_EB": 
         [
             "energyRaw",
             "r9",
@@ -159,14 +159,13 @@
 
     "HiggsDNA_DiPhotonMVA_old" :
     {
-        "weightFile" : ["weights071123_even.xgb", "weights071123_odd.xgb"],
+        "weightFile" : ["weights_DiphotonID_full_run2_250423_even.xgb", "weights_DiphotonID_full_run2_250423_odd.xgb"],
         "version" : "xgb",
         "inputs": [
             "sigmaMrv",
             "sigmaMwv",
             "PV_score",
-            "nPV",
-            "PV_chi2",
+            "vtxProb",
             "LeadPhoton_pt_mgg",
             "LeadPhoton_eta",
             "LeadPhoton_mvaID",
@@ -179,7 +178,28 @@
         ]
     },
 
-    "HiggsDNA_DiPhotonMVA" :
+    "HiggsDNA_DiPhotonMVA_multiclass" :
+    {
+        "weightFile" : ["weights_DiphotonID_full_run2_250423_multiclass_17_18_even.xgb", "weights_DiphotonID_full_run2_250423_multiclass_17_18_odd.xgb"],
+        "version" : "xgb",
+        "inputs": [
+            "sigmaMrv",
+            "sigmaMwv",
+            "PV_score",
+            "vtxProb",
+            "LeadPhoton_pt_mgg",
+            "LeadPhoton_eta",
+            "LeadPhoton_mvaID",
+            "SubleadPhoton_pt_mgg",
+            "SubleadPhoton_eta",
+            "SubleadPhoton_mvaID",
+            "Diphoton_cos_dPhi",
+            "dZ_1",
+            "dZ_2"
+        ]
+    },
+
+    "HiggsDNA_DiPhotonMVA_old" :
     {
         "weightFile" : ["weights_DiphotonID_full_run2_250110_even.xgb", "weights_DiphotonID_full_run2_250110_odd.xgb"],
         "version" : "xgb",
@@ -217,7 +237,7 @@
             "nJets_revised"
         ]
     },
-
+    
     "hpcMVA_ch_vs_cb" :
     {
         "weightFile" : ["ch_vs_cb_0_2017.h5", "ch_vs_cb_2_2017.h5"],
@@ -234,6 +254,102 @@
             "leadingJet_pt",
             "leadingJet_eta",
             "nJets_revised"
+        ]
+    },
+    
+    "hpcMVA_ggh_vs_hb_old" :
+    {
+        "weightFile" : ["weights_241219_full_MET_bjets_ssljet_dijet_multiclass_combined_17_18_even.xgb", "weights_241219_full_MET_bjets_ssljet_dijet_multiclass_combined_17_18_odd.xgb"],
+        "version" : "xgb",
+        "inputs": [
+            "pt",
+            "dijet_pt",
+            "dijet_eta",
+            "dijet_mass",
+            "LeadPhoton_pt_mgg",
+            "SubleadPhoton_pt_mgg",
+            "Diphoton_cos_dPhi",
+            "LeadPhoton_eta",
+            "SubleadPhoton_eta",
+            "eta",
+            "first_jet_pt",
+            "first_jet_mass",
+            "first_jet_eta",
+            "second_jet_pt",
+            "second_jet_mass",
+            "second_jet_eta",
+            "third_jet_pt",
+            "third_jet_mass",
+            "third_jet_eta",
+            "first_muon_pt",
+            "first_muon_eta",
+            "first_electron_pt",
+            "first_electron_eta",
+            "DeltaPhi_gamma1_cjet",
+            "DeltaPhi_gamma2_cjet",
+            "dEta_ljh",
+            "dEta_sljh",
+            "dEta_ljslj",
+            "dR_ljlp",
+            "lj_ptoM",
+            "MET_pt",
+            "MET_sumEt",
+            "MET_phi",
+            "MET_significance",
+            "nMuon",
+            "nTau",
+            "nElectron",
+            "n_jets",
+            "n_b_jets_medium",
+            "n_b_jets_loose"
+        ]
+    },
+
+    "hpcMVA_ggh_vs_hb" :
+    {
+        "weightFile" : ["weights_250430_MET_bjets_ssljet_dijet_multiclass_TH_2_2018_even.xgb", "weights_250430_MET_bjets_ssljet_dijet_multiclass_TH_2_2018_odd.xgb"],
+        "version" : "xgb",
+        "inputs": [
+            "pt",
+            "dijet_pt",
+            "dijet_eta",
+            "dijet_mass",
+            "LeadPhoton_pt_mgg",
+            "SubleadPhoton_pt_mgg",
+            "Diphoton_cos_dPhi",
+            "LeadPhoton_eta",
+            "SubleadPhoton_eta",
+            "eta",
+            "first_jet_pt",
+            "first_jet_mass",
+            "first_jet_eta",
+            "second_jet_pt",
+            "second_jet_mass",
+            "second_jet_eta",
+            "third_jet_pt",
+            "third_jet_mass",
+            "third_jet_eta",
+            "first_muon_pt",
+            "first_muon_eta",
+            "first_electron_pt",
+            "first_electron_eta",
+            "DeltaPhi_gamma1_cjet",
+            "DeltaPhi_gamma2_cjet",
+            "dEta_ljh",
+            "dEta_sljh",
+            "dEta_ljslj",
+            "dR_ljlp",
+            "lj_ptoM",
+            "MET_pt",
+            "MET_sumEt",
+            "MET_phi",
+            "MET_significance",
+            "nTau",
+            "n_jets",
+            "first_jet_wp",
+            "second_jet_wp",
+            "third_jet_wp",
+            "PV_score"
         ]
     },
 
