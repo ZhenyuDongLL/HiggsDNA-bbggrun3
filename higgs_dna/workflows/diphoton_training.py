@@ -499,10 +499,10 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                 jets = jets_dct[variation]
             do_variation = variation  # We can also simplify this a bit but for now it works
 
-            if self.chained_quantile is not None:
+            if self.chained_quantile is not None and self.data_kind == "mc":
                 photons = self.chained_quantile.apply(photons, events)
             # recompute photonid_mva on the fly
-            if self.photonid_mva_EB and self.photonid_mva_EE:
+            if (self.photonid_mva_EB and self.photonid_mva_EE and self.applyCQR) or (self.photonid_mva_EB and self.photonid_mva_EE and self.data_kind == "data"):
                 photons = self.add_photonid_mva(photons, events)
 
             # photon preselection
@@ -982,7 +982,8 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                         "SubleadPhoton_energy",
                         "Diphoton_cos_dPhi",
                         "sigmaMrv",
-                        # "sigmaMwv",
+                        "sigmaMwv",
+                        "vtxProb",
                         "PV_score",
                         # "PV_chi2",
                         "nPV",
