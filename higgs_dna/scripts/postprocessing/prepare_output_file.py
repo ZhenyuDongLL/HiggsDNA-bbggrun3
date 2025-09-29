@@ -371,7 +371,7 @@ def main():
 
 # Creating dirlist
     os.system(
-        f"find {folder_for_dirlist} -mindepth 1 -maxdepth 1 -type d | grep -v '^.$' | grep -v .coffea | grep -v '/merged$' | grep -v '/root$' |"
+        f"find {folder_for_dirlist} -mindepth 1 -maxdepth 1 -type d | grep -v '^.$' | grep -v .coffea | grep -vE '/[^/]*(merged|root)[^/]*$' |"
         + "awk -F'/' '{print $NF}' > dirlist.txt"
         )
     
