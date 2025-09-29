@@ -1593,18 +1593,6 @@ def main():
         help="directory to place the correction jsons, default: ../higgs-dna/systematics/JSONs",
     )
     parser.add_argument(
-        "--analysis",
-        type=str,
-        default="higgs-dna-test",
-        help="Name of the analysis you're perfoming, ideally it would match the output directory in which you're analysis parquet will end up, default: higgs-dna-test.",
-    )
-    parser.add_argument(
-        "--log-dir",
-        type=str,
-        default="./json-log/",
-        help="Log file summarising the json will end up here, default: ./json-log/",
-    )
-    parser.add_argument(
         "--use-xrdcp",
         action="store_true",
         help="Use xrdcp to copy the files, default: %(default)s",
@@ -1614,12 +1602,7 @@ def main():
     args = parser.parse_args()
 
     # log output
-    logfile = os.path.join(args.log_dir, f"{args.analysis}_jsons.log")
-    p = pathlib.Path(logfile)
-    p = pathlib.Path(*p.parts[:-1])  # remove file name
-    p.mkdir(parents=True, exist_ok=True)
-
-    logger = setup_logger(level=args.log, logfile=logfile)
+    logger = setup_logger(level=args.log)
 
     if args.all:
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
@@ -1734,5 +1717,5 @@ if __name__ == "__main__":
 # python pull_files.py --all
 # python pull_files.py --target GoldenJSON
 # python pull_files.py --target cTag
-# python pull_files.py --target GoldenJSON --target-dir ./test_json --log-dir ./json-log --analysis goldenjson_test
+# python pull_files.py --target GoldenJSON --target-dir ./test_json
 
