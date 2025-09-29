@@ -7,7 +7,6 @@ import urllib.request
 import pathlib
 import shutil
 import subprocess
-from distutils.dir_util import copy_tree
 import importlib.resources as resources
 
 resource_dir = resources.files("higgs_dna")
@@ -75,7 +74,7 @@ def copy_xrdcp(logger, target_name, ikey, from_path, to_path):
             # Copy everything
             res = subprocess.run(["xrdcp", "-r", "-f", "-s", fs + from_path, to_path])
 
-            # Emulate the copy_tree function for remote directories,
+            # Emulate the copytree function for remote directories,
             # but only flatten the directory we just xrdcp’d in.
             src_basename = os.path.basename(from_path.rstrip("/"))
             items = os.listdir(to_path)
@@ -173,7 +172,7 @@ def fetch_file(target_name, logger, from_to_dict, use_xrdcp=False, type="url"):
                         copy_xrdcp(logger, target_name, ikey, s, d)
                     else:
                         if os.path.isdir(s):
-                            copy_tree(s, d)
+                            shutil.copytree(s, d, dirs_exist_ok=True)
                         else:
                             shutil.copy(s, d)
                     logger.info(
