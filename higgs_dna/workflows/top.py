@@ -86,7 +86,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
         self.el_id_wp = "WP90"
         self.name_convention = "DAS"
-        self.min_mvaid = -0.9
+        self.min_mvaid = -0.7
         self.bjet_mva = "robustParticleTransformer"
 
     def process_extra(self, events: ak.Array) -> ak.Array:
@@ -100,8 +100,10 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         print("\n \t INFO: running top processor. \n")
         dataset_name = events.metadata["dataset"]
         add_frixione_info = False
-        if dataset_name.startswith(("TTG", "TTto","TGQB", "TJGG", "TBbarQ", "TbarBQ")):
+        if dataset_name.startswith(("TTG", "TTto", "TGQB", "TJGG", "TBbarQ", "TbarBQ")):
             add_frixione_info = True
+        if "sideband" in dataset_name.lower():
+            self.min_mvaid = -0.95
 
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
@@ -549,7 +551,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
             diphotons = ak.firsts(diphotons)
             if (self.data_kind == "mc" and add_frixione_info == True):
-                diphotons = attach_frixione_isolation_flag_to_diphotons(self, events["GenPart"],photons,diphotons,frix_cones=[0.05])
+                diphotons = attach_frixione_isolation_flag_to_diphotons(self, events["GenPart"], photons, diphotons, frix_cones=[0.05, 0.4])
 
             # set diphotons as part of the event record
             events[f"diphotons_{do_variation}"] = diphotons
@@ -722,6 +724,13 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             if not self.validate_with_electrons:
                 # select events within standard HGG mass window only, after all corrections & systematics were applied
                 diphotons = diphotons[(diphotons.mass > 100) & (diphotons.mass < 180)]
+            if "sideband" in dataset_name.lower():
+                # keep only events in the photon ID sideband: one photon passing, one failing
+                photon_IDs = ak.concatenate(
+                    [diphotons.pho_lead.mvaID[:, None], diphotons.pho_sublead.mvaID[:, None]],
+                    axis=1,
+                )
+                diphotons = diphotons[(ak.max(photon_IDs, axis=1) > -0.7) & (ak.min(photon_IDs, axis=1) < -0.7)]
 
             if self.output_location is not None:
                 if self.output_format == "root":
