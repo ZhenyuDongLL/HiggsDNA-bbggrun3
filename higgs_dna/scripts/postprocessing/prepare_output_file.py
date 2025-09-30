@@ -322,6 +322,7 @@ def main():
     (opt, args) = parser.parse_args()
 
     opt.output = os.path.realpath(opt.output)
+    opt.genBinning = os.path.realpath(opt.genBinning) if (opt.genBinning != "") else ""
 
     # Create output folder if it does not exist
     if not os.path.exists(opt.output):
