@@ -5,6 +5,7 @@ from scipy.interpolate import interp1d
 import correctionlib
 import awkward as ak
 from higgs_dna.utils.misc_utils import choose_jet
+from higgs_dna.utils.misc_utils import evaluate_ctag_wp
 from higgs_dna.tools.gen_helpers import get_genJets
 import logging
 import ast
@@ -1752,7 +1753,7 @@ def cTagSF(events, weights, is_correction=True, year="2017", **kwargs):
     ]
 
     events["n_jets"] = ak.num(events["sel_jets"])
-    max_n_jet = max(events["n_jets"])
+    max_n_jet = int(ak.max(events["n_jets"], mask_identity=False, initial=0))
 
     dummy_sf = ak.ones_like(events["event"])
 
@@ -1879,6 +1880,306 @@ def cTagSF(events, weights, is_correction=True, year="2017", **kwargs):
                         nth_jet_DeepFlavour_CvsB,
                     )
                 )
+
+                # and fill the places where we had dummies with ones
+                _sfup[i] = ak.where(
+                    masks[i],
+                    _sfup[i],
+                    dummy_sf,
+                )
+                _sfdown[i] = ak.where(
+                    masks[i],
+                    _sfdown[i],
+                    dummy_sf,
+                )
+            # here we multiply all the sf for different jets in the event
+            sfup = dummy_sf
+            sfdown = dummy_sf
+            for i in range(len(_sf)):
+                sfup = sfup * _sfup[i]
+                sfdown = sfdown * _sfdown[i]
+
+            variations[syst_name]["up"] = sfup
+            variations[syst_name]["down"] = sfdown
+
+        # coffea weights.add_multivariation() wants a list of arrays for the multiple up and down variations
+        sfs_up = [variations[syst_name]["up"] / sf for syst_name in ctag_systematics]
+        sfs_down = [
+            variations[syst_name]["down"] / sf for syst_name in ctag_systematics
+        ]
+
+        weights.add_multivariation(
+            name="cTagSF",
+            weight=dummy_sf,
+            modifierNames=ctag_systematics,
+            weightsUp=sfs_up,
+            weightsDown=sfs_down,
+            shift=False,
+        )
+
+    return weights
+
+
+def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=1000, **kwargs):
+    """
+    Add c-tagging reshaping SFs as from /https://github.com/higgs-charm/flashgg/blob/dev/cH_UL_Run2_withBDT/Systematics/scripts/applyCTagCorrections.py
+    BTV scale factor Wiki: https://btv-wiki.docs.cern.ch/ScaleFactors/
+    events must contain jet objects, moreover evaluation of SFs works by calculating the scale factors for all the jets in the event,
+    to do this in columnar style the only thing I could think of was to pad the jet collection to the max(n_jets) keep track of the "fake jets" introduced
+    by this procedure and fill these position wit 1s before actually setting the weights in the collection. If someone has better ideas I'm open for suggestions
+    """
+    logger.warning("Applying PNet c-tagging SFs")
+    # era/year defined as parameter of the function, only Run2 is implemented up to now
+    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018"]
+    if year not in avail_years:
+        print(f"\n WARNING: only cTagSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        exit()
+
+    ctag_systematics = [
+        'Stat',
+        'LHEScaleWeight_muF_ttbar',
+        'LHEScaleWeight_muF_wjets',
+        'LHEScaleWeight_muF_zjets',
+        'LHEScaleWeight_muR_ttbar',
+        'LHEScaleWeight_muR_wjets',
+        'LHEScaleWeight_muR_zjets',
+        'PSWeightISR_ttbar',
+        'PSWeightISR_wjets',
+        'PSWeightISR_zjets',
+        'PSWeightFSR_ttbar',
+        'PSWeightFSR_wjets',
+        'PSWeightFSR_zjets',
+        'XSec_WJets_c',
+        'XSec_WJets_b',
+        'XSec_ZJets_c',
+        'XSec_ZJets_b',
+        'JER',
+        'JES',
+        'PUWeight',
+        # 'PUJetID'
+    ]
+
+    # if self._opts['split_stat_unc']:
+    #     flavors = ['flavB', 'flavC', 'flavL']
+    #     tag_categories = ['C0', 'C1', 'C2', 'C3', 'C4', 'B0', 'B1', 'B2', 'B3', 'B4']
+    #     for flav in flavors:
+    #         for tag in tag_categories:
+    #             ctag_systematics.append(f'Stat_{flav}_{tag}')
+
+    ctag_correction_configs = {
+        "2016preVFP": {
+            "file": os.path.join(
+                os.path.dirname(__file__), "JSONs/cTagSF/2016/flavTaggingSF_2016preVFP_UL.json.gz"
+            ),
+            "method": "particleNetAK4_shape",
+            "systs": ctag_systematics,
+        },
+        "2016postVFP": {
+            "file": os.path.join(
+                os.path.dirname(__file__), "JSONs/cTagSF/2016/flavTaggingSF_2016postVFP_UL.json.gz"
+            ),
+            "method": "particleNetAK4_shape",
+            "systs": ctag_systematics,
+        },
+        "2017": {
+            "file": os.path.join(
+                os.path.dirname(__file__), "JSONs/cTagSF/2017/flavTaggingSF_2017_UL.json.gz"
+            ),
+            "method": "particleNetAK4_shape",
+            "systs": ctag_systematics,
+        },
+        "2018": {
+            "file": os.path.join(
+                os.path.dirname(__file__), "JSONs/cTagSF/2018/flavTaggingSF_2018_UL.json.gz"
+            ),
+            "method": "particleNetAK4_shape",
+            "systs": ctag_systematics,
+        },
+    }
+
+    jsonpog_file = os.path.join(
+        os.path.dirname(__file__), ctag_correction_configs[year]["file"]
+    )
+    evaluator = correctionlib.CorrectionSet.from_file(jsonpog_file)[
+        ctag_correction_configs[year]["method"]
+    ]
+
+    events["n_jets"] = ak.num(events["sel_jets"])
+    max_n_jet = int(ak.max(events["n_jets"], mask_identity=False, initial=0))
+    dummy_sf = ak.ones_like(events["event"])
+
+    if is_correction:
+        # only calculate correction to nominal weight
+        # we will append the scale factors relative to all jets to be multiplied
+        _sf = []
+        # we need a seres of masks to remember where there were no jets
+        masks = []
+        # to calculate the SFs we have to distinguish for different number of jets
+        for i in range(max_n_jet):
+            masks.append(events["n_jets"] > i)
+
+            # I select the nth jet column
+            nth_jet_hFlav = choose_jet(events["sel_jets"].hFlav, i, 0)
+            nth_jet_abs_eta = choose_jet(
+                abs(events["sel_jets"].eta), i, -999.
+            )
+            nth_jet_pt = choose_jet(
+                events["sel_jets"].pt, i, -999.
+            )
+
+            # attach ParticleNet scores
+            nth_jet_pn_b_plus_c = choose_jet(events["sel_jets"].pn_b_plus_c, i, -1)
+            nth_jet_pn_b_vs_c = choose_jet(events["sel_jets"].pn_b_vs_c, i, -1)
+
+            # evaluate the working point
+            # ParticleNetAK4 -- exclusive b- and c-tagging categories
+            # 5x: b-tagged; 4x: c-tagged;
+            # 0: light
+            wp = evaluate_ctag_wp(meta["HPC_ctag_WPs"]["wps"], nth_jet_pn_b_plus_c, nth_jet_pn_b_vs_c)
+
+            _sf.append(
+                evaluator.evaluate(
+                    "central",
+                    nth_jet_hFlav,
+                    wp,
+                    nth_jet_abs_eta,
+                    nth_jet_pt,
+                )
+            )
+
+            # and fill the places where we had dummies with ones
+            _sf[i] = ak.where(
+                masks[i],
+                _sf[i],
+                dummy_sf,
+            )
+
+        sfup, sfdown = None, None
+        # here we multiply all the sf for different jets in the event
+        sf = dummy_sf
+        for nth in _sf:
+            sf = sf * nth
+
+        sfs_up = [ak.values_astype(dummy_sf, np.float32) for _ in ctag_systematics]
+        sfs_down = [ak.values_astype(dummy_sf, np.float32) for _ in ctag_systematics]
+
+        weights.add_multivariation(
+            name="cTagSF_corr",
+            weight=sf,
+            modifierNames=ctag_systematics,
+            weightsUp=sfs_up,
+            weightsDown=sfs_down,
+        )
+
+    else:
+        # only calculate correction to nominal weight
+        # we will append the scale factors relative to all jets to be multiplied
+        _sf = []
+        # we need a seres of masks to remember where there were no jets
+        masks = []
+        # to calculate the SFs we have to distinguish for different number of jets
+        for i in range(max_n_jet):
+            masks.append(events["n_jets"] > i)
+
+            # I select the nth jet column
+            nth_jet_hFlav = choose_jet(events["sel_jets"].hFlav, i, 0)
+            nth_jet_abs_eta = choose_jet(
+                abs(events["sel_jets"].eta), i, -999.
+            )
+            nth_jet_pt = choose_jet(
+                events["sel_jets"].pt, i, -999.
+            )
+
+            # attach ParticleNet scores
+            nth_jet_pn_b_plus_c = choose_jet(events["sel_jets"].pn_b_plus_c, i, -1)
+            nth_jet_pn_b_vs_c = choose_jet(events["sel_jets"].pn_b_vs_c, i, -1)
+
+            # evaluate the working point
+            wp = evaluate_ctag_wp(meta["HPC_ctag_WPs"]["wps"], nth_jet_pn_b_plus_c, nth_jet_pn_b_vs_c)
+
+            _sf.append(
+                evaluator.evaluate(
+                    "central",
+                    nth_jet_hFlav,
+                    wp,
+                    nth_jet_abs_eta,
+                    nth_jet_pt,
+                )
+            )
+
+            # and fill the places where we had dummies with ones
+            _sf[i] = ak.where(
+                masks[i],
+                _sf[i],
+                dummy_sf,
+            )
+
+        # here we multiply all the sf for different jets in the event
+        sf = dummy_sf
+        for nth in _sf:
+            sf = sf * nth
+
+        variations = {}
+        for syst_name in ctag_correction_configs[year]["systs"]:
+            # we will append the scale factors relative to all jets to be multiplied
+            _sfup = []
+            _sfdown = []
+            variations[syst_name] = {}
+
+            for i in range(max_n_jet):
+                masks.append(events["n_jets"] > i)
+
+                # I select the nth jet column
+                nth_jet_hFlav = choose_jet(events["sel_jets"].hFlav, i, 0)
+                nth_jet_abs_eta = choose_jet(
+                    abs(events["sel_jets"].eta), i, -999.
+                )
+                nth_jet_pt = choose_jet(
+                    events["sel_jets"].pt, i, -999.
+                )
+
+                # attach ParticleNet scores
+                nth_jet_pn_b_plus_c = choose_jet(events["sel_jets"].pn_b_plus_c, i, -1)
+                nth_jet_pn_b_vs_c = choose_jet(events["sel_jets"].pn_b_vs_c, i, -1)
+
+                # evaluate the working point
+                wp = evaluate_ctag_wp(meta["HPC_ctag_WPs"]["wps"], nth_jet_pn_b_plus_c, nth_jet_pn_b_vs_c)
+
+                if "Stat" not in syst_name:
+                    _sfup.append(
+                        evaluator.evaluate(
+                            "up_" + syst_name,
+                            nth_jet_hFlav,
+                            wp,
+                            nth_jet_abs_eta,
+                            nth_jet_pt,
+                        )
+                    )
+
+                    _sfdown.append(
+                        evaluator.evaluate(
+                            "down_" + syst_name,
+                            nth_jet_hFlav,
+                            wp,
+                            nth_jet_abs_eta,
+                            nth_jet_pt,
+                        )
+                    )
+
+                else:
+                    sf_central = evaluator.evaluate("central", nth_jet_hFlav, wp, nth_jet_abs_eta, nth_jet_pt)
+                    sf_stat_up = evaluator.evaluate(f'up_{syst_name}', nth_jet_hFlav, wp, nth_jet_abs_eta, nth_jet_pt)
+                    sf_stat_dn = evaluator.evaluate(f'down_{syst_name}', nth_jet_hFlav, wp, nth_jet_abs_eta, nth_jet_pt)
+                    err = (np.abs(sf_stat_up - sf_central) + np.abs(sf_central - sf_stat_dn)) / 2
+                    np.random.seed(np.random.randint(0, 2**32))
+                    sf_toys = np.random.normal(sf_central[:, None], err[:, None], (len(nth_jet_hFlav), n_toys))
+
+                    # here
+                    wgt_toys = np.clip(sf_toys, 0.3, 3)
+                    wgt_stat_dn, wgt_stat_up = np.percentile(wgt_toys, q=[16, 84])
+
+                    _sfup.append(wgt_stat_up)
+                    _sfdown.append(wgt_stat_dn)
 
                 # and fill the places where we had dummies with ones
                 _sfup[i] = ak.where(
