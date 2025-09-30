@@ -76,10 +76,10 @@ def add_pnet_prob(
 
 
 def evaluate_ctag_wp(ctag_wps, nth_jet_pn_b_plus_c, nth_jet_pn_b_vs_c):
-    # ParticleNetAK4 -- exclusive b- and c-tagging categories
-    # 5x: b-tagged; 4x: c-tagged; 0: light
+    """ParticleNetAK4 -- exclusive b- and c-tagging categories
+    5x: b-tagged; 4x: c-tagged; 0: light
+    """
     wp = ak.zeros_like(nth_jet_pn_b_plus_c)
-
     for wp_cfg in ctag_wps:
         wp_ids = ak.ones_like(nth_jet_pn_b_plus_c) * wp_cfg[0]
         wp = ak.where(
