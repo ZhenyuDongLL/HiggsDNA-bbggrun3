@@ -1165,6 +1165,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                             weights=event_weights,
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
+                            meta=self.meta,
                         )
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
@@ -1217,6 +1218,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                                     weights=event_weights,
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],
+                                    meta=self.meta,
                                 )
 
                 diphotons["weight"] = event_weights.weight()
