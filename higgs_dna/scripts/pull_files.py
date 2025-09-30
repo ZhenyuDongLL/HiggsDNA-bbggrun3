@@ -870,8 +870,14 @@ def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/decorrelation_CDFs",
             "type": "eos",
         },
+        "2024": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/decorrelation_CDFs/",
+            "to": f"{to_prefix}/decorrelation_CDFs",
+            "type": "eos",
+        },
     }
     fetch_file("CDFs", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
 
 
 def get_Flow_files(logger, target_dir, use_xrdcp=False):

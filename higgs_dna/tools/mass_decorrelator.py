@@ -26,8 +26,10 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/nominal_sigma_m_postBPix_CDFs.pkl.gz')
         elif year == "2023preBPix":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/nominal_sigma_m_preBPix_CDFs.pkl.gz')
+        elif year == "2024":
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2024/sigma_m_nominal_2024_CDFs.pkl.gz')
         else:
-            print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix")
+            print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix, 2024")
             sys.exit(1)
         df["sigma_m_over_m"] = events.sigma_m_over_m.to_numpy()
 
@@ -40,8 +42,10 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_smeared_postBPix_CDFs.pkl.gz')
         elif year == "2023preBPix":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_smeared_preBPix_CDFs.pkl.gz')
+        elif year == "2024":
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2024/sigma_m_smeared_2024_CDFs.pkl.gz')
         else:
-            print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix")
+            print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix, 2024")
             sys.exit(1)
         df["sigma_m_over_m"] = events.sigma_m_over_m_Smeared.to_numpy()
 
@@ -54,8 +58,10 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_corr_postBPix_CDFs.pkl.gz')
         elif year == "2023preBPix":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_corr_preBPix_CDFs.pkl.gz')
+        elif year == "2024":
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2024/sigma_m_nominal_corr_2024_CDFs.pkl.gz')
         else:
-            print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix")
+            print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix, 2024")
             sys.exit(1)
         df["sigma_m_over_m"] = events.sigma_m_over_m_corr.to_numpy()
 
@@ -75,8 +81,10 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_smeared_corr_postBPix_CDFs.pkl.gz')
         elif year == "2023preBPix":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_smeared_corr_preBPix_CDFs.pkl.gz')
+        elif year == "2024":
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2024/sigma_m_smeared_corr_2024_CDFs.pkl.gz')
         else:
-            print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix")
+            print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix, 2024")
             sys.exit(1)
         df["sigma_m_over_m"] = events.sigma_m_over_m_Smeared_corr.to_numpy()
 
