@@ -420,7 +420,9 @@ weight_corrections = {
     "bTagFixedWP_robustParticleTransformerExtraTight": partial(bTagFixedWP, mva_name="robustParticleTransformer", wp="XT", is_correction=True),
     "bTagFixedWP_robustParticleTransformerExtraExtraTight": partial(bTagFixedWP, mva_name="robustParticleTransformer", wp="XXT", is_correction=True),
     "ParT_bTagShapeSF": partial(bTagShapeSF, ShapeSF_name="robustParticleTransformer_shape", is_correction=True),
-    "NNLOPS": partial(NNLOPS, is_correction=True),
+    "NNLOPS": partial(NNLOPS, is_correction=True),  # backwards compatible
+    "NNLOPS_amcatnlo": partial(NNLOPS, generator="mcatnlo", is_correction=True),
+    "NNLOPS_powheg": partial(NNLOPS, generator="powheg", is_correction=True),
     "Zpt": partial(Zpt, is_correction=True),
     "MuonIdMediumSF": partial(muonSFs, SF_name="NUM_MediumID_DEN_TrackerMuons", is_correction=True),
     "MuonIsoTightSF_IdMedium": partial(muonSFs, SF_name="NUM_TightPFIso_DEN_MediumID", is_correction=True),
