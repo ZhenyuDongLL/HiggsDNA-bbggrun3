@@ -858,6 +858,20 @@ def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
                    f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX2G.v1.json.gz"],
             "type": "eos",
         },
+        "2024": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/SandS_IJazZ/EGMScalesSmearing_Pho_2024_mvaID.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/SandS_IJazZ/EGMScalesSmearing_Pho_2024_mvaID2G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2024_mvaID.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Pho_2024_mvaID2G.v1.json.gz"],
+            "type": "eos",
+        },
+        "2024_Electrons": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/SandS_IJazZ_for_electrons/EGMScalesSmearing_Ele_2024.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/SandS_IJazZ_for_electrons/EGMScalesSmearing_Ele_20242G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2024.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Ele_20242G.v1.json.gz"],
+            "type": "eos",
+        },
        
     }
     fetch_file(
@@ -882,6 +896,11 @@ def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
         },
         "2023": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/decorrelation_CDFs/",
+            "to": f"{to_prefix}/decorrelation_CDFs",
+            "type": "eos",
+        },
+        "2024": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/decorrelation_CDFs/",
             "to": f"{to_prefix}/decorrelation_CDFs",
             "type": "eos",
         },
