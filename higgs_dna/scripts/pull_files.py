@@ -882,7 +882,6 @@ def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
     unzip_gz_with_gunzip(logger, to_prefix)
 
 
-
 def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
@@ -907,7 +906,6 @@ def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
         },
     }
     fetch_file("CDFs", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
-
 
 
 def get_Flow_files(logger, target_dir, use_xrdcp=False):
