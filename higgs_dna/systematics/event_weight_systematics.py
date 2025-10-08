@@ -40,7 +40,6 @@ def SF_photon_ID(
     elif year == "2024":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023postBPix/IDMVA0p19_2023PostBPiX.json")
 
-
     if "2023" in year or "2024" in year:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["IDMVA_SF"]
     else:
@@ -123,7 +122,6 @@ def Pileup(events, weights, year, is_correction=True, **kwargs):
     if is_correction:
         sf = evaluator.evaluate(events.Pileup.nTrueInt, "nominal")
         sfup, sfdown = None, None
-
     else:
         sf = np.ones(len(weights._weight))
         sf_nom = evaluator.evaluate(events.Pileup.nTrueInt, "nominal")
