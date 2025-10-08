@@ -153,6 +153,12 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
         sys.exit(1)
     elif "2016" in year:
         year = "2016"
+    # use Run 2 files also for Run 3, preliminary
+    elif "2022" or "2023" in year or "2024" in year:
+        logger.warning(f"""You selected the year_string {year}, which is a Run 3 era.
+                  ShowerShape was not rederived for Run 3 yet, but we fall back to the Run 2 2018 values.
+                  Please make sure that this is what you want. You have been warned.""")
+        year = "2018"
 
     jsonpog_file = os.path.join(os.path.dirname(__file__), f"JSONs/ShowerShape/{year}/ShowerShape_{year}.json")
     evaluator = correctionlib.CorrectionSet.from_file(jsonpog_file)["ShowerShape"]
