@@ -3,13 +3,7 @@ import awkward as ak
 import correctionlib
 import os
 import sys
-from copy import deepcopy
 import logging
-import awkward as ak
-
-def _set_egm_object(events, name, obj):
-    # returns a NEW events array with the field replaced/added
-    return ak.with_field(events, obj, name)
 
 logger = logging.getLogger(__name__)
 
@@ -90,13 +84,14 @@ def EGM_Scale_Trad(pt, events, year="2022postEE", is_correction=True, restrictio
             correction = evaluator.evaluate("total_correction", gain, run, eta, r9, _pt)
             pt_corr = _pt * correction
 
-            corrected_egm_object = deepcopy(egm_object)
+            corrected_egm_object = egm_object
             pt_corr = ak.unflatten(pt_corr, counts)
             corrected_egm_object["pt"] = pt_corr
+
             if is_electron:
-                events = _set_egm_object(events, "Electron", corrected_egm_object)
+                events["Electron"] = corrected_egm_object
             else:
-                events = _set_egm_object(events, "Photon", corrected_egm_object)
+                events["Photon"] = corrected_egm_object
 
         return events
 
@@ -176,7 +171,11 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
     _pt = ak.flatten(egm_object.pt)
 
     # we need reproducible random numbers since in the systematics call, the previous correction needs to be cancelled out
-    rng = np.random.default_rng(seed=125)
+    if len(eta) > 0:
+        seed = abs(np.float32(eta[0]).view("int32"))
+    else:
+        seed = 42
+    rng = np.random.default_rng(seed=seed)
 
     if year == "2022preEE":
         path_json = os.path.join(os.path.dirname(__file__), f'JSONs/scaleAndSmearing/SS{object_type}_Rereco2022BCD.json')
@@ -209,7 +208,7 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
             rho = evaluator.evaluate("rho", eta, r9)
             smearing = rng.normal(loc=1., scale=rho)
             pt_corr = _pt * smearing
-            corrected_egm_object = deepcopy(egm_object)
+            corrected_egm_object = egm_object
             pt_corr = ak.unflatten(pt_corr, counts)
             rho_corr = ak.unflatten(rho, counts)
 
@@ -223,9 +222,9 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
             corrected_egm_object["rho_smear"] = rho_corr
 
             if is_electron:
-                events = _set_egm_object(events, "Electron", corrected_egm_object)
+                events["Electron"] = corrected_egm_object
             else:
-                events = _set_egm_object(events, "Photon", corrected_egm_object)
+                events["Photon"] = corrected_egm_object
         return events
 
     else:
@@ -344,14 +343,14 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
         else:
             correction = scale_evaluator.evaluate("scale", run, eta, r9, AbsScEta, pt_raw, gain)
         pt_corr = pt_raw * correction
-        corrected_egm_object = deepcopy(egm_object)
+        corrected_egm_object = egm_object
         pt_corr = ak.unflatten(pt_corr, counts)
         corrected_egm_object["pt"] = pt_corr
 
         if is_electron:
-            events = _set_egm_object(events, "Electron", corrected_egm_object)
+            events["Electron"] = corrected_egm_object
         else:
-            events = _set_egm_object(events, "Photon", corrected_egm_object)
+            events["Photon"] = corrected_egm_object
         return events
 
     else:
@@ -374,7 +373,7 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
             corr_up_variation[isEB_mask] = 1.0
             corr_down_variation[isEB_mask] = 1.0
         elif restriction is not None:
-            logger.error('The restriction is not implemented yet! Valid options are ["EB","EE"] \n Exiting. \n')
+            logger.error("The restriction is not implemented yet! Valid options are [\"EB\", \"EE\"] \n Exiting. \n")
             sys.exit(1)
 
         # Increasing uncertainties (by a factor 3) for 2024 in the high endcap region (|eta|>2.1) due to non-closure
@@ -512,7 +511,7 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
 
     if is_correction:
         pt_corr = pt_raw * correction
-        corrected_egm_object = deepcopy(egm_object)
+        corrected_egm_object = egm_object
         pt_corr = ak.unflatten(pt_corr, counts)
         # For the 2G case, also take the rho_corr from the 1G case as advised by Fabrice
         # Otherwise, the sigma_m/m will be lower on average, new CDFs will be needed etc. not worth the hassle
@@ -539,11 +538,11 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
 
         corrected_egm_object["rho_smear"] = rho_corr
 
-        corrected_egm_object["pt"] = pt_corr
         if is_electron:
-            events = _set_egm_object(events, "Electron", corrected_egm_object)
+            events["Electron"] = corrected_egm_object
         else:
-            events = _set_egm_object(events, "Photon", corrected_egm_object)
+            events["Photon"] = corrected_egm_object
+
         return events
 
     else:
