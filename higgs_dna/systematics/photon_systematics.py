@@ -82,7 +82,7 @@ def FNUF(pt, events, year="2017", is_correction=True):
 
     # for later unflattening:
     counts = ak.num(events.Photon.pt)
-    eta = ak.flatten(events.Photon.ScEta)
+    eta = ak.flatten(abs(events.Photon.ScEta))
     r9 = ak.flatten(events.Photon.r9)
     _pt = ak.flatten(events.Photon.pt)
 

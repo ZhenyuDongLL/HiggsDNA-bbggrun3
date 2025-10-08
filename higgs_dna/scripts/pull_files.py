@@ -7,7 +7,6 @@ import urllib.request
 import pathlib
 import shutil
 import subprocess
-from distutils.dir_util import copy_tree
 import importlib.resources as resources
 
 resource_dir = resources.files("higgs_dna")
@@ -75,7 +74,7 @@ def copy_xrdcp(logger, target_name, ikey, from_path, to_path):
             # Copy everything
             res = subprocess.run(["xrdcp", "-r", "-f", "-s", fs + from_path, to_path])
 
-            # Emulate the copy_tree function for remote directories,
+            # Emulate the copytree function for remote directories,
             # but only flatten the directory we just xrdcp’d in.
             src_basename = os.path.basename(from_path.rstrip("/"))
             items = os.listdir(to_path)
@@ -173,7 +172,7 @@ def fetch_file(target_name, logger, from_to_dict, use_xrdcp=False, type="url"):
                         copy_xrdcp(logger, target_name, ikey, s, d)
                     else:
                         if os.path.isdir(s):
-                            copy_tree(s, d)
+                            shutil.copytree(s, d, dirs_exist_ok=True)
                         else:
                             shutil.copy(s, d)
                     logger.info(
@@ -534,7 +533,7 @@ def get_eveto_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2023/preBPix_CSEV_SFcorrections.json",
             "type": "eos",
         },
-        "2022postBPix": {
+        "2023postBPix": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs/postBPix_CSEV_SFcorrections.json",
             "to": f"{to_prefix}/2023/postBPix_CSEV_SFcorrections.json",
             "type": "eos",
@@ -623,6 +622,37 @@ def get_ctag_json(logger, target_dir, use_xrdcp=False):
         },
     }
     fetch_file("cTag", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
+def get_2D_HF_tag_json(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/cTagSF/")
+
+    from_to_dict = {
+        "2016preVFP": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/2D_HF_Tagging/flavTaggingSF_2016preVFP_UL.json.gz",
+            "to": f"{to_prefix}/2016/ctagging_2016preVFP.json.gz",
+            "type": "eos",
+        },
+        "2016postVFP": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/2D_HF_Tagging/flavTaggingSF_2016postVFP_UL.json.gz",
+            "to": f"{to_prefix}/2016/ctagging_2016postVFP.json.gz",
+            "type": "eos",
+        },
+        "2017": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/2D_HF_Tagging/flavTaggingSF_2017_UL.json.gz",
+            "to": f"{to_prefix}/2017/ctagging_2017.json.gz",
+            "type": "eos",
+        },
+        "2018": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2018/2D_HF_Tagging/flavTaggingSF_2018_UL.json.gz",
+            "to": f"{to_prefix}/2018/ctagging_2018.json.gz",
+            "type": "eos",
+        },
+    }
+    fetch_file("2D_HFTag", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
 def get_photonid_json(logger, target_dir, use_xrdcp=False):
@@ -1565,6 +1595,7 @@ def main():
             "GoldenJSON",
             "cTag",
             "bTag",
+            "2D_HFTag",
             "PhotonID",
             "PU",
             "SS",
@@ -1615,18 +1646,6 @@ def main():
         help="directory to place the correction jsons, default: ../higgs-dna/systematics/JSONs",
     )
     parser.add_argument(
-        "--analysis",
-        type=str,
-        default="higgs-dna-test",
-        help="Name of the analysis you're perfoming, ideally it would match the output directory in which you're analysis parquet will end up, default: higgs-dna-test.",
-    )
-    parser.add_argument(
-        "--log-dir",
-        type=str,
-        default="./json-log/",
-        help="Log file summarising the json will end up here, default: ./json-log/",
-    )
-    parser.add_argument(
         "--use-xrdcp",
         action="store_true",
         help="Use xrdcp to copy the files, default: %(default)s",
@@ -1636,12 +1655,7 @@ def main():
     args = parser.parse_args()
 
     # log output
-    logfile = os.path.join(args.log_dir, f"{args.analysis}_jsons.log")
-    p = pathlib.Path(logfile)
-    p = pathlib.Path(*p.parts[:-1])  # remove file name
-    p.mkdir(parents=True, exist_ok=True)
-
-    logger = setup_logger(level=args.log, logfile=logfile)
+    logger = setup_logger(level=args.log)
 
     if args.all:
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
@@ -1690,6 +1704,8 @@ def main():
         get_Flow_files(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "cTag":
         get_ctag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "2D_HFTag":
+        get_2D_HF_tag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "bTag":
         get_btag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PhotonID":
@@ -1756,5 +1772,5 @@ if __name__ == "__main__":
 # python pull_files.py --all
 # python pull_files.py --target GoldenJSON
 # python pull_files.py --target cTag
-# python pull_files.py --target GoldenJSON --target-dir ./test_json --log-dir ./json-log --analysis goldenjson_test
+# python pull_files.py --target GoldenJSON --target-dir ./test_json
 

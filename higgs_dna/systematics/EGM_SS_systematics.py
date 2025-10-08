@@ -21,10 +21,13 @@ def EGM_Scale_Trad(pt, events, year="2022postEE", is_correction=True, restrictio
     Applies the photon pt scale corrections (use on data!) and corresponding uncertainties (on MC!).
     JSONs need to be pulled first with scripts/pull_files.py
     """
-    if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
+    if year in ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]:
         if is_electron:
             logger.info("WARNING: there are only electrons scale corrections for the year strings [\"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"]! \n Exiting. \n")
             exit()
+        else:
+            object_type = ""
+            egm_object = events.Photon
 
     elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
         if is_electron:
@@ -80,7 +83,7 @@ def EGM_Scale_Trad(pt, events, year="2022postEE", is_correction=True, restrictio
         if hasattr(events, "GenPart"):
             raise ValueError("Scale corrections should only be applied to data!")
 
-        if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
+        if year in ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]:
             # the correction is already applied for Run 2
             logger.info("the scale correction for Run 2  MC is already applied in nAOD, nothing to be done")
         else:
@@ -145,10 +148,13 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
     Applies the photon smearing corrections and corresponding uncertainties (on MC!).
     JSON needs to be pulled first with scripts/pull_files.py
     """
-    if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
+    if year in ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]:
         if is_electron:
             logger.info("WARNING: there are only electrons smearing corrections for the year strings [\"2022preEE\", \"2022postEE\", \"2023preBPix\", \"2023postBPix\"]! \n Exiting. \n")
             exit()
+        else:
+            object_type = ""
+            egm_object = events.Photon
 
     elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
         if is_electron:
@@ -264,6 +270,9 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
     Applies the IJazZ photon pt scale corrections (use on data!) and corresponding uncertainties (on MC!).
     JSONs need to be pulled first with scripts/pull_files.py.
     The IJazZ corrections are independent and detached from the Egamma corrections.
+
+    Due to remaining non-closure for photons with abs(eta) > 2.1 uncertainties were increased in this regions. (2x smear and 3x scale)
+    This is just a preliminary solution while the non-closure is being further investigated.
     """
     use_mvaID = False
     if is_electron:
@@ -351,20 +360,28 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
         if not hasattr(events, "GenPart"):
             raise ValueError("Scale uncertainties should only be applied to MC!")
 
-        corr_up_variation = smear_and_syst_evaluator.evaluate('scale_up', pt_raw, r9, AbsScEta)
-        corr_down_variation = smear_and_syst_evaluator.evaluate('scale_down', pt_raw, r9, AbsScEta)
+        escale = smear_and_syst_evaluator.evaluate('escale', pt_raw, r9, AbsScEta)
+
+        corr_up_variation = 1 + escale
+        corr_down_variation = 1 - escale
 
         if restriction == "EB":
-            mask = ak.to_numpy(ak.flatten(egm_object.isScEtaEE))
-            corr_up_variation[mask] = 1.
-            corr_down_variation[mask] = 1.
+            isEE_mask = ak.to_numpy(ak.flatten(egm_object.isScEtaEE))
+            corr_up_variation[isEE_mask] = 1.0
+            corr_down_variation[isEE_mask] = 1.0
         elif restriction == "EE":
-            mask = ak.to_numpy(ak.flatten(egm_object.isScEtaEB))
-            corr_up_variation[mask] = 1.
-            corr_down_variation[mask] = 1.
+            isEB_mask = ak.to_numpy(ak.flatten(egm_object.isScEtaEB))
+            corr_up_variation[isEB_mask] = 1.0
+            corr_down_variation[isEB_mask] = 1.0
         elif restriction is not None:
             logger.error('The restriction is not implemented yet! Valid options are ["EB","EE"] \n Exiting. \n')
             sys.exit(1)
+
+        # Increasing uncertainties (by a factor 3) for 2024 in the high endcap region (|eta|>2.1) due to non-closure
+        if year == "2024" and restriction != "EB":
+            high_endcap_mask = ak.to_numpy(ak.flatten(abs(egm_object.ScEta) > 2.1))
+            corr_up_variation[high_endcap_mask] = 1 + 3.0 * escale[high_endcap_mask]
+            corr_down_variation[high_endcap_mask] = 1 - 3.0 * escale[high_endcap_mask]
 
         # Coffea does the unflattenning step itself and sets this value as pt of the up/down variations
         # scale uncertainties are applied on the smeared pt
@@ -403,6 +420,9 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
     """
     Applies the photon smearing corrections and corresponding uncertainties (on MC!).
     JSON needs to be pulled first with scripts/pull_files.py
+
+    Due to remaining non-closure for photons with abs(eta) > 2.1 uncertainties were increased in this regions. (2x smear and 3x scale)
+    This is just a preliminary solution while the non-closure is being further investigated.
     """
     use_mvaID = False
     reso2_name = "reso2"
@@ -534,11 +554,39 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
             corr_down_variation = 1 + smear_and_syst_evaluator.evaluate('smear_down', pt_raw, r9, AbsScEta) * random_numbers
 
         else:
+            # For 2G, need to recompute the smearing with the varied parameters
+            def scale_smear_unc(factor_ee, pt_raw, r9, AbsScEta, min_width=1e-6):
+
+                # Region masks, for the current 2024 SAS there is an non-clousure for photons in this region (eta > 2.1)
+                # So uncertainties are artificially enlarged to cover remaining mismodeling
+                mask_high_ee = (AbsScEta > 2.1)
+
+                # evaluate once
+                smear = smear_and_syst_evaluator.evaluate('smear', pt_raw, r9, AbsScEta)
+                esmear = smear_and_syst_evaluator.evaluate('esmear', pt_raw, r9, AbsScEta)
+
+                # default factors: EB=1, gap=1, EE=factor_ee
+                fac = 1.0 * esmear
+                smear_up = smear + fac
+                smear_down = smear - fac
+
+                # apply EE inflation only where mask_ee is True
+                smear_up[mask_high_ee] = smear[mask_high_ee] + factor_ee * esmear[mask_high_ee]
+                smear_down[mask_high_ee] = smear[mask_high_ee] - factor_ee * esmear[mask_high_ee]
+
+                return smear_up, smear_down
+
+            if year == "2024":
+                smear_up, smear_down = scale_smear_unc(2.0, pt_raw, r9, AbsScEta)
+            else:
+                smear_up = smear_and_syst_evaluator.evaluate('smear_up', pt_raw, r9, AbsScEta)
+                smear_down = smear_and_syst_evaluator.evaluate('smear_down', pt_raw, r9, AbsScEta)
+
             corr_up_variation = double_smearing(
                 random_numbers,
                 random_generator.evaluate('stdflat', pt_raw, r9, AbsScEta, event_number),
                 smear_and_syst_evaluator.evaluate('mu', pt_raw, r9, AbsScEta),
-                smear_and_syst_evaluator.evaluate('smear_up', pt_raw, r9, AbsScEta),
+                smear_up,
                 smear_and_syst_evaluator.evaluate(reso2_name, pt_raw, r9, AbsScEta),
                 smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta),
                 old_convention=not use_mvaID
@@ -548,7 +596,7 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
                 random_numbers,
                 random_generator.evaluate('stdflat', pt_raw, r9, AbsScEta, event_number),
                 smear_and_syst_evaluator.evaluate('mu', pt_raw, r9, AbsScEta),
-                smear_and_syst_evaluator.evaluate('smear_down', pt_raw, r9, AbsScEta),
+                smear_down,
                 smear_and_syst_evaluator.evaluate(reso2_name, pt_raw, r9, AbsScEta),
                 smear_and_syst_evaluator.evaluate('frac', pt_raw, r9, AbsScEta),
                 old_convention=not use_mvaID

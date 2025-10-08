@@ -169,6 +169,26 @@
         "weightFile": "flashgg/Taggers/data/STXSmodels/legacyDiphoModelMerged.xml",
         "version": "xgb"
     },
+    "HiggsDNA_DiPhotonMVA" :
+    {
+        "weightFile" : ["weights_DiphotonID_2022_250903_even.xgb", "weights_DiphotonID_2022_250903_odd.xgb"],
+        "version" : "xgb",
+        "inputs": [
+            "sigmaMrv",
+            "sigmaMwv",
+            "PV_score",
+            "vtxProb",
+            "LeadPhoton_pt_mgg",
+            "LeadPhoton_eta",
+            "LeadPhoton_mvaID",
+            "SubleadPhoton_pt_mgg",
+            "SubleadPhoton_eta", 
+            "SubleadPhoton_mvaID",
+            "Diphoton_cos_dPhi",
+            "dZ_1",
+            "dZ_2"
+        ]
+    },
     "flashggJetSystematics": {
         "doHEMuncertainty": true,
         "textFileName": "flashgg/Systematics/data/JEC/Regrouped_Autumn18_V19_MC_UncertaintySources_AK4PFchs.txt",
@@ -527,10 +547,28 @@
     "L1Prefiring": {
         "isRelevant": false
     },
+
     "THQLeptonicTag": {
         "MVAweights_VsAllBkg": "flashgg/Taggers/data/TMVA_THQLeptonicTag_tHq_Vs_NonPeakingBkg_BDT_18_v1.weights.xml",
         "MVAweights_VsttH": "flashgg/Taggers/data/TMVA_THQLeptonicTag_tHq_Vs_ttH_BDT.weights.xml",
         "MVAThreshold_VsAllBkg": 0.08,
         "MVAThreshold_VsttH": -0.06
+    },
+
+    "HPC_ctag_WPs": { 
+        "description": "HPC c-tagging working points for 2022 (same as in 2018 for now), [wp_id, [b_plus_c_lo, b_plus_c_high], [b_vs_c_lo, b_vs_c_high]]",
+        "wps": [
+            [0, [0, 0.1], [0, 1]], 
+            [40, [0.1, 0.2], [0, 1]],
+            [41, [0.2, 0.5], [0, 1]],
+            [42, [0.5, 1], [0.15, 0.4]],
+            [43, [0.5, 1], [0.05, 0.15]],
+            [44, [0.5, 1], [0, 0.05]],
+            [50, [0.5, 1], [0.40, 0.70]],
+            [51, [0.5, 1], [0.70, 0.88]],
+            [52, [0.5, 1], [0.88, 0.96]],
+            [53, [0.5, 1], [0.96, 0.99]],
+            [54, [0.5, 1], [0.99, 1]]
+        ]   
     }
-}
+} 

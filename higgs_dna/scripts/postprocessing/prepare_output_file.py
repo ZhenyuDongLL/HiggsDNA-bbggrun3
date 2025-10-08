@@ -322,6 +322,7 @@ def main():
     (opt, args) = parser.parse_args()
 
     opt.output = os.path.realpath(opt.output)
+    opt.genBinning = os.path.realpath(opt.genBinning) if (opt.genBinning != "") else ""
 
     # Create output folder if it does not exist
     if not os.path.exists(opt.output):
@@ -371,7 +372,7 @@ def main():
 
 # Creating dirlist
     os.system(
-        f"find {folder_for_dirlist} -mindepth 1 -maxdepth 1 -type d | grep -v '^.$' | grep -v .coffea | grep -v '/merged$' | grep -v '/root$' |"
+        f"find {folder_for_dirlist} -mindepth 1 -maxdepth 1 -type d | grep -v '^.$' | grep -v .coffea | grep -vE '/[^/]*(merged|root)[^/]*$' |"
         + "awk -F'/' '{print $NF}' > dirlist.txt"
         )
     
