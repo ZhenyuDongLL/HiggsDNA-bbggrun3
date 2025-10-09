@@ -1478,8 +1478,8 @@ def get_HHbbgg_btag_WPs_json(logger, target_dir, use_xrdcp=False):
         )
 
     from_to_dict = {
-        "WPs_PNet": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/nkasarag/HiggsDNA_JSONs/WPs_btagging.json",
+        "bTag_WPs": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/evourlio/WPs_btagging.json",
             "to": f"{to_prefix}/WPs_btagging_HHbbgg.json",
             "type": "eos",
         },

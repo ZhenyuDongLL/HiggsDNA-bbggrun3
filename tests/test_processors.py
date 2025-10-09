@@ -54,7 +54,7 @@ def test_processors(processor_class):
     subprocess.run("pull_files.py --target bTag", shell=True)
 
     # Need to pull some JSONs and ONNXs for HHbbggProcessor
-    subprocess.run("xrdcp root://eoscms.cern.ch//eos/cms/store/group/phys_b2g/HHbbgg/nkasarag/HiggsDNA_JSONs/WPs_btagging.json higgs_dna/tools/WPs_btagging_HHbbgg.json", shell=True)
+    subprocess.run("xrdcp root://eoscms.cern.ch//eos/cms/store/group/phys_b2g/HHbbgg/evourlio/WPs_btagging.json higgs_dna/tools/WPs_btagging_HHbbgg.json", shell=True)
     subprocess.run("xrdcp root://eoscms.cern.ch//eos/cms/store/group/phys_b2g/HHbbgg/nkasarag/HiggsDNA_JSONs/Weights_interference.json higgs_dna/tools/Weights_interference_HHbbgg.json", shell=True)
     subprocess.run("xrdcp root://eoscms.cern.ch//eos/cms/store/group/phys_b2g/HHbbgg/jafan/mbbModels/mjj_model_2023.onnx higgs_dna/tools/mjj_model_2023.onnx", shell=True)
     subprocess.run("xrdcp root://eoscms.cern.ch//eos/cms/store/group/phys_b2g/HHbbgg/jafan/mbbModels/mjj_model_2022.onnx higgs_dna/tools/mjj_model_2022.onnx", shell=True)
