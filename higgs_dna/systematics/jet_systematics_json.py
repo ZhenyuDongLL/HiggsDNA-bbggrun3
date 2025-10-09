@@ -355,7 +355,7 @@ def jerc_jet(
         jer_sf_tag = f"{jer}_ScaleFactor_{algo}"
 
         ceval_jer = get_jer_correction_set(jerc_json[year], jer_ptres_tag, jer_sf_tag)
-  
+
         # update evaluate dictionary
         eval_dict.update(
             {
