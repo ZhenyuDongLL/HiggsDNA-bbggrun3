@@ -119,9 +119,9 @@ def jerc_jet(
     AK8=False,
     pnet="",
 ):
-    # preliminary, must be changed when corrections for 2024 are there
-    if year == "2024":
-        year = "2023postBPix"
+
+    
+    #year = "2023postBPix"
 
     # first, check if it's data or MC
     if era == "MC" and hasattr(events, "GenPart"):
@@ -249,7 +249,7 @@ def jerc_jet(
             "RunD": "Summer23BPixPrompt23_RunD_V1_DATA",
             "MC": "Summer23BPixPrompt23_V3_MC",
         },
-        "2024": {"Data": "Winter24Prompt24_V3_DATA", "MC": "Winter24Prompt24_V3_MC"},
+        "2024": {"Data": "Summer24Prompt24_V1_DATA", "MC": "Summer24Prompt24_V1_MC"},
     }
     jec = jec_version[year][era]
     tag_jec = "_".join([jec, level, algo])
@@ -350,12 +350,16 @@ def jerc_jet(
             "2022postEE": "Summer22EE_22Sep2023_JRV1_MC",
             "2023preBPix": "Summer23Prompt23_RunCv1234_JRV1_MC",
             "2023postBPix": "Summer23BPixPrompt23_RunD_JRV1_MC",
+            # This is preliminary, should be changed once files with 2024 JER are available
+            "2024": "Summer23BPixPrompt23_RunD_JRV1_MC",
+            
         }
         jer = jer_version[year]
         jer_ptres_tag = f"{jer}_PtResolution_{algo}"
         jer_sf_tag = f"{jer}_ScaleFactor_{algo}"
 
         ceval_jer = get_jer_correction_set(jerc_json[year], jer_ptres_tag, jer_sf_tag)
+  
         # update evaluate dictionary
         eval_dict.update(
             {
