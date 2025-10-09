@@ -120,9 +120,6 @@ def jerc_jet(
     pnet="",
 ):
 
-    
-    #year = "2023postBPix"
-
     # first, check if it's data or MC
     if era == "MC" and hasattr(events, "GenPart"):
         logger.debug(
@@ -352,7 +349,6 @@ def jerc_jet(
             "2023postBPix": "Summer23BPixPrompt23_RunD_JRV1_MC",
             # This is preliminary, should be changed once files with 2024 JER are available
             "2024": "Summer23BPixPrompt23_RunD_JRV1_MC",
-            
         }
         jer = jer_version[year]
         jer_ptres_tag = f"{jer}_PtResolution_{algo}"
