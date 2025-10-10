@@ -149,13 +149,10 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
     # era/year defined as parameter of the function
     avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]
     if year not in avail_years:
-        logger.error(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
-        sys.exit(1)
+        logger.error(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! ShowerShape should not be used in run3 eras, \n Exiting. \n")
+        raise ValueError(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! ShowerShape should not be used in run3 eras, \n Exiting. \n") 
     elif "2016" in year:
         year = "2016"
-    # use Run 2 files also for Run 3, preliminary
-    elif "2022" in year or "2023" in year or "2024" in year:
-        logger.error(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! ShowerShape should not be used in run3 eras. \n Exiting. \n")
 
     jsonpog_file = os.path.join(os.path.dirname(__file__), f"JSONs/ShowerShape/{year}/ShowerShape_{year}.json")
     evaluator = correctionlib.CorrectionSet.from_file(jsonpog_file)["ShowerShape"]
