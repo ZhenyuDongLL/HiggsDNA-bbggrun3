@@ -91,7 +91,7 @@ def FNUF(pt, events, year="2017", is_correction=True):
     if year not in avail_years:
         logger.error(f"Only FNUF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         sys.exit(1)
-    elif "2022" or "2023" in year or "2024" in year:
+    elif "2022" in year or "2023" in year or "2024" in year:
         logger.warning(f"""You selected the year_string {year}, which is a Run 3 era.
                         FNUF was not re-derived for Run 3 yet, but we fall back to the Run 2 2018 values.
                         These values only constitute up/down variations, no correction is applied.
@@ -154,7 +154,7 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
     elif "2016" in year:
         year = "2016"
     # use Run 2 files also for Run 3, preliminary
-    elif "2022" or "2023" in year or "2024" in year:
+    elif "2022" in year or "2023" in year or "2024" in year:
         logger.error(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! ShowerShape should not be used in run3 eras. \n Exiting. \n")
 
     jsonpog_file = os.path.join(os.path.dirname(__file__), f"JSONs/ShowerShape/{year}/ShowerShape_{year}.json")

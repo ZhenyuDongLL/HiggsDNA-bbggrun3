@@ -581,7 +581,7 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
-    elif "2022" or "2023" in year or "2024" in year:
+    elif "2022" in year or "2023" in year or "2024" in year:
 
         # If flow corrections are applied, we use the raw (uncorrected) r9 for the trigger SF evaluation
         if hasattr(photons["pho_lead"], 'raw_r9'):
