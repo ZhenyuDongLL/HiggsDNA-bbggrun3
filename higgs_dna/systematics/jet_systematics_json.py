@@ -120,6 +120,9 @@ def jerc_jet(
     pnet="",
 ):
 
+    if year == "2024":
+        logger.warning("Current 2024 JER is preliminary, 2023PostBPix is used! These ntuples should not be used for a final physics result!")
+
     # first, check if it's data or MC
     if era == "MC" and hasattr(events, "GenPart"):
         logger.debug(
