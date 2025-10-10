@@ -39,6 +39,7 @@ def SF_photon_ID(
     # preliminary 2024 results, has to be changed once the official SFs are available
     elif year == "2024":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023postBPix/IDMVA0p19_2023PostBPiX.json")
+        logger.warning("Using 2023postBPix SFs for 2024 as a placeholder until 2024 SFs are available! These NTuples cannot be used for a final physics result.")
 
     if "2023" in year or "2024" in year:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["IDMVA_SF"]
@@ -345,6 +346,7 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
         # Preliminary 2024 results, has to be changed once the official SFs are available
         if year == "2024":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/postBPix_CSEV_SFcorrections.json")
+            logger.warning("Using 2023postBPix CSEV SFs for 2024 as a placeholder until 2024 SFs are available! These NTuples cannot be used for a final physics result.")
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["CSEV_SFs"]
 
         if is_correction:
@@ -415,6 +417,7 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
     # For 2024 use 2023postBPix SFs for now. This is only a placeholder until 2024 SFs are available!
     elif year == "2024":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2023PostBPiX.json")
+        logger.warning("Using 2023postBPix Preselection SFs for 2024 as a placeholder until 2024 SFs are available! These NTuples cannot be used for a final physics result.")
 
     if year in ["2016", "2017", "2018"]:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["PreselSF"]
@@ -530,6 +533,7 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
             # For 2024 use 2023postBPix SFs for now. This is only a placeholder until 2024 SFs are available!
             json_file_lead = os.path.join(os.path.dirname(__file__), "JSONs/TriggerSF/2023postBPix/TriggerSF_lead_2023postBPix.json")
             json_file_sublead = os.path.join(os.path.dirname(__file__), "JSONs/TriggerSF/2023postBPix/TriggerSF_sublead_2023postBPix.json")
+            logger.warning("Using 2023postBPix Trigger SFs for 2024 as a placeholder until 2024 SFs are available! These NTuples cannot be used for a final physics result.")
         else:
             json_file_lead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_lead_{year}.json")
             json_file_sublead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_sublead_{year}.json")
