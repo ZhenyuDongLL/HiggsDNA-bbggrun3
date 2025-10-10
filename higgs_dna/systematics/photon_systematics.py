@@ -149,8 +149,8 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
     # era/year defined as parameter of the function
     avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]
     if year not in avail_years:
-        logger.error(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! ShowerShape should not be used in run3 eras, \n Exiting. \n")
-        raise ValueError(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! ShowerShape should not be used in run3 eras, \n Exiting. \n") 
+        logger.error(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! ShowerShape should not be used in run3 eras. \n Exiting. \n")
+        raise ValueError(f"Only ShowerShape corrections for the year strings {avail_years} are already implemented! ShowerShape should not be used in run3 eras. \n Exiting. \n") 
     elif "2016" in year:
         year = "2016"
 
