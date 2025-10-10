@@ -778,11 +778,10 @@ def PartonShower(photons, events, weights, dataset_name, **kwargs):
 
 def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", **kwargs):
     avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
-    
-    
+
     if year == "2024":
         logger.warning("Current 2024 bTagShapeSF are not implemented, 2023PostBPix is used! These ntuples should not be used for a final physics result!")
-    
+
     if year not in avail_years:
         print(f"\n WARNING: only scale corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
@@ -1068,11 +1067,11 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
 
 
 def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is_correction=True, year="2017", **kwargs):
-    
+
     if year == "2024":
         logger.warning("Current 2024 bTagFixedWP are not implemented, 2023PostBPix is used! These ntuples should not be used for a final physics result!")
         year = "2023postBPix"
-        
+
     avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
         logger.error(f"\n Only fixed WP Scale Factors for the year strings {avail_years} are already implemented! \n Exiting. \n")
