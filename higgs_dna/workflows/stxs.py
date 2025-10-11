@@ -575,7 +575,7 @@ class STXSProcessor(HggSkeletonProcessor):
                 diphotons[f"Tau{i}_id"] = choose_lepton(sel_taus.leptonID, i, -999.0)
 
             # jet selection and pt ordering
-            if self.year[dataset_name][0] in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
+            if self.year[dataset_name][0] in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
                 jets = jets[
                     select_jets_eta_dependent(self, jets, diphotons, sel_muons, sel_electrons, sel_taus)
                 ]

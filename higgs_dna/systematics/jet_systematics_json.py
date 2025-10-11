@@ -357,6 +357,14 @@ def jerc_jet(
         jer_ptres_tag = f"{jer}_PtResolution_{algo}"
         jer_sf_tag = f"{jer}_ScaleFactor_{algo}"
 
+        # this is a hack to make sure the JER corrections aren't applied for unmatched jets with 2.5 < |eta| < 3.0
+        # by setting the gen pT to the reco pT no JER shift will be applied since this is based on the pT difference
+        # TODO should be removed once a proper fix is implemented at the json level
+        # see https://gitlab.cern.ch/cms-jetmet/coordination/coordination/-/issues/113
+        if year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
+            pt_gen_orig = jets["pt_gen"]
+            jets["pt_gen"] = ak.where((jets.pt_gen < 0) & (abs(jets.eta) > 2.5) & (abs(jets.eta) < 3.0), jets.pt, jets.pt_gen)
+
         ceval_jer = get_jer_correction_set(jerc_json[year], jer_ptres_tag, jer_sf_tag)
 
         # update evaluate dictionary
@@ -407,6 +415,11 @@ def jerc_jet(
             # pt/mass after calculation of the jer up/down
             jets["pt"] = jets["pt_jer"]
             jets["mass"] = jets["mass_jer"]
+
+        # now that the JER shift has been applied, we can restore the original gen pt
+        # TODO should be removed once a proper fix is implemented at the json level, see above
+        if year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
+            jets["pt_gen"] = pt_gen_orig
 
     # jec systematics
     if jec_syst:
