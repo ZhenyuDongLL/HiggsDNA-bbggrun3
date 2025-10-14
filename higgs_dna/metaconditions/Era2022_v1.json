@@ -131,11 +131,19 @@
     {
         ".*DoubleEG.*" :
         {
-	    "mainAnalysis" :
-            [
-		"HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90*",
-		"HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95*"
-	    ],
+        "mainAnalysis":[
+            "HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90*",
+            "HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95*"
+        ],
+	    "mainAnalysisMVA":[
+            "HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass90*",
+            "HLT_Diphoton30_22_R9Id_OR_IsoCaloId_AND_HE_R9Id_Mass95*",
+            "HLT_DiphotonMVA14p25_Mass90*",
+            "HLT_DiphotonMVA14p25_Tight_Mass90*",
+            "HLT_DiphotonMVA14p25_Low_Mass60*",
+            "HLT_DiphotonMVA14p25_Medium_Mass60*",
+            "HLT_DiphotonMVA14p25_High_Mass60*"
+        ],
 	    "lowMassAnalysis":[
             "HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId*",
             "HLT_Diphoton30_18_R9IdL_AND_HE_AND_IsoCaloId_Mass55*"
