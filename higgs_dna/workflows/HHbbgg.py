@@ -431,6 +431,15 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
             diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 
+            ## MODIFY WORKFLOW TO SAVE HLT PATHS ##
+            HLT_triggers_to_save = [
+                HLT_field for HLT_field in events.HLT.fields if 'HLT_Diphoton' in HLT_field
+            ]
+            for HLT_trigger in events.HLT.fields:
+                if any(sub in HLT_trigger for sub in HLT_triggers_to_save):
+                    diphotons[HLT_trigger] = events.HLT[HLT_trigger]
+            ## MODIFY WORKFLOW TO SAVE HLT PATHS ##
+
             # add genWeight column for claculating efficiencies
             if self.data_kind == "mc":
                 diphotons["genWeight"] = events.genWeight
