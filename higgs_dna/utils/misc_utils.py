@@ -207,6 +207,7 @@ def DPhiV1V2(vec1, vec2):
     valid = (dot >= -1.0) & (dot <= 1.0)
 
     # Compute acos only for valid entries
-    dphi = ak.where(valid, np.arccos(dot) * diff_sign * cross_sign, -999.0)
+    with np.errstate(over='ignore', invalid='ignore'):
+        dphi = ak.where(valid, np.arccos(dot) * diff_sign * cross_sign, -999.0)
 
     return dphi
