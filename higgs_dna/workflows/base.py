@@ -439,12 +439,13 @@ class HggBaseProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons["n_jets"] = n_jets
             diphotons["NJ"] = Njets2p5
 
-            first_jet_pz = first_jet_pt * numpy.sinh(first_jet_eta)
-            first_jet_energy = numpy.sqrt((first_jet_pt**2 * numpy.cosh(first_jet_eta)**2) + first_jet_mass**2)
+            with numpy.errstate(over='ignore', invalid='ignore'):
+                first_jet_pz = first_jet_pt * numpy.sinh(first_jet_eta)
+                first_jet_energy = numpy.sqrt((first_jet_pt**2 * numpy.cosh(first_jet_eta)**2) + first_jet_mass**2)
 
-            first_jet_y = 0.5 * numpy.log((first_jet_energy + first_jet_pz) / (first_jet_energy - first_jet_pz))
-            first_jet_y = ak.fill_none(first_jet_y, -999)
-            first_jet_y = ak.where(numpy.isnan(first_jet_y), -999, first_jet_y)
+                first_jet_y = 0.5 * numpy.log((first_jet_energy + first_jet_pz) / (first_jet_energy - first_jet_pz))
+                first_jet_y = ak.fill_none(first_jet_y, -999)
+                first_jet_y = ak.where(numpy.isnan(first_jet_y), -999, first_jet_y)
             diphotons["YJ0"] = first_jet_y
 
             # run taggers on the events list with added diphotons

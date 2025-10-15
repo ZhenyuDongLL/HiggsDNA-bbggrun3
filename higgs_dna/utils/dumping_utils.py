@@ -47,7 +47,7 @@ def diphoton_list_to_pandas(self, diphotons: ak.Array) -> pandas.DataFrame:
     To change the behavior, you can redefine the `diphoton_list_to_pandas` method in the
     derived class.
     """
-    output = pandas.DataFrame()
+    output = {}
     for field in ak.fields(diphotons):
         prefix = self.prefixes.get(field, "")
         if len(prefix) > 0:
@@ -62,7 +62,7 @@ def diphoton_list_to_pandas(self, diphotons: ak.Array) -> pandas.DataFrame:
                     output[f"{field}_{i}"] = thearray[:, i]
             else:
                 output[field] = thearray
-    return output
+    return pandas.DataFrame(output)
 
 
 def dump_pandas(

@@ -360,8 +360,9 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
                 gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
                 gen_first_jet_phi = choose_jet(genJets.phi, 0, -999.0)
 
-                gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
-                gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
+                with numpy.errstate(over='ignore', invalid='ignore'):
+                    gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
+                    gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
 
                 # B-Jets
                 # Following the recommendations of https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideBTagMCTools for hadronFlavour
@@ -382,7 +383,7 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
                 gen_first_jet_hFlav = choose_jet(genJets.hadronFlavour, 0, -999.0)
                 diphotons["GenJ0hFlav"] = gen_first_jet_hFlav
 
-                with numpy.errstate(divide='ignore', invalid='ignore'):
+                with numpy.errstate(over='ignore', invalid='ignore'):
                     GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
 
                 GenYJ0 = ak.fill_none(GenYJ0, -999)

@@ -391,10 +391,10 @@ class STXSProcessor(HggSkeletonProcessor):
                 gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
                 gen_first_jet_phi = choose_jet(genJets.phi, 0, -999.0)
 
-                gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
-                gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
+                with numpy.errstate(over='ignore', invalid='ignore'):
+                    gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
+                    gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
 
-                with numpy.errstate(divide='ignore', invalid='ignore'):
                     GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
 
                 GenYJ0 = ak.fill_none(GenYJ0, -999)
@@ -664,12 +664,13 @@ class STXSProcessor(HggSkeletonProcessor):
             diphotons["JFWD_eta"] = choose_jet(etasorted_jets.eta, 0, -999.0)
             diphotons["JFWD_phi"] = choose_jet(etasorted_jets.phi, 0, -999.0)
 
-            first_jet_pz = jet_collection["J0_pt"] * numpy.sinh(jet_collection["J0_eta"])
-            first_jet_energy = numpy.sqrt((jet_collection["J0_pt"]**2 * numpy.cosh(jet_collection["J0_eta"])**2) + jet_collection["J0_mass"]**2)
+            with numpy.errstate(over='ignore', invalid='ignore'):
+                first_jet_pz = jet_collection["J0_pt"] * numpy.sinh(jet_collection["J0_eta"])
+                first_jet_energy = numpy.sqrt((jet_collection["J0_pt"]**2 * numpy.cosh(jet_collection["J0_eta"])**2) + jet_collection["J0_mass"]**2)
 
-            first_jet_y = 0.5 * numpy.log((first_jet_energy + first_jet_pz) / (first_jet_energy - first_jet_pz))
-            first_jet_y = ak.fill_none(first_jet_y, -999)
-            first_jet_y = ak.where(numpy.isnan(first_jet_y), -999, first_jet_y)
+                first_jet_y = 0.5 * numpy.log((first_jet_energy + first_jet_pz) / (first_jet_energy - first_jet_pz))
+                first_jet_y = ak.fill_none(first_jet_y, -999)
+                first_jet_y = ak.where(numpy.isnan(first_jet_y), -999, first_jet_y)
             diphotons["YJ0"] = first_jet_y
 
             AbsPhiHJ0 = numpy.abs(jet_collection["J0_phi"] - diphotons["phi"])

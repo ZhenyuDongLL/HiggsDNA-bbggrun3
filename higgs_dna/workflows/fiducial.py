@@ -404,11 +404,11 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons['gen_first_jet_mass'] = gen_first_jet_mass
                 diphotons['gen_first_jet_phi'] = gen_first_jet_phi
 
-                gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
-                gen_first_jet_pz = ak.where(gen_first_jet_eta == -999, -999, gen_first_jet_pz)
-                gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
+                with numpy.errstate(over='ignore', invalid='ignore'):
+                    gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
+                    gen_first_jet_pz = ak.where(gen_first_jet_eta == -999, -999, gen_first_jet_pz)
+                    gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
 
-                with numpy.errstate(divide='ignore', invalid='ignore'):
                     GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
 
                 GenYJ0 = ak.fill_none(GenYJ0, -999)
@@ -447,12 +447,13 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons['gen_second_jet_mass'] = gen_second_jet_mass
                 diphotons['gen_second_jet_phi'] = gen_second_jet_phi
 
-                gen_second_jet_pz = GenPTJ1 * numpy.sinh(gen_second_jet_eta)
-                gen_second_jet_pz = ak.where(gen_second_jet_eta == -999, -999, gen_second_jet_pz)
-                gen_second_jet_energy = numpy.sqrt((GenPTJ1**2 * numpy.cosh(gen_second_jet_eta)**2) + gen_second_jet_mass**2)
+                with numpy.errstate(over='ignore', invalid='ignore'):
+                    gen_second_jet_pz = GenPTJ1 * numpy.sinh(gen_second_jet_eta)
+                    gen_second_jet_pz = ak.where(gen_second_jet_eta == -999, -999, gen_second_jet_pz)
+                    gen_second_jet_energy = numpy.sqrt((GenPTJ1**2 * numpy.cosh(gen_second_jet_eta)**2) + gen_second_jet_mass**2)
 
-                with numpy.errstate(divide='ignore', invalid='ignore'):
                     GenYJ1 = 0.5 * numpy.log((gen_second_jet_energy + gen_second_jet_pz) / (gen_second_jet_energy - gen_second_jet_pz))
+
                 GenYJ1 = ak.fill_none(GenYJ1, -999)
                 GenYJ1 = ak.where(numpy.isnan(GenYJ1), -999, GenYJ1)
                 diphotons['GenYJ1'] = GenYJ1
@@ -567,22 +568,23 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                     pt = choose_jet(genJets.pt, i, -999.0)
                     eta = choose_jet(genJets.eta, i, -999.0)
 
-                    cosh_eta = numpy.cosh(eta)
-                    sinh_eta = numpy.sinh(eta)
+                    with numpy.errstate(over='ignore', invalid='ignore'):
+                        cosh_eta = numpy.cosh(eta)
+                        sinh_eta = numpy.sinh(eta)
 
-                    energy = numpy.sqrt((pt**2 * cosh_eta**2) + mass**2)
-                    pz = pt * sinh_eta
+                        energy = numpy.sqrt((pt**2 * cosh_eta**2) + mass**2)
+                        pz = pt * sinh_eta
 
-                    # If energy or pz is inf (cause of the hyperbolic functions), set them to -999
-                    # later set every GenTauJC to -999 which has a value of precisely 0 (corresponding to a transverse momentum of exactly 0 GeV)
-                    energy = ak.where(numpy.isinf(energy), -999, energy)
-                    pz = ak.where(numpy.isinf(pz), -999, pz)
+                        # If energy or pz is inf (cause of the hyperbolic functions), set them to -999
+                        # later set every GenTauJC to -999 which has a value of precisely 0 (corresponding to a transverse momentum of exactly 0 GeV)
+                        energy = ak.where(numpy.isinf(energy), -999, energy)
+                        pz = ak.where(numpy.isinf(pz), -999, pz)
 
-                    transverse_mass = numpy.sqrt(pt**2 + mass**2)
+                        transverse_mass = numpy.sqrt(pt**2 + mass**2)
 
-                    y = numpy.log((numpy.sqrt((mass**2 + pt**2) * cosh_eta**2) + (pt * sinh_eta)) / transverse_mass)
+                        y = numpy.log((numpy.sqrt((mass**2 + pt**2) * cosh_eta**2) + (pt * sinh_eta)) / transverse_mass)
 
-                    tau_jc = numpy.sqrt(energy**2 - pz**2) / (2 * numpy.cosh(y - GenYH))
+                        tau_jc = numpy.sqrt(energy**2 - pz**2) / (2 * numpy.cosh(y - GenYH))
                     GenTauJC_list.append(tau_jc)
 
                     logger.debug(f"GenTauJC: Jet {i}: Energy={energy}, Pz={pz}, TauJC={tau_jc}")
@@ -719,11 +721,11 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             first_jet_eta = choose_jet(jets.eta, 0, -999.0)
             first_jet_phi = choose_jet(jets.phi, 0, -999.0)
             first_jet_mass = choose_jet(jets.mass, 0, -999.0)
-            first_jet_pz = PTJ0 * numpy.sinh(first_jet_eta)
-            first_jet_pz = ak.where(first_jet_eta == -999, -999, first_jet_pz)
-            first_jet_energy = numpy.sqrt((PTJ0**2 * numpy.cosh(first_jet_eta)**2) + first_jet_mass**2)
+            with numpy.errstate(over='ignore', invalid='ignore'):
+                first_jet_pz = PTJ0 * numpy.sinh(first_jet_eta)
+                first_jet_pz = ak.where(first_jet_eta == -999, -999, first_jet_pz)
+                first_jet_energy = numpy.sqrt((PTJ0**2 * numpy.cosh(first_jet_eta)**2) + first_jet_mass**2)
 
-            with numpy.errstate(divide='ignore', invalid='ignore'):
                 YJ0 = 0.5 * numpy.log((first_jet_energy + first_jet_pz) / (first_jet_energy - first_jet_pz))
 
             YJ0 = ak.fill_none(YJ0, -999)
@@ -759,16 +761,17 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             second_jet_eta = choose_jet(jets.eta, 1, -999.0)
             second_jet_phi = choose_jet(jets.phi, 1, -999.0)
             second_jet_mass = choose_jet(jets.mass, 1, -999.0)
-            second_jet_pz = PTJ1 * numpy.sinh(second_jet_eta)
-            second_jet_pz = ak.where(second_jet_eta == -999, -999, second_jet_pz)
-            second_jet_energy = numpy.sqrt((PTJ1**2 * numpy.cosh(second_jet_eta)**2) + second_jet_mass**2)
+            with numpy.errstate(over='ignore', invalid='ignore'):
+                second_jet_pz = PTJ1 * numpy.sinh(second_jet_eta)
+                second_jet_pz = ak.where(second_jet_eta == -999, -999, second_jet_pz)
+                second_jet_energy = numpy.sqrt((PTJ1**2 * numpy.cosh(second_jet_eta)**2) + second_jet_mass**2)
 
-            diphotons["second_jet_eta"] = second_jet_eta
-            diphotons["second_jet_phi"] = second_jet_phi
-            diphotons["second_jet_mass"] = second_jet_mass
+                diphotons["second_jet_eta"] = second_jet_eta
+                diphotons["second_jet_phi"] = second_jet_phi
+                diphotons["second_jet_mass"] = second_jet_mass
 
-            with numpy.errstate(divide='ignore', invalid='ignore'):
                 YJ1 = 0.5 * numpy.log((second_jet_energy + second_jet_pz) / (second_jet_energy - second_jet_pz))
+
             YJ1 = ak.fill_none(YJ1, -999)
             YJ1 = ak.where(numpy.isnan(YJ1), -999, YJ1)
             diphotons['YJ1'] = YJ1
@@ -891,22 +894,23 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 pt = choose_jet(jets.pt, i, -999.0)
                 eta = choose_jet(jets.eta, i, -999.0)
 
-                cosh_eta = numpy.cosh(eta)
-                sinh_eta = numpy.sinh(eta)
+                with numpy.errstate(over='ignore', invalid='ignore'):
+                    cosh_eta = numpy.cosh(eta)
+                    sinh_eta = numpy.sinh(eta)
 
-                energy = numpy.sqrt((pt**2 * cosh_eta**2) + mass**2)
-                pz = pt * sinh_eta
+                    energy = numpy.sqrt((pt**2 * cosh_eta**2) + mass**2)
+                    pz = pt * sinh_eta
 
-                # If energy or pz is inf (cause of the hyperbolic functions), set them to -999
-                # later set every TauJC to -999 which has a value of precisely 0 (corresponding to a transverse momentum of exactly 0 GeV)
-                energy = ak.where(numpy.isinf(energy), -999, energy)
-                pz = ak.where(numpy.isinf(pz), -999, pz)
+                    # If energy or pz is inf (cause of the hyperbolic functions), set them to -999
+                    # later set every TauJC to -999 which has a value of precisely 0 (corresponding to a transverse momentum of exactly 0 GeV)
+                    energy = ak.where(numpy.isinf(energy), -999, energy)
+                    pz = ak.where(numpy.isinf(pz), -999, pz)
 
-                transverse_mass = numpy.sqrt(pt**2 + mass**2)
+                    transverse_mass = numpy.sqrt(pt**2 + mass**2)
 
-                y = numpy.log((numpy.sqrt((mass**2 + pt**2) * cosh_eta**2) + (pt * sinh_eta)) / transverse_mass)
+                    y = numpy.log((numpy.sqrt((mass**2 + pt**2) * cosh_eta**2) + (pt * sinh_eta)) / transverse_mass)
 
-                tau_jc = numpy.sqrt(energy**2 - pz**2) / (2 * numpy.cosh(y - diphotons["rapidity"]))
+                    tau_jc = numpy.sqrt(energy**2 - pz**2) / (2 * numpy.cosh(y - diphotons["rapidity"]))
                 TauJC_list.append(tau_jc)
 
                 logger.debug(f"TauJC: Jet {i}: Energy={energy}, Pz={pz}, TauJC={tau_jc}")
