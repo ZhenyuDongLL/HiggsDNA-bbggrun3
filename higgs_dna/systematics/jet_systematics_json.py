@@ -147,15 +147,19 @@ def jerc_jet(
     else:
         algo = "AK4PFchs"
 
-    if AK8:
+    # According to the 2024 recommendations, AK4 JECs can be used for AK8 jets
+    if AK8 and year != "2024":
         algo = "AK8PFPuppi"
 
     pnetFlag = ""
     if pnet != "":
         pnetFlag = "_PNet"
+
     jetType = "jet"
-    if AK8:
+    # According to the 2024 recommendations, AK4 JECs can be used for AK8 jets
+    if AK8 and year != "2024":
         jetType = "fatJet"
+
     # jec json file
     jerc_json = {
         "2016preVFP": os.path.join(
@@ -249,7 +253,10 @@ def jerc_jet(
             "RunD": "Summer23BPixPrompt23_RunD_V1_DATA",
             "MC": "Summer23BPixPrompt23_V3_MC",
         },
-        "2024": {"Data": "Summer24Prompt24_V1_DATA", "MC": "Summer24Prompt24_V1_MC"},
+        "2024": {
+            "Data": "Summer24Prompt24_V1_DATA",
+            "MC": "Summer24Prompt24_V1_MC"
+        },
     }
     jec = jec_version[year][era]
     tag_jec = "_".join([jec, level, algo])
