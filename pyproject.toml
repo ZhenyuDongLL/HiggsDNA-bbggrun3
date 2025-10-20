@@ -42,7 +42,7 @@ dependencies = [
   "zuko",
   "onnx",
   "onnxruntime",
-  "pyarrow<21.0.0",
+  "pyarrow",
 ]
 
 [project.urls]
