@@ -28,6 +28,7 @@ from higgs_dna.systematics import object_corrections as available_object_correct
 from higgs_dna.systematics import weight_systematics as available_weight_systematics
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.systematics import apply_systematic_variations_object_level
+from higgs_dna.systematics.MET_systematics import apply_type1_met_correction
 
 import warnings
 from typing import Any, Dict, List, Optional
@@ -221,20 +222,18 @@ class STXSProcessor(HggSkeletonProcessor):
             )
             sys.exit(0)
 
-        # save raw pt if we use scale/smearing corrections
+        # save raw pt for scale/smearing corrections
         # These needs to be before the smearing of the mass resolution in order to have the raw pt for the function
-        s_or_s_applied = False
-        s_or_s_ele_applied = False
-        for correction in correction_names:
-            if "scale" or "smearing" in correction.lower():
-                if "Electron" in correction:
-                    s_or_s_ele_applied = True
-                else:
-                    s_or_s_applied = True
-        if s_or_s_applied:
-            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
-        if s_or_s_ele_applied:
-            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
+        events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
+        events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
+
+        # we need the uncorrected pt for jets, photons, electrons and muons for the type-I MET correction
+        # field pt_raw is already defined in jerc_jet in a different way, so the name should be avoided
+        events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_nano")
+        events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_nano")
+        events["Muon"] = ak.with_field(events.Muon, events.Muon.pt, "pt_nano")
+        events["Tau"] = ak.with_field(events.Tau, events.Tau.pt, "pt_nano")
+        events["Jet"] = ak.with_field(events.Jet, events.Jet.pt, "pt_nano")
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -275,9 +274,14 @@ class STXSProcessor(HggSkeletonProcessor):
                 warnings.warn(f"Could not process correction {correction_name}.")
                 continue
 
+        # Store original collections for objects which we later correct
         original_photons = events.Photon
         # NOTE: jet jerc systematics are added in the correction functions and handled later
         original_jets = events.Jet
+        original_electrons = events.Electron
+        original_muons = events.Muon
+        original_taus = events.Tau
+        original_met = events.PuppiMET
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
@@ -293,6 +297,10 @@ class STXSProcessor(HggSkeletonProcessor):
         # Add additional collections if object systematics should be applied
         collections = {
             "Photon": original_photons,
+            "Electron": original_electrons,
+            "Muon": original_muons,
+            "Tau": original_taus,
+            "MET": original_met,
         }
 
         # Apply the systematic variations.
@@ -306,7 +314,12 @@ class STXSProcessor(HggSkeletonProcessor):
             collections
         )
 
+        # Pick the original collections after registering systematic info
         original_photons = collections["Photon"]
+        original_electrons = collections["Electron"]
+        original_muons = collections["Muon"]
+        original_taus = collections["Tau"]
+        original_met = collections["MET"]
 
         # Write systematic variations to dicts
         photons_dct = {}
@@ -316,6 +329,34 @@ class STXSProcessor(HggSkeletonProcessor):
             for variation in original_photons.systematics[systematic].fields:
                 photons_dct[f"{systematic}_{variation}"] = original_photons.systematics[systematic][variation]
 
+        electrons_dct = {}
+        electrons_dct["nominal"] = original_electrons
+        logger.debug(original_electrons.systematics.fields)
+        for systematic in original_electrons.systematics.fields:
+            for variation in original_electrons.systematics[systematic].fields:
+                electrons_dct[f"{systematic}_{variation}"] = original_electrons.systematics[systematic][variation]
+
+        muons_dct = {}
+        muons_dct["nominal"] = original_muons
+        logger.debug(original_muons.systematics.fields)
+        for systematic in original_muons.systematics.fields:
+            for variation in original_muons.systematics[systematic].fields:
+                muons_dct[f"{systematic}_{variation}"] = original_muons.systematics[systematic][variation]
+
+        taus_dct = {}
+        taus_dct["nominal"] = original_taus
+        logger.debug(original_taus.systematics.fields)
+        for systematic in original_taus.systematics.fields:
+            for variation in original_taus.systematics[systematic].fields:
+                taus_dct[f"{systematic}_{variation}"] = original_taus.systematics[systematic][variation]
+
+        met_dct = {}
+        met_dct = {"nominal": original_met}
+        logger.debug(original_met.systematics.fields)
+        for systematic in original_met.systematics.fields:
+            for variation in original_met.systematics[systematic].fields:
+                met_dct[f"{systematic}_{variation}"] = original_met.systematics[systematic][variation]
+
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
         # object systematics dictionary
@@ -324,6 +365,10 @@ class STXSProcessor(HggSkeletonProcessor):
         # Build the flattened array of all possible variations
         variations_combined = []
         variations_combined.append(original_photons.systematics.fields)
+        variations_combined.append(original_electrons.systematics.fields)
+        variations_combined.append(original_muons.systematics.fields)
+        variations_combined.append(original_taus.systematics.fields)
+        variations_combined.append(original_met.systematics.fields)
         # NOTE: jet jerc systematics are not added with add_systematics
         variations_combined.append(jerc_syst_list)
         # Flatten
@@ -335,13 +380,35 @@ class STXSProcessor(HggSkeletonProcessor):
         logger.debug(f"[systematics variations] {variations}")
 
         for variation in variations:
-            photons, jets = photons_dct["nominal"], events.Jet
+            photons, electrons, muons, taus, jets, MET = (
+                photons_dct["nominal"],
+                electrons_dct["nominal"],
+                muons_dct["nominal"],
+                taus_dct["nominal"],
+                events.Jet,
+                met_dct["nominal"],
+            )
+
             if variation == "nominal":
                 pass  # Do nothing since we already get the unvaried, but nominally corrected objets above
             elif variation in [*photons_dct]:  # [*dict] gets the keys of the dict since Python >= 3.5
                 photons = photons_dct[variation]
+                logger.info(f"Replacing nominal photons with variation {variation}.\n")
+            elif variation in [*electrons_dct]:
+                electrons = electrons_dct[variation]
+                logger.info(f"Replacing nominal electrons with variation {variation}.\n")
+            elif variation in [*muons_dct]:
+                muons = muons_dct[variation]
+                logger.info(f"Replacing nominal muons with variation {variation}.\n")
+            elif variation in [*taus_dct]:
+                taus = taus_dct[variation]
+                logger.info(f"Replacing nominal taus with variation {variation}.\n")
             elif variation in [*jets_dct]:
                 jets = jets_dct[variation]
+                logger.info(f"Replacing nominal jets with variation {variation}.\n")
+            elif variation in [*met_dct]:
+                MET = met_dct[variation]
+                logger.info(f"Replacing nominal MET with variation {variation}.\n")
             do_variation = variation  # We can also simplify this a bit but for now it works
 
             if self.chained_quantile is not None:
@@ -448,6 +515,7 @@ class STXSProcessor(HggSkeletonProcessor):
             jets = ak.zip(
                 {
                     "pt": jets.pt,
+                    "pt_nano": jets.pt_nano,
                     "eta": jets.eta,
                     "phi": jets.phi,
                     "mass": jets.mass,
@@ -472,58 +540,68 @@ class STXSProcessor(HggSkeletonProcessor):
 
             electrons = ak.zip(
                 {
-                    "pt": events.Electron.pt,
-                    "eta": events.Electron.eta,
-                    "phi": events.Electron.phi,
-                    "mass": events.Electron.mass,
-                    "charge": events.Electron.charge,
-                    "cutBased": events.Electron.cutBased,
-                    "mvaIso_WP90": events.Electron.mvaIso_WP90,
-                    "mvaIso_WP80": events.Electron.mvaIso_WP80,
-                    "leptonFlavour": ak.full_like(events.Electron.pt, 0),
-                    "leptonID": events.Electron.mvaIso
+                    "pt": electrons.pt,
+                    "pt_nano": electrons.pt_nano,
+                    "eta": electrons.eta,
+                    "phi": electrons.phi,
+                    "mass": electrons.mass,
+                    "charge": electrons.charge,
+                    "cutBased": electrons.cutBased,
+                    "mvaIso_WP90": electrons.mvaIso_WP90,
+                    "mvaIso_WP80": electrons.mvaIso_WP80,
+                    "leptonFlavour": ak.full_like(electrons.pt, 0),
+                    "leptonID": electrons.mvaIso
                 }
             )
             electrons = ak.with_name(electrons, "PtEtaPhiMCandidate")
 
             # Special cut for base workflow to replicate iso cut for electrons also for muons
-            events['Muon'] = events.Muon[events.Muon.pfRelIso03_all < 0.2]
+            muons = muons[muons.pfRelIso03_all < 0.2]
 
             muons = ak.zip(
                 {
-                    "pt": events.Muon.pt,
-                    "eta": events.Muon.eta,
-                    "phi": events.Muon.phi,
-                    "mass": events.Muon.mass,
-                    "charge": events.Muon.charge,
-                    "tightId": events.Muon.tightId,
-                    "mediumId": events.Muon.mediumId,
-                    "looseId": events.Muon.looseId,
-                    "isGlobal": events.Muon.isGlobal,
-                    "pfIsoId": events.Muon.pfIsoId,
-                    "leptonFlavour": ak.full_like(events.Muon.pt, 1),
-                    "leptonID": events.Muon.mvaMuID
+                    "pt": muons.pt,
+                    "pt_nano": muons.pt_nano,
+                    "eta": muons.eta,
+                    "phi": muons.phi,
+                    "mass": muons.mass,
+                    "charge": muons.charge,
+                    "tightId": muons.tightId,
+                    "mediumId": muons.mediumId,
+                    "looseId": muons.looseId,
+                    "isGlobal": muons.isGlobal,
+                    "pfIsoId": muons.pfIsoId,
+                    "leptonFlavour": ak.full_like(muons.pt, 1),
+                    "leptonID": muons.mvaMuID
                 }
             )
             muons = ak.with_name(muons, "PtEtaPhiMCandidate")
 
             taus = ak.zip(
                 {
-                    "pt": events.Tau.pt,
-                    "eta": events.Tau.eta,
-                    "phi": events.Tau.phi,
-                    "mass": events.Tau.mass,
-                    "charge": events.Tau.charge,
-                    "decayMode": events.Tau.decayMode,
-                    "dz": events.Tau.dz,
-                    "idDeepTau2018v2p5VSe": events.Tau.idDeepTau2018v2p5VSe,
-                    "idDeepTau2018v2p5VSmu": events.Tau.idDeepTau2018v2p5VSmu,
-                    "idDeepTau2018v2p5VSjet": events.Tau.idDeepTau2018v2p5VSjet,
-                    "leptonFlavour": ak.full_like(events.Tau.pt, 2),
-                    "leptonID": ak.full_like(events.Tau.pt, -999.0)  # TODO: we don't have a score, only WPs
+                    "pt": taus.pt,
+                    "pt_nano": taus.pt_nano,
+                    "eta": taus.eta,
+                    "phi": taus.phi,
+                    "mass": taus.mass,
+                    "charge": taus.charge,
+                    "decayMode": taus.decayMode,
+                    "dz": taus.dz,
+                    "idDeepTau2018v2p5VSe": taus.idDeepTau2018v2p5VSe,
+                    "idDeepTau2018v2p5VSmu": taus.idDeepTau2018v2p5VSmu,
+                    "idDeepTau2018v2p5VSjet": taus.idDeepTau2018v2p5VSjet,
+                    "leptonFlavour": ak.full_like(taus.pt, 2),
+                    "leptonID": ak.full_like(taus.pt, -999.0)  # TODO: we don't have a score, only WPs
                 }
             )
             taus = ak.with_name(taus, "PtEtaPhiMCandidate")
+
+            # Apply type-I MET correction before object selections and add MET to diphotons
+            # This is *always* applied, so doesn't need to be listed in the runner
+            met_corr = apply_type1_met_correction(MET, objects=(jets, photons, electrons, muons, taus), raw_pt_name="pt_nano")
+            # Add MET
+            diphotons["MET_pt"] = ak.fill_none(met_corr.pt, -999.0)
+            diphotons["MET_phi"] = ak.fill_none(met_corr.phi, -999.0)
 
             # lepton cleaning
             sel_electrons = electrons[select_electrons(self, electrons, diphotons)]
@@ -621,18 +699,6 @@ class STXSProcessor(HggSkeletonProcessor):
                         jet_collection[f"J{i}_{btag_key}"] = choose_jet(jets[btag_key], i, -999.0)
                 for bjet_wp in self.bjet_wp:
                     jet_collection[f"J{i}_{self.bjet_mva}_is{bjet_wp}"] = choose_jet(jets[f"{self.bjet_mva}_is{bjet_wp}"], i, -999)
-
-            # Add MET
-            met = events.PuppiMET
-            met_pt = met.pt
-            met_pt = ak.fill_none(met_pt, -999.0)
-            met_phi = met.phi
-            met_phi = ak.fill_none(met_phi, -999.0)
-            met_sumEt = met.sumEt
-            met_sumEt = ak.fill_none(met_sumEt, -999.0)
-            diphotons["MET_pt"] = met_pt
-            diphotons["MET_phi"] = met_phi
-            diphotons["MET_sumEt"] = met_sumEt
 
             # Add Ht (scalar sum of jet Et)
             jet_Et = numpy.sqrt(jets.pt**2 + jets.mass**2)
