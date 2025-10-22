@@ -350,7 +350,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                 photons = photon_preselection(self, photons, events, year=self.year[dataset_name][0])
 
             if (self.data_kind == "mc" and add_frixione_info == True):
-                photons = attach_geninfo_to_photons(self, photons)
+                photons = attach_geninfo_to_photons(photons)
 
             diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 
@@ -551,7 +551,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
             diphotons = ak.firsts(diphotons)
             if (self.data_kind == "mc" and add_frixione_info == True):
-                diphotons = attach_frixione_isolation_flag_to_diphotons(self, events["GenPart"], photons, diphotons, frix_cones=[0.05, 0.4])
+                diphotons = attach_frixione_isolation_flag_to_diphotons(events["GenPart"], diphotons, frix_cones=[0.05, 0.4])
 
             # set diphotons as part of the event record
             events[f"diphotons_{do_variation}"] = diphotons
