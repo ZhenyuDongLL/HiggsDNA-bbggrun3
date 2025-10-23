@@ -529,14 +529,8 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
         year = "2016"
 
     if year in ["2016", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
-        if year == "2024":
-            # For 2024 use 2023postBPix SFs for now. This is only a placeholder until 2024 SFs are available!
-            json_file_lead = os.path.join(os.path.dirname(__file__), "JSONs/TriggerSF/2023postBPix/TriggerSF_lead_2023postBPix.json")
-            json_file_sublead = os.path.join(os.path.dirname(__file__), "JSONs/TriggerSF/2023postBPix/TriggerSF_sublead_2023postBPix.json")
-            logger.warning("Using 2023postBPix Trigger SFs for 2024 as a placeholder until 2024 SFs are available! These NTuples cannot be used for a final physics result.")
-        else:
-            json_file_lead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_lead_{year}.json")
-            json_file_sublead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_sublead_{year}.json")
+        json_file_lead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_lead_{year}.json")
+        json_file_sublead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_sublead_{year}.json")
 
     evaluator_lead = correctionlib.CorrectionSet.from_file(json_file_lead)["TriggerSF"]
     evaluator_sublead = correctionlib.CorrectionSet.from_file(json_file_sublead)["TriggerSF"]

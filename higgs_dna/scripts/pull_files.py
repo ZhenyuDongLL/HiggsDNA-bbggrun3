@@ -436,6 +436,16 @@ def get_trigger_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2023postBPix/TriggerSF_sublead_2023postBPix.json",
             "type": "eos",
         },
+        "2024_lead": {
+            "from": os.path.join(path_to_ingredients, "2024", trigger_subfolder_name, "TriggerSF_lead_2024.json"),
+            "to": f"{to_prefix}/2024/TriggerSF_lead_2024.json",
+            "type": "eos",
+        },
+        "2024_sublead": {
+            "from": os.path.join(path_to_ingredients, "2024", trigger_subfolder_name, "TriggerSF_sublead_2024.json"),
+            "to": f"{to_prefix}/2024/TriggerSF_sublead_2024.json",
+            "type": "eos",
+        },
     }
     fetch_file("TriggerSF", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
