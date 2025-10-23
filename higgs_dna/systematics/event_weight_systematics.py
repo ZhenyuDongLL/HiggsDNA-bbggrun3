@@ -345,8 +345,7 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/postBPix_CSEV_SFcorrections.json")
         # Preliminary 2024 results, has to be changed once the official SFs are available
         if year == "2024":
-            json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/postBPix_CSEV_SFcorrections.json")
-            logger.warning("Using 2023postBPix CSEV SFs for 2024 as a placeholder until 2024 SFs are available! These NTuples cannot be used for a final physics result.")
+            json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2024/CSEV_SFcorrections.json")
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["CSEV_SFs"]
 
         if is_correction:
