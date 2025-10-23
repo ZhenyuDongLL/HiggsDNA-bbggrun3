@@ -93,10 +93,9 @@ def select_taus(
     eta_cut = abs(taus.eta) < abs(self.tau_max_eta)
     dz_cut = abs(taus.dz) < self.tau_max_dz
 
-    # apply the loosest working points for jet and muon discriminators, and the second loosest electron discriminator
-    # as we are using the DeepTau ID we also veto dm 5 and 6, when the code is updated to use particleNet we may want to remove this requirement
+    # apply tight working points for electron and muon discriminators, and medium working point for jet discriminator
     tau_id = "DeepTau2018v2p5"
-    id_cut = (taus[f"id{tau_id}VSjet"] > 0) & (taus[f"id{tau_id}VSmu"] > 0) & (taus[f"id{tau_id}VSe"] > 1) & (taus.decayMode != 5) & (taus.decayMode != 6)
+    id_cut = (taus[f"id{tau_id}VSjet"] >= 5) & (taus[f"id{tau_id}VSmu"] >= 4) & (taus[f"id{tau_id}VSe"] >= 6) & (taus.decayMode != 5) & (taus.decayMode != 6)
 
     # Mask taus that are within 0.2 of a photon
     dr_phoLead_cut = delta_r_mask(taus, diphotons.pho_lead, self.tau_photon_min_dr)
