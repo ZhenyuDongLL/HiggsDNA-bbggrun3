@@ -492,7 +492,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
                     "btagPNetB": jets.btagPNetB,
                     "btagPNetQvG": jets.btagPNetQvG,
-                    "PNetRegPtRawCorr": jets.PNetRegPtRawCorr,
+                    "PNetRegPtRawCorr": jets.PNetRegPtRawCorr,  # Eventually we should add PNet bTag into if statements like below... keeping for now for 2022-23 DNN pairing and mass reg models
                     "PNetRegPtRawCorrNeutrino": jets.PNetRegPtRawCorrNeutrino,
                     "PNetRegPtRawRes": jets.PNetRegPtRawRes,
                     "jetId": add_jetId(jets, self.nano_version, self.year[dataset_name][0], flattenUnflatten=True),  # add jet ID based on nano version
@@ -505,7 +505,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                         {"btagRobustParTAK4B": jets.btagRobustParTAK4B, "btagRobustParTAK4QG": jets.btagRobustParTAK4QG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version == 13 else {}
                     ),
                     **(
-                        {"btagUParTAK4B": jets.btagUParTAK4B, "btagUParTAK4QvG": jets.btagUParTAK4QvG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version >= 14 else {}
+                        {"btagUParTAK4B": jets.btagUParTAK4B, "UParTRegPtRawCorr": jets.UParTAK4RegPtRawCorr, "UParTRegPtRawCorrNeutrino": jets.UParTAK4RegPtRawCorrNeutrino, "UParTRegPtRawRes": jets.UParTAK4RegPtRawRes, "btagUParTAK4QvG": jets.btagUParTAK4QvG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version >= 14 else {}
                     ),
 
                 }
@@ -814,9 +814,15 @@ class HHbbggProcessor(HggSkeletonProcessor):
             json_file = os.path.join(os.path.dirname(__file__), "../tools/WPs_btagging_HHbbgg.json")
             with open(json_file, "r") as jf:
                 btagging_wps = json.load(jf)
-            nBTight = ak.fill_none((ak.sum(jets.btagPNetB >= btagging_wps[self.year[dataset_name][0]]["PNetTight"], axis=1)), 0)
-            nBMedium = ak.fill_none((ak.sum(jets.btagPNetB >= btagging_wps[self.year[dataset_name][0]]["PNetMedium"], axis=1)), 0)
-            nBLoose = ak.fill_none((ak.sum(jets.btagPNetB >= btagging_wps[self.year[dataset_name][0]]["PNetLoose"], axis=1)), 0)
+            if self.nano_version < 14:
+                btag_field, btag_name = "btagPNetB", "PNet"
+            else:
+                btag_field, btag_name = "btagUParTAK4B", "UParT"
+            nBXXTight = ak.fill_none((ak.sum(jets[btag_field] >= btagging_wps[self.year[dataset_name][0]][btag_name + "XXTight"], axis=1)), 0)
+            nBXTight = ak.fill_none((ak.sum(jets[btag_field] >= btagging_wps[self.year[dataset_name][0]][btag_name + "XTight"], axis=1)), 0)
+            nBTight = ak.fill_none((ak.sum(jets[btag_field] >= btagging_wps[self.year[dataset_name][0]][btag_name + "Tight"], axis=1)), 0)
+            nBMedium = ak.fill_none((ak.sum(jets[btag_field] >= btagging_wps[self.year[dataset_name][0]][btag_name + "Medium"], axis=1)), 0)
+            nBLoose = ak.fill_none((ak.sum(jets[btag_field] >= btagging_wps[self.year[dataset_name][0]][btag_name + "Loose"], axis=1)), 0)
 
             n_fatjets = ak.num(fatjets)
             diphotons["n_fatjets"] = n_fatjets
@@ -835,12 +841,12 @@ class HHbbggProcessor(HggSkeletonProcessor):
             dijets_base["phi"] = dijets_4mom.phi
             dijets_base["mass"] = dijets_4mom.mass
             dijets_base["charge"] = dijets_4mom.charge
-            dijets_base["btagPNetB_sum"] = (
-                dijets_base["first_jet"].btagPNetB + dijets_base["second_jet"].btagPNetB
+            dijets_base["btag_sum"] = (
+                dijets_base["first_jet"][btag_field] + dijets_base["second_jet"][btag_field]
             )
             dijets_base["DeltaR_jj"] = DeltaR(dijets_base["first_jet"], dijets_base["second_jet"])
             try:
-                dijets_base = dijets_base[ak.argsort(dijets_base.btagPNetB_sum, ascending=False)]
+                dijets_base = dijets_base[ak.argsort(dijets_base.btag_sum, ascending=False)]
             except ValueError as e:
                 logger.warning(f"Error sorting dijets: {e}")
 
@@ -850,7 +856,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             dijets_base = dijets_base[(numpy.abs(dijets_base["first_jet"].eta) < 2.5) & (numpy.abs(dijets_base["second_jet"].eta) < 2.5)]
             self.calc_cut_flow("jet_eta_cut", diphotons[~ak.is_none(ak.firsts(dijets_base))], metadata)
             self.calc_cut_flow("jet_eta_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets_base))) | (diphotons["n_fatjets"] > 0)], metadata)
-            dijets_base = dijets_base[dijets_base.btagPNetB_sum > 0]
+            dijets_base = dijets_base[dijets_base.btag_sum > 0]
             self.calc_cut_flow("dijet_b_tag_sum_cut", diphotons[~ak.is_none(ak.firsts(dijets_base))], metadata)
             self.calc_cut_flow("dijet_b_tag_sum_cut_include_or_atleast_one_fatjet", diphotons[(~ak.is_none(ak.firsts(dijets_base))) | (diphotons["n_fatjets"] > 0)], metadata)
 
@@ -866,7 +872,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             # do mbb regression
             if "2022" in self.year[dataset_name][0]:
                 model_file = os.path.join(os.path.dirname(__file__), "../tools/mjj_model_2022.onnx")
-            elif "2023" in self.year[dataset_name][0]:
+            elif "2023" in self.year[dataset_name][0] or "2024" in self.year[dataset_name][0]:
                 model_file = os.path.join(os.path.dirname(__file__), "../tools/mjj_model_2023.onnx")
 
             dijets_base = calculate_mbb_regression(model_file, dijets_base)
@@ -911,6 +917,11 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 lead_bjet_PNetRegPtRawCorr = choose_jet(dijets["first_jet"].PNetRegPtRawCorr, 0, -999.0)
                 lead_bjet_PNetRegPtRawCorrNeutrino = choose_jet(dijets["first_jet"].PNetRegPtRawCorrNeutrino, 0, -999.0)
                 lead_bjet_PNetRegPtRawRes = choose_jet(dijets["first_jet"].PNetRegPtRawRes, 0, -999.0)
+                if self.nano_version >= 14:
+                    lead_bjet_btagUParTAK4B = choose_jet(dijets["first_jet"].btagUParTAK4B, 0, -999.0)
+                    lead_bjet_UParTRegPtRawCorr = choose_jet(dijets["first_jet"].UParTRegPtRawCorr, 0, -999.0)
+                    lead_bjet_UParTRegPtRawCorrNeutrino = choose_jet(dijets["first_jet"].UParTRegPtRawCorrNeutrino, 0, -999.0)
+                    lead_bjet_UParTRegPtRawRes = choose_jet(dijets["first_jet"].UParTRegPtRawRes, 0, -999.0)
                 lead_bjet_jet_idx = choose_jet(dijets["first_jet"].index, 0, -999.0)
                 lead_bjet_rawFactor = choose_jet(dijets["first_jet"].rawFactor, 0, -999.0)
                 lead_bjet_pt_orig = choose_jet(dijets["first_jet"].pt_orig, 0, -999.0)
@@ -925,6 +936,11 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 sublead_bjet_PNetRegPtRawCorr = choose_jet(dijets["second_jet"].PNetRegPtRawCorr, 0, -999.0)
                 sublead_bjet_PNetRegPtRawCorrNeutrino = choose_jet(dijets["second_jet"].PNetRegPtRawCorrNeutrino, 0, -999.0)
                 sublead_bjet_PNetRegPtRawRes = choose_jet(dijets["second_jet"].PNetRegPtRawRes, 0, -999.0)
+                if self.nano_version >= 14:
+                    sublead_bjet_btagUParTAK4B = choose_jet(dijets["second_jet"].btagUParTAK4B, 0, -999.0)
+                    sublead_bjet_UParTRegPtRawCorr = choose_jet(dijets["second_jet"].UParTRegPtRawCorr, 0, -999.0)
+                    sublead_bjet_UParTRegPtRawCorrNeutrino = choose_jet(dijets["second_jet"].UParTRegPtRawCorrNeutrino, 0, -999.0)
+                    sublead_bjet_UParTRegPtRawRes = choose_jet(dijets["second_jet"].UParTRegPtRawRes, 0, -999.0)
                 sublead_bjet_jet_idx = choose_jet(dijets["second_jet"].index, 0, -999.0)
                 sublead_bjet_rawFactor = choose_jet(dijets["second_jet"].rawFactor, 0, -999.0)
                 sublead_bjet_pt_orig = choose_jet(dijets["second_jet"].pt_orig, 0, -999.0)
@@ -1027,6 +1043,11 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons[f"{AnType}_lead_bjet_PNetRegPtRawCorr"] = lead_bjet_PNetRegPtRawCorr
                 diphotons[f"{AnType}_lead_bjet_PNetRegPtRawCorrNeutrino"] = lead_bjet_PNetRegPtRawCorrNeutrino
                 diphotons[f"{AnType}_lead_bjet_PNetRegPtRawRes"] = lead_bjet_PNetRegPtRawRes
+                if self.nano_version >= 14:
+                    diphotons[f"{AnType}_lead_bjet_btagUParTAK4B"] = lead_bjet_btagUParTAK4B
+                    diphotons[f"{AnType}_lead_bjet_UParTRegPtRawCorr"] = lead_bjet_UParTRegPtRawCorr
+                    diphotons[f"{AnType}_lead_bjet_UParTRegPtRawCorrNeutrino"] = lead_bjet_UParTRegPtRawCorrNeutrino
+                    diphotons[f"{AnType}_lead_bjet_UParTRegPtRawRes"] = lead_bjet_UParTRegPtRawRes
                 diphotons[f"{AnType}_lead_bjet_jet_idx"] = lead_bjet_jet_idx
                 diphotons[f"{AnType}_lead_bjet_rawFactor"] = lead_bjet_rawFactor
                 diphotons[f"{AnType}_lead_bjet_pt_orig"] = lead_bjet_pt_orig
@@ -1041,6 +1062,11 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons[f"{AnType}_sublead_bjet_PNetRegPtRawCorr"] = sublead_bjet_PNetRegPtRawCorr
                 diphotons[f"{AnType}_sublead_bjet_PNetRegPtRawCorrNeutrino"] = sublead_bjet_PNetRegPtRawCorrNeutrino
                 diphotons[f"{AnType}_sublead_bjet_PNetRegPtRawRes"] = sublead_bjet_PNetRegPtRawRes
+                if self.nano_version >= 14:
+                    diphotons[f"{AnType}_sublead_bjet_btagUParTAK4B"] = sublead_bjet_btagUParTAK4B
+                    diphotons[f"{AnType}_sublead_bjet_UParTRegPtRawCorr"] = sublead_bjet_UParTRegPtRawCorr
+                    diphotons[f"{AnType}_sublead_bjet_UParTRegPtRawCorrNeutrino"] = sublead_bjet_UParTRegPtRawCorrNeutrino
+                    diphotons[f"{AnType}_sublead_bjet_UParTRegPtRawRes"] = sublead_bjet_UParTRegPtRawRes
                 diphotons[f"{AnType}_sublead_bjet_jet_idx"] = sublead_bjet_jet_idx
                 diphotons[f"{AnType}_sublead_bjet_rawFactor"] = sublead_bjet_rawFactor
                 diphotons[f"{AnType}_sublead_bjet_pt_orig"] = sublead_bjet_pt_orig
@@ -1165,6 +1191,8 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
             diphotons = diphotons[(diphotons["is_Res"] | diphotons["is_nonRes"])]
 
+            diphotons["nBXXTight"] = nBXXTight
+            diphotons["nBXTight"] = nBXTight
             diphotons["nBTight"] = nBTight
             diphotons["nBMedium"] = nBMedium
             diphotons["nBLoose"] = nBLoose
@@ -1425,7 +1453,8 @@ class HHbbggProcessor(HggSkeletonProcessor):
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
                         )
-                diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
+                if "2024" not in self.year[dataset_name][0]:
+                    diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
 
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
@@ -1487,9 +1516,10 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 metadata["sum_weight_central"] = str(
                     ak.sum(event_weights.weight())
                 )
-                metadata["sum_weight_central_wo_bTagSF"] = str(
-                    ak.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
-                )
+                if "2024" not in self.year[dataset_name][0]:
+                    metadata["sum_weight_central_wo_bTagSF"] = str(
+                        ak.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
+                    )
 
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
