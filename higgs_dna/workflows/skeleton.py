@@ -349,11 +349,12 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
             events,
         )
 
-    def add_zero_photon_mass(self, photons: ak.Array) -> ak.Array:
+    def add_zero_photon_mass_and_charge(self, photons: ak.Array) -> ak.Array:
         """Add zero mass to the Photon object in the events."""
-        # add zero photon mass
+        # add zero photon mass and charge
         # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
         photons["mass"] = ak.zeros_like(photons.pt)
+        photons["charge"] = ak.zeros_like(photons.pt)
         return photons
 
     @abstractmethod
