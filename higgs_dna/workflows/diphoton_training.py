@@ -322,9 +322,9 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
         # apply filters and triggers
         events = self.apply_filters_and_triggers(events)
 
-        # add zero photon mass
+        # add zero photon mass and charge
         # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
-        events["Photon"] = self.add_zero_photon_mass(events.Photon)
+        events["Photon"] = self.add_zero_photon_mass_and_charge(events.Photon)
 
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
         events["Photon"] = add_photon_SC_eta(events.Photon, events.PV)

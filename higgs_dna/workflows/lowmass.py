@@ -483,9 +483,9 @@ class LowMassProcessor(HggSkeletonProcessor):
         if self.data_kind == "data":
             events = remove_EcalBadCalibCrystal_events(events)
 
-        # add zero photon mass
+        # add zero photon mass and charge
         # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
-        events["Photon"] = self.add_zero_photon_mass(events.Photon)
+        events["Photon"] = self.add_zero_photon_mass_and_charge(events.Photon)
 
         # we need ScEta for corrections and systematics, which is not present in NanoAODv11 but can be calculated using PV
         events["Photon"] = add_photon_SC_eta(events.Photon, events.PV)
