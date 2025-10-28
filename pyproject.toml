@@ -31,7 +31,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-  "coffea[dask]>=2025.9.0",
+  "coffea[dask]>=2025.10.1",
   "fsspec-xrootd",
   "dask-jobqueue",
   "xgboost",

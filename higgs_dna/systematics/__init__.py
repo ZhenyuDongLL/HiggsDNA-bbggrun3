@@ -1,4 +1,3 @@
-from .custom_kinds import UpDownMultiSystematic
 from .registry import object_systematics, weight_systematics, object_corrections, weight_corrections
 from .utils import apply_systematic_variations_object_level, check_corr_syst_combinations
 from .factories import add_jme_corr_syst
@@ -18,5 +17,4 @@ __all__ = [
     "apply_systematic_variations_object_level",
     "check_corr_syst_combinations",
     "add_jme_corr_syst",
-    "UpDownMultiSystematic",
 ]

@@ -226,12 +226,10 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         original_jets = events.Jet
         original_electrons = events.Electron
         original_muons = events.Muon
-        met = ak.zip(
+        original_met = ak.zip(
             {"pt": events.PuppiMET.pt, "phi": events.PuppiMET.phi},
             with_name="MissingET",
         )
-        # Create (N,1) jagged layout, needed for systematic variations
-        original_met = ak.unflatten(met, ak.ones_like(events.event))
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
@@ -437,8 +435,8 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
             # apply type-I MET correction before selecting (i.e. removing possibly corrected) jets and leptons
             met_corr = apply_type1_met_correction(MET, objects=(jets, photons, electrons, muons), raw_pt_name="pt_nano")
-            diphotons["met_pt"] = ak.flatten(met_corr.pt)
-            diphotons["met_phi"] = ak.flatten(met_corr.phi)
+            diphotons["met_pt"] = met_corr.pt
+            diphotons["met_phi"] = met_corr.phi
             diphotons["met_significance"] = events.MET.significance
 
             # lepton cleaning
