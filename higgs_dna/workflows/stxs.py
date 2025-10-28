@@ -29,6 +29,7 @@ from higgs_dna.systematics import weight_systematics as available_weight_systema
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.systematics import apply_systematic_variations_object_level
 from higgs_dna.systematics.MET_systematics import apply_type1_met_correction
+from higgs_dna.systematics.event_weight_systematics import calculate_NNLOPS_sf
 
 import warnings
 from typing import Any, Dict, List, Optional
@@ -117,6 +118,30 @@ class STXSProcessor(HggSkeletonProcessor):
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
 
+        # read which systematics and corrections to process
+        try:
+            correction_names = self.corrections[dataset_name]
+        except KeyError:
+            correction_names = []
+        try:
+            systematic_names = self.systematics[dataset_name]
+        except KeyError:
+            systematic_names = []
+
+        if self.data_kind == "mc":
+            generator = None
+            for i, correction_name in enumerate(correction_names):
+                if (correction_name == "NNLOPS") or (correction_name == "NNLOPS_amcatnlo") or (correction_name == "NNLOPS_powheg"):
+                    nnlops_name = correction_names.pop(i)
+                    generator = "powheg" if "powheg" in nnlops_name else "mcatnlo"
+                    break
+            # ensure that there are no multiple NNLOPS entries
+            if generator is not None:
+                for correction_name in correction_names:
+                    if (correction_name == "NNLOPS") or (correction_name == "NNLOPS_amcatnlo") or (correction_name == "NNLOPS_powheg"):
+                        raise ValueError("Multiple NNLOPS entries found in corrections list")
+                events["genWeight"] = events.genWeight * calculate_NNLOPS_sf(events, dataset_name, generator)
+
         # here we start recording possible coffea accumulators
         # most likely histograms, could be counters, arrays, ...
         histos_etc = {}
@@ -200,16 +225,6 @@ class STXSProcessor(HggSkeletonProcessor):
             or self.year[dataset_name][0] == "2022postEE"
         ):
             events["Photon"] = veto_EEleak_flag(self, events.Photon)
-
-        # read which systematics and corrections to process
-        try:
-            correction_names = self.corrections[dataset_name]
-        except KeyError:
-            correction_names = []
-        try:
-            systematic_names = self.systematics[dataset_name]
-        except KeyError:
-            systematic_names = []
 
         # If --Smear-sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt spectrum need to be smeared in order to properly calculate the smeared sigma_m_m
         if (
