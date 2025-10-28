@@ -79,7 +79,7 @@ def process_custom_accumulator(source_path, logger):
     source_files = glob.glob("%s/*.parquet" % source_path)
     for f in source_files:
         try:
-            file_accumulator = pq.read_table(f).schema.metadata[b'custom_accumulator']
+            file_accumulator = pq.read_schema(f).metadata[b'custom_accumulator']
         except KeyError:
             logger.warning(f"Custom accumulator requested but not found in file {f}")
         file_accumulator = file_accumulator.decode("utf-8")
@@ -218,7 +218,7 @@ def main():
             source_files = glob.glob("%s/*.parquet" % source_path)
             sum_genw_beforesel = 0
             for f in source_files:
-                sum_genw_beforesel += float(pq.read_table(f).schema.metadata[b'sum_genw_presel'])
+                sum_genw_beforesel += float(pq.read_schema(f).metadata[b'sum_genw_presel'])
             sum_genw_beforesel_arr.append(sum_genw_beforesel)
         logger.info(
             "Successfully extracted sum of gen weights (before selection)"
