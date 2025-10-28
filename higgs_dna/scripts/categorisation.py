@@ -141,7 +141,7 @@ for process in dict_paths_signal.keys():
     events = pd.concat(data_signal, ignore_index=True)
     events = events[(events.mass > 100) & (events.mass < 180)]
 
-    sum_genw_beforesel = sum(float(pq.read_table(file).schema.metadata[b'sum_genw_presel']) for file in files_signal)
+    sum_genw_beforesel = sum(float(pq.read_schema(file).metadata[b'sum_genw_presel']) for file in files_signal)
     events["weight"] *= (lumi * dict_xSecs[process.split('_')[0]] / sum_genw_beforesel)
 
     if campaign == "preEE":
@@ -168,7 +168,7 @@ for process in dict_paths_bkg.keys():
     events = pd.concat(data_bkg, ignore_index=True)
     events = events[(events.mass > 100) & (events.mass < 180)]
 
-    sum_genw_beforesel = sum(float(pq.read_table(file).schema.metadata[b'sum_genw_presel']) for file in files_bkg)
+    sum_genw_beforesel = sum(float(pq.read_schema(file).metadata[b'sum_genw_presel']) for file in files_bkg)
     events["weight"] *= (lumi * dict_xSecs[process.split('_')[0]] / sum_genw_beforesel)
     events["process"] = process.split('_')[0]
 

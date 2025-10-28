@@ -117,7 +117,7 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
         source_files = glob.glob("%s/*.parquet" % folder_path)
         sum_genw_beforesel = 0
         for f in source_files:
-            sum_genw_beforesel += float(pq.read_table(f).schema.metadata[b'sum_genw_presel'])
+            sum_genw_beforesel += float(pq.read_schema(f).metadata[b'sum_genw_presel'])
         logger.debug(f"sum_genw_beforesel {(sum_genw_beforesel)}")
         logger.info(
             "Successfully extracted sum of gen weights (before selection)"

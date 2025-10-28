@@ -14,7 +14,7 @@ def Get_WeightSum_Btag(source_paths,logger):
 
     for i, source_path in enumerate(source_paths):
         # create array to store the sum of the weights for all systematic vartions
-        dataset_check_fields = ak.from_parquet(glob.glob("%s/*.parquet" % source_path)[0])
+        dataset_check_fields = ak.metadata_from_parquet(glob.glob("%s/*.parquet" % source_path)[0])["columns"]
         # check if systamtic vatiation are stored by acessing one field of the parquet file
         flag_bWeight_sys = "weight_bTagSF_sys_jesDown" in dataset_check_fields.fields
         del dataset_check_fields
@@ -38,8 +38,8 @@ def Get_WeightSum_Btag(source_paths,logger):
         for f in source_files:
             try:
                 # read the sum of the weights from metadata without any systematic variation
-                sum_weight_central += float(pq.read_table(f).schema.metadata[b'sum_weight_central'])
-                sum_weight_central_wo_bTagSF += float(pq.read_table(f).schema.metadata[b'sum_weight_central_wo_bTagSF'])
+                sum_weight_central += float(pq.read_schema(f).metadata[b'sum_weight_central'])
+                sum_weight_central_wo_bTagSF += float(pq.read_schema(f).metadata[b'sum_weight_central_wo_bTagSF'])
             except:
                 logger.info(
                     "Skiping the renormalization of weights from b-tagging systematics. Please check if you have stored sum of the weights after applying the b-weight systematics in the metadata with proper naming. Example: sum_weight_bTagSF_jesUp, sum_weight_bTagSF_jesDown."
@@ -50,8 +50,8 @@ def Get_WeightSum_Btag(source_paths,logger):
                 for numSys in range(0, len(bTag_sys_variation)):
                     try:
                         # read the sum of the weights from metadata for all systematic variation
-                        sum_weight_bTagSF_sys_dct["sum_weight_bTagSF_" + bTag_sys_variation[numSys] + "Up"] += float(pq.read_table(f).schema.metadata[bytes('sum_weight_bTagSF_sys_' + bTag_sys_variation[numSys] + 'Up',encoding='utf8')])
-                        sum_weight_bTagSF_sys_dct["sum_weight_bTagSF_" + bTag_sys_variation[numSys] + "Down"] += float(pq.read_table(f).schema.metadata[bytes('sum_weight_bTagSF_sys_' + bTag_sys_variation[numSys] + 'Down',encoding='utf8')])
+                        sum_weight_bTagSF_sys_dct["sum_weight_bTagSF_" + bTag_sys_variation[numSys] + "Up"] += float(pq.read_schema(f).metadata[bytes('sum_weight_bTagSF_sys_' + bTag_sys_variation[numSys] + 'Up',encoding='utf8')])
+                        sum_weight_bTagSF_sys_dct["sum_weight_bTagSF_" + bTag_sys_variation[numSys] + "Down"] += float(pq.read_schema(f).metadata[bytes('sum_weight_bTagSF_sys_' + bTag_sys_variation[numSys] + 'Down',encoding='utf8')])
                     except:
                         logger.info(
                             "Skiping the renormalization of weights from btagging systematics. Please check if you have stored sum of the weights after appling the bweight systematics in the metadata with proper nameing : example: sum_weight_bTagSF_jesUp, sum_weight_bTagSF_jesDown"
