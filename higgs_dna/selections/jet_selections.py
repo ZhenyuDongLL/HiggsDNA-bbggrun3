@@ -485,7 +485,7 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
     }
     # recompute jetId before vetomap
     jets["jetId"] = add_jetId(jets, self.nano_version, year)
-    jetId_cut = ((jets.jetId == 2) | (jets.jetId == 6))
+    jetId_cut = (jets.jetId == 6)
 
     input_dict["type"] = "jetvetomap"
     inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
@@ -495,8 +495,6 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         (jets.pt > 15)
         & (jetId_cut)
         & ((jets.chEmEF + jets.neEmEF) < 0.9)
-        & (jets.muonIdx1 == -1)
-        & (jets.muonIdx2 == -1)
     )
     sel_obj.add("vetomap", flag_veto_jet)
     sel_veto_jet = sel_obj.all(*(sel_obj.names))
