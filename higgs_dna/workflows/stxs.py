@@ -34,6 +34,7 @@ from higgs_dna.systematics.event_weight_systematics import calculate_NNLOPS_sf
 import warnings
 from typing import Any, Dict, List, Optional
 import awkward as ak
+import json
 import numpy
 import pandas as pd
 import sys
@@ -195,7 +196,10 @@ class STXSProcessor(HggSkeletonProcessor):
                 f"sum_genw_presel_HTXS_stage1_2_cat_pTjet30GeV:{bin_val}": genWeight_sums[bin_val]
                 for bin_val in genWeight_sums.index
             }
-            metadata["custom_accumulator"] = str(dict(custom_accumulator))
+            metadata["custom_accumulator"] = json.dumps(
+                custom_accumulator,
+                default=lambda x: x.item() if isinstance(x, numpy.number) else x
+            )
         else:
             metadata["sum_genw_presel"] = "Data"
 
