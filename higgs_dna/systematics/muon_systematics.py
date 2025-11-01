@@ -78,18 +78,18 @@ def get_k(eta, var, cset):
     return k_f
 
 
-def filter_boundaries(pt_corr, pt):
-    # Check for pt values outside the range of [26, 200]
-    outside_bounds = (pt < 26) | (pt > 200)
+def filter_boundaries(pt_corr, pt, low_pt_threshold=26):
+    # Check for pt values outside the range of [low_pt_threshold, 200]
+    outside_bounds = (pt < low_pt_threshold) | (pt > 200)
 
     n_pt_outside = ak.sum(outside_bounds)
 
     if n_pt_outside > 0:
         logger.debug(
-            f"[ Muon S&S ] There are {n_pt_outside} events with muon pt outside of [26,200] GeV. Setting those entries to their initial value."
+            f"[ Muon S&S ] There are {n_pt_outside} events with muon pt outside of [{low_pt_threshold},200] GeV. Setting those entries to their initial value."
         )
         pt_corr = ak.where(pt > 200, pt, pt_corr)
-        pt_corr = ak.where(pt < 26, pt, pt_corr)
+        pt_corr = ak.where(pt < low_pt_threshold, pt, pt_corr)
 
     # Check for NaN entries in pt_corr
     nan_entries = np.isnan(pt_corr)
@@ -281,9 +281,13 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
         path_json = os.path.join(
             os.path.dirname(__file__), "JSONs/MuonScaRe/2023_Summer23BPix.json"
         )
+    elif year == "2024":
+        path_json = os.path.join(
+            os.path.dirname(__file__), "JSONs/MuonScaRe/2024.json"
+        )
     else:
         logger.info(
-            'WARNING: there are only scale corrections for the year strings ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]! \n Exiting. \n'
+            'WARNING: there are only scale corrections for the year strings ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]! \n Exiting. \n'
         )
         exit()
 
