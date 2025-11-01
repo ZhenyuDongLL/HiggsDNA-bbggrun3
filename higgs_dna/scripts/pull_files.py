@@ -1571,28 +1571,36 @@ def get_muon_scale_smearing(logger, target_dir, use_xrdcp=False):
 
     from_to_dict = {
         "2022postEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/backup_MuonScaRe/muonscarekit/corrections/2022_Summer22EE.json",
-            "to": f"{to_prefix}/2022_Summer22EE.json",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/muon_scalesmearing.json.gz",
+            "to": f"{to_prefix}/2022_Summer22EE.json.gz",
             "type": "eos",
         },
         "2022preEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/backup_MuonScaRe/muonscarekit/corrections/2022_Summer22.json",
-            "to": f"{to_prefix}/2022_Summer22.json",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-22CDSep23-Summer22-NanoAODv12/latest/muon_scalesmearing.json.gz",
+            "to": f"{to_prefix}/2022_Summer22.json.gz",
             "type": "eos",
         },
         "2023postBPix": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/backup_MuonScaRe/muonscarekit/corrections/2023_Summer23BPix.json",
-            "to": f"{to_prefix}/2023_Summer23BPix.json",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/muon_scalesmearing.json.gz",
+            "to": f"{to_prefix}/2023_Summer23BPix.json.gz",
             "type": "eos",
         },
         "2023preBPix": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/backup_MuonScaRe/muonscarekit/corrections/2023_Summer23.json",
-            "to": f"{to_prefix}/2023_Summer23.json",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-23CSep23-Summer23-NanoAODv12/latest/muon_scalesmearing.json.gz",
+            "to": f"{to_prefix}/2023_Summer23.json.gz",
             "type": "eos",
         },
+        "2024": {
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/muon_scalesmearing.json.gz",
+            "to": f"{to_prefix}/2024.json.gz",
+            "type": "eos",
+        }
     }
 
     fetch_file("MuonScaRe", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+    unzip_gz_with_gunzip(logger, to_prefix)
+
 
 def main():
     parser = argparse.ArgumentParser(
