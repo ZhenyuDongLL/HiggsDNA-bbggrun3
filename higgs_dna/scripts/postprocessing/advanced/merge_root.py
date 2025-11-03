@@ -12,95 +12,7 @@ import numpy as np
 import uproot
 from importlib import resources
 from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
-
-
-def extract_tuples(input_string):
-    tuples = []
-    # Remove leading and trailing parentheses and split by comma
-    tuple_strings = input_string.strip("()").split(";")
-    for tuple_str in tuple_strings:
-        # Remove leading and trailing whitespace and parentheses
-        tuple_elements = tuple_str.strip("()").split(",")
-        # Strip each element and append to the list of tuples
-        tuples.append(tuple(map(str.strip, tuple_elements)))
-    return tuples
-
-
-def extract_filter(dataset, additionalConditionTuple):
-    variable, operator, value = additionalConditionTuple
-
-    if operator == ">":
-        return dataset[variable] > float(value)
-    elif operator == ">=":
-        return dataset[variable] >= float(value)
-    elif operator == "<":
-        return dataset[variable] < float(value)
-    elif operator == "<=":
-        return dataset[variable] <= float(value)
-    elif operator == "==":
-        if ("True" in value) or ("False" in value):
-            value = bool(value)
-            return dataset[variable] == value
-        else:
-            return dataset[variable] == float(value)
-
-
-def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="GenPTH", diffVariableName="diffVariable_GenPTH"):
-    # Initialize diff variable in the awkward array
-    dataset[diffVariableName] = 0
-
-    # Specify variables which need the absolute value for the selection (eg. rapidity)
-    absolute_value_vars = ["GenYH"]
-    
-    if len(dataset) > 0:
-
-        for range_min, range_max, fiducialTag, additionalConditions in ranges_dict.keys():
-            diffId = ranges_dict[(range_min, range_max, fiducialTag, additionalConditions)]
-
-            if fiducialTag == "in":
-                condition = (dataset["fiducialGeometricFlag"] == True)
-            else:
-                condition = (dataset["fiducialGeometricFlag"] == False)
-
-            if selectionVariableName in absolute_value_vars:
-                condition = condition & (np.abs(dataset[selectionVariableName]) >= range_min) & (np.abs(dataset[selectionVariableName]) < range_max)
-            else:
-                condition = condition & (dataset[selectionVariableName] >= range_min) & (dataset[selectionVariableName] < range_max)
-
-            if additionalConditions != "":
-                tuple_list = extract_tuples(additionalConditions)
-                for additionalCondition in tuple_list:
-                    condition = condition & extract_filter(dataset, additionalCondition)
-            dataset[diffVariableName] = ak.where(condition, diffId, dataset[diffVariableName])
-
-    return dataset
-
-def split_awkward_arrays_by_length(d, logger, target_length=5000):
-    split_dicts = []
-
-    # Check if the dictionary is empty or contains only empty arrays
-    checker = 0
-    for key, arr in d.items():
-        if len(arr) == 0:
-            checker += 1
-    if checker:
-        logger.debug("Dictionary contains empty arrays, skipping splitting awkward array by length.")
-        split_dicts.append(d)
-        return split_dicts
-
-    max_len = max(len(arr) for arr in d.values())
-    num_chunks = (max_len + target_length - 1) // target_length  # ceiling division
-
-    for i in range(num_chunks):
-        start = i * target_length
-        end = min((i + 1) * target_length, max_len)
-        current_split = {}
-        for key, arr in d.items():
-            current_split[key] = arr.__getitem__(slice(start, end))
-
-        split_dicts.append(current_split)
-
-    return split_dicts
+from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable, split_awkward_arrays_by_length, ensure_nweight_LHEScale
 
 def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_path, cat_dict, gen_binning, logger, rename_dict):
 
@@ -200,19 +112,6 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
         renamed_dict[new_field_name] = eve[field_name]
     logger.info("-" * 125)
     return renamed_dict
-
-def ensure_nweight_LHEScale(d):
-    """
-    Guarantee that the dictionary `d` contains the branch `nweight_LHEScale`.
-    If it is missing, a constant array with value 9 is inserted.
-    """
-    if "nweight_LHEScale" not in d:
-        some_key = next(iter(d))
-        arr_len  = len(d[some_key])
-        d["nweight_LHEScale"] = np.full(arr_len, 9, dtype=np.int32)
-    else:
-        d["nweight_LHEScale"] = np.asarray(d["nweight_LHEScale"], dtype=np.int32)
-    return d
 
 def create_empty_tree(keys=["CMS_hgg_mass", "nweight_LHEScale"]):
     """
@@ -518,14 +417,9 @@ def main():
             else:
                 print("No non-empty category found!")
             if args.do_syst:
-                # check that the category actually contains something, otherwise the flattening step will make the script crash,
-                # an improvement (not sure if needed) may be to also write an empty TTree to not confuse FinalFit
+                # check that the category actually contains something before attempting to split/write
+                # to avoid confusing uproot with completely empty structures
                 if len(df_dict["NOMINAL"][cat]["weight"]):
-                    for branch in df_dict["NOMINAL"][cat]:
-                        # here I had to add a flattening step to help uproot with the type of the awkward arrays,
-                        # if you don't flatten (event if you don't have a nested field) you end up having a type like (len_of_array) * ?type, which make uproot very mad apparently
-                        df_dict["NOMINAL"][cat][branch] = ak.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
-
                     split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
                     for i, current_dict in enumerate(split_nominal_dict):
@@ -584,11 +478,7 @@ def main():
                             red_dict = {}
                             for key, new_key in var_list:
                                 if syst_ in df_dict and cat in df_dict[syst_] and key in df_dict[syst_][cat]:
-                                    if len(df_dict[syst_][cat][key]) > 0:
-                                        red_dict[new_key] = ak.flatten(df_dict[syst_][cat][key], 0)
-                                    else: # Handle cases where the array is empty
-                                        red_dict[new_key] = ak.Array(np.array([], dtype=np.float64))
-
+                                    red_dict[new_key] = df_dict[syst_][cat][key]
                             logger.info(f"Adding {syst_name}01sigma to out tree...")
 
                             split_dict = split_awkward_arrays_by_length(red_dict, logger, target_length=int(args.tbasket_length))
@@ -618,9 +508,6 @@ def main():
             else:
                 # if there are no syst there is no df_dict["NOMINAL"] entry in the dict
                 if len(df_dict["NOMINAL"][cat][[*df_dict["NOMINAL"][cat]][0]]):
-                    # same as before
-                    for branch in df_dict["NOMINAL"][cat]:
-                        df_dict["NOMINAL"][cat][branch] = ak.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
                     split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
 
                     for i, current_dict in enumerate(split_nominal_dict):

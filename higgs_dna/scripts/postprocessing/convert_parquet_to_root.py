@@ -8,36 +8,7 @@ import json
 import yaml
 import numpy as np
 from importlib import resources
-
-
-def split_awkward_arrays_by_length(d, target_length=5000):
-    split_dicts = []
-    max_len = max(len(arr) for arr in d.values())
-    num_chunks = (max_len + target_length - 1) // target_length  # ceiling division
-
-    for i in range(num_chunks):
-        start = i * target_length
-        end = min((i + 1) * target_length, max_len)
-        current_split = {}
-        for key, arr in d.items():
-            current_split[key] = arr.__getitem__(slice(start, end))
-
-        split_dicts.append(current_split)
-
-    return split_dicts
-
-def ensure_nweight_LHEScale(d):
-    """
-    Guarantee that the dictionary `d` contains the branch `nweight_LHEScale`.
-    If it is missing, a constant array with value 9 is inserted.
-    """
-    if "nweight_LHEScale" not in d:
-        some_key = next(iter(d))
-        arr_len  = len(d[some_key])
-        d["nweight_LHEScale"] = np.full(arr_len, 9, dtype=np.int32)
-    else:
-        d["nweight_LHEScale"] = np.asarray(d["nweight_LHEScale"], dtype=np.int32)
-    return d
+from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import split_awkward_arrays_by_length, ensure_nweight_LHEScale
 
 def main():
     parser = argparse.ArgumentParser(
@@ -335,18 +306,23 @@ def main():
             logger.debug(f"writing category: {cat}")
 
             if args.do_syst:
-                # check that the category actually contains something, otherwise the flattening step will make the script crash,
-                # an improvement (not sure if needed) may be to also write an empty TTree to not confuse FinalFit
+                # check that the category actually contains something before attempting to split/write
+                # to avoid confusing uproot with completely empty structures
                 if len(df_dict["NOMINAL"][cat]["weight"]):
-                    for branch in df_dict["NOMINAL"][cat]:
-                        # here I had to add a flattening step to help uproot with the type of the awkward arrays,
-                        # if you don't flatten (event if you don't have a nested field) you end up having a type like (len_of_array) * ?type, which make uproot very mad apparently
-                        df_dict["NOMINAL"][cat][branch] = ak.flatten(df_dict["NOMINAL"][cat][branch], axis=0)
-                    df_dict["NOMINAL"][cat] = ensure_nweight_LHEScale(df_dict["NOMINAL"][cat])
-                    file[names[cat]] = df_dict["NOMINAL"][cat]
-                    if notag:
-                        df_dict["NOMINAL"][cat] = ensure_nweight_LHEScale(df_dict["NOMINAL"][cat])
-                        file[name_notag] = df_dict["NOMINAL"][cat]  # this is wrong, to be fixed
+                    split_nominal_dict = split_awkward_arrays_by_length(df_dict["NOMINAL"][cat], logger, target_length=int(args.tbasket_length))
+
+                    for i, current_dict in enumerate(split_nominal_dict):
+                        current_dict = ensure_nweight_LHEScale(current_dict)
+                        logger.debug(f"Adding {i + 1}th dict out of {len(split_nominal_dict)}")
+
+                        array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                        logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
+
+                        if i == 0:
+                            file[names[cat]] = current_dict
+                        else:
+                            file[names[cat]].extend(current_dict)
+                    
                     for syst_name, weight, syst_, c in labels[cat]:
                         # Skip "NOMINAL" as information included in nominal tree
                         if syst_ == "NOMINAL":
@@ -374,28 +350,51 @@ def main():
                                     red_dict[new_key] = df_dict["NOMINAL"][cat][key]
 
                             logger.info(f"Adding {syst_name}01sigma to out tree...")
-                            file[syst_name + "01sigma"] = red_dict
+
+                            split_dict = split_awkward_arrays_by_length(red_dict, logger, target_length=int(args.tbasket_length))
+                            for i, current_dict in enumerate(split_dict):
+                                current_dict = ensure_nweight_LHEScale(current_dict)
+                                logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
+
+                                array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                                logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
+
+                                if i == 0:
+                                    file[syst_name + "01sigma"] = current_dict
+                                else:
+                                    file[syst_name + "01sigma"].extend(current_dict)
+
                         else:
                             red_dict = {}
                             for key, new_key in var_list:
                                 if syst_ in df_dict and cat in df_dict[syst_] and key in df_dict[syst_][cat]:
-                                    red_dict[new_key] = ak.flatten(df_dict[syst_][cat][key], 0)
+                                    red_dict[new_key] = df_dict[syst_][cat][key]
+
+                            split_dict = split_awkward_arrays_by_length(red_dict, logger, target_length=int(args.tbasket_length))
 
                             logger.info(f"Adding {syst_name}01sigma to out tree...")
-                            file[syst_name + "01sigma"] = red_dict
+                            for i, current_dict in enumerate(split_dict):
+                                current_dict = ensure_nweight_LHEScale(current_dict)
+                                logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
+
+                                array_sizes = {key: arr.nbytes for key, arr in current_dict.items()}
+                                logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
+
+                                if i == 0:
+                                    file[syst_name + "01sigma"] = current_dict
+                                else:
+                                    file[syst_name + "01sigma"].extend(current_dict)
+
                 else:
                     logger.info(f"no events survived category selection for cat: {cat}")
 
             else:
                 # if there are no syst there is no df_dict["NOMINAL"] entry in the dict
                 if len(df_dict[cat][[*df_dict[cat]][0]]):
-                    # same as before
-                    for branch in df_dict[cat]:
-                        df_dict[cat][branch] = ak.flatten(df_dict[cat][branch], axis=0)
 
                     logger.info(f"Adding cat {cat} to ROOT file...")
 
-                    split_dict = split_awkward_arrays_by_length(df_dict[cat], target_length=int(args.tbasket_length))
+                    split_dict = split_awkward_arrays_by_length(df_dict[cat], logger, target_length=int(args.tbasket_length))
 
                     for i, current_dict in enumerate(split_dict):
                         current_dict = ensure_nweight_LHEScale(current_dict)
@@ -413,7 +412,7 @@ def main():
                         # this is wrong, to be fixed
                         logger.info("Adding also NOTAG to ROOT file...")
 
-                        split_dict = split_awkward_arrays_by_length(df_dict[cat], target_length=int(args.tbasket_length))
+                        split_dict = split_awkward_arrays_by_length(df_dict[cat], logger, target_length=int(args.tbasket_length))
                         for i, current_dict in enumerate(split_dict):
                             current_dict = ensure_nweight_LHEScale(current_dict)
                             logger.debug(f"Adding {i + 1}th dict out of {len(split_dict)}")
