@@ -10,68 +10,8 @@ import pyarrow.parquet as pq
 import numpy as np
 from importlib import resources
 from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
+from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable
 from collections import defaultdict
-
-
-def extract_tuples(input_string):
-    tuples = []
-    # Remove leading and trailing parentheses and split by comma
-    tuple_strings = input_string.strip("()").split(";")
-    for tuple_str in tuple_strings:
-        # Remove leading and trailing whitespace and parentheses
-        tuple_elements = tuple_str.strip("()").split(",")
-        # Strip each element and append to the list of tuples
-        tuples.append(tuple(map(str.strip, tuple_elements)))
-    return tuples
-
-
-def extract_filter(dataset, additionalConditionTuple):
-    variable, operator, value = additionalConditionTuple
-
-    if operator == ">":
-        return dataset[variable] > float(value)
-    elif operator == ">=":
-        return dataset[variable] >= float(value)
-    elif operator == "<":
-        return dataset[variable] < float(value)
-    elif operator == "<=":
-        return dataset[variable] <= float(value)
-    elif operator == "==":
-        if ("True" in value) or ("False" in value):
-            value = bool(value)
-            return dataset[variable] == value
-        else:
-            return dataset[variable] == float(value)
-
-
-def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="GenPTH", diffVariableName="diffVariable_GenPTH"):
-    # Initialize diff variable in the awkward array
-    dataset[diffVariableName] = 0
-
-    # Specify variables which need the absolute value for the selection (eg. rapidity)
-    absolute_value_vars = ["GenYH"]
-
-    for range_min, range_max, fiducialTag, additionalConditions in ranges_dict.keys():
-        diffId = ranges_dict[(range_min, range_max, fiducialTag, additionalConditions)]
-
-        if fiducialTag == "in":
-            condition = (dataset["fiducialGeometricFlag"] == True)
-        else:
-            condition = (dataset["fiducialGeometricFlag"] == False)
-
-        if selectionVariableName in absolute_value_vars:
-            condition = condition & (np.abs(dataset[selectionVariableName]) >= range_min) & (np.abs(dataset[selectionVariableName]) < range_max)
-        else:
-            condition = condition & (dataset[selectionVariableName] >= range_min) & (dataset[selectionVariableName] < range_max)
-
-        if additionalConditions != "":
-            tuple_list = extract_tuples(additionalConditions)
-            for additionalCondition in tuple_list:
-                condition = condition & extract_filter(dataset, additionalCondition)
-        dataset[diffVariableName] = ak.where(condition, diffId, dataset[diffVariableName])
-
-    return dataset
-
 
 def process_custom_accumulator(source_path, logger):
     # Get the custom accumulator from all files in the source path
