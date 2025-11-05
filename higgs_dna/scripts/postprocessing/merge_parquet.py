@@ -11,22 +11,23 @@ import numpy as np
 from importlib import resources
 from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
 from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable
-from collections import defaultdict
+from coffea.processor.accumulator import iadd
 
 def process_custom_accumulator(source_path, logger):
     # Get the custom accumulator from all files in the source path
-    accumulator = defaultdict(float)
+    accumulator = None
     source_files = glob.glob("%s/*.parquet" % source_path)
     for f in source_files:
         try:
             file_accumulator = pq.read_schema(f).metadata[b'custom_accumulator']
         except KeyError:
             logger.warning(f"Custom accumulator requested but not found in file {f}")
-        file_accumulator = file_accumulator.decode("utf-8")
-        file_accumulator = ast.literal_eval(file_accumulator)
-        for key, value in file_accumulator.items():
-            accumulator[key] += value
-    return dict(accumulator)
+        file_accumulator = json.loads(file_accumulator)
+        if accumulator is None:
+            accumulator = file_accumulator
+        else:
+            accumulator = iadd(accumulator, file_accumulator)
+    return accumulator
 
 
 def main():
@@ -165,7 +166,7 @@ def main():
         )
 
     for i, source_path in enumerate(source_paths):
-        # Process custom accumulator 
+        # Process custom accumulator
         if args.custom_accumulator:
             logger.info(f"Processing custom accumulator for {source_path}")
             custom_accumulator = process_custom_accumulator(source_path, logger)
@@ -179,7 +180,7 @@ def main():
             logger.info("ParquetDataset read successfully.")
             logger.info(
                 f"Attempting to merge ParquetDataset and save to {target_paths[i]}."
-            )            
+            )
             if "Data" in target_paths[i]:
                 os.makedirs("/".join(target_paths[i].split("/")[:-1]), exist_ok=True)
             else:
@@ -228,7 +229,7 @@ def main():
             if args.custom_accumulator:
                 logger.info(f"Adding custom accumulator")
                 table = pq.read_table(target_paths[i] + cat + "_merged.parquet")
-                table = table.replace_schema_metadata({b'custom_accumulator': json.dumps(custom_accumulator).encode('utf-8')})
+                table = table.replace_schema_metadata({b'custom_accumulator': json.dumps(custom_accumulator).encode("utf-8")})
                 pq.write_table(table, target_paths[i] + cat + "_merged.parquet")
                 logger.info(f"Custom accumulator added successfully")
             logger.info("-" * 125)
