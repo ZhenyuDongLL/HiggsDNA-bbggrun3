@@ -188,18 +188,42 @@ class STXSProcessor(HggSkeletonProcessor):
             metadata["sum_genw_presel"] = str(numpy.sum(events.genWeight.to_numpy()))
 
             # Add sum of gen weights before selection for each HTXS.stage_1_2 bin
-            genWeight_sums = pd.DataFrame({
-                "HTXS_stage1_2_cat_pTjet30GeV": events.HTXS.stage1_2_cat_pTjet30GeV,
-                "genWeight": events.genWeight,
-            }).groupby("HTXS_stage1_2_cat_pTjet30GeV")["genWeight"].sum()
-            custom_accumulator = {
-                f"sum_genw_presel_HTXS_stage1_2_cat_pTjet30GeV:{bin_val}": genWeight_sums[bin_val]
-                for bin_val in genWeight_sums.index
+            base_dict = {
+                "HTXS_stage1_2_cat_pTjet30GeV": events.HTXS.stage1_2_cat_pTjet30GeV.to_numpy(),
+                "genWeight": events.genWeight.to_numpy(),
             }
-            metadata["custom_accumulator"] = json.dumps(
-                custom_accumulator,
-                default=lambda x: x.item() if isinstance(x, numpy.number) else x
-            )
+            # Add LHE scale and pdf weights before selection for each HTXS.stage_1_2 bin
+            lhescaleweight = events.LHEScaleWeight.to_numpy()
+            lhepdfweight = events.LHEPdfWeight.to_numpy()
+            lhescale_dict = {
+                f"LHEScaleWeight_{i}": lhescaleweight[:, i]
+                for i in range(lhescaleweight.shape[1])
+            }
+            lhepdf_dict = {
+                f"LHEPdfWeight_{i}": lhepdfweight[:, i]
+                for i in range(lhepdfweight.shape[1])
+            }
+            accum_dict = base_dict | lhescale_dict | lhepdf_dict
+
+            accum_df = pd.DataFrame(accum_dict)
+            accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum()
+            custom_accumulator = {}
+            custom_accumulator["sum_genw_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+            custom_accumulator["sum_lhescalew_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+            custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+            for bin_val in accum_sums.index:
+                custom_accumulator["sum_genw_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = accum_sums["genWeight"][bin_val]
+                custom_accumulator["sum_lhescalew_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
+                    f"LHEScaleWeight_{i}": accum_sums[f"LHEScaleWeight_{i}"][bin_val]
+                    for i in range(lhescaleweight.shape[1])
+                }
+                custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
+                    f"LHEPdfWeight_{i}": accum_sums[f"LHEPdfWeight_{i}"][bin_val]
+                    for i in range(lhepdfweight.shape[1])
+                }
+            del base_dict, lhescale_dict, lhepdf_dict, accum_dict
+            del lhescaleweight, lhepdfweight
+            del accum_df, accum_sums
         else:
             metadata["sum_genw_presel"] = "Data"
 
@@ -960,6 +984,42 @@ class STXSProcessor(HggSkeletonProcessor):
                 metadata["sum_weight_central_wo_bTagSF"] = str(
                     ak.sum(event_weights.weight() / (event_weights.partial_weight(include=["bTagSF"])))
                 )
+
+                base_dict = {
+                    "HTXS_stage1_2_cat_pTjet30GeV": events.HTXS.stage1_2_cat_pTjet30GeV[selection_mask].to_numpy(),
+                    "genWeight": events.genWeight[selection_mask].to_numpy(),
+                }
+                lhescaleweight = events.LHEScaleWeight[selection_mask].to_numpy()
+                lhepdfweight = events.LHEPdfWeight[selection_mask].to_numpy()
+                lhescale_dict = {
+                    f"LHEScaleWeight_{i}": lhescaleweight[:, i]
+                    for i in range(lhescaleweight.shape[1])
+                }
+                lhepdf_dict = {
+                    f"LHEPdfWeight_{i}": lhepdfweight[:, i]
+                    for i in range(lhepdfweight.shape[1])
+                }
+                accum_dict = base_dict | lhescale_dict | lhepdf_dict
+
+                accum_df = pd.DataFrame(accum_dict)
+                accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum()
+                custom_accumulator["sum_genw_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                custom_accumulator["sum_lhescalew_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                custom_accumulator["sum_lhepdfw_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                for bin_val in accum_sums.index:
+                    custom_accumulator["sum_genw_postsel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = accum_sums["genWeight"][bin_val]
+                    custom_accumulator["sum_lhescalew_postsel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
+                        f"LHEScaleWeight_{i}": accum_sums[f"LHEScaleWeight_{i}"][bin_val]
+                        for i in range(lhescaleweight.shape[1])
+                    }
+                    custom_accumulator["sum_lhepdfw_postsel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
+                        f"LHEPdfWeight_{i}": accum_sums[f"LHEPdfWeight_{i}"][bin_val]
+                        for i in range(lhepdfweight.shape[1])
+                    }
+                metadata["custom_accumulator"] = json.dumps(
+                    custom_accumulator,
+                    default=lambda x: x.item() if isinstance(x, numpy.number) else x
+                ).encode("utf-8")
 
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
