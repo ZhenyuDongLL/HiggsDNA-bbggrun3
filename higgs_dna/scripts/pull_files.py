@@ -564,43 +564,46 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/bTagSF/")
 
     from_to_dict = {
+        # Run 2 UL (NanoAODv9)
         "2016preVFP": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2016preVFP_UL/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2016preVFP-UL-NanoAODv9/latest/btagging.json.gz",
             "to": f"{to_prefix}/2016preVFP_UL/btagging.json.gz",
             "type": "cvmfs",
         },
         "2016postVFP": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2016postVFP_UL/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2016postVFP-UL-NanoAODv9/latest/btagging.json.gz",
             "to": f"{to_prefix}/2016postVFP_UL/btagging.json.gz",
             "type": "cvmfs",
         },
         "2017": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2017_UL/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2017-UL-NanoAODv9/latest/btagging.json.gz",
             "to": f"{to_prefix}/2017_UL/btagging.json.gz",
             "type": "cvmfs",
         },
         "2018": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2018_UL/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2018-UL-NanoAODv9/latest/btagging.json.gz",
             "to": f"{to_prefix}/2018_UL/btagging.json.gz",
             "type": "cvmfs",
         },
+
+        # Run 3 (NanoAODv12)
         "2022preEE": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2022_Summer22/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-22CDSep23-Summer22-NanoAODv12/latest/btagging.json.gz",
             "to": f"{to_prefix}/2022_Summer22/btagging.json.gz",
             "type": "cvmfs",
         },
         "2022postEE": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2022_Summer22EE/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/btagging.json.gz",
             "to": f"{to_prefix}/2022_Summer22EE/btagging.json.gz",
             "type": "cvmfs",
         },
         "2023preBPix": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2023_Summer23/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-23CSep23-Summer23-NanoAODv12/latest/btagging.json.gz",
             "to": f"{to_prefix}/2023_Summer23/btagging.json.gz",
             "type": "cvmfs",
         },
         "2023postBPix": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2023_Summer23BPix/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/btagging.json.gz",
             "to": f"{to_prefix}/2023_Summer23BPix/btagging.json.gz",
             "type": "cvmfs",
         },
@@ -615,28 +618,54 @@ def get_ctag_json(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/cTagSF/")
 
     from_to_dict = {
+        # ------------------
+        # Run 2 UL (NanoAODv9)
+        # ------------------
         "2016preVFP": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2016preVFP_UL/ctagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2016preVFP-UL-NanoAODv9/latest/ctagging.json.gz",
             "to": f"{to_prefix}/2016/ctagging_2016preVFP.json.gz",
             "type": "cvmfs",
         },
         "2016postVFP": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2016postVFP_UL/ctagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2016postVFP-UL-NanoAODv9/latest/ctagging.json.gz",
             "to": f"{to_prefix}/2016/ctagging_2016postVFP.json.gz",
             "type": "cvmfs",
         },
         "2017": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2017_UL/ctagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2017-UL-NanoAODv9/latest/ctagging.json.gz",
             "to": f"{to_prefix}/2017/ctagging_2017.json.gz",
             "type": "cvmfs",
         },
         "2018": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2018_UL/ctagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2018-UL-NanoAODv9/latest/ctagging.json.gz",
             "to": f"{to_prefix}/2018/ctagging_2018.json.gz",
             "type": "cvmfs",
         },
+
+        "2022preEE": {
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-22CDSep23-Summer22-NanoAODv12/latest/ctagging.json.gz",
+            "to": f"{to_prefix}/2022_Summer22/ctagging_2022preEE.json.gz",
+            "type": "cvmfs",
+        },
+        "2022postEE": {
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/ctagging.json.gz",
+            "to": f"{to_prefix}/2022_Summer22EE/ctagging_2022postEE.json.gz",
+            "type": "cvmfs",
+        },
+        "2023preBPix": {
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-23CSep23-Summer23-NanoAODv12/latest/ctagging.json.gz",
+            "to": f"{to_prefix}/2023_Summer23/ctagging_2023preBPix.json.gz",
+            "type": "cvmfs",
+        },
+        "2023postBPix": {
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/ctagging.json.gz",
+            "to": f"{to_prefix}/2023_Summer23BPix/ctagging_2023postBPix.json.gz",
+            "type": "cvmfs",
+        },
     }
+
     fetch_file("cTag", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
 
 
 def get_2D_HF_tag_json(logger, target_dir, use_xrdcp=False):
@@ -1154,89 +1183,96 @@ def get_electron_json(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(
             resource_dir, "../higgs_dna/systematics/JSONs/POG/EGM/"
         )
-    base_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/EGM"
 
     from_to_dict = {
+        # Run 3 (NanoAODv12)
         "2022preEE": {
-            "from": f"{base_path}/2022_Summer22/electron.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/EGM/Run3-22CDSep23-Summer22-NanoAODv12/latest/electron.json.gz",
             "to": f"{to_prefix}/2022preEE/electron.json.gz",
             "type": "cvmfs",
         },
         "2022postEE": {
-            "from": f"{base_path}/2022_Summer22EE/electron.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/EGM/Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/electron.json.gz",
             "to": f"{to_prefix}/2022postEE/electron.json.gz",
             "type": "cvmfs",
         },
         "2023preBPix": {
-            "from": f"{base_path}/2023_Summer23/electron.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/EGM/Run3-23CSep23-Summer23-NanoAODv12/latest/electron.json.gz",
             "to": f"{to_prefix}/2023preBPix/electron.json.gz",
             "type": "cvmfs",
         },
         "2023postBPix": {
-            "from": f"{base_path}/2023_Summer23BPix/electron.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/EGM/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/electron.json.gz",
             "to": f"{to_prefix}/2023postBPix/electron.json.gz",
             "type": "cvmfs",
         },
     }
+
     fetch_file("electron", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
-
 def get_pileup(logger, target_dir, use_xrdcp=False):
-    # Base URL for pileup JSONs
-    base_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/LUM"
-    eos_path_2024Preliminary = "/eos/cms/store/user/evourlio/pileupJson_forHiggsDNA"
-
     if target_dir is not None:
         to_prefix = target_dir
     else:
         to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/pileup/")
 
     from_to_dict = {
+        # ------------------
+        # Run 2 (UL, NanoAODv9)
+        # ------------------
         "2016preVFP": {
-            "from": f"{base_path}/2016preVFP_UL/puWeights.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run2-2016preVFP-UL-NanoAODv9/latest/puWeights.json.gz",
             "to": f"{to_prefix}/pileup_2016preVFP.json.gz",
             "type": "cvmfs",
         },
         "2016postVFP": {
-            "from": f"{base_path}/2016postVFP_UL/puWeights.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run2-2016postVFP-UL-NanoAODv9/latest/puWeights.json.gz",
             "to": f"{to_prefix}/pileup_2016postVFP.json.gz",
             "type": "cvmfs",
         },
         "2017": {
-            "from": f"{base_path}/2017_UL/puWeights.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run2-2017-UL-NanoAODv9/latest/puWeights.json.gz",
             "to": f"{to_prefix}/pileup_2017.json.gz",
             "type": "cvmfs",
         },
         "2018": {
-            "from": f"{base_path}/2018_UL/puWeights.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run2-2018-UL-NanoAODv9/latest/puWeights.json.gz",
             "to": f"{to_prefix}/pileup_2018.json.gz",
             "type": "cvmfs",
         },
+
+        # ------------------
+        # Run 3 (NanoAODv12)
+        # ------------------
         "2022_preEE": {
-            "from": f"{base_path}/2022_Summer22/puWeights.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run3-22CDSep23-Summer22-NanoAODv12/latest/puWeights.json.gz",
             "to": f"{to_prefix}/pileup_2022preEE.json.gz",
             "type": "cvmfs",
         },
         "2022_postEE": {
-            "from": f"{base_path}/2022_Summer22EE/puWeights.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/puWeights.json.gz",
             "to": f"{to_prefix}/pileup_2022postEE.json.gz",
             "type": "cvmfs",
         },
         "2023_preBPix": {
-            "from": f"{base_path}/2023_Summer23/puWeights.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run3-23CSep23-Summer23-NanoAODv12/latest/puWeights.json.gz",
             "to": f"{to_prefix}/pileup_2023preBPix.json.gz",
             "type": "cvmfs",
         },
         "2023_postBPix": {
-            "from": f"{base_path}/2023_Summer23BPix/puWeights.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/puWeights.json.gz",
             "to": f"{to_prefix}/pileup_2023postBPix.json.gz",
             "type": "cvmfs",
         },
+
+        # ------------------
+        # For we 2024 leave as it is (still coming from EOS user area)
+        # ------------------
         "2024": {
-             "from": f"{eos_path_2024Preliminary}/2024/puWeights.json.gz",
-             "to": f"{to_prefix}/pileup_2024.json.gz",
-             "type": "eos",
-         },
+            "from": f"/eos/cms/store/user/evourlio/pileupJson_forHiggsDNA/2024/puWeights.json.gz",
+            "to": f"{to_prefix}/pileup_2024.json.gz",
+            "type": "eos",
+        },
     }
 
     fetch_file("Pileup", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
@@ -1278,76 +1314,57 @@ def get_muon_SFs(logger, target_dir, use_xrdcp=False):
         to_prefix = target_dir
     else:
         to_prefix = resource_dir
+
     from_to_dict = {
+        # ------------------
+        # Run 3 (NanoAODv12)
+        # ------------------
         "2022preEE": {
             "from": [
-                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22/muon_Z.json.gz",
-                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22/muon_JPsi.json.gz"
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-22CDSep23-Summer22-NanoAODv12/latest/muon_Z.json.gz",
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-22CDSep23-Summer22-NanoAODv12/latest/muon_JPsi.json.gz",
             ],
             "to": [
-                os.path.join(
-                    to_prefix,
-                    "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22/muon_Z.json.gz",
-                ),
-                os.path.join(
-                    to_prefix,
-                    "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22/muon_JPsi.json.gz",
-                ),
+                os.path.join(to_prefix, "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22/muon_Z.json.gz"),
+                os.path.join(to_prefix, "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22/muon_JPsi.json.gz"),
             ],
             "type": "cvmfs",
         },
         "2022postEE": {
             "from": [
-                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22EE/muon_Z.json.gz",
-                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2022_Summer22EE/muon_JPsi.json.gz"
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/muon_Z.json.gz",
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/muon_JPsi.json.gz",
             ],
             "to": [
-                os.path.join(
-                    to_prefix,
-                    "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22EE/muon_Z.json.gz",
-                ),
-                os.path.join(
-                    to_prefix,
-                    "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22EE/muon_JPsi.json.gz",
-                ),
+                os.path.join(to_prefix, "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22EE/muon_Z.json.gz"),
+                os.path.join(to_prefix, "../higgs_dna/systematics/JSONs/POG/MUO/2022_Summer22EE/muon_JPsi.json.gz"),
             ],
             "type": "cvmfs",
         },
         "2023preBPix": {
             "from": [
-                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23/muon_Z.json.gz",
-                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23/muon_JPsi.json.gz"
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-23CSep23-Summer23-NanoAODv12/latest/muon_Z.json.gz",
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-23CSep23-Summer23-NanoAODv12/latest/muon_JPsi.json.gz",
             ],
             "to": [
-                os.path.join(
-                    to_prefix,
-                    "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23/muon_Z.json.gz",
-                ),
-                os.path.join(
-                    to_prefix,
-                    "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23/muon_JPsi.json.gz",
-                ),
+                os.path.join(to_prefix, "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23/muon_Z.json.gz"),
+                os.path.join(to_prefix, "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23/muon_JPsi.json.gz"),
             ],
             "type": "cvmfs",
         },
         "2023postBPix": {
             "from": [
-                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23BPix/muon_Z.json.gz",
-                "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/MUO/2023_Summer23BPix/muon_JPsi.json.gz"
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/muon_Z.json.gz",
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/muon_JPsi.json.gz",
             ],
             "to": [
-                os.path.join(
-                    to_prefix,
-                    "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23BPix/muon_Z.json.gz",
-                ),
-                os.path.join(
-                    to_prefix,
-                    "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23BPix/muon_JPsi.json.gz",
-                ),
+                os.path.join(to_prefix, "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23BPix/muon_Z.json.gz"),
+                os.path.join(to_prefix, "../higgs_dna/systematics/JSONs/POG/MUO/2023_Summer23BPix/muon_JPsi.json.gz"),
             ],
             "type": "cvmfs",
-        }
+        },
     }
+
     fetch_file("muonSF", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
