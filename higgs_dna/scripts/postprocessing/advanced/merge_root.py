@@ -18,7 +18,6 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
 
     renamed_dict = {}
 
-    # TODO: is it possible to read all files metadata with the ParquetDataset function. Currently extracting norm outside
     if (not is_data) & (not _args.skip_normalisation):
         logger.info(
             "Extracting sum of gen weights (before selection) from metadata of files to be merged."

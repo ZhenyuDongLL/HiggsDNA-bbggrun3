@@ -330,6 +330,10 @@ def main():
 
     BASEDIR = resources.files("higgs_dna").joinpath("")
 
+    logger_verbosity = "DEBUG" if opt.verbose else "INFO"
+
+    logger = setup_logger(level=logger_verbosity)
+
     if (opt.batch == "condor") or ("slurm" in opt.batch):
         if not opt.logs:
             logger.error("You did not specify the log directory for the batch submission. Specify one with --logs /path/to/logs.")
@@ -353,10 +357,6 @@ def main():
         outfiles_map_file = os.path.realpath(opt.outfiles_map)
     else:
         outfiles_map_file = os.path.join(BASEDIR, "scripts/postprocessing/config_jsons/outfiles.yaml")
-
-    logger_verbosity = "DEBUG" if opt.verbose else "INFO"
-
-    logger = setup_logger(level=logger_verbosity)
 
     folder_for_dirlist = opt.input
     if opt.batch == "condor":
