@@ -192,37 +192,65 @@ class STXSProcessor(HggSkeletonProcessor):
                 "HTXS_stage1_2_cat_pTjet30GeV": events.HTXS.stage1_2_cat_pTjet30GeV.to_numpy(),
                 "genWeight": events.genWeight.to_numpy(),
             }
-            # Add LHE scale and pdf weights before selection for each HTXS.stage_1_2 bin
-            lhescaleweight = events.LHEScaleWeight.to_numpy()
-            lhepdfweight = events.LHEPdfWeight.to_numpy()
-            lhescale_dict = {
-                f"LHEScaleWeight_{i}": lhescaleweight[:, i]
-                for i in range(lhescaleweight.shape[1])
-            }
-            lhepdf_dict = {
-                f"LHEPdfWeight_{i}": lhepdfweight[:, i]
-                for i in range(lhepdfweight.shape[1])
-            }
+
+            # Check if LHE scale and pdf weights are present
+            has_lhe_scale = hasattr(events, "LHEScaleWeight")
+            has_lhe_pdf = hasattr(events, "LHEPdfWeight")
+
+            # Add LHE scale weights if present
+            lhescale_dict = {}
+            n_lhe_scale_weights = 0
+            if has_lhe_scale:
+                lhescaleweight = events.LHEScaleWeight.to_numpy()
+                n_lhe_scale_weights = lhescaleweight.shape[1]
+                lhescale_dict = {
+                    f"LHEScaleWeight_{i}": lhescaleweight[:, i]
+                    for i in range(n_lhe_scale_weights)
+                }
+
+            # Add LHE pdf weights if present
+            lhepdf_dict = {}
+            n_lhe_pdf_weights = 0
+            if has_lhe_pdf:
+                lhepdfweight = events.LHEPdfWeight.to_numpy()
+                n_lhe_pdf_weights = lhepdfweight.shape[1]
+                lhepdf_dict = {
+                    f"LHEPdfWeight_{i}": lhepdfweight[:, i]
+                    for i in range(n_lhe_pdf_weights)
+                }
+
             accum_dict = base_dict | lhescale_dict | lhepdf_dict
 
             accum_df = pd.DataFrame(accum_dict)
             accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum()
+
             custom_accumulator = {}
             custom_accumulator["sum_genw_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
-            custom_accumulator["sum_lhescalew_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
-            custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+            if has_lhe_scale:
+                custom_accumulator["sum_lhescalew_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+            if has_lhe_pdf:
+                custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+
             for bin_val in accum_sums.index:
                 custom_accumulator["sum_genw_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = accum_sums["genWeight"][bin_val]
-                custom_accumulator["sum_lhescalew_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
-                    f"LHEScaleWeight_{i}": accum_sums[f"LHEScaleWeight_{i}"][bin_val]
-                    for i in range(lhescaleweight.shape[1])
-                }
-                custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
-                    f"LHEPdfWeight_{i}": accum_sums[f"LHEPdfWeight_{i}"][bin_val]
-                    for i in range(lhepdfweight.shape[1])
-                }
+
+                if has_lhe_scale:
+                    custom_accumulator["sum_lhescalew_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
+                        f"LHEScaleWeight_{i}": accum_sums[f"LHEScaleWeight_{i}"][bin_val]
+                        for i in range(n_lhe_scale_weights)
+                    }
+
+                if has_lhe_pdf:
+                    custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
+                        f"LHEPdfWeight_{i}": accum_sums[f"LHEPdfWeight_{i}"][bin_val]
+                        for i in range(n_lhe_pdf_weights)
+                    }
+
             del base_dict, lhescale_dict, lhepdf_dict, accum_dict
-            del lhescaleweight, lhepdfweight
+            if has_lhe_scale:
+                del lhescaleweight
+            if has_lhe_pdf:
+                del lhepdfweight
             del accum_df, accum_sums
         else:
             metadata["sum_genw_presel"] = "Data"
@@ -989,37 +1017,63 @@ class STXSProcessor(HggSkeletonProcessor):
                     "HTXS_stage1_2_cat_pTjet30GeV": events.HTXS.stage1_2_cat_pTjet30GeV[selection_mask].to_numpy(),
                     "genWeight": events.genWeight[selection_mask].to_numpy(),
                 }
-                lhescaleweight = events.LHEScaleWeight[selection_mask].to_numpy()
-                lhepdfweight = events.LHEPdfWeight[selection_mask].to_numpy()
-                lhescale_dict = {
-                    f"LHEScaleWeight_{i}": lhescaleweight[:, i]
-                    for i in range(lhescaleweight.shape[1])
-                }
-                lhepdf_dict = {
-                    f"LHEPdfWeight_{i}": lhepdfweight[:, i]
-                    for i in range(lhepdfweight.shape[1])
-                }
+
+                # Add LHE scale weights if present
+                lhescale_dict = {}
+                if has_lhe_scale:
+                    lhescaleweight = events.LHEScaleWeight[selection_mask].to_numpy()
+                    lhescale_dict = {
+                        f"LHEScaleWeight_{i}": lhescaleweight[:, i]
+                        for i in range(n_lhe_scale_weights)
+                    }
+
+                # Add LHE pdf weights if present
+                lhepdf_dict = {}
+                if has_lhe_pdf:
+                    lhepdfweight = events.LHEPdfWeight[selection_mask].to_numpy()
+                    lhepdf_dict = {
+                        f"LHEPdfWeight_{i}": lhepdfweight[:, i]
+                        for i in range(n_lhe_pdf_weights)
+                    }
+
                 accum_dict = base_dict | lhescale_dict | lhepdf_dict
 
                 accum_df = pd.DataFrame(accum_dict)
                 accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum()
+
                 custom_accumulator["sum_genw_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
-                custom_accumulator["sum_lhescalew_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
-                custom_accumulator["sum_lhepdfw_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                if has_lhe_scale:
+                    custom_accumulator["sum_lhescalew_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                if has_lhe_pdf:
+                    custom_accumulator["sum_lhepdfw_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+
                 for bin_val in accum_sums.index:
                     custom_accumulator["sum_genw_postsel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = accum_sums["genWeight"][bin_val]
-                    custom_accumulator["sum_lhescalew_postsel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
-                        f"LHEScaleWeight_{i}": accum_sums[f"LHEScaleWeight_{i}"][bin_val]
-                        for i in range(lhescaleweight.shape[1])
-                    }
-                    custom_accumulator["sum_lhepdfw_postsel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
-                        f"LHEPdfWeight_{i}": accum_sums[f"LHEPdfWeight_{i}"][bin_val]
-                        for i in range(lhepdfweight.shape[1])
-                    }
+
+                    if has_lhe_scale:
+                        custom_accumulator["sum_lhescalew_postsel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
+                            f"LHEScaleWeight_{i}": accum_sums[f"LHEScaleWeight_{i}"][bin_val]
+                            for i in range(n_lhe_scale_weights)
+                        }
+
+                    if has_lhe_pdf:
+                        custom_accumulator["sum_lhepdfw_postsel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
+                            f"LHEPdfWeight_{i}": accum_sums[f"LHEPdfWeight_{i}"][bin_val]
+                            for i in range(n_lhe_pdf_weights)
+                        }
+
+                del base_dict, lhescale_dict, lhepdf_dict, accum_df, accum_sums
+                if has_lhe_scale:
+                    del lhescaleweight
+                if has_lhe_pdf:
+                    del lhepdfweight
+
                 metadata["custom_accumulator"] = json.dumps(
                     custom_accumulator,
                     default=lambda x: x.item() if isinstance(x, numpy.number) else x
                 ).encode("utf-8")
+
+                del custom_accumulator
 
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
