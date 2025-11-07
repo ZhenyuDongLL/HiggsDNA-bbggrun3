@@ -6,6 +6,7 @@ import os
 import glob
 import awkward as ak
 from higgs_dna.utils.logger_utils import setup_logger
+import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 import numpy as np
 from importlib import resources
@@ -146,13 +147,12 @@ def main():
         )
         cat_dict = {"NOTAG": {"cat_filter": [("pt", ">", -1.0)]}}
 
-
-# TODO: is it possible to read all files metadata with the ParquetDataset function. Currently extracting norm outside
     if (not args.is_data) & (not args.skip_normalisation):
         logger.info(
             "Extracting sum of gen weights (before selection) from metadata of files to be merged."
         )
-        if(args.do_b_weight_normalisation): IsBtagNorm_sys_arr,WeightSum_preBTag_arr,WeightSum_postBTag_arr,WeightSum_postBTag_sys_arr = Get_WeightSum_Btag(source_paths,logger)
+        if(args.do_b_weight_normalisation):
+            IsBtagNorm_sys_arr,WeightSum_preBTag_arr,WeightSum_postBTag_arr,WeightSum_postBTag_sys_arr = Get_WeightSum_Btag(source_paths,logger)
 
         sum_genw_beforesel_arr = []
         for i, source_path in enumerate(source_paths):
@@ -174,64 +174,67 @@ def main():
         for cat in cat_dict:
             logger.info("-" * 125)
             logger.info(
-                f"INFO: Starting parquet file merging. Attempting to read ParquetDataset from {source_path}, for category: {cat}"
+                f"INFO: Starting parquet file merging. Attempting to read parquet dataset from {source_path}, for category: {cat}"
             )
-            dataset = pq.ParquetDataset(source_path, filters=cat_dict[cat]["cat_filter"])
-            logger.info("ParquetDataset read successfully.")
+            dataset = ds.dataset(source_path)
+            logger.info("Parquet dataset read successfully.")
             logger.info(
-                f"Attempting to merge ParquetDataset and save to {target_paths[i]}."
+                f"Attempting to merge parquet dataset and save to {target_paths[i]}."
             )
             if "Data" in target_paths[i]:
                 os.makedirs("/".join(target_paths[i].split("/")[:-1]), exist_ok=True)
             else:
                 os.makedirs(target_paths[i], exist_ok=True) # Create target directory if it does not exist
-            pq.write_table(
-                dataset.read(), target_paths[i] + cat + "_merged.parquet"
-            )  # dataset.read() is a pyarrow table
-            logger.info(
-                f"Success! Merged parquet file is located in {target_paths[i]}{cat}_merged.parquet."
-            )
-            # If MC then open the merged dataset and add normalised weight column (sumw = efficiency)
-            # TODO: can we add column before writing table and prevent re-reading in as awkward array
-            if (not args.is_data) & (not args.skip_normalisation):
-                # Remove ParquetDataset from memory and read file in as awkward array
-                del dataset
-                dataset_arr = ak.from_parquet(target_paths[i] + cat + "_merged.parquet")
-                # Add filtering for differentials here
 
-                if gen_binning != None:
-                    for keys in gen_binning:
-                        var_dict = {ast.literal_eval(key): value for key, value in gen_binning[keys].items()}
-                        # If the length of the gen_binning tuple is 5 => Use first element in the tuple as primary selection variable
-                        # Example: ('GenPTH', 0, 15, 'in', '(GenDPhiJ0J1, >=, -3.1416);(GenDPhiJ0J1, <, -2.0944)')
-                        if len(list(var_dict.keys())[0]) == 5:
-                            selectionVariableName = list(var_dict.keys())[0][0]
-                            var_dict = {k[1:]: v for k, v in var_dict.items()}
-                        else:
-                            selectionVariableName = keys
-                        dataset_arr = filter_and_set_diff_variable(dataset_arr, var_dict, selectionVariableName, "diffVariable_" + keys)
+            # Process in batches
+            output_file = target_paths[i] + cat + "_merged.parquet"
 
-                # Add column for unnormalised weight
-                dataset_arr['weight_nominal'] = dataset_arr['weight']
-                # normalise nominal and systematics weights by sum of gen weights before selection
-                syst_weight_fields = [field for field in dataset_arr.fields if (("weight_" in field) and ("Up" in field or "Down" in field))]
-                for weight_field in ["weight"] + syst_weight_fields:
-                    dataset_arr[weight_field] = dataset_arr[weight_field] / sum_genw_beforesel_arr[i]
-                if(args.do_b_weight_normalisation):
-                    if((WeightSum_preBTag_arr[i]/WeightSum_postBTag_arr[i])!=1):
-                        dataset_arr = Renormalize_BTag_Weights(dataset_arr,target_paths[i],cat,WeightSum_preBTag_arr[i],WeightSum_postBTag_arr[i],WeightSum_postBTag_sys_arr[i],IsBtagNorm_sys_arr[i],logger)
-                ak.to_parquet(dataset_arr, target_paths[i] + cat + "_merged.parquet")
-                logger.info(
-                    "Successfully added normalised weight column to dataset"
-                )
+            # Process in batches
+            writer = None
 
-            # Add custom accumulator as metadata
-            if args.custom_accumulator:
-                logger.info(f"Adding custom accumulator")
-                table = pq.read_table(target_paths[i] + cat + "_merged.parquet")
-                table = table.replace_schema_metadata({b'custom_accumulator': json.dumps(custom_accumulator).encode("utf-8")})
-                pq.write_table(table, target_paths[i] + cat + "_merged.parquet")
-                logger.info(f"Custom accumulator added successfully")
+            for batch in dataset.to_batches(filter=pq.filters_to_expression(cat_dict[cat]["cat_filter"])):
+                batch_arr = ak.from_arrow(batch)
+
+                if (not args.is_data) & (not args.skip_normalisation):
+                    if gen_binning != None:
+                        for keys in gen_binning:
+                            var_dict = {ast.literal_eval(key): value for key, value in gen_binning[keys].items()}
+                            if len(list(var_dict.keys())[0]) == 5:
+                                selectionVariableName = list(var_dict.keys())[0][0]
+                                var_dict = {k[1:]: v for k, v in var_dict.items()}
+                            else:
+                                selectionVariableName = keys
+                            batch_arr = filter_and_set_diff_variable(batch_arr, var_dict, selectionVariableName, "diffVariable_" + keys)
+
+                    batch_arr['weight_nominal'] = batch_arr['weight']
+                    syst_weight_fields = [field for field in batch_arr.fields if (("weight_" in field) and ("Up" in field or "Down" in field))]
+                    for weight_field in ["weight"] + syst_weight_fields:
+                        batch_arr[weight_field] = batch_arr[weight_field] / sum_genw_beforesel_arr[i]
+                    logger.info("Successfully added normalised weight column")
+
+                    if args.do_b_weight_normalisation:
+                        if((WeightSum_preBTag_arr[i]/WeightSum_postBTag_arr[i])!=1):
+                            batch_arr = Renormalize_BTag_Weights(batch_arr, target_paths[i], cat, WeightSum_preBTag_arr[i], WeightSum_postBTag_arr[i], WeightSum_postBTag_sys_arr[i], IsBtagNorm_sys_arr[i], logger)
+
+                table = ak.to_arrow_table(batch_arr, extensionarray=False)
+                if args.custom_accumulator:
+                    logger.info("Adding custom accumulator")
+                    table = table.replace_schema_metadata({b'custom_accumulator': json.dumps(custom_accumulator).encode("utf-8")})
+                    logger.info("Custom accumulator added successfully")
+                else:
+                    table = table.replace_schema_metadata()
+                batches = table.to_batches()
+
+                if writer is None:
+                    schema = table.schema
+                    writer = pq.ParquetWriter(output_file, schema)
+                for processed_batch in batches:
+                    writer.write_batch(processed_batch)
+
+            if writer:
+                writer.close()
+
+            logger.info(f"Success! Merged parquet file is located in {output_file}")
             logger.info("-" * 125)
 
 if __name__ == "__main__":
