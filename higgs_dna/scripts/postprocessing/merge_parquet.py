@@ -223,13 +223,11 @@ def main():
                     logger.info("Custom accumulator added successfully")
                 else:
                     table = table.replace_schema_metadata()
-                batches = table.to_batches()
 
                 if writer is None:
                     schema = table.schema
                     writer = pq.ParquetWriter(output_file, schema)
-                for processed_batch in batches:
-                    writer.write_batch(processed_batch)
+                writer.write_table(table)
 
             if writer:
                 writer.close()
