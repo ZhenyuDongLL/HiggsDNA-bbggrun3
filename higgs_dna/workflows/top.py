@@ -81,13 +81,15 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             validate_with_electrons=validate_with_electrons,
             output_format=output_format
         )
-
         self.nano_version = nano_version
 
         self.el_id_wp = "WP90"
         self.name_convention = "DAS"
         self.min_mvaid = -0.7
-        self.bjet_mva = "robustParticleTransformer"
+        if self.nano_version == 15:
+            self.bjet_mva = "btagUParTAK4B"
+        else:
+            self.bjet_mva = "robustParticleTransformer"
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
@@ -374,14 +376,22 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                     "charge": ak.zeros_like(jets.pt),
                     "hFlav": jets.hadronFlavour if self.data_kind == "mc" else ak.zeros_like(jets.pt),
                     "btagPNetB": jets.btagPNetB,
-                    "btagRobustParTAK4B": jets.btagRobustParTAK4B,
-                    "btagRobustParTAK4CvB": jets.btagRobustParTAK4CvB,
-                    "btagRobustParTAK4CvL": jets.btagRobustParTAK4CvL,
-                    "btagRobustParTAK4QG": jets.btagRobustParTAK4QG,
                     "btagPNetCvB": jets.btagPNetCvB,
                     "btagPNetCvL": jets.btagPNetCvL,
                     "btagPNetQvG": jets.btagPNetQvG,
                     "btagPNetTauVJet": jets.btagPNetTauVJet,
+
+                    **({
+                        "btagUParTAK4B": jets.btagUParTAK4B,
+                        "btagUParTAK4CvB": jets.btagUParTAK4CvB,
+                        "btagUParTAK4QvG": jets.btagUParTAK4QvG,
+                        "btagUParTAK4TauVJet": jets.btagUParTAK4TauVJet,
+                    } if self.nano_version == 15 else {
+                        "btagRobustParTAK4B": jets.btagRobustParTAK4B,
+                        "btagRobustParTAK4CvB": jets.btagRobustParTAK4CvB,
+                        "btagRobustParTAK4CvL": jets.btagRobustParTAK4CvL,
+                        "btagRobustParTAK4QG": jets.btagRobustParTAK4QG,
+                    }),
 
                     "jetId": add_jetId(jets, self.nano_version, self.year[dataset_name][0], flattenUnflatten=True),  # add jet ID based on nano version
                     **(
@@ -404,7 +414,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                     "charge": electrons.charge,
                     "mvaIso_WP90": electrons.mvaIso_WP90,
                     "mvaIso_WP80": electrons.mvaIso_WP80,
-                    "mvaTTH": electrons.mvaTTH,
+                    **({"mvaTTH": electrons.promptMVA} if self.nano_version == 15 else {"mvaTTH": electrons.mvaTTH}),
                     "genPartFlav": electrons.genPartFlav if self.data_kind == "mc" else np.full_like(electrons.pt, -999),
                     "pfRelIso03_all": electrons.pfRelIso03_all,
                     "pfRelIso03_chg": electrons.pfRelIso03_chg,
@@ -425,7 +435,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                     "looseId": muons.looseId,
                     "isGlobal": muons.isGlobal,
                     "pfIsoId": muons.pfIsoId,
-                    "mvaTTH": muons.mvaTTH,
+                    **({"mvaTTH": muons.promptMVA} if self.nano_version == 15 else {"mvaTTH": muons.mvaTTH}),
                     "genPartFlav": muons.genPartFlav if self.data_kind == "mc" else np.full_like(muons.pt, -999),
                     "pfRelIso03_all": muons.pfRelIso03_all,
                     "pfRelIso03_chg": muons.pfRelIso03_chg,
@@ -437,7 +447,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             met_corr = apply_type1_met_correction(MET, objects=(jets, photons, electrons, muons), raw_pt_name="pt_nano")
             diphotons["met_pt"] = met_corr.pt
             diphotons["met_phi"] = met_corr.phi
-            diphotons["met_significance"] = events.MET.significance
+            diphotons["met_significance"] = events.PuppiMET.significance if self.nano_version >= 15 else events.MET.significance
 
             # lepton cleaning
             electrons = electrons[select_electrons(self, electrons, diphotons)]
@@ -464,18 +474,20 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             n_jets = ak.num(jets)
             n_jets_forward = ak.num(jets[np.abs(jets.eta) > 2.5])
             n_jets_central = ak.num(jets[np.abs(jets.eta) <= 2.5])
-            n_bjets_loose = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='L', year=self.year[dataset_name][0])])
-            n_bjets_medium = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='M', year=self.year[dataset_name][0])])
-            n_bjets_tight = ak.num(jets[jets.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='T', year=self.year[dataset_name][0])])
+            btag_score = jets.btagUParTAK4B if self.nano_version == 15 else jets.btagRobustParTAK4B
+            n_bjets_loose = ak.num(jets[btag_score > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='L', year=self.year[dataset_name][0])])
+            n_bjets_medium = ak.num(jets[btag_score > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='M', year=self.year[dataset_name][0])])
+            n_bjets_tight = ak.num(jets[btag_score > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='T', year=self.year[dataset_name][0])])
 
             # Jet and bjet counting with pt > 25 GeV
             jets_25 = jets[jets.pt > 25]
             n_jets_25 = ak.num(jets_25)
             n_jets_forward_25 = ak.num(jets_25[np.abs(jets_25.eta) > 2.5])
             n_jets_central_25 = ak.num(jets_25[np.abs(jets_25.eta) <= 2.5])
-            n_bjets_loose_25 = ak.num(jets_25[jets_25.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='L', year=self.year[dataset_name][0])])
-            n_bjets_medium_25 = ak.num(jets_25[jets_25.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='M', year=self.year[dataset_name][0])])
-            n_bjets_tight_25 = ak.num(jets_25[jets_25.btagRobustParTAK4B > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='T', year=self.year[dataset_name][0])])
+            btag_score_25 = jets_25.btagUParTAK4B if self.nano_version == 15 else jets_25.btagRobustParTAK4B
+            n_bjets_loose_25 = ak.num(jets_25[btag_score_25 > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='L', year=self.year[dataset_name][0])])
+            n_bjets_medium_25 = ak.num(jets_25[btag_score_25 > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='M', year=self.year[dataset_name][0])])
+            n_bjets_tight_25 = ak.num(jets_25[btag_score_25 > getBTagMVACut(mva_name=self.bjet_mva, mva_wp='T', year=self.year[dataset_name][0])])
 
             # Store all jet and bjet counting variables in diphotons
             diphotons["n_jets"] = n_jets
@@ -494,14 +506,12 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons["n_bjets_tight_25"] = n_bjets_tight_25
             diphotons["JetHT_25"] = ak.sum(jets_25.pt, axis=1)
 
-            btag_score = jets.btagRobustParTAK4B
             max_btag_score = ak.max(btag_score, axis=1)
             diphotons["max_btag_score"] = ak.fill_none(max_btag_score, -999.0)
             second_btag_score = ak.where(btag_score == max_btag_score[:, None], -999.0, btag_score)
             diphotons["secondmax_bTag_score"] = ak.fill_none(ak.max(second_btag_score, axis=1), -999.0)
 
             # For jets with pt > 25 GeV
-            btag_score_25 = jets_25.btagRobustParTAK4B
             max_btag_score_25 = ak.max(btag_score_25, axis=1)
             diphotons["max_btag_score_25"] = ak.fill_none(max_btag_score_25, -999.0)
             second_btag_score_25 = ak.where(btag_score_25 == max_btag_score_25[:, None], -999.0, btag_score_25)
@@ -510,8 +520,14 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             num_jets = 8
             jet_properties = [
                 "pt", "eta", "phi", "mass", "charge", "btagPNetB", "btagPNetCvB", "btagPNetCvL",
-                "btagPNetQvG", "btagPNetTauVJet", "btagRobustParTAK4B", "btagRobustParTAK4CvB",
-                "btagRobustParTAK4CvL", "btagRobustParTAK4QG"
+                "btagPNetQvG", "btagPNetTauVJet",
+                *(
+                    [
+                        "btagUParTAK4B","btagUParTAK4CvB","btagUParTAK4QvG","btagUParTAK4TauVJet"
+                    ] if self.nano_version == 15 else [
+                        "btagRobustParTAK4B", "btagRobustParTAK4CvB","btagRobustParTAK4CvL",
+                        "btagRobustParTAK4QG"]
+                )
             ]
             for i in range(num_jets):
                 for prop in jet_properties:

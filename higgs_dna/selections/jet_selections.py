@@ -17,6 +17,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
         "particleNet": "particleNet_wp_values",
         "deepJet": "deepJet_wp_values",
         "robustParticleTransformer": "robustParticleTransformer_wp_values",
+        "btagUParTAK4B": "UParTAK4_wp_values",
     }
 
     # Based on recommendations for the tight QCD WP seen here:
@@ -102,6 +103,16 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "2023_Summer23BPix/btagging.json.gz",
             )
         },
+        "2024": {
+            "file": os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "systematics",
+                "JSONs",
+                "bTagSF",
+                "2024_Summer24/btagging.json.gz",
+            )
+        },
     }
     avail_years = [
         "2016preVFP",
@@ -112,6 +123,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
         "2022postEE",
         "2023preBPix",
         "2023postBPix",
+        "2024",
     ]
     if year not in avail_years:
         logger.warning(

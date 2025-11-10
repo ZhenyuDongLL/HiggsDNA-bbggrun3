@@ -604,6 +604,11 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2023_Summer23BPix/btagging.json.gz",
             "type": "cvmfs",
         },
+         "2024": {
+            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2024_Summer24/btagging_preliminary.json.gz",
+            "to": f"{to_prefix}/2024_Summer24/btagging.json.gz",
+            "type": "cvmfs",
+        },
     }
     fetch_file("bTag", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
