@@ -13,11 +13,11 @@ def Get_WeightSum_Btag(source_paths,logger):
 
 
     for i, source_path in enumerate(source_paths):
-        # create array to store the sum of the weights for all systematic vartions
-        dataset_check_fields = ak.metadata_from_parquet(glob.glob("%s/*.parquet" % source_path)[0])["columns"]
-        # check if systamtic vatiation are stored by acessing one field of the parquet file
-        flag_bWeight_sys = "weight_bTagSF_sys_jesDown" in dataset_check_fields.fields
-        del dataset_check_fields
+        # create metadata object to access the column names of the parquet files
+        dataset_columns = ak.metadata_from_parquet(glob.glob("%s/*.parquet" % source_path)[0])["columns"]
+        # check if the b-tag systematic weight column is present in the dataset
+        flag_bWeight_sys = "weight_bTagSF_sys_jesDown" in dataset_columns
+        del dataset_columns
         if (flag_bWeight_sys):
             logger.info(
                 f"Attampeting Extracting sum of central weights and bweight systematics from metadata of files to be merged from {source_path}"
