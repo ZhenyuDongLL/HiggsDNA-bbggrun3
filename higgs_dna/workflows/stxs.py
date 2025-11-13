@@ -193,6 +193,8 @@ class STXSProcessor(HggSkeletonProcessor):
                 "genWeight": events.genWeight.to_numpy(),
             }
 
+            unique_htxs_categories = numpy.unique(base_dict["HTXS_stage1_2_cat_pTjet30GeV"])
+
             # Check if LHE scale and pdf weights are present
             has_lhe_scale = hasattr(events, "LHEScaleWeight")
             has_lhe_pdf = hasattr(events, "LHEPdfWeight")
@@ -201,6 +203,7 @@ class STXSProcessor(HggSkeletonProcessor):
             lhescale_dict = {}
             n_lhe_scale_weights = 0
             if has_lhe_scale:
+                events["LHEScaleWeight"] = ak.to_regular(events.LHEScaleWeight)
                 lhescaleweight = events.LHEScaleWeight.to_numpy()
                 n_lhe_scale_weights = lhescaleweight.shape[1]
                 lhescale_dict = {
@@ -212,6 +215,7 @@ class STXSProcessor(HggSkeletonProcessor):
             lhepdf_dict = {}
             n_lhe_pdf_weights = 0
             if has_lhe_pdf:
+                events["LHEPdfWeight"] = ak.to_regular(events.LHEPdfWeight)
                 lhepdfweight = events.LHEPdfWeight.to_numpy()
                 n_lhe_pdf_weights = lhepdfweight.shape[1]
                 lhepdf_dict = {
@@ -222,7 +226,7 @@ class STXSProcessor(HggSkeletonProcessor):
             accum_dict = base_dict | lhescale_dict | lhepdf_dict
 
             accum_df = pd.DataFrame(accum_dict)
-            accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum()
+            accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum().reindex(unique_htxs_categories, fill_value=0)
 
             custom_accumulator = {}
             custom_accumulator["sum_genw_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
@@ -268,6 +272,8 @@ class STXSProcessor(HggSkeletonProcessor):
 
         # we need ScEta for corrections and systematics, it is present in NanoAODv13+ and can be calculated using PV for older versions
         events["Photon"] = add_photon_SC_eta(events.Photon, events.PV)
+
+        events["Electron", "ScEta"] = events.Electron.eta + events.Electron.deltaEtaSC
 
         if self.validate_with_electrons:
             # select photons with an associated electron and a pixel seed
@@ -942,9 +948,9 @@ class STXSProcessor(HggSkeletonProcessor):
                         ]
                         event_weights = varying_function(
                             events=events[selection_mask],
-                            photons=events[f"diphotons_{do_variation}"][
-                                selection_mask
-                            ],
+                            photons=events[f"diphotons_{do_variation}"][selection_mask],
+                            electrons=sel_electrons[selection_mask],
+                            muons=sel_muons[selection_mask],
                             weights=event_weights,
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
@@ -958,7 +964,7 @@ class STXSProcessor(HggSkeletonProcessor):
                                 f"Adding systematic {systematic_name} to weight collection of dataset {dataset_name}"
                             )
                             if systematic_name == "LHEScale":
-                                if hasattr(events, "LHEScaleWeight"):
+                                if has_lhe_scale:
                                     diphotons["nweight_LHEScale"] = ak.num(
                                         events.LHEScaleWeight[selection_mask],
                                         axis=1,
@@ -971,7 +977,7 @@ class STXSProcessor(HggSkeletonProcessor):
                                         f"No {systematic_name} Weights in dataset {dataset_name}"
                                     )
                             elif systematic_name == "LHEPdf":
-                                if hasattr(events, "LHEPdfWeight"):
+                                if has_lhe_pdf:
                                     # two AlphaS weights are removed
                                     diphotons["nweight_LHEPdf"] = (
                                         ak.num(
@@ -995,9 +1001,9 @@ class STXSProcessor(HggSkeletonProcessor):
                                 ]
                                 event_weights = varying_function(
                                     events=events[selection_mask],
-                                    photons=events[f"diphotons_{do_variation}"][
-                                        selection_mask
-                                    ],
+                                    photons=events[f"diphotons_{do_variation}"][selection_mask],
+                                    electrons=sel_electrons[selection_mask],
+                                    muons=sel_muons[selection_mask],
                                     weights=event_weights,
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],
@@ -1039,7 +1045,7 @@ class STXSProcessor(HggSkeletonProcessor):
                 accum_dict = base_dict | lhescale_dict | lhepdf_dict
 
                 accum_df = pd.DataFrame(accum_dict)
-                accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum()
+                accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum().reindex(unique_htxs_categories, fill_value=0)
 
                 custom_accumulator["sum_genw_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
                 if has_lhe_scale:
@@ -1072,8 +1078,6 @@ class STXSProcessor(HggSkeletonProcessor):
                     custom_accumulator,
                     default=lambda x: x.item() if isinstance(x, numpy.number) else x
                 ).encode("utf-8")
-
-                del custom_accumulator
 
                 # Store variations with respect to central weight
                 if do_variation == "nominal":
