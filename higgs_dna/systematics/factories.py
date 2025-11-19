@@ -124,7 +124,7 @@ def add_jme_corr_syst(corrections_dict, systematics_dict, logger):
             "jec_pnet_RunCv4": partial(jerc_jet, pt=None, era="RunCv4", level="L1L2L3Res", pnet="PNetRegression"),
             "jec_pnetNu_RunCv4": partial(jerc_jet, pt=None, era="RunCv4", level="L1L2L3Res", pnet="PNetRegressionPlusNeutrino"),
             "jec_Data2024": partial(jerc_jet, pt=None, era="Data", level="L1L2L3Res"),
-            # No AK8 or regression JECs available by JME yet
+            "jec_AK8_Data2024": partial(jerc_jet, pt=None, era="Data", level="L1L2L3Res", AK8=True),
         }
     )
     logger.info(
