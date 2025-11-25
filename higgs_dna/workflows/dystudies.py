@@ -322,8 +322,7 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
 
             # return if there is no surviving events
             if len(tnp_candidates) == 0:
-                logger.info("No surviving events in this run, return now!")
-                return {}
+                logger.info("No surviving events in this run!")
 
             # performing the weight corrections after the preselctions
             if self.data_kind == "mc":

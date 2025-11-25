@@ -254,8 +254,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
         # after all cuts
         events = events[eve_sel.all(*(eve_sel.names))]
         if len(events) == 0:
-            logger.info("No surviving events in this run, return now!")
-            return run_summary
+            logger.info("No surviving events in this run!")
 
         events["Z_mmy"] = events.PV.z + 0.5 * (events["mmy"].dimuon.lead.dz + events["mmy"].dimuon.sublead.dz)
         Zmmg_vertex_origin = ak.zip(
@@ -308,7 +307,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
             )
             ntuple["muon_far_track_ptErr"] = events.mmy.muon_far.ptErr
             ntuple["Z_mmy"] = events.Z_mmy
-            ntuple["eta_mmy"] = events.mmy.photon.photon_eta_mmy
+            ntuple["eta_mmy"] = events.mmy.photon.photon_ScEta_mmy
             # photon
             ## get photon in mmy system
             photon_in_mmy = events.mmy.photon
@@ -485,10 +484,8 @@ class ZmmyProcessor(HggSkeletonProcessor):
         else:
             ntuple["dZ"] = ak.zeros_like(events.PV.z)
 
-        # return if there is no surviving events
         if len(ntuple) == 0:
-            logger.info("No surviving events in this run, return now!")
-            return run_summary
+            logger.info("No surviving events in this run!")
 
         if self.data_kind == "mc":
             # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards

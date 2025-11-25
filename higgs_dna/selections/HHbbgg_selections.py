@@ -74,7 +74,7 @@ def getCosThetaStar_CS(HHbbgg, ebeam):
 
     # Check if there are any events; if not, return an empty array
     if len(HH) == 0:
-        return ak.Array([])
+        return ak.Array(np.empty((0,)))
 
     hhforboost = ak.zip({"px": -HH.px, "py": -HH.py, "pz": -HH.pz, "E": HH.E})
     hhforboost = ak.with_name(hhforboost, "Momentum4D")
@@ -94,7 +94,7 @@ def getCosThetaStar_gg(HHbbgg):
 
     # If there are no diphoton events, return an empty array
     if len(Hgg) == 0:
-        return ak.Array([])
+        return ak.Array(np.empty((0,)))
 
     hggforboost = ak.zip({"px": -Hgg.px, "py": -Hgg.py, "pz": -Hgg.pz, "E": Hgg.E})
     hggforboost = ak.with_name(hggforboost, "Momentum4D")
@@ -120,7 +120,7 @@ def getCosThetaStar_jj(HHbbgg):
 
     # If there are no dijet events, return an empty array
     if len(Hjj) == 0:
-        return ak.Array([])
+        return ak.Array(np.empty((0,)))
 
     hjjforboost = ak.zip({"px": -Hjj.px, "py": -Hjj.py, "pz": -Hjj.pz, "E": Hjj.E})
     hjjforboost = ak.with_name(hjjforboost, "Momentum4D")
