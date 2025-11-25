@@ -180,8 +180,7 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
 
         # return if there is no surviving events
         if len(diphotons) == 0:
-            logger.info("No surviving events in this run, return now!")
-            return histos_etc
+            logger.info("No surviving events in this run!")
 
         # Retain all events
         selection_mask = numpy.ones(len(diphotons), dtype=bool)

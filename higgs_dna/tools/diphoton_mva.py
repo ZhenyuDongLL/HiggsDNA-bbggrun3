@@ -120,9 +120,6 @@ def calculate_retrained_diphoton_mva(
     Calculate DiphotonID bdt scores for diphoton using retrained bdt that avoids flashgg inputs.
     To calculate the score I need some extra variables.
     """
-    if len(events) == 0 or mva[0] is None:
-        diphotons["bdt_score"] = ak.zeros_like(diphotons.mass)
-        return diphotons, events
 
     diphoton_mva = []
     diphoton_mva.append(mva[0][0])
@@ -184,7 +181,7 @@ def calculate_retrained_diphoton_mva(
     vtx_prob = 2 * sigma_m / (sigma_m + sigma_wv)
 
     # z coordinate of primary vertices other than the main one
-    otherpv_z_padded = ak.fill_none(ak.pad_none(events.OtherPV.z, 3, axis=1), -999.0)
+    otherpv_z_padded = ak.fill_none(ak.pad_none(events.OtherPV.z, 3, axis=1, clip=True), -999.0)
     pv_z = ak.fill_none(events.PV.z, -9999.0)
     pv_z_b, otherpv_z_b = ak.broadcast_arrays(pv_z, otherpv_z_padded)
     events["OtherPV_dZ_0"] = numpy.abs(pv_z_b - otherpv_z_b)
@@ -213,8 +210,7 @@ def calculate_retrained_diphoton_mva(
         else:
             bdt_features.append(x)
 
-    events_bdt = ak.values_astype(events_bdt, numpy.float64)
-    features_bdt = ak.to_numpy(events_bdt[bdt_features])
+    features_bdt = ak.values_astype(events_bdt[bdt_features], numpy.float64).to_numpy()
 
     features_bdt_matrix = xgboost.DMatrix(
         features_bdt.view((float, len(features_bdt.dtype.names))), feature_names=bdt_features
@@ -222,7 +218,10 @@ def calculate_retrained_diphoton_mva(
 
     scores = []
     for bdt in diphoton_mva:
-        scores.append(bdt.predict(features_bdt_matrix))
+        pred = bdt.predict(features_bdt_matrix)
+        if len(pred) == 0:
+            pred = numpy.empty((0,), dtype=numpy.float32)
+        scores.append(pred)
 
     for var in bdt_features:
         if "dipho" not in var:
@@ -237,7 +236,6 @@ def calculate_retrained_diphoton_mva(
         scores[0]
     )
 
-    diphotons["bdt_score"] = ak.zeros_like(diphotons.mass)
     diphotons["bdt_score"] = scores_out
 
     return diphotons, events
@@ -261,9 +259,6 @@ def calculate_multiclass_diphoton_mva(
     Calculate DiphotonID bdt scores for diphoton using retrained bdt that avoids flashgg inputs.
     To calculate the score I need some extra variables.
     """
-    if len(events) == 0 or mva[0] is None:
-        diphotons["bdt_score"] = ak.zeros_like(diphotons.mass)
-        return diphotons, events
 
     diphoton_mva = []
     diphoton_mva.append(mva[0][0])
@@ -326,7 +321,7 @@ def calculate_multiclass_diphoton_mva(
     # z coordinate of primary vertices other than the main one
     # padded to have at least 3 entry for each event (useful for slicing)
     OtherPV_z = ak.to_numpy(
-        ak.fill_none(ak.pad_none(events.OtherPV.z, 3, axis=1), -999.0)
+        ak.fill_none(ak.pad_none(events.OtherPV.z, 3, axis=1, clip=True), -999.0)
     )
     events["OtherPV", "z"] = ak.from_numpy(OtherPV_z)
     PV_z = ak.to_numpy(events.PV.z)
@@ -345,7 +340,7 @@ def calculate_multiclass_diphoton_mva(
     events_bdt["PV_score"] = events.PV.score
     events_bdt["PV_chi2"] = events.PV.chi2
     events_bdt["nPV"] = events.PV.npvs
-    for i in range(len(OtherPV_z[0])):
+    for i in range(3):
         name = "%s_%d" % ("dZ", i + 1)
         events_bdt[name] = events.OtherPV_dZ_0[:, i]
 
@@ -365,8 +360,7 @@ def calculate_multiclass_diphoton_mva(
         else:
             bdt_features.append(x)
 
-    events_bdt = ak.values_astype(events_bdt, numpy.float64)
-    features_bdt = ak.to_numpy(events_bdt[bdt_features])
+    features_bdt = ak.values_astype(events_bdt[bdt_features], numpy.float64).to_numpy()
 
     features_bdt_matrix = xgboost.DMatrix(
         features_bdt.view((float, len(features_bdt.dtype.names))), feature_names=bdt_features
@@ -374,7 +368,10 @@ def calculate_multiclass_diphoton_mva(
 
     scores = []
     for bdt in diphoton_mva:
-        scores.append(bdt.predict(features_bdt_matrix))
+        pred = bdt.predict(features_bdt_matrix)
+        if len(pred) == 0:
+            pred = numpy.empty((0, 3), dtype=numpy.float32)
+        scores.append(pred)
 
     for var in bdt_features:
         if "dipho" not in var:
@@ -399,9 +396,6 @@ def calculate_multiclass_diphoton_mva(
         scores[1][:, 2]
     )
 
-    diphotons["diph_bdt_sig_score"] = ak.ones_like(diphotons.mass)
-    diphotons["diph_bdt_fk_score"] = ak.ones_like(diphotons.mass)
-    diphotons["diph_bdt_ph_score"] = ak.ones_like(diphotons.mass)
     diphotons["diph_bdt_sig_score"] = scores_out_sig
     diphotons["diph_bdt_fk_score"] = scores_out_fk
     diphotons["diph_bdt_ph_score"] = scores_out_ph

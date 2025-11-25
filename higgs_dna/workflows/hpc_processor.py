@@ -1446,8 +1446,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons = diphotons[selection_mask]
             # return if there is no surviving events
             if len(diphotons) == 0:
-                logger.debug("No surviving events in this run, return now!")
-                return histos_etc
+                logger.info("No surviving events in this run!")
             if self.data_kind == "mc":
                 # initiate Weight container here, after selection, since event selection cannot easily be applied to weight container afterwards
                 event_weights = Weights(size=len(dipho_events[selection_mask]), storeIndividual=True)

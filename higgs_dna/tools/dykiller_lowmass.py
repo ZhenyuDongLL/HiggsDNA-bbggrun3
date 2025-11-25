@@ -69,6 +69,11 @@ def eval_dykiller_for_lowmass(diphotons, year="2022postEE"):
     # add ptom, log PV_score
     diphotons["ptom"] = diphotons["pt"] / diphotons["mass"]
     diphotons["PV_log_score"] = np.log(diphotons["PV_score"])
+
+    if len(diphotons) == 0:
+        diphotons["dykiller_nn"] = np.zeros(len(diphotons), dtype=np.float32)
+        return diphotons
+
     # model input variables
     variable_list = get_variable_list()
     dict_inputs = {
@@ -77,10 +82,6 @@ def eval_dykiller_for_lowmass(diphotons, year="2022postEE"):
     }
 
     df_inputs = pd.DataFrame(dict_inputs)
-    # ! if no events, just return
-    if len(diphotons) < 1:
-        # diphotons["dykiller"] = ak.zeros_like(diphotons.pt)
-        return diphotons
 
     # ! Input df_inputs should not contain infinity or a value too large for dtype('float32')
     df_inputs = df_inputs.clip(
@@ -99,6 +100,6 @@ def eval_dykiller_for_lowmass(diphotons, year="2022postEE"):
     preds = 1 / (1 + np.exp(-predictions[0]))
 
     # add dykiller score
-    diphotons["dykiller_nn"] = ak.Array(ak.flatten(preds))
+    diphotons["dykiller_nn"] = preds.reshape(-1)
 
     return diphotons

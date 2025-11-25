@@ -22,10 +22,6 @@ def calculate_ch_vs_ggh_mva(
 
     if mva[0] is None:
         return diphotons, events
-    elif len(diphotons) == 0:
-        logger.info("no events surviving event selection, adding fake ch vs ggh bdt score")
-        diphotons["ch_vs_ggh_bdt_score"] = ak.zeros_like(diphotons.mass)
-        return diphotons, events
 
     ch_vs_ggh = []
     ch_vs_ggh.append(mva[0][0])
@@ -86,8 +82,7 @@ def calculate_ch_vs_ggh_mva(
         else:
             bdt_features.append(x)
 
-    events_bdt = ak.values_astype(events_bdt, numpy.float64)
-    features_bdt = ak.to_numpy(events_bdt[bdt_features])
+    features_bdt = ak.values_astype(events_bdt[bdt_features], numpy.float64).to_numpy()
 
     features_bdt_matrix = xgb.DMatrix(
         features_bdt.view((float, len(features_bdt.dtype.names)))
@@ -95,7 +90,10 @@ def calculate_ch_vs_ggh_mva(
 
     scores = []
     for bdt in ch_vs_ggh:
-        scores.append(bdt.predict(features_bdt_matrix))
+        pred = bdt.predict(features_bdt_matrix)
+        if len(pred) == 0:
+            pred = numpy.empty((0,), dtype=numpy.float32)
+        scores.append(pred)
 
     for var in bdt_features:
         if "dipho" not in var:
@@ -107,7 +105,6 @@ def calculate_ch_vs_ggh_mva(
         scores[1]
     )
 
-    diphotons["ch_vs_ggh_bdt_score"] = ak.ones_like(diphotons.mass)
     diphotons["ch_vs_ggh_bdt_score"] = scores_out
 
     return diphotons, events
@@ -124,10 +121,6 @@ def calculate_ch_vs_cb_mva(
     """
 
     if mva[0] is None:
-        return diphotons, events
-    elif len(diphotons) == 0:
-        logger.info("no events surviving event selection, adding fake ch vs cb bdt score")
-        diphotons["ch_vs_cb_bdt_score"] = ak.zeros_like(diphotons.mass)
         return diphotons, events
 
     ch_vs_cb = []
@@ -188,8 +181,7 @@ def calculate_ch_vs_cb_mva(
         else:
             bdt_features.append(x)
 
-    events_bdt = ak.values_astype(events_bdt, numpy.float64)
-    features_bdt = ak.to_numpy(events_bdt[bdt_features])
+    features_bdt = ak.values_astype(events_bdt[bdt_features], numpy.float64).to_numpy()
 
     features_bdt_matrix = xgb.DMatrix(
         features_bdt.view((float, len(features_bdt.dtype.names)))
@@ -197,7 +189,10 @@ def calculate_ch_vs_cb_mva(
 
     scores = []
     for bdt in ch_vs_cb:
-        scores.append(bdt.predict(features_bdt_matrix))
+        pred = bdt.predict(features_bdt_matrix)
+        if len(pred) == 0:
+            pred = numpy.empty((0,), dtype=numpy.float32)
+        scores.append(pred)
 
     for var in bdt_features:
         if "dipho" not in var:
@@ -209,7 +204,6 @@ def calculate_ch_vs_cb_mva(
         scores[1]
     )
 
-    diphotons["ch_vs_cb_bdt_score"] = ak.ones_like(diphotons.mass)
     diphotons["ch_vs_cb_bdt_score"] = scores_out
 
     return diphotons, events
@@ -227,10 +221,6 @@ def calculate_ggh_vs_hb_mva(
     """
 
     if mva[0] is None:
-        return diphotons, events
-    elif len(diphotons) == 0:
-        logger.info("no events surviving event selection, adding fake ggh vs hb bdt score")
-        diphotons["ggh_vs_hb_bdt_score"] = ak.zeros_like(diphotons.mass)
         return diphotons, events
 
     ggh_vs_hb = []
@@ -392,8 +382,7 @@ def calculate_ggh_vs_hb_mva(
         else:
             bdt_features.append(x)
 
-    events_bdt = ak.values_astype(events_bdt, numpy.float64)
-    features_bdt = ak.to_numpy(events_bdt[bdt_features])
+    features_bdt = ak.values_astype(events_bdt[bdt_features], numpy.float64).to_numpy()
 
     features_bdt_matrix = xgb.DMatrix(
         features_bdt.view((float, len(features_bdt.dtype.names))), feature_names=bdt_features
@@ -401,7 +390,10 @@ def calculate_ggh_vs_hb_mva(
 
     scores = []
     for bdt in ggh_vs_hb:
-        scores.append(bdt.predict(features_bdt_matrix))
+        pred = bdt.predict(features_bdt_matrix)
+        if len(pred) == 0:
+            pred = numpy.empty((0, 4), dtype=numpy.float32)
+        scores.append(pred)
 
     for var in bdt_features:
         if "dipho" not in var:
@@ -428,10 +420,6 @@ def calculate_ggh_vs_hb_mva(
         scores[1][:, 3]
     )
 
-    diphotons["ggh_vs_hb_bdt_sig_score"] = ak.ones_like(diphotons.mass)
-    diphotons["ggh_vs_hb_bdt_tth_score"] = ak.ones_like(diphotons.mass)
-    diphotons["ggh_vs_hb_bdt_vbf_score"] = ak.ones_like(diphotons.mass)
-    diphotons["ggh_vs_hb_bdt_vh_score"] = ak.ones_like(diphotons.mass)
     diphotons["ggh_vs_hb_bdt_sig_score"] = scores_out_sig
     diphotons["ggh_vs_hb_bdt_tth_score"] = scores_out_tth
     diphotons["ggh_vs_hb_bdt_vbf_score"] = scores_out_vbf
