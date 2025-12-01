@@ -1368,6 +1368,23 @@ def get_muon_SFs(logger, target_dir, use_xrdcp=False):
             ],
             "type": "cvmfs",
         },
+        "2024": {
+            "from": [
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/2025-10-17/muon_Z.json.gz",
+                "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/2025-10-17/muon_JPsi.json.gz"
+            ],
+            "to": [
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2024/muon_Z.json.gz",
+                ),
+                os.path.join(
+                    to_prefix,
+                    "../higgs_dna/systematics/JSONs/POG/MUO/2024/muon_JPsi.json.gz",
+                ),
+            ],
+            "type": "cvmfs",
+        }
     }
 
     fetch_file("muonSF", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")

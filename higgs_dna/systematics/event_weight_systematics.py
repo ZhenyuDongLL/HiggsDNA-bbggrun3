@@ -2556,7 +2556,7 @@ def muonSFs(muons, weights, year="2022preEE",
         Weights container to which the event-level weight is added.
         If return_jagged=True, this is ignored and may be None.
     year : str, default "2022preEE"
-        One of {"2022preEE", "2022postEE", "2023preBPix", "2023postBPix"}.
+        One of {"2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"}.
         Selects the corresponding POG JSON file.
     SF_name : str, default "NUM_TightID_DEN_TrackerMuons"
         Name of the correction within the muon POG JSON, for example
@@ -2583,7 +2583,7 @@ def muonSFs(muons, weights, year="2022preEE",
         - Otherwise: the modified Weights object with an event-level weight
           added. For events with no muons, the event-level product is 1.
     """
-    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
     if year not in avail_years:
         logger.error(f"Only muon corrections for {avail_years} implemented!")
         raise ValueError(f"Year '{year}' not supported for muon corrections.")
@@ -2595,8 +2595,10 @@ def muonSFs(muons, weights, year="2022preEE",
         base_dir = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2022_Summer22EE")
     elif year == "2023preBPix":
         base_dir = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2023_Summer23")
-    else:
+    elif year == "2023postBPix":
         base_dir = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2023_Summer23BPix")
+    else:
+        base_dir = os.path.join(os.path.dirname(__file__), "JSONs/POG/MUO/2024")
 
     json_file = os.path.join(base_dir, "muon_Z.json.gz")
     json_file_low_pt = os.path.join(base_dir, "muon_JPsi.json.gz")  # IDs only, for pt < 15 GeV
