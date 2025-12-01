@@ -369,6 +369,7 @@ def jerc_jet(
         # TODO should be removed once a proper fix is implemented at the json level
         # see https://gitlab.cern.ch/cms-jetmet/coordination/coordination/-/issues/113
         if year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
+            logger.warning("You are removing the JER corrections for unmatched jets with 2.5 < |eta| < 3.5. This is half of the recipe to reduce the impact of the jet horns, please make sure you are also applying the eta-dependent pT cuts in your processor.")
             pt_gen_orig = jets["pt_gen"]
             jets["pt_gen"] = ak.where((jets.pt_gen < 0) & (abs(jets.eta) > 2.5) & (abs(jets.eta) < 3.0), jets.pt, jets.pt_gen)
 
