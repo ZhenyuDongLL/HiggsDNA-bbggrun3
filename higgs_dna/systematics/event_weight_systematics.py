@@ -116,7 +116,7 @@ def Pileup(events, weights, year, is_correction=True, **kwargs):
     elif "23postBPix" in year:
         name = "Collisions2023_369803_370790_eraD_GoldenJson"
     elif "24" in year:
-        name = "Collisions2024_preliminary"
+        name = "Collisions24_BCDEFGHI_goldenJSON"
 
     evaluator = correctionlib.CorrectionSet.from_file(path_to_json)[name]
 

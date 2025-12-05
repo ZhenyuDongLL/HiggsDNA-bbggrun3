@@ -1269,14 +1269,10 @@ def get_pileup(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/pileup_2023postBPix.json.gz",
             "type": "cvmfs",
         },
-
-        # ------------------
-        # For we 2024 leave as it is (still coming from EOS user area)
-        # ------------------
         "2024": {
-            "from": f"/eos/cms/store/user/evourlio/pileupJson_forHiggsDNA/2024/puWeights.json.gz",
+            "from": f"/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/puWeights_BCDEFGHI.json.gz",
             "to": f"{to_prefix}/pileup_2024.json.gz",
-            "type": "eos",
+            "type": "cvmfs",
         },
     }
 
