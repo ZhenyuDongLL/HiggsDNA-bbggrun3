@@ -1279,7 +1279,7 @@ def get_pileup(logger, target_dir, use_xrdcp=False):
     fetch_file("Pileup", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
-def get_lowmass_diphotonmva_model(logger, target_dir, use_xrdcp=False):
+def get_lowmass_diphotonbdt_model(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
     else:
@@ -1288,25 +1288,41 @@ def get_lowmass_diphotonmva_model(logger, target_dir, use_xrdcp=False):
 
     from_to_dict = {
         "2022postEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_diphoton/DiphotonXGboost_LM2022_postEE.onnx",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_diphoton/2022postEE/DiphotonXGboost_LM2022_postEE.json",
             "to": os.path.join(
                 to_prefix,
-                "lowmass_diphoton_mva/2022postEE/DiphotonXGboost_LM.onnx",
+                "lowmass_diphoton_bdt/2022postEE/DiphotonXGboost_LM.json",
             ),
             "type": "eos",
         },
         "2022preEE": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_diphoton/DiphotonXGboost_LM2022_postEE.onnx",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_diphoton/2022postEE/DiphotonXGboost_LM2022_postEE.json",
             "to": os.path.join(
                 to_prefix,
-                "lowmass_diphoton_mva/2022preEE/DiphotonXGboost_LM.onnx",
+                "lowmass_diphoton_bdt/2022preEE/DiphotonXGboost_LM.json",
+            ),
+            "type": "eos",
+        },
+        "2023postBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_diphoton/2022postEE/DiphotonXGboost_LM2022_postEE.json",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_diphoton_bdt/2023postBPix/DiphotonXGboost_LM.json",
+            ),
+            "type": "eos",
+        },
+        "2023preBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_diphoton/2022postEE/DiphotonXGboost_LM2022_postEE.json",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_diphoton_bdt/2023preBPix/DiphotonXGboost_LM.json",
             ),
             "type": "eos",
         },
     }
 
     fetch_file(
-        "LowMass-DiPhotonMVA", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
+        "LowMass-DiPhotonBDT", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
     )
 
 
@@ -1407,6 +1423,88 @@ def get_lowmass_dykiller_model(logger, target_dir, use_xrdcp=False):
             "to": os.path.join(
                 to_prefix,
                 "lowmass_dykiller/2022preEE/NN.onnx",
+            ),
+            "type": "eos",
+        },
+        "2023postBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/NN.onnx",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2023postBPix/NN.onnx",
+            ),
+            "type": "eos",
+        },
+        "2023preBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/NN.onnx",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2023preBPix/NN.onnx",
+            ),
+            "type": "eos",
+        },
+
+        "2022postEE_Minimal": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/2022postEE/Model_traced_Minimal.pt",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2022postEE/Model_traced__Minimal.pt",
+            ),
+            "type": "eos",
+        },
+        "2022preEE_Minimal": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/2022postEE/Model_traced_Minimal.pt",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2022preEE/Model_traced__Minimal.pt",
+            ),
+            "type": "eos",
+        },
+        "2023postBPix_Minimal": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/2022postEE/Model_traced_Minimal.pt",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2023postBPix/Model_traced__Minimal.pt",
+            ),
+            "type": "eos",
+        },
+        "2023preBPix_Minimal": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/2022postEE/Model_traced_Minimal.pt",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2023preBPix/Model_traced__Minimal.pt",
+            ),
+            "type": "eos",
+        },
+
+        "2022postEE_nTrigEle": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/2022postEE/Model_traced_nTrigEle.pt",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2022postEE/Model_traced_nTrigEle.pt",
+            ),
+            "type": "eos",
+        },
+        "2022preEE_nTrigEle": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/2022postEE/Model_traced_nTrigEle.pt",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2022preEE/Model_traced_nTrigEle.pt",
+            ),
+            "type": "eos",
+        },
+        "2023postBPix_nTrigEle": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/2022postEE/Model_traced_nTrigEle.pt",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2023postBPix/Model_traced_nTrigEle.pt",
+            ),
+            "type": "eos",
+        },
+        "2023preBPix_nTrigEle": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jixiao/lowmass_dykiller/2022postEE/Model_traced_nTrigEle.pt",
+            "to": os.path.join(
+                to_prefix,
+                "lowmass_dykiller/2023preBPix/Model_traced_nTrigEle.pt",
             ),
             "type": "eos",
         },
@@ -1668,7 +1766,7 @@ def main():
             "FNUF",
             "ShowerShape",
             "LooseMva",
-            "LowMass-DiPhotonMVA",
+            "LowMass-DiPhotonBDT",
             "muonSF",
             "electron",
             "LowMass-DYKilller",
@@ -1733,7 +1831,7 @@ def main():
         get_trigger_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_presel_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_eveto_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
-        get_lowmass_diphotonmva_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_lowmass_diphotonbdt_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_muon_SFs(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_electron_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_lowmass_dykiller_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
@@ -1786,8 +1884,8 @@ def main():
         get_presel_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "eVetoSF":
         get_eveto_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
-    elif args.target == "LowMass-DiPhotonMVA":
-        get_lowmass_diphotonmva_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "LowMass-DiPhotonBDT":
+        get_lowmass_diphotonbdt_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "muonSF":
         get_muon_SFs(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "electron":

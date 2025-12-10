@@ -3,27 +3,10 @@ import numpy as np
 import pandas as pd
 import vector
 import os
-
-import onnxruntime
-
-_default_session_options = onnxruntime.capi._pybind_state.get_default_session_options()
-
-
-def get_default_session_options_new():
-    _default_session_options.inter_op_num_threads = 1
-    _default_session_options.intra_op_num_threads = 1
-    return _default_session_options
-
-
-onnxruntime.capi._pybind_state.get_default_session_options = (
-    get_default_session_options_new
-)
+import xgboost as xgb
 
 
 def add_diphoton_mva_inputs_for_lowmass(diphotons, events, mc_flow_corrected=False):
-    diphotons["pho_lead", "ptom"] = diphotons["pho_lead"].pt / diphotons["mass"]
-    diphotons["pho_sublead", "ptom"] = diphotons["pho_sublead"].pt / diphotons["mass"]
-
     # * sigma right vertex
     dEoE_pho1 = diphotons["pho_lead"].energyErr / diphotons["pho_lead"].energy
     dEoE_pho2 = diphotons["pho_sublead"].energyErr / diphotons["pho_sublead"].energy
@@ -122,11 +105,19 @@ def get_model_path():
     model_dict = {
         "2022preEE": os.path.join(
             os.path.dirname(__file__),
-            "../tools/lowmass_diphoton_mva/2022preEE/DiphotonXGboost_LM.onnx",
+            "../tools/lowmass_diphoton_bdt/2022preEE/DiphotonXGboost_LM.json",
         ),
         "2022postEE": os.path.join(
             os.path.dirname(__file__),
-            "../tools/lowmass_diphoton_mva/2022postEE/DiphotonXGboost_LM.onnx",
+            "../tools/lowmass_diphoton_bdt/2022postEE/DiphotonXGboost_LM.json",
+        ),
+        "2023preBPix": os.path.join(
+            os.path.dirname(__file__),
+            "../tools/lowmass_diphoton_bdt/2023preBPix/DiphotonXGboost_LM.json",
+        ),
+        "2023postBPix": os.path.join(
+            os.path.dirname(__file__),
+            "../tools/lowmass_diphoton_bdt/2023postBPix/DiphotonXGboost_LM.json",
         ),
     }
     return model_dict
@@ -150,6 +141,12 @@ def get_variable_list():
 
 
 def eval_diphoton_mva_for_lowmass(diphotons, year="2022postEE"):
+    # no need to load the model for zero length
+    if len(diphotons) == 0:
+        diphotons["diphoton_BDT_raw"] = np.zeros(len(diphotons), dtype=np.float32)
+        diphotons["diphoton_BDT"] = np.zeros(len(diphotons), dtype=np.float32)
+        return diphotons
+
     model_dict = get_model_path()
     # model input variables
     variable_list = get_variable_list()
@@ -159,7 +156,6 @@ def eval_diphoton_mva_for_lowmass(diphotons, year="2022postEE"):
     }
 
     df_inputs = pd.DataFrame(dict_inputs)
-    np_inputs = df_inputs.to_numpy().astype(np.float32)
 
     # fix issues mentioned here: https://github.com/microsoft/onnxruntime/issues/8313
     # ort_options = ort_session.SessionOptions()
@@ -168,18 +164,15 @@ def eval_diphoton_mva_for_lowmass(diphotons, year="2022postEE"):
     # ort_options.inter_op_num_threads = 1
 
     # create onnx session
-    ort_session = onnxruntime.InferenceSession(model_dict[year])
-    input_name = ort_session.get_inputs()[0].name
+    model = xgb.Booster()
+    model.load_model(model_dict[year])
 
-    # evaluation
-    predictions = ort_session.run(None, {input_name: np_inputs})
+    d_eval = xgb.DMatrix(df_inputs)
+    preds = model.predict(d_eval)
 
-    # add diphoton mva score
-    # column 0: probability for class 0 -> background
-    # column 1: probability for class 1 -> signal
-    diphotons["diphoton_MVA"] = predictions[1][:, 1]
-    diphotons["diphoton_MVA_transformed"] = (
-        2.0 / (1.0 + np.exp(2.0 * np.log(1.0 / diphotons["diphoton_MVA"] - 1.0))) - 1
+    diphotons["diphoton_BDT_raw"] = preds
+    diphotons["diphoton_BDT"] = (
+        2.0 / (1.0 + np.exp(2.0 * np.log(1.0 / diphotons["diphoton_BDT_raw"] - 1.0))) - 1
     )
 
     return diphotons

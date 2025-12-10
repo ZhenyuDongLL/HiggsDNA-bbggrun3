@@ -2,6 +2,7 @@ from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
+from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.photon_selections_lowmass import photon_preselection_lowmass
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
@@ -9,6 +10,7 @@ from higgs_dna.selections.jet_selections import select_jets, jetvetomap
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates
 from higgs_dna.utils.dumping_utils import (
+    apply_naming_convention,
     diphoton_ak_array,
     dump_ak_array,
     diphoton_list_to_pandas,
@@ -47,279 +49,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 vector.register_awkward()
-
-
-def get_fiducial_mask(diphotons, fiducial_cut):
-    if fiducial_cut == "classical":
-        fid_det_passed = (
-            (diphotons.pho_lead.pt / diphotons.mass > 1 / 3)
-            & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4)
-            & (diphotons.pho_lead.pfRelIso03_all_quadratic * diphotons.pho_lead.pt < 10)
-            & (
-                (
-                    diphotons.pho_sublead.pfRelIso03_all_quadratic
-                    * diphotons.pho_sublead.pt
-                )
-                < 10
-            )
-            & (numpy.abs(diphotons.pho_lead.eta) < 2.5)
-            & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
-        )
-    elif fiducial_cut == "geometric":
-        fid_det_passed = (
-            (
-                numpy.sqrt(diphotons.pho_lead.pt * diphotons.pho_sublead.pt)
-                / diphotons.mass
-                > 1 / 3
-            )
-            & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4)
-            & (diphotons.pho_lead.pfRelIso03_all_quadratic * diphotons.pho_lead.pt < 10)
-            & (
-                diphotons.pho_sublead.pfRelIso03_all_quadratic
-                * diphotons.pho_sublead.pt
-                < 10
-            )
-            & (numpy.abs(diphotons.pho_lead.eta) < 2.5)
-            & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
-        )
-    elif fiducial_cut == "none":
-        fid_det_passed = (
-            diphotons.pho_lead.pt > -10
-        )  # This is a very dummy way but I do not know how to make a true array of outer shape of diphotons
-    else:
-        warnings.warn(
-            "You chose %s the fiducialCuts mode, but this is currently not supported. You should check your settings. For this run, no fiducial selection at detector level is applied."
-            % fiducial_cut
-        )
-        fid_det_passed = diphotons.pho_lead.pt > -10
-
-    return fid_det_passed
-
-
-def get_mass_resolution_uncertainty(diphotons, mc_flow_corrected=True):
-    if mc_flow_corrected:
-        diphotons["sigma_m_over_m"] = 0.5 * numpy.sqrt(
-            (
-                diphotons["pho_lead"].raw_energyErr
-                / (diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta))
-            )
-            ** 2
-            + (
-                diphotons["pho_sublead"].raw_energyErr
-                / (
-                    diphotons["pho_sublead"].pt
-                    * numpy.cosh(diphotons["pho_sublead"].eta)
-                )
-            )
-            ** 2
-        )
-
-        diphotons["sigma_m_over_m_corr"] = 0.5 * numpy.sqrt(
-            (
-                diphotons["pho_lead"].energyErr
-                / (diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta))
-            )
-            ** 2
-            + (
-                diphotons["pho_sublead"].energyErr
-                / (
-                    diphotons["pho_sublead"].pt
-                    * numpy.cosh(diphotons["pho_sublead"].eta)
-                )
-            )
-            ** 2
-        )
-
-    else:
-        diphotons["sigma_m_over_m"] = 0.5 * numpy.sqrt(
-            (
-                diphotons["pho_lead"].energyErr
-                / (diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta))
-            )
-            ** 2
-            + (
-                diphotons["pho_sublead"].energyErr
-                / (
-                    diphotons["pho_sublead"].pt
-                    * numpy.cosh(diphotons["pho_sublead"].eta)
-                )
-            )
-            ** 2
-        )
-
-    return diphotons
-
-
-def get_mass_resolution_smearing(diphotons, mc_flow_corrected=True):
-    if mc_flow_corrected:
-        # Adding the smeared BDT error to the ntuples!
-        diphotons["pho_lead", "energyErr_Smeared"] = numpy.sqrt(
-            (diphotons["pho_lead"].raw_energyErr) ** 2
-            + (
-                diphotons["pho_lead"].rho_smear
-                * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))
-            )
-            ** 2
-        )
-        diphotons["pho_sublead", "energyErr_Smeared"] = numpy.sqrt(
-            (diphotons["pho_sublead"].raw_energyErr) ** 2
-            + (
-                diphotons["pho_sublead"].rho_smear
-                * (
-                    (
-                        diphotons["pho_sublead"].pt
-                        * numpy.cosh(diphotons["pho_sublead"].eta)
-                    )
-                )
-            )
-            ** 2
-        )
-
-        diphotons["sigma_m_over_m_Smeared"] = 0.5 * numpy.sqrt(
-            (
-                numpy.sqrt(
-                    (diphotons["pho_lead"].raw_energyErr) ** 2
-                    + (
-                        diphotons["pho_lead"].rho_smear
-                        * (
-                            (
-                                diphotons["pho_lead"].pt
-                                * numpy.cosh(diphotons["pho_lead"].eta)
-                            )
-                        )
-                    )
-                    ** 2
-                )
-                / (diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta))
-            )
-            ** 2
-            + (
-                numpy.sqrt(
-                    (diphotons["pho_sublead"].raw_energyErr) ** 2
-                    + (
-                        diphotons["pho_sublead"].rho_smear
-                        * (
-                            (
-                                diphotons["pho_sublead"].pt
-                                * numpy.cosh(diphotons["pho_sublead"].eta)
-                            )
-                        )
-                    )
-                    ** 2
-                )
-                / (
-                    diphotons["pho_sublead"].pt
-                    * numpy.cosh(diphotons["pho_sublead"].eta)
-                )
-            )
-            ** 2
-        )
-
-        diphotons["sigma_m_over_m_Smeared_corr"] = 0.5 * numpy.sqrt(
-            (
-                numpy.sqrt(
-                    (diphotons["pho_lead"].energyErr) ** 2
-                    + (
-                        diphotons["pho_lead"].rho_smear
-                        * (
-                            (
-                                diphotons["pho_lead"].pt
-                                * numpy.cosh(diphotons["pho_lead"].eta)
-                            )
-                        )
-                    )
-                    ** 2
-                )
-                / (diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta))
-            )
-            ** 2
-            + (
-                numpy.sqrt(
-                    (diphotons["pho_sublead"].energyErr) ** 2
-                    + (
-                        diphotons["pho_sublead"].rho_smear
-                        * (
-                            (
-                                diphotons["pho_sublead"].pt
-                                * numpy.cosh(diphotons["pho_sublead"].eta)
-                            )
-                        )
-                    )
-                    ** 2
-                )
-                / (
-                    diphotons["pho_sublead"].pt
-                    * numpy.cosh(diphotons["pho_sublead"].eta)
-                )
-            )
-            ** 2
-        )
-
-    else:
-        # Adding the smeared BDT error to the ntuples!
-        diphotons["pho_lead", "energyErr_Smeared"] = numpy.sqrt(
-            (diphotons["pho_lead"].energyErr) ** 2
-            + (
-                diphotons["pho_lead"].rho_smear
-                * ((diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta)))
-            )
-            ** 2
-        )
-        diphotons["pho_sublead", "energyErr_Smeared"] = numpy.sqrt(
-            (diphotons["pho_sublead"].energyErr) ** 2
-            + (
-                diphotons["pho_sublead"].rho_smear
-                * (
-                    (
-                        diphotons["pho_sublead"].pt
-                        * numpy.cosh(diphotons["pho_sublead"].eta)
-                    )
-                )
-            )
-            ** 2
-        )
-
-        diphotons["sigma_m_over_m_Smeared"] = 0.5 * numpy.sqrt(
-            (
-                numpy.sqrt(
-                    (diphotons["pho_lead"].energyErr) ** 2
-                    + (
-                        diphotons["pho_lead"].rho_smear
-                        * (
-                            (
-                                diphotons["pho_lead"].pt
-                                * numpy.cosh(diphotons["pho_lead"].eta)
-                            )
-                        )
-                    )
-                    ** 2
-                )
-                / (diphotons["pho_lead"].pt * numpy.cosh(diphotons["pho_lead"].eta))
-            )
-            ** 2
-            + (
-                numpy.sqrt(
-                    (diphotons["pho_sublead"].energyErr) ** 2
-                    + (
-                        diphotons["pho_sublead"].rho_smear
-                        * (
-                            (
-                                diphotons["pho_sublead"].pt
-                                * numpy.cosh(diphotons["pho_sublead"].eta)
-                            )
-                        )
-                    )
-                    ** 2
-                )
-                / (
-                    diphotons["pho_sublead"].pt
-                    * numpy.cosh(diphotons["pho_sublead"].eta)
-                )
-            )
-            ** 2
-        )
-
-    return diphotons
 
 
 class LowMassProcessor(HggSkeletonProcessor):
@@ -369,6 +98,7 @@ class LowMassProcessor(HggSkeletonProcessor):
         )
 
         self.nano_version = nano_version
+        self.name_convention = "DAS"
 
         # diphoton preselection cuts
         if not self.validate_with_electrons:
@@ -379,6 +109,10 @@ class LowMassProcessor(HggSkeletonProcessor):
             self.e_veto = e_veto  # presel/single_invert/double_invert
         else:
             self.e_veto = "double_invert"
+
+        # leading/subleading photon pT over m_gg cuts
+        self.ptom1_cut = 0.47
+        self.ptom2_cut = 0.28
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
@@ -393,9 +127,7 @@ class LowMassProcessor(HggSkeletonProcessor):
 
         return events[filtered]
 
-    def apply_triggers(
-        self, events: ak.Array, apply_to_mc: bool = False
-    ) -> ak.Array:
+    def apply_triggers(self, events: ak.Array, apply_to_mc: bool = False) -> ak.Array:
         # trigger selection
         logger.debug(
             f"[apply_triggers] {self.trigger_group} {self.analysis} {self.data_kind} {apply_to_mc}"
@@ -424,6 +156,16 @@ class LowMassProcessor(HggSkeletonProcessor):
     def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
 
+        # ! preselection updated since Run3 2023
+        # ! ref: https://indico.cern.ch/event/1590752/contributions/6802398/attachments/3177120/5650438/202511_LM_Studies_2023.pdf
+        if "2022" in self.year[dataset_name][0]:
+            pass
+        else:
+            self.max_sieie_EB_low_r9 = 0.011
+            self.max_sieie_EE_low_r9 = 0.032
+            self.max_pho_iso_EB_low_r9 = 3.0
+            self.max_pho_iso_EE_low_r9 = 3.0
+
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
 
@@ -432,9 +174,7 @@ class LowMassProcessor(HggSkeletonProcessor):
         histos_etc = {}
         histos_etc[dataset_name] = {}
         if self.data_kind == "mc":
-            histos_etc[dataset_name]["nTot"] = int(
-                ak.num(events.genWeight, axis=0)
-            )
+            histos_etc[dataset_name]["nTot"] = int(ak.num(events.genWeight, axis=0))
             histos_etc[dataset_name]["nPos"] = int(ak.sum(events.genWeight > 0))
             histos_etc[dataset_name]["nNeg"] = int(ak.sum(events.genWeight < 0))
             histos_etc[dataset_name]["nEff"] = int(
@@ -517,7 +257,11 @@ class LowMassProcessor(HggSkeletonProcessor):
         if (
             self.data_kind == "mc"
             and self.Smear_sigma_m
-            and ("Smearing_Trad" not in correction_names and "Smearing_IJazZ" not in correction_names and "Smearing2G_IJazZ" not in correction_names)
+            and (
+                "Smearing_Trad" not in correction_names
+                and "Smearing_IJazZ" not in correction_names
+                and "Smearing2G_IJazZ" not in correction_names
+            )
         ):
             warnings.warn(
                 "Smearing_Trad or Smearing_IJazZ or Smearing2G_IJazZ should be specified in the corrections field in .json in order to smear the mass!"
@@ -537,7 +281,9 @@ class LowMassProcessor(HggSkeletonProcessor):
         if s_or_s_applied:
             events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
         if s_or_s_ele_applied:
-            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
+            events["Electron"] = ak.with_field(
+                events.Electron, events.Electron.pt, "pt_raw"
+            )
 
         # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
         # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
@@ -549,7 +295,9 @@ class LowMassProcessor(HggSkeletonProcessor):
             elif "Scale2G_IJazZ" in correction_names:
                 correction_name = "Smearing2G_IJazZ"
             else:
-                logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
+                logger.info(
+                    "Specify a scale correction for the data in the corrections field in .json in order to smear the mass!"
+                )
                 sys.exit(0)
 
             logger.info(
@@ -587,7 +335,7 @@ class LowMassProcessor(HggSkeletonProcessor):
                 self.meta,
                 self.year[dataset_name][0],
                 self.add_photonid_mva_run3,
-                logger
+                logger,
             )
 
         # Add additional collections if object systematics should be applied
@@ -603,7 +351,7 @@ class LowMassProcessor(HggSkeletonProcessor):
             logger,
             available_object_systematics,
             available_weight_systematics,
-            collections
+            collections,
         )
 
         original_photons = collections["Photon"]
@@ -614,7 +362,9 @@ class LowMassProcessor(HggSkeletonProcessor):
         logger.debug(original_photons.systematics.fields)
         for systematic in original_photons.systematics.fields:
             for variation in original_photons.systematics[systematic].fields:
-                photons_dct[f"{systematic}_{variation}"] = original_photons.systematics[systematic][variation]
+                photons_dct[f"{systematic}_{variation}"] = original_photons.systematics[
+                    systematic
+                ][variation]
 
         # NOTE: jet jerc systematics are added in the corrections, now extract those variations and create the dictionary
         jerc_syst_list, jets_dct = get_obj_syst_dict(original_jets, ["pt", "mass"])
@@ -701,6 +451,15 @@ class LowMassProcessor(HggSkeletonProcessor):
                     f"[lowmass processor] '{self.e_veto}' is not allowed, please use presel/single_invert/double_invert"
                 )
 
+            # adding leading/subleading photon pT, diphoton pT over m_gg
+            diphotons["pho_lead", "ptom"] = diphotons["pho_lead"].pt / diphotons["mass"]
+            diphotons["pho_sublead", "ptom"] = diphotons["pho_sublead"].pt / diphotons["mass"]
+            diphotons["ptom"] = diphotons["pt"] / diphotons["mass"]
+            # applying leading/subleading photon pT over m_gg cuts
+            diphotons = diphotons[
+                (diphotons["pho_lead"].ptom > self.ptom1_cut)
+                & (diphotons["pho_sublead"].ptom > self.ptom2_cut)
+            ]
             # sort diphotons by pT
             diphotons = diphotons[ak.argsort(diphotons.pt, ascending=False)]
 
@@ -730,8 +489,14 @@ class LowMassProcessor(HggSkeletonProcessor):
 
             btagMVA_selection = {
                 "deepJet": {"btagDeepFlavB": jets.btagDeepFlavB},  # Always available
-                "particleNet": {"btagPNetB": jets.btagPNetB} if self.nano_version >= 12 else {},
-                "robustParticleTransformer": {"btagRobustParTAK4B": jets.btagRobustParTAK4B} if self.nano_version in [12, 13] else {},
+                "particleNet": {"btagPNetB": jets.btagPNetB}
+                if self.nano_version >= 12
+                else {},
+                "robustParticleTransformer": {
+                    "btagRobustParTAK4B": jets.btagRobustParTAK4B
+                }
+                if self.nano_version in [12, 13]
+                else {},
             }
 
             # jet_variables
@@ -754,12 +519,34 @@ class LowMassProcessor(HggSkeletonProcessor):
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
-                    "jetId": add_jetId(jets, self.nano_version, self.year[dataset_name][0], flattenUnflatten=True),  # add jet ID based on nano version
+                    "jetId": add_jetId(
+                        jets,
+                        self.nano_version,
+                        self.year[dataset_name][0],
+                        flattenUnflatten=True,
+                    ),  # add jet ID based on nano version
                     **(
-                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chEmEF": jets.chEmEF, "muEF": jets.muEF} if self.nano_version == 12 else {}
+                        {
+                            "neHEF": jets.neHEF,
+                            "neEmEF": jets.neEmEF,
+                            "chEmEF": jets.chEmEF,
+                            "muEF": jets.muEF,
+                        }
+                        if self.nano_version == 12
+                        else {}
                     ),
                     **(
-                        {"neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version >= 13 else {}
+                        {
+                            "neHEF": jets.neHEF,
+                            "neEmEF": jets.neEmEF,
+                            "chMultiplicity": jets.chMultiplicity,
+                            "neMultiplicity": jets.neMultiplicity,
+                            "chEmEF": jets.chEmEF,
+                            "chHEF": jets.chHEF,
+                            "muEF": jets.muEF,
+                        }
+                        if self.nano_version >= 13
+                        else {}
                     ),
                 }
             )
@@ -870,9 +657,7 @@ class LowMassProcessor(HggSkeletonProcessor):
                     ),
                     axis=1,
                 )
-                tags = ak.from_regular(
-                    ak.unflatten(flat_tags, counts), axis=2
-                )
+                tags = ak.from_regular(ak.unflatten(flat_tags, counts), axis=2)
                 winner = ak.min(tags[tags != 0], axis=2)
                 diphotons["best_tag"] = winner
 
@@ -896,6 +681,8 @@ class LowMassProcessor(HggSkeletonProcessor):
             diphotons["BeamSpot_sigmaZError"] = events.BeamSpot.sigmaZError
             diphotons = dress_branches(diphotons, events.PV, "PV")
             diphotons = dress_branches(diphotons, events.Rho, "Rho")
+            diphotons["nTrigEle"] = ak.sum(numpy.abs(events.TrigObj.id) == 11, axis=1)
+            diphotons["nTrigPho"] = ak.sum(numpy.abs(events.TrigObj.id) == 22, axis=1)
             # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
             if self.data_kind == "mc":
                 diphotons["genWeight"] = events.genWeight
@@ -1028,37 +815,17 @@ class LowMassProcessor(HggSkeletonProcessor):
                 diphotons["weight_central"] = ak.ones_like(diphotons["event"])
                 diphotons["weight"] = ak.ones_like(diphotons["event"])
 
-            ### Add mass resolution uncertainty
-            # Note that pt*cosh(eta) is equal to the energy of a four vector
-            # Note that you need to call it slightly different than in the output of HiggsDNA as pho_lead -> lead is only done in dumping utils
-            if self.data_kind == "mc" and self.doFlow_corrections:
-                diphotons = get_mass_resolution_uncertainty(
-                    diphotons, mc_flow_corrected=True
-                )
-            else:
-                diphotons = get_mass_resolution_uncertainty(
-                    diphotons, mc_flow_corrected=False
-                )
-
-            # This is the mass SigmaM/M value including the smearing term from the Scale and smearing
-            # The implementation follows the flashGG implementation -> https://github.com/cms-analysis/flashgg/blob/4edea8897e2a4b0518dca76ba6c9909c20c40ae7/DataFormats/src/Photon.cc#L293
-            # adittional flashGG link when the smearing of the SigmaE/E smearing is called -> https://github.com/cms-analysis/flashgg/blob/4edea8897e2a4b0518dca76ba6c9909c20c40ae7/Systematics/plugins/PhotonSigEoverESmearingEGMTool.cc#L83C40-L83C45
-            # Just a reminder, the pt/energy of teh data is not smearing, but the smearing term is added to the data sigma_m_over_m
-            if self.Smear_sigma_m:
-                if self.doFlow_corrections and self.data_kind == "mc":
-                    # Adding the smeared BDT error to the ntuples!
-                    diphotons = get_mass_resolution_smearing(
-                        diphotons, mc_flow_corrected=True
-                    )
-                else:
-                    # Adding the smeared BDT error to the ntuples!
-                    diphotons = get_mass_resolution_smearing(
-                        diphotons, mc_flow_corrected=False
-                    )
+            # Compute and store the different variations of sigma_m_over_m
+            diphotons = compute_sigma_m(
+                diphotons,
+                processor="base",
+                flow_corrections=self.doFlow_corrections,
+                smear=self.Smear_sigma_m,
+                IsData=(self.data_kind == "data"),
+            )
 
             # Decorrelating the mass resolution - Still need to supress the decorrelator noises
             if self.doDeco:
-
                 # Decorrelate nominal sigma_m_over_m
                 diphotons["sigma_m_over_m_nominal_decorr"] = (
                     decorrelate_mass_resolution(
@@ -1084,13 +851,39 @@ class LowMassProcessor(HggSkeletonProcessor):
 
                 # decorrelate flow corrected smeared sigma_m_over_m
                 if self.doFlow_corrections and self.Smear_sigma_m:
-                    diphotons["sigma_m_over_m_corr_smeared_decorr"] = (
-                        decorrelate_mass_resolution(
-                            diphotons,
-                            type="corr_smeared",
-                            year=self.year[dataset_name][0],
+                    if self.data_kind == "data" and (
+                        "Scale_IJazZ" in correction_names
+                        or "Scale2G_IJazZ" in correction_names
+                    ):
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = (
+                            decorrelate_mass_resolution(
+                                diphotons,
+                                type="corr_smeared",
+                                year=self.year[dataset_name][0],
+                                IsSAS_ET_Dependent=True,
+                            )
                         )
-                    )
+                    elif self.data_kind == "mc" and (
+                        "Smearing2G_IJazZ" in correction_names
+                        or "Smearing_IJazZ" in correction_names
+                    ):
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = (
+                            decorrelate_mass_resolution(
+                                diphotons,
+                                type="corr_smeared",
+                                year=self.year[dataset_name][0],
+                                IsSAS_ET_Dependent=True,
+                            )
+                        )
+                    else:
+                        diphotons["sigma_m_over_m_corr_smeared_decorr"] = (
+                            decorrelate_mass_resolution(
+                                diphotons,
+                                type="corr_smeared",
+                                year=self.year[dataset_name][0],
+                                IsSAS_ET_Dependent=True,
+                            )
+                        )
 
                 # Instead of the nominal sigma_m_over_m, we will use the smeared version of it -> (https://indico.cern.ch/event/1319585/#169-update-on-the-run-3-mass-r)
                 # else:
@@ -1112,12 +905,8 @@ class LowMassProcessor(HggSkeletonProcessor):
                         ]
                     ]
 
-                fname = (
-                    events.attrs["@events_factory"]._partition_key.replace(
-                        "/", "_"
-                    )
-                    + ".%s" % self.output_format
-                )
+                fname = apply_naming_convention(self, events)
+
                 subdirs = []
                 if "dataset" in events.metadata:
                     subdirs.append(events.metadata["dataset"])
