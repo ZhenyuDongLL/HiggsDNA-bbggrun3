@@ -769,68 +769,26 @@ def get_scale_and_smearing(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(
             resource_dir, "../higgs_dna/systematics/JSONs/scaleAndSmearing"
         )
+    cvmfs_base_path = "/cvmfs/cms-griddata.cern.ch/cat/metadata/EGM/"
+    tag = 'latest'  # latest tag always points to the most recent recommended corrections
+    repo_dict = {
+        "2016preVFP": "Run2-2016preVFP-UL-NanoAODv15",
+        "2016postVFP": "Run2-2016postVFP-UL-NanoAODv15",
+        "2017": "Run2-2017-UL-NanoAODv15",
+        "2018": "Run2-2018-UL-NanoAODv15",
+        "2022preEE": "Run3-22CDSep23-Summer22-NanoAODv12",
+        "2022postEE": "Run3-22EFGSep23-Summer22EE-NanoAODv12",
+        "2023preBPix": "Run3-23CSep23-Summer23-NanoAODv12",
+        "2023postBPix": "Run3-23DSep23-Summer23BPix-NanoAODv12",
+        "2024": "Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15",
+    }
 
     from_to_dict = {
-        "2016preVFP": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/SandS/EGM_ScaleUnc_2016preVFP.json",
-            "to": f"{to_prefix}/EGM_ScaleUnc_2016preVFP.json",
-            "type": "eos",
-        },
-        "2016postVFP": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/SandS/EGM_ScaleUnc_2016postVFP.json",
-            "to": f"{to_prefix}/EGM_ScaleUnc_2016postVFP.json",
-            "type": "eos",
-        },
-        "2017": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/SandS/EGM_ScaleUnc_2017.json",
-            "to": f"{to_prefix}/EGM_ScaleUnc_2017.json",
-            "type": "eos",
-        },
-        "2018": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/SandS/EGM_ScaleUnc_2018.json",
-            "to": f"{to_prefix}/EGM_ScaleUnc_2018.json",
-            "type": "eos",
-        },
-        "2022preEE": {
-            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2022/ForRe-recoBCD/SS/photonSS.json.gz",
-            "to": f"{to_prefix}/SS_Rereco2022BCD.json.gz",
-            "type": "eos",
-        },
-        "2022postEE": {
-            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2022/ForRe-recoE+PromptFG/SS/photonSS.json.gz",
-            "to": f"{to_prefix}/SS_RerecoE_PromptFG_2022.json.gz",
-            "type": "eos",
-        },
-        "2022preEE_Electrons": {
-            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2022/ForRe-recoBCD/SS/electronSS.json.gz",
-            "to": f"{to_prefix}/SS_Electron_Rereco2022BCD.json.gz",
-            "type": "eos",
-        },
-        "2022postEE_Electrons": {
-            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2022/ForRe-recoE+PromptFG/SS/electronSS.json.gz",
-            "to": f"{to_prefix}/SS_Electron_RerecoE_PromptFG_2022.json.gz",
-            "type": "eos",
-        },
-        "2023preBPix": {
-            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2023/ForPrompt23C/SS/photonSS.json.gz",
-            "to": f"{to_prefix}/SS_Prompt23C.json.gz",
-            "type": "eos",
-        },
-        "2023postBPix": {
-            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2023/ForPrompt23D/SS/photonSS.json.gz",
-            "to": f"{to_prefix}/SS_Prompt23D.json.gz",
-            "type": "eos",
-        },
-        "2023preBPix_Electrons": {
-            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2023/ForPrompt23C/SS/electronSS.json.gz",
-            "to": f"{to_prefix}/SS_Electron_Prompt23C.json.gz",
-            "type": "eos",
-        },
-        "2023postBPix_Electrons": {
-            "from": "/eos/cms/store/group/phys_egamma/ScaleFactors/Data2023/ForPrompt23D/SS/electronSS.json.gz",
-            "to": f"{to_prefix}/SS_Electron_Prompt23D.json.gz",
-            "type": "eos",
-        },
+        year+obj: {
+            "from": f"{cvmfs_base_path}{repo_dict[year]}/{tag}/{obj}SS_EtDependent.json.gz",
+            "to": f"{to_prefix}/{obj}SS_EtDependent_{year}.json.gz",
+            "type": "cvmfs",
+        } for year in repo_dict.keys() for obj in ["photon", "electron"]
     }
     fetch_file(
         "Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
