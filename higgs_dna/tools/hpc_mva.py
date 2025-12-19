@@ -209,24 +209,16 @@ def calculate_ch_vs_cb_mva(
     return diphotons, events
 
 
-def calculate_ggh_vs_hb_mva(
+def fill_ggh_vs_hb_mva_vars(
     self,
-    mva: Tuple[Tuple[Optional[xgb.Booster], Optional[xgb.Booster]], List[str]],
+    var_order: List[str],
     diphotons: ak.Array,
     events: ak.Array,
     year
 ) -> ak.Array:
     """
-    Calculate cH vs ggH bdt scores for events.
+    Fill the variables for cH vs ggH .
     """
-
-    if mva[0] is None:
-        return diphotons, events
-
-    ggh_vs_hb = []
-    ggh_vs_hb.append(mva[0][0])
-    ggh_vs_hb.append(mva[0][1])
-    var_order = mva[1]
 
     events_bdt = events
 
@@ -365,10 +357,52 @@ def calculate_ggh_vs_hb_mva(
         events_bdt["first_muon_pt"]
     )
     events_bdt["first_electron_pt"] = ak.where(
-        events_bdt["first_muon_pt"] < 0,
-        ak.ones_like(events_bdt.first_muon_pt) * -1,
-        events_bdt["first_muon_pt"]
+        events_bdt["first_electron_pt"] < 0,
+        ak.ones_like(events_bdt.first_electron_pt) * -1,
+        events_bdt["first_electron_pt"]
     )
+
+    for name in var_order:
+        events_bdt[name] = ak.fill_none(events_bdt[name], -999.0)
+
+    bdt_features = []
+    for x in var_order:
+        if isinstance(x, tuple):
+            name_flat = "_".join(x)
+            events_bdt[name_flat] = events_bdt[x]
+            bdt_features.append(name_flat)
+        else:
+            bdt_features.append(x)
+
+    for var in bdt_features:
+        if "dipho" not in var:
+            diphotons[var] = events_bdt[var]
+
+    return diphotons, events_bdt
+
+
+def calculate_ggh_vs_hb_mva(
+    self,
+    mva: Tuple[Tuple[Optional[xgb.Booster], Optional[xgb.Booster]], List[str]],
+    diphotons: ak.Array,
+    events_bdt: ak.Array,
+    year
+) -> ak.Array:
+    """
+    Calculate cH vs ggH bdt scores for events.
+    """
+
+    if mva[0] is None:
+        return diphotons, events_bdt
+    elif len(diphotons) == 0:
+        logger.info("no events surviving event selection, adding fake ggh vs hb bdt score")
+        diphotons["ggh_vs_hb_bdt_score"] = ak.zeros_like(diphotons.mass)
+        return diphotons, events_bdt
+
+    ggh_vs_hb = []
+    ggh_vs_hb.append(mva[0][0])
+    ggh_vs_hb.append(mva[0][1])
+    var_order = mva[1]
 
     for name in var_order:
         events_bdt[name] = ak.fill_none(events_bdt[name], -999.0)
@@ -390,32 +424,25 @@ def calculate_ggh_vs_hb_mva(
 
     scores = []
     for bdt in ggh_vs_hb:
-        pred = bdt.predict(features_bdt_matrix)
-        if len(pred) == 0:
-            pred = numpy.empty((0, 4), dtype=numpy.float32)
-        scores.append(pred)
-
-    for var in bdt_features:
-        if "dipho" not in var:
-            diphotons[var] = events_bdt[var]
+        scores.append(bdt.predict(features_bdt_matrix))
 
     scores_out_sig = ak.where(
-        events.event % 4 < 2,
+        events_bdt.event % 4 < 2,
         scores[0][:, 0],
         scores[1][:, 0]
     )
     scores_out_tth = ak.where(
-        events.event % 4 < 2,
+        events_bdt.event % 4 < 2,
         scores[0][:, 1],
         scores[1][:, 1]
     )
     scores_out_vbf = ak.where(
-        events.event % 4 < 2,
+        events_bdt.event % 4 < 2,
         scores[0][:, 2],
         scores[1][:, 2]
     )
     scores_out_vh = ak.where(
-        events.event % 4 < 2,
+        events_bdt.event % 4 < 2,
         scores[0][:, 3],
         scores[1][:, 3]
     )
@@ -425,4 +452,4 @@ def calculate_ggh_vs_hb_mva(
     diphotons["ggh_vs_hb_bdt_vbf_score"] = scores_out_vbf
     diphotons["ggh_vs_hb_bdt_vh_score"] = scores_out_vh
 
-    return diphotons, events
+    return diphotons

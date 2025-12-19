@@ -578,5 +578,53 @@
             [53, [0.5, 1], [0.96, 0.99]],
             [54, [0.5, 1], [0.99, 1]]
         ]   
+    },
+
+    "hpcMVA_ggh_vs_hb" :
+    {
+        "weightFile" : [""],
+        "version" : "xgb",
+        "inputs": [
+            "pt",
+            "dijet_pt",
+            "dijet_eta",
+            "dijet_mass",
+            "LeadPhoton_pt_mgg",
+            "SubleadPhoton_pt_mgg",
+            "Diphoton_cos_dPhi",
+            "LeadPhoton_eta",
+            "SubleadPhoton_eta",
+            "eta",
+            "first_jet_pt",
+            "first_jet_mass",
+            "first_jet_eta",
+            "second_jet_pt",
+            "second_jet_mass",
+            "second_jet_eta",
+            "third_jet_pt",
+            "third_jet_mass",
+            "third_jet_eta",
+            "first_muon_pt",
+            "first_muon_eta",
+            "first_electron_pt",
+            "first_electron_eta",
+            "DeltaPhi_gamma1_cjet",
+            "DeltaPhi_gamma2_cjet",
+            "dEta_ljh",
+            "dEta_sljh",
+            "dEta_ljslj",
+            "dR_ljlp",
+            "lj_ptoM",
+            "MET_pt",
+            "MET_sumEt",
+            "MET_phi",
+            "MET_significance",
+            "nTau",
+            "n_jets",
+            "first_jet_wp",
+            "second_jet_wp",
+            "third_jet_wp",
+            "PV_score"
+        ]
     }
 } 
