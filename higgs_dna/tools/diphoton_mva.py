@@ -181,10 +181,19 @@ def calculate_retrained_diphoton_mva(
     vtx_prob = 2 * sigma_m / (sigma_m + sigma_wv)
 
     # z coordinate of primary vertices other than the main one
-    otherpv_z_padded = ak.fill_none(ak.pad_none(events.OtherPV.z, 3, axis=1, clip=True), -999.0)
-    pv_z = ak.fill_none(events.PV.z, -9999.0)
-    pv_z_b, otherpv_z_b = ak.broadcast_arrays(pv_z, otherpv_z_padded)
-    events["OtherPV_dZ_0"] = numpy.abs(pv_z_b - otherpv_z_b)
+    OtherPV_z = ak.to_numpy(
+        ak.fill_none(ak.pad_none(events.OtherPV.z, 3, axis=1, clip=True), -999.0)
+    )
+    PV_z = ak.to_numpy(events.PV.z)
+    # reshaping to match OtherPV_z
+    PV_z = numpy.full_like(
+        numpy.arange(3 * len(PV_z)).reshape(len(PV_z), 3), 1, dtype=float
+    )
+    PV_z[:, 0] = PV_z[:, 0] * ak.fill_none(events.PV.z, -9999.0)
+    PV_z[:, 1] = PV_z[:, 1] * ak.fill_none(events.PV.z, -9999.0)
+    PV_z[:, 2] = PV_z[:, 2] * ak.fill_none(events.PV.z, -9999.0)
+
+    events["OtherPV_dZ_0"] = ak.from_numpy(numpy.abs(PV_z - OtherPV_z))
 
     events_bdt["Diphoton_cos_dPhi"] = cos_dphi
     events_bdt["PV_score"] = events.PV.score
@@ -323,7 +332,6 @@ def calculate_multiclass_diphoton_mva(
     OtherPV_z = ak.to_numpy(
         ak.fill_none(ak.pad_none(events.OtherPV.z, 3, axis=1, clip=True), -999.0)
     )
-    events["OtherPV", "z"] = ak.from_numpy(OtherPV_z)
     PV_z = ak.to_numpy(events.PV.z)
     # reshaping to match OtherPV_z
     PV_z = numpy.full_like(

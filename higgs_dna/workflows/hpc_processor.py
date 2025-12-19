@@ -1,7 +1,7 @@
 from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.chained_quantile import ChainedQuantileRegression
 from higgs_dna.tools.diphoton_mva import calculate_multiclass_diphoton_mva
-from higgs_dna.tools.hpc_mva import calculate_ch_vs_ggh_mva, calculate_ch_vs_cb_mva, calculate_ggh_vs_hb_mva
+from higgs_dna.tools.hpc_mva import calculate_ggh_vs_hb_mva, fill_ggh_vs_hb_mva_vars
 from higgs_dna.tools.xgb_loader import load_bdt
 from higgs_dna.tools.photonid_mva import load_photonid_mva
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
@@ -387,6 +387,9 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
         else:
             logger.info("processing Data dataset")
             metadata["sum_genw_presel"] = "Data"
+
+        # Store the command line used
+        metadata["command_line"] = " ".join(sys.argv)
 
         # apply filters and triggers
         events = self.apply_filters_and_triggers(events)
@@ -1325,6 +1328,20 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             diphotons["LeadPhoton_pfChargedIsoWorstVtx"] = diphotons.pho_lead.pfChargedIsoWorstVtx
             diphotons["LeadPhoton_pfPhoIso03"] = diphotons.pho_lead.pfPhoIso03
 
+            # Add genPartFlav for lead/sublead photons (MC only; fill -1 for data)
+            if self.data_kind == "mc" and hasattr(diphotons.pho_lead, "genPartFlav"):
+                diphotons["LeadPhoton_genPartFlav"] = ak.fill_none(diphotons.pho_lead.genPartFlav, -1)
+                diphotons["LeadPhoton_genPartFlav"] = ak.values_astype(diphotons["LeadPhoton_genPartFlav"], int)
+
+                diphotons["SubleadPhoton_genPartFlav"] = ak.fill_none(diphotons.pho_sublead.genPartFlav, -1)
+                diphotons["SubleadPhoton_genPartFlav"] = ak.values_astype(diphotons["SubleadPhoton_genPartFlav"], int)
+
+                logger.info(f"Added genPartFlav for MC: lead={diphotons['LeadPhoton_genPartFlav']}")
+                logger.info(f"Added genPartFlav for MC: sublead={diphotons['SubleadPhoton_genPartFlav']}")
+            else:
+                diphotons["LeadPhoton_genPartFlav"] = ak.values_astype(ak.ones_like(diphotons.pt) * (-1), int)
+                diphotons["SubleadPhoton_genPartFlav"] = ak.values_astype(ak.ones_like(diphotons.pt) * (-1), int)
+
             # run taggers on the events list with added diphotons
             # the shape here is ensured to be broadcastable
             for tagger in self.taggers:
@@ -1372,7 +1389,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             # nPV just for validation of pileup reweighting
             diphotons["nPV"] = dipho_events.PV.npvs if not self.data_kind else ak.ones_like(dipho_events.event)
             diphotons["nPU"] = dipho_events.Pileup.nPU if not self.data_kind else ak.ones_like(dipho_events.event)
-            diphotons["rho"] = dipho_events.Rho.fixedGridRhoAll
+            diphotons["fixedGridRhoAll"] = dipho_events.Rho.fixedGridRhoAll
 
             # global variables for ggH vs RB BDT
             diphotons["nTau"] = dipho_events.nTau if hasattr(dipho_events, "nTau") else ak.num(dipho_events.Tau)
@@ -1409,15 +1426,9 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
 
             dipho_events["sel_jets"] = jets
             dipho_events["n_jets"] = n_jets
-
-            if self.ch_vs_ggh_mva is not None:
-                diphotons, dipho_events = self.add_ch_vs_ggh_mva(diphotons, dipho_events)
-
-            if self.ch_vs_cb_mva is not None:
-                diphotons, dipho_events = self.add_ch_vs_cb_mva(diphotons, dipho_events)
-
+            diphotons, ggh_vs_hb_mva_events = self.add_ggh_vs_hb_mva_vars(diphotons, dipho_events)
             if self.ggh_vs_hb_mva is not None:
-                diphotons, dipho_events = self.add_ggh_vs_hb_mva(diphotons, dipho_events)
+                diphotons = self.add_ggh_vs_hb_mva(diphotons, ggh_vs_hb_mva_events)
 
             # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
             if self.data_kind == "mc":
@@ -1628,32 +1639,23 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
             events,
         )
 
-    def add_ch_vs_ggh_mva(
-        self, diphotons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-        return calculate_ch_vs_ggh_mva(
-            self,
-            (self.ch_vs_ggh_mva, self.meta["hpcMVA_ch_vs_ggh"]["inputs"]),
-            diphotons,
-            events,
-        )
-
-    def add_ch_vs_cb_mva(
-        self, diphotons: ak.Array, events: ak.Array
-    ) -> ak.Array:
-        return calculate_ch_vs_cb_mva(
-            self,
-            (self.ch_vs_cb_mva, self.meta["hpcMVA_ch_vs_cb"]["inputs"]),
-            diphotons,
-            events,
-        )
-
     def add_ggh_vs_hb_mva(
         self, diphotons: ak.Array, events: ak.Array
     ) -> ak.Array:
         return calculate_ggh_vs_hb_mva(
             self,
             (self.ggh_vs_hb_mva, self.meta["hpcMVA_ggh_vs_hb"]["inputs"]),
+            diphotons,
+            events,
+            self.year[self.dataset_name][0],
+        )
+
+    def add_ggh_vs_hb_mva_vars(
+        self, diphotons: ak.Array, events: ak.Array
+    ) -> ak.Array:
+        return fill_ggh_vs_hb_mva_vars(
+            self,
+            self.meta["hpcMVA_ggh_vs_hb"]["inputs"],
             diphotons,
             events,
             self.year[self.dataset_name][0],

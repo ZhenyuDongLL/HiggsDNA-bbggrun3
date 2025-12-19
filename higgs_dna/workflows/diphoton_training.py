@@ -765,7 +765,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
             # nPV just for validation of pileup reweighting
             diphotons["nPV"] = dipho_events.PV.npvs if not self.data_kind else ak.ones_like(dipho_events.event)
             diphotons["nPU"] = dipho_events.Pileup.nPU if not self.data_kind else ak.ones_like(dipho_events.event)
-            diphotons["rho"] = dipho_events.Rho.fixedGridRhoAll
+            diphotons["fixedGridRhoAll"] = dipho_events.Rho.fixedGridRhoAll
 
             # here I add lead jet to event because I need it for cTagSF evaluation
             # this may be not needed if one change the cTagSF function in event_weight_systematics.py to use the jet collection
@@ -987,7 +987,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                         # "PV_chi2",
                         "nPV",
                         "nPU",
-                        "rho",
+                        "fixedGridRhoAll",
                         "n_jets",
                         "first_jet_pt",
                         "first_jet_eta",
