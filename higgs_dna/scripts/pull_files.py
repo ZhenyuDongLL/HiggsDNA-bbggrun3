@@ -879,6 +879,20 @@ def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
                    f"{to_prefix}/EGMScalesSmearing_Ele_20242G.v1.json.gz"],
             "type": "eos",
         },
+        "2025": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/SandS_IJazZ/EGMScalesSmearing_Pho_2025.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/SandS_IJazZ/EGMScalesSmearing_Pho_20252G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2025.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Pho_20252G.v1.json.gz"],
+            "type": "eos",
+        },
+        "2025_Electrons": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/SandS_IJazZ_for_electrons/EGMScalesSmearing_Ele_2025.v1.json.gz",
+                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/SandS_IJazZ_for_electrons/EGMScalesSmearing_Ele_20252G.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2025.v1.json.gz",
+                   f"{to_prefix}/EGMScalesSmearing_Ele_20252G.v1.json.gz"],
+            "type": "eos",
+        },
        
     }
     fetch_file(
@@ -1008,6 +1022,13 @@ def get_goldenjson(logger, target_dir, use_xrdcp=False):
             "to": os.path.join(
                 prefix,
                 "Collisions24/Cert_Collisions2024_378981_386951_Golden.json",
+            ),
+        },
+        "2025": {
+            "from": "https://cms-service-dqmdc.web.cern.ch/CAF/certification/Collisions25/Cert_Collisions2025_391658_398860_Golden.json",
+            "to": os.path.join(
+                prefix,
+                "Collisions25/Cert_Collisions2025_391658_398860_Golden.json",
             ),
         },
     }
@@ -1231,6 +1252,11 @@ def get_pileup(logger, target_dir, use_xrdcp=False):
             "from": f"/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/puWeights_BCDEFGHI.json.gz",
             "to": f"{to_prefix}/pileup_2024.json.gz",
             "type": "cvmfs",
+        },
+        "2025": {
+            "from": f"/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/puWeights2025.json.gz",
+            "to": f"{to_prefix}/pileup_2025.json.gz",
+            "type": "eos",
         },
     }
 
