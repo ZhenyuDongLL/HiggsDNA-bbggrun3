@@ -67,6 +67,12 @@ def main():
         help="Files to be merged are data and therefore do not require normalisation.",
     )
     parser.add_argument(
+        "--merge-all-data",
+        default=False,
+        action="store_true",
+        help="To be used for merging 'Data*' parquets to a single 'allData' parquet",
+    )
+    parser.add_argument(
         "--skip-normalisation",
         default=False,
         action="store_true",
@@ -176,7 +182,7 @@ def main():
             logger.info(
                 f"INFO: Starting parquet file merging. Attempting to read parquet dataset from {source_path}, for category: {cat}"
             )
-            dataset = ds.dataset(source_path)
+            dataset = ds.dataset(glob.glob(source_path+"/Data*.parquet") if args.merge_all_data else source_path)
             logger.info("Parquet dataset read successfully.")
             logger.info(
                 f"Attempting to merge parquet dataset and save to {target_paths[i]}."
