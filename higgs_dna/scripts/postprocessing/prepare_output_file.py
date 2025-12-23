@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 from optparse import OptionParser
+import glob
 import json
 from importlib import resources
 from higgs_dna.utils.logger_utils import setup_logger
@@ -510,13 +511,13 @@ def main():
                 logger.warning(f"Type MC selected, but {file} is data. Ignoring it...")
                 return
             # Data processing
-            merged_target_path = f"{OUT_PATH}/merged/{file}/{file}_merged.parquet"
             data_dir_path = f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'
-            if os.path.exists(merged_target_path):
-                raise Exception(f"The selected target path: {merged_target_path} already exists")
+            target_file = f'{data_dir_path}/{file}_'
+            if len(glob.glob(target_file+'*')) > 0:
+                raise Exception(f"The selected target files: {target_file}* already exist")
             if not os.path.exists(data_dir_path):
                 MKDIRP(data_dir_path)
-            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {data_dir_path}/{file}_ --cats {cat_dict_loc} {verbose_str} --is-data {genBinning_str} --abs {custom_accumulator_str}'
+            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_file} --cats {cat_dict_loc} {verbose_str} --is-data {genBinning_str} --abs {custom_accumulator_str}'
             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
     def root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, verbose_str, skip_normalisation_str):
@@ -606,7 +607,7 @@ def main():
                             continue
                         dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                         if len(filenames) > 0:
-                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data {genBinning_str} {verbose_str} --abs {custom_accumulator_str}'
+                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data --merge-all-data {genBinning_str} {verbose_str} --abs {custom_accumulator_str}'
                             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
                             break
                         else:
