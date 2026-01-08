@@ -12,6 +12,30 @@ import numpy as np
 from scipy import interpolate
 
 
+def safe_divide(num, den):
+    """Return num/den, guarding against division by zero."""
+    return 0.0 if den == 0 else num / den
+
+
+def evaluate_value_at_mass(values, mass_points, no_interpolation, target_mass=125.38):
+    """
+    Evaluate a quantity defined at discrete mass points at a desired target mass.
+    If interpolation is disabled, the 125 GeV value is returned.
+    """
+    if not values:
+        return 0.0
+    if no_interpolation:
+        key = "125" if "125" in values else mass_points[0]
+        return values[key]
+    mass_value_pairs = sorted((float(m), values[m]) for m in mass_points)
+    masses, points = zip(*mass_value_pairs)
+    order = min(2, len(masses) - 1)
+    if order < 1:
+        return points[0]
+    spline = interpolate.splrep(masses, points, k=order)
+    return float(interpolate.splev(target_mass, spline))
+
+
 def compute_fid_xsec(in_frac, mass_points, xs_value, BR, no_interpolation, target_mass=125.38):
     """
     Compute the fiducial cross section for a given observable.
@@ -27,14 +51,7 @@ def compute_fid_xsec(in_frac, mass_points, xs_value, BR, no_interpolation, targe
     Returns:
       float: The computed fiducial cross section.
     """
-    if no_interpolation:
-        value = in_frac["125"]
-    else:
-        # Convert mass_points to floats and compute spline interpolation.
-        masses = [float(p) for p in mass_points]
-        points = [in_frac[p] for p in mass_points]
-        spline = interpolate.splrep(masses, points, k=2)
-        value = float(interpolate.splev(target_mass, spline))
+    value = evaluate_value_at_mass(in_frac, mass_points, no_interpolation, target_mass=target_mass)
     return value * xs_value * 1000 * BR
 
 
@@ -78,9 +95,7 @@ elif args.fid_selection == 'fiducialClassicalFlag':
 path_folder = args.path # Use the specified folder path
 # Pepare the processes array appropriately
 if args.process == 'all':
-    processes = available_processes
-    processes.remove('all')
-    processes.remove('xH')
+    processes = [p for p in available_processes if p not in ('all', 'xH')]
 elif args.process == 'xH':
     processes = ['VBFH', 'VH', 'ttH']
 else:
@@ -88,8 +103,7 @@ else:
 year = args.year
 # Pepare the eras array appropriately
 if args.era == 'all':
-    eras = available_eras
-    eras.remove('all')
+    eras = [e for e in available_eras if e != 'all']
 else:
     eras = [args.era]
 
@@ -125,8 +139,19 @@ XS_map_alphaS_up = {'13':   {},
                    '14':   {},}
 
 XS_map_alphaS_dn = {'13':   {},
-                   '13p6': {'ggH': 50.60904, 'VBFH': 4.046665, 'VH': 2.3566971, 'ttH': 0.552524},
-                   '14':   {},}
+                    '13p6': {'ggH': 50.60904, 'VBFH': 4.046665, 'VH': 2.3566971, 'ttH': 0.552524},
+                    '14':   {},}
+
+
+def combine_acceptances(process_acceptances):
+    """Cross-section weighted combination using nominal 13.6 TeV cross sections."""
+    total_sigma = 0.0
+    weighted_sum = 0.0
+    for process, acc in process_acceptances.items():
+        sigma = XS_map['13p6'].get(process, 0.0)
+        total_sigma += sigma
+        weighted_sum += sigma * acc
+    return safe_divide(weighted_sum, total_sigma)
 
 
 # This depends on how you named your samples in HiggsDNA
@@ -141,6 +166,9 @@ mass_points = args.mass_points # The fiducial acceptance should be extrapolated 
 # [FIXME] For the time being, no extrapolation, its effects is in any case small.
 # [FIXME] Idea: compute the relative variation between 125 and 125.38 GeV with Madgraph and then apply it to powheg
 mass_powheg = {120:125, 125:125, 130:125}
+scale_weight_indices = [0, 1, 3, 5, 7, 8]
+pdf_weight_indices = list(range(1, 101))
+alpha_weight_map = {'alpha_up': 101, 'alpha_dn': 102}
 
 fid_xsecs_per_bin = {}
 fid_xsecs_per_bin_scale_up = {}
@@ -149,6 +177,13 @@ fid_xsecs_per_bin_pdf_up = {}
 fid_xsecs_per_bin_pdf_dn = {}
 fid_xsecs_per_bin_alpha_up = {}
 fid_xsecs_per_bin_alpha_dn = {}
+acc_per_bin = {}
+acc_per_bin_scale_up = {}
+acc_per_bin_scale_dn = {}
+acc_per_bin_pdf_up = {}
+acc_per_bin_pdf_dn = {}
+acc_per_bin_alpha_up = {}
+acc_per_bin_alpha_dn = {}
 for b in range(len(obs_bins)-1):
     fid_xsecs_per_bin_process = {}
     fid_xsecs_per_bin_process_scale_up = {}
@@ -157,6 +192,13 @@ for b in range(len(obs_bins)-1):
     fid_xsecs_per_bin_process_pdf_dn = {}
     fid_xsecs_per_bin_process_alpha_up = {}
     fid_xsecs_per_bin_process_alpha_dn = {}
+    acc_per_bin_process = {}
+    acc_per_bin_process_scale_up = {}
+    acc_per_bin_process_scale_dn = {}
+    acc_per_bin_process_pdf_up = {}
+    acc_per_bin_process_pdf_dn = {}
+    acc_per_bin_process_alpha_up = {}
+    acc_per_bin_process_alpha_dn = {}
     for process in processes:
         print(f'INFO: Now extracting fraction of in-fiducial events for process {process} ...')
         in_frac_per_mass = {}
@@ -168,147 +210,88 @@ for b in range(len(obs_bins)-1):
         in_frac_per_mass_alpha_dn = {}
         for mass in mass_points:
             print(f'INFO: Now extracting numbers for mass {mass}...')
-            in_frac_per_mass_era = {}
-            in_frac_per_mass_era_scale_up = {}
-            in_frac_per_mass_era_scale_dn = {}
-            in_frac_per_mass_era_pdf_up = {}
-            in_frac_per_mass_era_pdf_dn = {}
-            in_frac_per_mass_era_alpha_up = {}
-            in_frac_per_mass_era_alpha_dn = {}
-            sumw2_tmp = []
+            sumw_nom_in = 0.0
+            sumw_nom_all = 0.0
+            scale_sums = {idx: {'num': 0.0, 'den': 0.0} for idx in scale_weight_indices}
+            pdf_sums = {idx: {'num': 0.0, 'den': 0.0} for idx in pdf_weight_indices}
+            alpha_sums = {key: {'num': 0.0, 'den': 0.0} for key in alpha_weight_map}
             for era in eras:
                 print(f'INFO: Now extracting numbers for era {era}, process {process}, and bin {b} ...')
                 # Extract the events
-                process_string = path_folder + processMap[process] + '_M-' + str(mass) + '_' + era
-                if args.powheg: process_string = path_folder + processMap[process] + '_M-' + str(mass_powheg[mass]) + '_powheg'
+                process_mass = str(mass)
+                process_string = path_folder + processMap[process] + '_M-' + process_mass + '_' + era
+                if args.powheg:
+                    process_mass_key = int(mass)
+                    process_string = path_folder + processMap[process] + '_M-' + str(mass_powheg[process_mass_key]) + '_powheg'
                 arr = ak.from_parquet(process_string)
                 # Calculating the relevant fractions
                 inFiducialFlag = (arr[args.fid_selection] == True) & (abs(arr[args.obs]) >= obs_bins[b]) & (abs(arr[args.obs]) < obs_bins[b+1]) # Only for this type of tagger right now, can be customised in the future
 
-                sumwAll = ak.sum(arr[args.weight])
-                sumwIn = ak.sum(arr[args.weight][(inFiducialFlag)])
-                in_frac = sumwIn/sumwAll
+                weights = arr[args.weight]
+                sumw_nom_all += float(ak.sum(weights))
+                sumw_nom_in += float(ak.sum(weights[inFiducialFlag]))
 
-                in_frac_scale = []
-                for i in [0,1,3,5,7,8]:
-                    sumwAll = ak.sum(arr[args.weight] * arr["LHEScaleWeight_"+str(i)])
-                    sumwIn = ak.sum(arr[args.weight][(inFiducialFlag)] * arr["LHEScaleWeight_"+str(i)][(inFiducialFlag)])
-                    in_frac_scale.append(sumwIn/sumwAll)
-                in_frac_scale_up = max(in_frac_scale)
-                in_frac_scale_dn = min(in_frac_scale)
+                for idx in scale_weight_indices:
+                    scale_weight = arr["LHEScaleWeight_"+str(idx)]
+                    scale_sums[idx]['den'] += float(ak.sum(weights * scale_weight))
+                    scale_sums[idx]['num'] += float(ak.sum(weights[inFiducialFlag] * scale_weight[inFiducialFlag]))
 
+                for idx in pdf_weight_indices:
+                    pdf_weight = arr["LHEPdfWeight_"+str(idx)]
+                    pdf_sums[idx]['den'] += float(ak.sum(weights * pdf_weight))
+                    pdf_sums[idx]['num'] += float(ak.sum(weights[inFiducialFlag] * pdf_weight[inFiducialFlag]))
 
-                in_frac_pdf = []
-                for i in range(1,101):
-                    sumwAll = ak.sum(arr[args.weight] * arr["LHEPdfWeight_"+str(i)])
-                    sumwIn = ak.sum(arr[args.weight][(inFiducialFlag)] * arr["LHEPdfWeight_"+str(i)][(inFiducialFlag)])
-                    in_frac_pdf.append(sumwIn/sumwAll)
-                in_frac_pdf = np.array(in_frac_pdf)
-                ## Formula taken from https://arxiv.org/pdf/1510.03865 (Eq. 20)
-                in_frac_pdf = np.sqrt(np.sum(np.square(in_frac_pdf - in_frac)))
-                in_frac_pdf_up = in_frac + in_frac_pdf
-                in_frac_pdf_dn = in_frac - in_frac_pdf
+                for alpha_key, weight_idx in alpha_weight_map.items():
+                    alpha_weight = arr["LHEPdfWeight_"+str(weight_idx)]
+                    alpha_sums[alpha_key]['den'] += float(ak.sum(weights * alpha_weight))
+                    alpha_sums[alpha_key]['num'] += float(ak.sum(weights[inFiducialFlag] * alpha_weight[inFiducialFlag]))
 
-                sumwAll = ak.sum(arr[args.weight] * arr["LHEPdfWeight_101"])
-                sumwIn = ak.sum(arr[args.weight][(inFiducialFlag)] * arr["LHEPdfWeight_101"][(inFiducialFlag)])
-                in_frac_alpha_up = sumwIn/sumwAll
+            in_frac = safe_divide(sumw_nom_in, sumw_nom_all)
 
-                sumwAll = ak.sum(arr[args.weight] * arr["LHEPdfWeight_102"])
-                sumwIn = ak.sum(arr[args.weight][(inFiducialFlag)] * arr["LHEPdfWeight_102"][(inFiducialFlag)])
-                in_frac_alpha_dn = sumwIn/sumwAll
+            scale_acceptances = [safe_divide(scale_sums[idx]['num'], scale_sums[idx]['den']) for idx in scale_weight_indices]
+            in_frac_scale_up = max(scale_acceptances) if scale_acceptances else in_frac
+            in_frac_scale_dn = min(scale_acceptances) if scale_acceptances else in_frac
 
-                print(f"INFO: Fraction of in-fiducial events: {in_frac} ...")
-                print(f"INFO: Fraction of in-fiducial events scale up: {in_frac_scale_up} ...")
-                print(f"INFO: Fraction of in-fiducial events scale dn: {in_frac_scale_dn} ...")
-                print(f"INFO: Fraction of in-fiducial events pdf up: {in_frac_pdf_up} ...")
-                print(f"INFO: Fraction of in-fiducial events pdf dn: {in_frac_pdf_dn} ...")
-                print(f"INFO: Fraction of in-fiducial events alpha up: {in_frac_alpha_up} ...")
-                print(f"INFO: Fraction of in-fiducial events alpha dn: {in_frac_alpha_dn} ...")
+            pdf_acceptances = np.array([safe_divide(pdf_sums[idx]['num'], pdf_sums[idx]['den']) for idx in pdf_weight_indices])
+            ## Formula taken from https://arxiv.org/pdf/1510.03865 (Eq. 20)
+            pdf_uncertainty = np.sqrt(np.sum(np.square(pdf_acceptances - in_frac)))
+            in_frac_pdf_up = in_frac + pdf_uncertainty
+            in_frac_pdf_dn = in_frac - pdf_uncertainty
 
-                sumw2 = ak.sum(arr[args.weight][(inFiducialFlag)]**2) # This is the MC stat variance
-                sumw2_tmp.append(sumw2)
+            in_frac_alpha_up = safe_divide(alpha_sums['alpha_up']['num'], alpha_sums['alpha_up']['den'])
+            in_frac_alpha_dn = safe_divide(alpha_sums['alpha_dn']['num'], alpha_sums['alpha_dn']['den'])
 
-                in_frac_per_mass_era[era] = in_frac * 1/sumw2
+            print(f"INFO: Combined fraction of in-fiducial events: {in_frac} ...")
+            print(f"INFO: Combined fraction scale up: {in_frac_scale_up} ...")
+            print(f"INFO: Combined fraction scale dn: {in_frac_scale_dn} ...")
+            print(f"INFO: Combined fraction pdf up: {in_frac_pdf_up} ...")
+            print(f"INFO: Combined fraction pdf dn: {in_frac_pdf_dn} ...")
+            print(f"INFO: Combined fraction alpha up: {in_frac_alpha_up} ...")
+            print(f"INFO: Combined fraction alpha dn: {in_frac_alpha_dn} ...")
 
-                in_frac_per_mass_era_scale_up[era] = in_frac_scale_up * 1/sumw2
-                in_frac_per_mass_era_scale_dn[era] = in_frac_scale_dn * 1/sumw2
-                in_frac_per_mass_era_pdf_up[era] = in_frac_pdf_up * 1/sumw2
-                in_frac_per_mass_era_pdf_dn[era] = in_frac_pdf_dn * 1/sumw2
-                in_frac_per_mass_era_alpha_up[era] = in_frac_alpha_up * 1/sumw2
-                in_frac_per_mass_era_alpha_dn[era] = in_frac_alpha_dn * 1/sumw2
+            in_frac_per_mass[mass] = in_frac
+            in_frac_per_mass_scale_up[mass] = in_frac_scale_up
+            in_frac_per_mass_scale_dn[mass] = in_frac_scale_dn
+            in_frac_per_mass_pdf_up[mass] = in_frac_pdf_up
+            in_frac_per_mass_pdf_dn[mass] = in_frac_pdf_dn
+            in_frac_per_mass_alpha_up[mass] = in_frac_alpha_up
+            in_frac_per_mass_alpha_dn[mass] = in_frac_alpha_dn
 
-            sumw2_tmp = np.asarray(sumw2_tmp)
-            result = np.sum(np.asarray([in_frac_per_mass_era[era] for era in eras]))
-            in_frac_per_mass[mass] = result / np.sum(1/sumw2_tmp)
+        acc_per_bin_process[process] = evaluate_value_at_mass(in_frac_per_mass, args.mass_points, no_interpolation)
+        acc_per_bin_process_scale_up[process] = evaluate_value_at_mass(in_frac_per_mass_scale_up, args.mass_points, no_interpolation)
+        acc_per_bin_process_scale_dn[process] = evaluate_value_at_mass(in_frac_per_mass_scale_dn, args.mass_points, no_interpolation)
+        acc_per_bin_process_pdf_up[process] = evaluate_value_at_mass(in_frac_per_mass_pdf_up, args.mass_points, no_interpolation)
+        acc_per_bin_process_pdf_dn[process] = evaluate_value_at_mass(in_frac_per_mass_pdf_dn, args.mass_points, no_interpolation)
+        acc_per_bin_process_alpha_up[process] = evaluate_value_at_mass(in_frac_per_mass_alpha_up, args.mass_points, no_interpolation)
+        acc_per_bin_process_alpha_dn[process] = evaluate_value_at_mass(in_frac_per_mass_alpha_dn, args.mass_points, no_interpolation)
 
-            result = np.sum(np.asarray([in_frac_per_mass_era_scale_up[era] for era in eras]))
-            in_frac_per_mass_scale_up[mass] = result / np.sum(1/sumw2_tmp)
-
-            result = np.sum(np.asarray([in_frac_per_mass_era_scale_dn[era] for era in eras]))
-            in_frac_per_mass_scale_dn[mass] = result / np.sum(1/sumw2_tmp)
-
-            result = np.sum(np.asarray([in_frac_per_mass_era_pdf_up[era] for era in eras]))
-            in_frac_per_mass_pdf_up[mass] = result / np.sum(1/sumw2_tmp)
-
-            result = np.sum(np.asarray([in_frac_per_mass_era_pdf_dn[era] for era in eras]))
-            in_frac_per_mass_pdf_dn[mass] = result / np.sum(1/sumw2_tmp)
-
-            result = np.sum(np.asarray([in_frac_per_mass_era_alpha_up[era] for era in eras]))
-            in_frac_per_mass_alpha_up[mass] = result / np.sum(1/sumw2_tmp)
-
-            result = np.sum(np.asarray([in_frac_per_mass_era_alpha_dn[era] for era in eras]))
-            in_frac_per_mass_alpha_dn[mass] = result / np.sum(1/sumw2_tmp)
-    
-        fid_xsecs_per_bin_process[process] = compute_fid_xsec(
-            in_frac_per_mass, args.mass_points, XS_map['13p6'][process], BR, no_interpolation
-        )
-        fid_xsecs_per_bin_process_scale_up[process] = compute_fid_xsec(
-            in_frac_per_mass_scale_up, args.mass_points, XS_map_scale_up['13p6'][process], BR, no_interpolation
-        )
-        fid_xsecs_per_bin_process_scale_dn[process] = compute_fid_xsec(
-            in_frac_per_mass_scale_dn, args.mass_points, XS_map_scale_dn['13p6'][process], BR, no_interpolation
-        )
-        fid_xsecs_per_bin_process_pdf_up[process] = compute_fid_xsec(
-            in_frac_per_mass_pdf_up, args.mass_points, XS_map_pdf_up['13p6'][process], BR, no_interpolation
-        )
-        fid_xsecs_per_bin_process_pdf_dn[process] = compute_fid_xsec(
-            in_frac_per_mass_pdf_dn, args.mass_points, XS_map_pdf_dn['13p6'][process], BR, no_interpolation
-        )
-        fid_xsecs_per_bin_process_alpha_up[process] = compute_fid_xsec(
-            in_frac_per_mass_alpha_up, args.mass_points, XS_map_alphaS_up['13p6'][process], BR, no_interpolation
-        )
-        fid_xsecs_per_bin_process_alpha_dn[process] = compute_fid_xsec(
-            in_frac_per_mass_alpha_dn, args.mass_points, XS_map_alphaS_dn['13p6'][process], BR, no_interpolation
-        )
-
-
-        points = [in_frac_per_mass[p] for p in mass_points]
-        spline = interpolate.splrep(mass_points, points, k=2)
-        fid_xsecs_per_bin_process[process] = float(interpolate.splev(125.38, spline)) * XS_map['13p6'][process] * 1000 * BR
-
-        points = [in_frac_per_mass_scale_up[p] for p in mass_points]
-        spline = interpolate.splrep(mass_points, points, k=2)
-        fid_xsecs_per_bin_process_scale_up[process] = float(interpolate.splev(125.38, spline)) * XS_map_scale_up['13p6'][process] * 1000 * BR
-
-        points = [in_frac_per_mass_scale_dn[p] for p in mass_points]
-        spline = interpolate.splrep(mass_points, points, k=2)
-        fid_xsecs_per_bin_process_scale_dn[process] = float(interpolate.splev(125.38, spline)) * XS_map_scale_dn['13p6'][process] * 1000 * BR
-
-        points = [in_frac_per_mass_pdf_up[p] for p in mass_points]
-        spline = interpolate.splrep(mass_points, points, k=2)
-        fid_xsecs_per_bin_process_pdf_up[process] = float(interpolate.splev(125.38, spline)) * XS_map_pdf_up['13p6'][process] * 1000 * BR
-
-        points = [in_frac_per_mass_pdf_dn[p] for p in mass_points]
-        spline = interpolate.splrep(mass_points, points, k=2)
-        fid_xsecs_per_bin_process_pdf_dn[process] = float(interpolate.splev(125.38, spline)) * XS_map_pdf_dn['13p6'][process] * 1000 * BR
-
-        points = [in_frac_per_mass_alpha_up[p] for p in mass_points]
-        spline = interpolate.splrep(mass_points, points, k=2)
-        fid_xsecs_per_bin_process_alpha_up[process] = float(interpolate.splev(125.38, spline)) * XS_map_alphaS_up['13p6'][process] * 1000 * BR
-
-        points = [in_frac_per_mass_alpha_dn[p] for p in mass_points]
-        spline = interpolate.splrep(mass_points, points, k=2)
-        fid_xsecs_per_bin_process_alpha_dn[process] = float(interpolate.splev(125.38, spline)) * XS_map_alphaS_dn['13p6'][process] * 1000 * BR
+        fid_xsecs_per_bin_process[process] = acc_per_bin_process[process] * XS_map['13p6'][process] * 1000 * BR
+        fid_xsecs_per_bin_process_scale_up[process] = acc_per_bin_process_scale_up[process] * XS_map_scale_up['13p6'][process] * 1000 * BR
+        fid_xsecs_per_bin_process_scale_dn[process] = acc_per_bin_process_scale_dn[process] * XS_map_scale_dn['13p6'][process] * 1000 * BR
+        fid_xsecs_per_bin_process_pdf_up[process] = acc_per_bin_process_pdf_up[process] * XS_map_pdf_up['13p6'][process] * 1000 * BR
+        fid_xsecs_per_bin_process_pdf_dn[process] = acc_per_bin_process_pdf_dn[process] * XS_map_pdf_dn['13p6'][process] * 1000 * BR
+        fid_xsecs_per_bin_process_alpha_up[process] = acc_per_bin_process_alpha_up[process] * XS_map_alphaS_up['13p6'][process] * 1000 * BR
+        fid_xsecs_per_bin_process_alpha_dn[process] = acc_per_bin_process_alpha_dn[process] * XS_map_alphaS_dn['13p6'][process] * 1000 * BR
 
     fid_xsecs_per_bin[b] = np.sum(np.asarray([fid_xsecs_per_bin_process[process] for process in processes]))
     print(f"The fiducial cross section for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] is: {fid_xsecs_per_bin[b]} fb")
@@ -330,6 +313,27 @@ for b in range(len(obs_bins)-1):
 
     fid_xsecs_per_bin_alpha_dn[b] = np.sum(np.asarray([fid_xsecs_per_bin_process_alpha_dn[process] for process in processes]))
     print(f"The fiducial cross section (alpha_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] is: {fid_xsecs_per_bin_alpha_dn[b]} fb")
+
+    acc_per_bin[b] = combine_acceptances(acc_per_bin_process)
+    print(f"The acceptance for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin[b]}")
+
+    acc_per_bin_scale_up[b] = combine_acceptances(acc_per_bin_process_scale_up)
+    print(f"The acceptance (scale_up) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_scale_up[b]}")
+
+    acc_per_bin_scale_dn[b] = combine_acceptances(acc_per_bin_process_scale_dn)
+    print(f"The acceptance (scale_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_scale_dn[b]}")
+
+    acc_per_bin_pdf_up[b] = combine_acceptances(acc_per_bin_process_pdf_up)
+    print(f"The acceptance (pdf_up) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_pdf_up[b]}")
+
+    acc_per_bin_pdf_dn[b] = combine_acceptances(acc_per_bin_process_pdf_dn)
+    print(f"The acceptance (pdf_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_pdf_dn[b]}")
+
+    acc_per_bin_alpha_up[b] = combine_acceptances(acc_per_bin_process_alpha_up)
+    print(f"The acceptance (alpha_up) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_alpha_up[b]}")
+
+    acc_per_bin_alpha_dn[b] = combine_acceptances(acc_per_bin_process_alpha_dn)
+    print(f"The acceptance (alpha_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_alpha_dn[b]}")
 
 
 final_fid_xsec = np.sum(np.asarray([fid_xsecs_per_bin[b] for b in range(len(obs_bins)-1)]))
@@ -366,3 +370,10 @@ with open(output+'.py', 'w') as f:
         f.write('fidXS_pdf_dn = '+str(list(fid_xsecs_per_bin_pdf_dn.values()))+' \n')
         f.write('fidXS_alpha_up = '+str(list(fid_xsecs_per_bin_alpha_up.values()))+' \n')
         f.write('fidXS_alpha_dn = '+str(list(fid_xsecs_per_bin_alpha_dn.values()))+' \n')
+        f.write('Acc = '+str(list(acc_per_bin.values()))+' \n')
+        f.write('Acc_scale_up = '+str(list(acc_per_bin_scale_up.values()))+' \n')
+        f.write('Acc_scale_dn = '+str(list(acc_per_bin_scale_dn.values()))+' \n')
+        f.write('Acc_pdf_up = '+str(list(acc_per_bin_pdf_up.values()))+' \n')
+        f.write('Acc_pdf_dn = '+str(list(acc_per_bin_pdf_dn.values()))+' \n')
+        f.write('Acc_alpha_up = '+str(list(acc_per_bin_alpha_up.values()))+' \n')
+        f.write('Acc_alpha_dn = '+str(list(acc_per_bin_alpha_dn.values()))+' \n')
