@@ -1040,7 +1040,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
     # References:
     # json pog of JME: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/tree/master/POG/JME
     # jetmapveto: https://twiki.cern.ch/twiki/bin/viewauth/CMS/PdmVRun3Analysis#From_JME
-    base_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/JME"
+    base_path = "/cvmfs/cms-griddata.cern.ch/cat/metadata/JME"
     # Temporary directory until JME puts them somewhere centrally,
     # currently copied from https://indico.cern.ch/event/1450094/#1-corrections-for-the-pnet-pt
     eos_path_PNet = "/eos/cms/store/user/evourlio/JMEPNet_forHiggsDNA"
@@ -1051,7 +1051,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
 
     from_to_dict = {
         "2016preVFP": {
-            "from": os.path.join(base_path, "2016preVFP_UL"),
+            "from": os.path.join(base_path, "Run2-2016preVFP-UL-NanoAODv9/2025-04-11"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2016preVFP_UL",
@@ -1059,7 +1059,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "cvfms",
         },
         "2016postVFP": {
-            "from": os.path.join(base_path, "2016postVFP_UL"),
+            "from": os.path.join(base_path, "Run2-2016postVFP-UL-NanoAODv9/2025-04-11"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2016postVFP_UL",
@@ -1067,7 +1067,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2017": {
-            "from": os.path.join(base_path, "2017_UL"),
+            "from": os.path.join(base_path, "Run2-2017-UL-NanoAODv9/2025-04-11"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2017_UL",
@@ -1075,7 +1075,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2018": {
-            "from": os.path.join(base_path, "2018_UL"),
+            "from": os.path.join(base_path, "Run2-2018-UL-NanoAODv9/2025-04-11"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2018_UL",
@@ -1083,7 +1083,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2022Summer22": {
-            "from": os.path.join(base_path, "2022_Summer22"),
+            "from": os.path.join(base_path, "Run3-22CDSep23-Summer22-NanoAODv12/2025-09-23"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2022_Summer22",
@@ -1099,7 +1099,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "2022Summer22EE": {
-            "from": os.path.join(base_path, "2022_Summer22EE"),
+            "from": os.path.join(base_path, "Run3-22EFGSep23-Summer22EE-NanoAODv12/2025-10-07"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2022_Summer22EE",
@@ -1115,7 +1115,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "2023_Summer23": {
-            "from": os.path.join(base_path, "2023_Summer23"),
+            "from": os.path.join(base_path, "Run3-23CSep23-Summer23-NanoAODv12/2025-10-07"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2023_Summer23",
@@ -1131,7 +1131,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "2023_Summer23BPix": {
-            "from": os.path.join(base_path, "2023_Summer23BPix"),
+            "from": os.path.join(base_path, "Run3-23DSep23-Summer23BPix-NanoAODv12/2025-10-07"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2023_Summer23BPix",
@@ -1147,14 +1147,21 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "2024_Summer24": {
-            "from": os.path.join(base_path, "2024_Summer24"),
+            "from": os.path.join(base_path, "Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/2025-12-02"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2024_Summer24",
             ),
             "type": "eos",
-
-            },
+        },
+        "2025_Winter25": {
+            "from": os.path.join(base_path, "Run3-25Prompt-Winter25-NanoAODv15/2025-10-27"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2025_Winter25",
+            ),
+            "type": "eos",
+        },
     }
 
     fetch_file("JetMET", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")

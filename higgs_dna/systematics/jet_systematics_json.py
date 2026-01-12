@@ -117,7 +117,7 @@ def jerc_jet(
     apply_jer=False,
     jer_syst=False,
     AK8=False,
-    pnet="",
+    reg="",
 ):
 
     if year == "2024":
@@ -126,7 +126,7 @@ def jerc_jet(
     # first, check if it's data or MC
     if era == "MC" and hasattr(events, "GenPart"):
         logger.debug(
-            f"[ jerc_jet ] - JERC for simulation - Year: {year} - Era: {era} - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst}, AK8: {AK8}, PNet: {pnet} - JER: {apply_jer}, systematics: {jer_syst}"
+            f"[ jerc_jet ] - JERC for simulation - Year: {year} - Era: {era} - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst}, AK8: {AK8}, Regression: {reg} - JER: {apply_jer}, systematics: {jer_syst}"
         )
     elif (("Run" in era) or ("Data" in era)) and (not hasattr(events, "GenPart")):
         apply_jec = True
@@ -135,29 +135,33 @@ def jerc_jet(
         apply_jer = False
         jer_syst = False
         logger.debug(
-            f"[ jerc_jet ] - JERC for Data - Year: {year} - Era: {era} - Only JEC to be applied - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst}, AK8: {AK8}, PNet: {pnet} - JER: {apply_jer}, systematics: {jer_syst}"
+            f"[ jerc_jet ] - JERC for Data - Year: {year} - Era: {era} - Only JEC to be applied - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst}, AK8: {AK8}, Regression: {reg} - JER: {apply_jer}, systematics: {jer_syst}"
         )
     else:
         logger.error(f"[ jerc_jet ] - Era: {era} doesn't match the input dataset")
         exit(-1)
     # run2: AK4PFchs - run3: AK4PFPuppi
-    # If some PNet regression is used, the proper corrections will be picked up
+    # If some pT regression is used, the proper corrections will be picked up
     if int(year[:4]) > 2018:
-        algo = "AK4PFPuppi" + pnet
+        algo = "AK4PFPuppi" + reg
     else:
         algo = "AK4PFchs"
 
-    # According to the 2024 recommendations, AK4 JECs can be used for AK8 jets
-    if AK8 and year != "2024":
+    if AK8:
         algo = "AK8PFPuppi"
 
-    pnetFlag = ""
-    if pnet != "":
-        pnetFlag = "_PNet"
+    if reg == "":
+        regFlag = ""
+    elif "PNet" in reg:
+        regFlag = "_PNet"
+    elif "UParT" in reg:
+        regFlag = "_UParT"
+    else:
+        logger.error(f"Unknown regression algorithm: {reg}")
+        exit(-1)
 
     jetType = "jet"
-    # According to the 2024 recommendations, AK4 JECs can be used for AK8 jets
-    if AK8 and year != "2024":
+    if AK8:
         jetType = "fatJet"
 
     # jec json file
@@ -180,23 +184,27 @@ def jerc_jet(
         ),
         "2022preEE": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2022_Summer22/" + jetType + "_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2022_Summer22/" + jetType + "_jerc" + regFlag + ".json.gz",
         ),
         "2022postEE": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2022_Summer22EE/" + jetType + "_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2022_Summer22EE/" + jetType + "_jerc" + regFlag + ".json.gz",
         ),
         "2023preBPix": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2023_Summer23/" + jetType + "_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2023_Summer23/" + jetType + "_jerc" + regFlag + ".json.gz",
         ),
         "2023postBPix": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2023_Summer23BPix/" + jetType + "_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2023_Summer23BPix/" + jetType + "_jerc" + regFlag + ".json.gz",
         ),
         "2024": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2024_Summer24/" + jetType + "_jerc" + pnetFlag + ".json.gz",
+            "../systematics/JSONs/POG/JME/2024_Summer24/" + jetType + "_jerc" + regFlag + ".json.gz",
+        ),
+        "2025": os.path.join(
+            os.path.dirname(__file__),
+            "../systematics/JSONs/POG/JME/2025_Winter25/" + jetType + "_jerc" + regFlag + ".json.gz",
         ),
     }
     jec_version = {
@@ -240,7 +248,7 @@ def jerc_jet(
             "RunG": "Summer22EE_22Sep2023_RunG_V2_DATA",
             "MC": "Summer22EE_22Sep2023_V2_MC",
         },
-        # For 2023 and 2024, the correct era is chosen based on the run the event is in.
+        # For 2023, the correct era is chosen based on the run the event is in.
         # Details: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/merge_requests/118
         "2023preBPix": {
             "Data": "Summer23Prompt23_V2_DATA",
@@ -254,8 +262,12 @@ def jerc_jet(
             "MC": "Summer23BPixPrompt23_V3_MC",
         },
         "2024": {
-            "Data": "Summer24Prompt24_V1_DATA",
-            "MC": "Summer24Prompt24_V1_MC"
+            "Data": "Summer24Prompt24_V2_DATA",
+            "MC": "Summer24Prompt24_V2_MC"
+        },
+        "2025": {
+            "Data": "Winter25Prompt25_V2_DATA",
+            "MC": "Winter25Prompt25_V2_MC"
         },
     }
     jec = jec_version[year][era]
@@ -279,15 +291,24 @@ def jerc_jet(
         jets_jagged["mass_nano"] = jets_jagged.mass
     # store the raw jet pt, only for once
     if "pt_raw" not in jets_jagged.fields:
-        pnetFactor = 1.0
-        if pnet == "PNetRegression":
-            pnetFactor = jets_jagged.PNetRegPtRawCorr
-        if pnet == "PNetRegressionPlusNeutrino":
-            pnetFactor = (
+        if reg == "":
+            regFactor = 1.0
+        elif reg == "PNetRegression":
+            regFactor = jets_jagged.PNetRegPtRawCorr
+        elif reg == "PNetRegressionPlusNeutrino":
+            regFactor = (
                 jets_jagged.PNetRegPtRawCorr * jets_jagged.PNetRegPtRawCorrNeutrino
             )
+        elif reg == "UParTRegression":
+            regFactor = jets_jagged.UParTAK4RegPtRawCorr
+        elif reg == "UParTRegressionPlusNeutrino":
+            # for UParT the neutrino correction is not cumulative
+            regFactor = jets_jagged.UParTAK4RegPtRawCorrNeutrino
+        else:
+            logger.error(f"Unknown regression algorithm: {reg}")
+            exit(-1)
         jets_jagged["pt_raw"] = (
-            jets_jagged.pt * (1 - jets_jagged.rawFactor) * pnetFactor
+            jets_jagged.pt * (1 - jets_jagged.rawFactor) * regFactor
         )
         jets_jagged["mass_raw"] = jets_jagged.mass * (1 - jets_jagged.rawFactor)
     # avoid using hasattr(jets_jagged, "rho"). Same name as the coffea vector
@@ -357,8 +378,9 @@ def jerc_jet(
             "2022postEE": "Summer22EE_22Sep2023_JRV1_MC",
             "2023preBPix": "Summer23Prompt23_RunCv1234_JRV1_MC",
             "2023postBPix": "Summer23BPixPrompt23_RunD_JRV1_MC",
-            # This is preliminary, should be changed once files with 2024 JER are available
+            # This is preliminary, should be changed once files with 2024 and 2025 JER are available
             "2024": "Summer23BPixPrompt23_RunD_JRV1_MC",
+            "2025": "Summer23BPixPrompt23_RunD_JRV1_MC",
         }
         jer = jer_version[year]
         jer_ptres_tag = f"{jer}_PtResolution_{algo}"
@@ -378,8 +400,8 @@ def jerc_jet(
         # update evaluate dictionary
         eval_dict.update(
             {
-                # JER SFs for PNet run on stadandard jets
-                "JetPt": jets.pt if pnet == "" else jets.pt_nano,
+                # JER SFs for regressed jets run on standard jets
+                "JetPt": jets.pt if reg == "" else jets.pt_nano,
                 "GenPt": jets.pt_gen,
                 "EventID": jets.event_id,
             }
