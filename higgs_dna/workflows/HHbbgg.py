@@ -872,7 +872,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             # do mbb regression
             if "2022" in self.year[dataset_name][0]:
                 model_file = os.path.join(os.path.dirname(__file__), "../tools/mjj_model_2022.onnx")
-            elif "2023" in self.year[dataset_name][0] or "2024" in self.year[dataset_name][0]:
+            elif "2023" in self.year[dataset_name][0] or "2024" in self.year[dataset_name][0] or "2025" in self.year[dataset_name][0]:
                 model_file = os.path.join(os.path.dirname(__file__), "../tools/mjj_model_2023.onnx")
 
             dijets_base = calculate_mbb_regression(model_file, dijets_base)
