@@ -1,6 +1,9 @@
 import awkward as ak
 import correctionlib
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def add_jetId(jets, nano_version, year, flattenUnflatten=False):
@@ -40,6 +43,10 @@ def add_jetId(jets, nano_version, year, flattenUnflatten=False):
         else:
             # Example code: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/blob/master/examples/jetidExample.py?ref_type=heads
             # Load CorrectionSet
+            if year == "2025":
+                logger.warning("There is no dedicated 2025 jetID. As the 2025 PUPPI tune is the same as the 2024 one, the 2024 jetID used! ")
+                year = "2024"
+
             jerc_json = {
                 "2022preEE": os.path.join(
                     os.path.dirname(__file__),

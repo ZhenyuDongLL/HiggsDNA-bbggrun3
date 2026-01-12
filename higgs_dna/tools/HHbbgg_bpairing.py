@@ -184,6 +184,9 @@ def Compute_DNN_bpairing(dijets, diphotons, keras_model, nano_version):
 
     Isin_dijet = None
 
+    if ak.max(count1) is None :
+        return ak.zeros_like(dijets["pt"])
+
     for i in range(ak.max(count1)) :
         if Isin_dijet is None :
             Isin_dijet = ak.singletons(ak.where(count1 > i , 1, 0))
