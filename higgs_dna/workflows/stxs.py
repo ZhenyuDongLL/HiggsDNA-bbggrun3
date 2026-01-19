@@ -2,7 +2,12 @@ from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
-from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higgs_gen_attributes
+from higgs_dna.tools.gen_helpers import (
+    get_fiducial_flag,
+    get_genJets,
+    get_higgs_gen_attributes,
+    label_associated_decay,
+)
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.photon_selections import photon_preselection
@@ -94,6 +99,52 @@ class STXSProcessor(HggSkeletonProcessor):
         )
 
         self.name_convention = "DAS"
+
+        # Gen-level associated decay classification
+        self.associated_decay_config = [
+            {
+                "name": "ZH",
+                "associate": {"pdgId": 23, "multiplicity": 1},
+                "decay": {"pdgId": 23, "relationship_to_associate": "self"},
+                "categories": {
+                    "ZH_ll": {"n_lep": 2},
+                    "ZH_nunu": {"n_nu": 2},
+                    "ZH_qq": {"n_q": 2},
+                },
+                "n_higgs": 1,
+                "orthogonal_categories": True,
+            },
+            {
+                "name": "ttH",
+                "associate": {"pdgId": 6, "multiplicity": 2},
+                "decay": {"pdgId": 24, "relationship_to_associate": "child"},
+                "categories": {
+                    "ttH_lep": {"n_lep": 2, "n_nu": 2},
+                    "ttH_semilep": {"n_lep": 1, "n_nu": 1},
+                    "ttH_had": {"n_q": 4},
+                },
+                "n_higgs": 1,
+                "orthogonal_categories": True,
+            },
+            {
+                "name": "tH",
+                "associate": {"pdgId": 6, "multiplicity": 1},
+                "decay": {"pdgId": 24, "relationship_to_associate": "child"},
+                "categories": {
+                    "tH_lep": {"n_lep": 1, "n_nu": 1},
+                    "tH_had": {"n_q": 2},
+                },
+                "n_higgs": 1,
+                "orthogonal_categories": True,
+            }
+        ]
+
+        # Definitions for particle-type counters used in associated decay categories
+        self.associated_decay_particle_map = {
+            "n_lep": (11, 13, 15),
+            "n_nu": (12, 14, 16),
+            "n_q": tuple(range(1, 9)),
+        }
 
         # Eta-dependent jet pt cuts
         self.jet_pt_thresholds = [20, 50, 30]
@@ -903,6 +954,14 @@ class STXSProcessor(HggSkeletonProcessor):
             # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
             if self.data_kind == "mc":
                 diphotons["genWeight"] = events.genWeight
+                associated_decay_labels, _ = label_associated_decay(
+                    events,
+                    self.associated_decay_config,
+                    default_label="unclassified",
+                    raise_on_overlap=True,
+                    particle_type_map=self.associated_decay_particle_map,
+                )
+                diphotons["AssociatedDecay"] = associated_decay_labels
                 diphotons["dZ"] = events.GenVtx.z - events.PV.z
                 # Necessary for differential xsec measurements in final fits ("truth" variables)
                 diphotons["HTXS_Higgs_pt"] = events.HTXS.Higgs_pt
