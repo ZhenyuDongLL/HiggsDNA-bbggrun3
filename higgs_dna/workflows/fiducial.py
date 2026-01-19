@@ -609,6 +609,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 "deepJet": {"btagDeepFlavB": jets.btagDeepFlavB},  # Always available
                 "particleNet": {"btagPNetB": jets.btagPNetB} if self.nano_version >= 12 else {},
                 "robustParticleTransformer": {"btagRobustParTAK4B": jets.btagRobustParTAK4B} if self.nano_version in [12, 13] else {},
+                "btagUParTAK4B": {"btagUParTAK4B": jets.btagUParTAK4B} if self.nano_version >= 15 else {},
             }
 
             # jet_variables
