@@ -6,6 +6,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Default particle-type definitions for associated decay classification
+DEFAULT_ASSOCIATED_DECAY_PARTICLE_MAP = {
+    "n_lep": (11, 13, 15),
+    "n_nu": (12, 14, 16),
+    "n_q": tuple(range(1, 9)),
+}
+
 
 def get_fiducial_flag(events: ak.Array, flavour: str = "Geometric") -> ak.Array:
     """
@@ -258,3 +265,173 @@ def match_fatjet_hbb(reco_jets, gen_jets, n, fill_value, jet_size=0.8):
     match_count = ak.sum(close_matches, axis=1)
 
     return ak.fill_none(match_count == 2, fill_value)
+
+
+def _count_decay_products(
+    decay_products: ak.Array,
+    particle_type: str,
+    particle_type_map: dict[str, tuple[int, ...]] | None = None,
+) -> ak.Array:
+    """Return per-event counts of decay products matching a requested particle type."""
+    abs_pdg_ids = np.abs(decay_products.pdgId)
+
+    particle_map = particle_type_map or DEFAULT_ASSOCIATED_DECAY_PARTICLE_MAP
+    pdg_ids = particle_map.get(particle_type)
+    if pdg_ids is None:
+        raise ValueError(f"Unknown particle type requirement: {particle_type}")
+
+    mask = np.isin(abs_pdg_ids, pdg_ids)
+    return ak.sum(mask, axis=1)
+
+
+def classify_associated_decay(
+    events: ak.Array,
+    associate: dict[str, any],
+    decay: dict[str, any],
+    categories: dict[str, dict[str, int]],
+    n_higgs: int = 1,
+    orthogonal_categories: bool = False,
+    particle_type_map: dict[str, tuple[int, ...]] | None = None,
+) -> dict[str, ak.Array] | tuple[dict[str, ak.Array], dict[str, int]]:
+    """
+    Identify associated-production decay topologies using generator-level information.
+
+    Parameters
+    ----------
+    events
+        NanoEvents-like object with ``GenPart`` and ``distinctChildrenDeep`` available.
+    associate
+        Mapping describing the associated particle (``pdgId`` and expected ``multiplicity``).
+    decay
+        Mapping describing which decay products to inspect and their relationship to the associate.
+    categories
+        Mapping of output category name to particle-type multiplicity requirements.
+    n_higgs
+        Expected number of hard-process Higgs bosons in the event. Default (and the only tested value) is 1.
+    orthogonal_categories
+        If True, raise when more than one category matches within the same associate definition.
+    particle_type_map
+        Optional mapping from particle-type keys (e.g. ``n_lep``) to PDG IDs; defaults to
+        ``DEFAULT_ASSOCIATED_DECAY_PARTICLE_MAP``.
+    """
+
+    if not hasattr(events, "GenPart"):
+        raise AttributeError("Events must have GenPart collection for associated decay classification")
+
+    if n_higgs < 1:
+        raise ValueError("n_higgs must be at least 1")
+    if n_higgs > 1:
+        logger.warning("n_higgs > 1 is untested; please validate results carefully")
+
+    # Get Higgs and associated particle(s)
+    higgs = events.GenPart[(np.abs(events.GenPart.pdgId) == 25) & events.GenPart.hasFlags("isHardProcess")]
+    has_higgs = ak.num(higgs) == n_higgs
+    if not ak.any(has_higgs):
+        logger.warning("No events with a hard-process Higgs found; skipping associated decay classification.")
+        return {}
+    higgs = ak.firsts(higgs)
+    multiplicity = associate.get("multiplicity", 1)
+    associate_particles = events.GenPart[
+        (np.abs(events.GenPart.pdgId) == associate["pdgId"])
+        & events.GenPart.hasFlags("isHardProcess")
+        & (events.GenPart.genPartIdxMother == higgs.genPartIdxMother)
+    ]
+    n_associate = ak.num(associate_particles)
+    valid_associate = n_associate == multiplicity
+    if not ak.any(valid_associate):
+        logger.warning("No events with the required associated particle multiplicity found; skipping associated decay classification.")
+        return {}
+
+    # Get decay products of the associated particle(s), possibly deeper in the tree
+    if decay["relationship_to_associate"] == "self":
+        decay_products = associate_particles.distinctChildrenDeep
+        decay_products = ak.flatten(decay_products, axis=2)
+    elif decay["relationship_to_associate"] == "child":
+        children = ak.flatten(
+            associate_particles.distinctChildrenDeep[
+                np.abs(associate_particles.distinctChildrenDeep.pdgId) == decay["pdgId"]
+            ],
+            axis=2,
+        )
+        decay_products = children.distinctChildrenDeep
+        decay_products = ak.flatten(decay_products, axis=2)
+    else:
+        raise NotImplementedError("Only 'self' or 'child' relationships are supported")
+
+    # Keep only the direct children of the parent to avoid picking up radiation etc
+    decay_product_parents = decay_products.parent
+    is_last_copy_child = decay_product_parents.hasFlags("isLastCopy")
+    decay_products = decay_products[is_last_copy_child]
+
+    # Categorise
+    categories_masks: dict[str, ak.Array] = {}
+    for cat_name, reqs in categories.items():
+        mask = valid_associate
+        for particle_type, n_required in reqs.items():
+            n_particles = _count_decay_products(
+                decay_products, particle_type, particle_type_map
+            )
+            mask = mask & (n_particles == n_required)
+        categories_masks[cat_name] = mask
+    if orthogonal_categories and categories_masks:
+        stack = ak.concatenate([mask[None, ...] for mask in categories_masks.values()], axis=0)
+        overlap = ak.sum(stack, axis=0) > 1
+        if ak.any(overlap):
+            raise ValueError("Orthogonal categories requested but overlap found for associated decays")
+
+    return categories_masks
+
+
+def label_associated_decay(
+    events: ak.Array,
+    configs: list[dict[str, any]],
+    *,
+    default_label: str = "unclassified",
+    raise_on_overlap: bool = False,
+    particle_type_map: dict[str, tuple[int, ...]] | None = None,
+) -> tuple[ak.Array, dict[str, ak.Array]]:
+    """
+    Run ``classify_associated_decay`` for multiple configurations and return a per-event label.
+
+    Parameters
+    ----------
+    particle_type_map
+        Optional mapping from particle-type keys (e.g. ``n_lep``) to PDG IDs; defaults to
+        ``DEFAULT_ASSOCIATED_DECAY_PARTICLE_MAP`` when not provided.
+
+    Returns
+    -------
+    labels
+        Awkward Array of strings, one per event.
+    all_masks
+        Mapping of category name to boolean event masks for downstream use.
+    """
+
+    labels = ak.Array([default_label] * len(events.event))
+    all_masks: dict[str, ak.Array] = {}
+    for cfg in configs:
+        masks = classify_associated_decay(
+            events=events,
+            associate=cfg["associate"],
+            decay=cfg["decay"],
+            categories=cfg["categories"],
+            n_higgs=cfg.get("n_higgs", 1),
+            orthogonal_categories=cfg.get("orthogonal_categories", False),
+            particle_type_map=particle_type_map,
+        )
+
+        for cat_name, mask in masks.items():
+            labels = ak.where(mask, ak.full_like(labels, cat_name), labels)
+            all_masks[cat_name] = mask
+
+    if all_masks:
+        stack = ak.concatenate([mask[None, ...] for mask in all_masks.values()], axis=0)
+        overlap = ak.sum(stack, axis=0) > 1
+        n_overlap = int(ak.sum(overlap))
+        if n_overlap > 0:
+            msg = f"Associated decay categories overlap for {n_overlap} events."
+            if raise_on_overlap:
+                raise ValueError(msg)
+            logger.warning(msg)
+
+    return labels, all_masks
