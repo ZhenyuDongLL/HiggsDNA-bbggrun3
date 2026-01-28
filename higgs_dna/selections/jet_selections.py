@@ -131,9 +131,16 @@ def getBTagMVACut(mva_name, mva_wp, year):
         )
         return -999.0
 
-    mva_cut_value = correctionlib.CorrectionSet.from_file(
+    cset = correctionlib.CorrectionSet.from_file(
         btag_correction_configs[year]["file"]
-    )[mva_name_to_btag_wp_name[mva_name]].evaluate(mva_wp)
+    )
+    btag_wp_name = mva_name_to_btag_wp_name[mva_name]
+    if btag_wp_name not in set(cset.keys()):
+        logger.warning(
+            f"\n BTV correctionlib for {year} does not have the tagger {mva_name}! Don't cut on the selected B-Tag MVA. The b-related variables are most likely not correct.\n"
+        )
+        return -999.0
+    mva_cut_value = cset[btag_wp_name].evaluate(mva_wp)
 
     return mva_cut_value
 
