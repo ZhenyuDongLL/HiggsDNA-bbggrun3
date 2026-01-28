@@ -146,8 +146,7 @@ class STXSProcessor(HggSkeletonProcessor):
             "n_q": tuple(range(1, 9)),
         }
 
-        # Eta-dependent jet pt cuts
-        self.jet_pt_thresholds = [20, 50, 30]
+        # For eta-dependent jet pt cuts
         self.jet_eta_thresholds = [2.5, 3.0, 4.7]
 
         # tau selection cuts (for the moment these are just the same as ditau)
@@ -160,8 +159,14 @@ class STXSProcessor(HggSkeletonProcessor):
         self.jet_tau_min_dr = 0.4
         self.clean_jet_tau = True
 
-        # Use deepJet for btagging (preliminary)
-        self.bjet_mva = "deepJet"  # Possible choices: particleNet, deepJet, robustParticleTransformer
+        bjet_mva = ["deepJet"]
+        if self.nano_version >= 12:
+            bjet_mva.append("particleNet")
+        if self.nano_version in [12, 13]:
+            bjet_mva.append("robustParticleTransformer")
+        if self.nano_version > 13:
+            bjet_mva.append("btagUParTAK4B")
+        self.bjet_mva = bjet_mva
         self.bjet_wp = ["L", "M", "T", "XT", "XXT"]
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
@@ -338,6 +343,9 @@ class STXSProcessor(HggSkeletonProcessor):
             or self.year[dataset_name][0] == "2022postEE"
         ):
             events["Photon"] = veto_EEleak_flag(self, events.Photon)
+            events["Photon"] = events.Photon[events.Photon.vetoEELeak]
+            events["Electron"] = veto_EEleak_flag(self, events.Electron)
+            events["Electron"] = events.Electron[events.Electron.vetoEELeak]
 
         # If --Smear-sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt spectrum need to be smeared in order to properly calculate the smeared sigma_m_m
         if (
@@ -781,14 +789,18 @@ class STXSProcessor(HggSkeletonProcessor):
                 diphotons[f"Tau{i}_id"] = choose_lepton(sel_taus.leptonID, i, -999.0)
 
             # jet selection and pt ordering
-            if self.year[dataset_name][0] in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
-                jets = jets[
-                    select_jets_eta_dependent(self, jets, diphotons, sel_muons, sel_electrons, sel_taus)
-                ]
+            # follows https://indico.cern.ch/event/1624984/contributions/6896120/
+            if self.year[dataset_name][0] in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
+                self.jet_pt_thresholds = [20, 50, 50]
+                jet_selection_func = select_jets_eta_dependent
+            elif self.year[dataset_name][0] in ["2024"]:
+                self.jet_pt_thresholds = [20, 50, 20]
+                jet_selection_func = select_jets_eta_dependent
             else:
-                jets = jets[
-                    select_jets(self, jets, diphotons, sel_muons, sel_electrons, sel_taus)
-                ]
+                jet_selection_func = select_jets
+            jets = jets[
+                jet_selection_func(self, jets, diphotons, sel_muons, sel_electrons, sel_taus)
+            ]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
 
             # Btagged jets
@@ -796,16 +808,18 @@ class STXSProcessor(HggSkeletonProcessor):
                 "deepJet": {"btagDeepFlavB": jets.btagDeepFlavB},  # Always available
                 "particleNet": {"btagPNetB": jets.btagPNetB} if self.nano_version >= 12 else {},
                 "robustParticleTransformer": {"btagRobustParTAK4B": jets.btagRobustParTAK4B} if self.nano_version in [12, 13] else {},
+                "btagUParTAK4B": {"btagUParTAK4B": jets.btagUParTAK4B} if self.nano_version > 13 else {},
             }
-            btag_mva_column = list(btagMVA_selection[self.bjet_mva].keys())[0]
 
             base_pt_eta_cut = (jets.pt > 30) & (abs(jets.eta) < 2.5)
-            for bjet_wp in self.bjet_wp:
-                btag_WP = getBTagMVACut(mva_name=self.bjet_mva,
-                                        mva_wp=bjet_wp,
-                                        year=self.year[dataset_name][0])
-                bJetCondition = base_pt_eta_cut & (jets[btag_mva_column] >= btag_WP)
-                jets[f"{self.bjet_mva}_is{bjet_wp}"] = bJetCondition
+            for bjet_mva in self.bjet_mva:
+                btag_mva_column = list(btagMVA_selection[bjet_mva].keys())[0]
+                for bjet_wp in self.bjet_wp:
+                    btag_WP = getBTagMVACut(mva_name=bjet_mva,
+                                            mva_wp=bjet_wp,
+                                            year=self.year[dataset_name][0])
+                    bJetCondition = base_pt_eta_cut & (jets[btag_mva_column] >= btag_WP)
+                    jets[f"{bjet_mva}_is{bjet_wp}"] = bJetCondition
 
             # adding selected jets to events to be used in ctagging SF calculation
             events["sel_jets"] = jets
@@ -825,8 +839,9 @@ class STXSProcessor(HggSkeletonProcessor):
                 for btag_key in jets.fields:
                     if btag_key.startswith("btag"):
                         jet_collection[f"J{i}_{btag_key}"] = choose_jet(jets[btag_key], i, -999.0)
-                for bjet_wp in self.bjet_wp:
-                    jet_collection[f"J{i}_{self.bjet_mva}_is{bjet_wp}"] = choose_jet(jets[f"{self.bjet_mva}_is{bjet_wp}"], i, -999)
+                for bjet_mva in self.bjet_mva:
+                    for bjet_wp in self.bjet_wp:
+                        jet_collection[f"J{i}_{bjet_mva}_is{bjet_wp}"] = choose_jet(jets[f"{bjet_mva}_is{bjet_wp}"], i, -999)
 
             # Add Ht (scalar sum of jet Et)
             jet_Et = numpy.sqrt(jets.pt**2 + jets.mass**2)
@@ -845,11 +860,15 @@ class STXSProcessor(HggSkeletonProcessor):
                 for btag_key in jet_collection.keys():
                     if btag_key.startswith(f"J{i}_btag"):
                         diphotons[btag_key] = jet_collection[btag_key]
-                for bjet_wp in self.bjet_wp:
-                    diphotons[f"J{i}_{self.bjet_mva}_is{bjet_wp}"] = jet_collection[f"J{i}_{self.bjet_mva}_is{bjet_wp}"]
+                for bjet_mva in self.bjet_mva:
+                    for bjet_wp in self.bjet_wp:
+                        diphotons[f"J{i}_{bjet_mva}_is{bjet_wp}"] = jet_collection[f"J{i}_{bjet_mva}_is{bjet_wp}"]
             diphotons["n_jets"] = n_jets
             diphotons["NJ"] = Njets2p5
-            diphotons["n_bjets"] = ak.sum(jets[f"{self.bjet_mva}_isT"], axis=1)
+            if self.nano_version > 13:
+                diphotons["n_bjets"] = ak.sum(jets["btagUParTAK4B_isT"], axis=1)
+            else:
+                diphotons["n_bjets"] = ak.sum(jets["particleNet_isT"], axis=1)
 
             # Extract forwardmost selected jet
             eta_sort_idxs = ak.argsort(numpy.abs(jets.eta), ascending=False)
