@@ -8,9 +8,11 @@ import awkward as ak
 from higgs_dna.utils.logger_utils import setup_logger
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
+import pyarrow as pa
 import numpy as np
+from pathlib import Path
 from importlib import resources
-from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
+from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights, Get_bin_edges_and_ration, apply_rescaling, Get_ratio_with_bWeight
 from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable
 from coffea.processor.accumulator import iadd
 
@@ -93,11 +95,19 @@ def main():
         help="Optional: Path to the JSON containing the binning at gen-level.",
     )
     parser.add_argument(
-    "--do-b-weight-normalisation",
-    default=False,
-    action="store_true",
-    help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
-   )
+        "--do-b-weight-normalisation",
+        default=False,
+        action="store_true",
+        help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
+    )
+    parser.add_argument(
+        "--BTagRescaleVariableInfo",
+        nargs="?",
+        const="n_jets,10,0,10",
+        default=None,
+        type=str,
+        help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10', other variable and bin info can be provided 'JetHT,50,0,1000' ",
+    )
     parser.add_argument(
         "--custom-accumulator",
         default=False,
@@ -121,6 +131,12 @@ def main():
             gen_binning = json.load(json_file)
     else:
         gen_binning = None
+
+    if(args.BTagRescaleVariableInfo):
+        BTagRescaleVariable_Info = args.BTagRescaleVariableInfo.split(',')
+        BTagRescaleVariable_Info[1:] = [int(i) for i in BTagRescaleVariable_Info[1:]]
+        if len(BTagRescaleVariable_Info) !=4:
+            raise Exception("Wrong format for BTagRescaleVariableInfo, please provide info in the following format: 'VariableName,nbins,min,max'")
 
     logger_verbosity = "DEBUG" if args.verbose else "INFO"
 
@@ -220,7 +236,7 @@ def main():
 
                     if args.do_b_weight_normalisation:
                         if((WeightSum_preBTag_arr[i]/WeightSum_postBTag_arr[i])!=1):
-                            batch_arr = Renormalize_BTag_Weights(batch_arr, target_paths[i], cat, WeightSum_preBTag_arr[i], WeightSum_postBTag_arr[i], WeightSum_postBTag_sys_arr[i], IsBtagNorm_sys_arr[i], logger)
+                            batch_arr = Renormalize_BTag_Weights(batch_arr, syst_weight_fields, target_paths[i], cat, WeightSum_preBTag_arr[i], WeightSum_postBTag_arr[i], WeightSum_postBTag_sys_arr[i], IsBtagNorm_sys_arr[i], logger)
 
                 table = ak.to_arrow_table(batch_arr, extensionarray=False)
                 if args.custom_accumulator:
@@ -233,12 +249,57 @@ def main():
                 if writer is None:
                     schema = table.schema
                     writer = pq.ParquetWriter(output_file, schema)
+                    logger.info(f"saving output file {output_file = }")
                 writer.write_table(table)
 
             if writer:
                 writer.close()
 
             logger.info(f"Success! Merged parquet file is located in {output_file}")
+
+            if(args.BTagRescaleVariableInfo):
+                    if not args.do_b_weight_normalisation:
+                        logger.warning("B-Tag weight rescaling requested but B-Tag weight normalisation not performed. Skipping B-Tag weight rescaling. Please enable --do-b-weight-normalisation to perform B-Tag weight reNormalization first.")
+                        exit(0)
+                    if(cat == "NOTAG"):
+                        logger.info("Starting B-Tag weight rescaling process")
+                        temp_file   = Path(target_paths[i] + cat + "_merged_rescaled.parquet")
+
+                        dataset = ak.from_parquet(output_file, columns=[ BTagRescaleVariable_Info[0], "bTagWeight"])
+                        xaxis_edges,ratio_val = Get_bin_edges_and_ration(dataset,target_paths[i],logger,Variable_info=BTagRescaleVariable_Info,plot_name="bTagWeight")
+
+                        dataset = ds.dataset(output_file)
+                        logger.info("Successfully read the merged parquet file for B-Tag weight rescaling")
+                        orig_metadata = dataset.schema.metadata
+                        # Process in batches
+                        writer = None
+                        for batch in dataset.to_batches():
+                            batch_arr = ak.from_arrow(batch)
+                            rescaled_weights_dict = apply_rescaling(batch_arr,['weight',"bTagWeight"]+syst_weight_fields,xaxis_edges,ratio_val,logger,Variable_info=BTagRescaleVariable_Info)
+                            for weight_field in ["weight","bTagWeight"]+syst_weight_fields:
+                                #With rescaled weight we have to make sure the total sum of the weight conserved.
+                                weight_factor = ak.sum(batch_arr[weight_field])/ak.sum(rescaled_weights_dict[weight_field])
+                                batch_arr[weight_field] = rescaled_weights_dict[weight_field]*weight_factor
+
+                            table = ak.to_arrow_table(batch_arr, extensionarray=False)
+                            table = table.replace_schema_metadata(orig_metadata)
+
+                            if writer is None:
+                                schema = table.schema
+                                writer = pq.ParquetWriter(temp_file, schema)
+                            writer.write_table(table)
+
+                        if writer:
+                            writer.close()
+                        output_file = Path(output_file)
+                        output_file.unlink()
+                        temp_file.replace(output_file)
+                        logger.info(f"Successfully applied B-Tag weight rescaling in file: {output_file}")
+
+                        dataset = ak.from_parquet(output_file, columns=[BTagRescaleVariable_Info[0], "bTagWeight"])
+                        Get_ratio_with_bWeight(dataset,BTagRescaleVariable_Info,bweight_name="bTagWeight",plot_name=target_paths[i]+f"/{BTagRescaleVariable_Info[0]}_bTagWeight_rescaled",plot_ratio_min=0.9,plot_ratio_max=1.2)
+                    else:
+                        logger.warning(f"skiping the B-Weight rescaling. The scale can be derived in bins of {BTagRescaleVariable_Info[0]} only for NOTAG category sinace we need to derive the scale before we apply any cut")
             logger.info("-" * 125)
 
 if __name__ == "__main__":

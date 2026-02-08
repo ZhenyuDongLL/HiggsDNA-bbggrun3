@@ -278,6 +278,19 @@ def main():
         help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
     )
     parser.add_option(
+        "--BTagRescaleVariableInfo",
+        dest="BTagRescaleVariableInfo",
+        default=None,
+        help="Provide explicit variable info, e.g. 'JetHT,50,0,1000'.",
+    )
+    parser.add_option(
+        "--use-default-BTagRescaleVariableInfo",
+        action="store_true",
+        dest="use_default_BTagRescaleVariableInfo",
+        default=False,
+        help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10' if you want use other bariable used --BTagRescaleVariableInfo option"
+        )
+    parser.add_option(
         "--n-workers",
         type=int,
         dest="n_workers",
@@ -467,6 +480,12 @@ def main():
     merge_data_str = "--merge-all-data" if opt.merge_data else ""
     do_syst_str = "--do-syst" if opt.syst else ""
     do_b_weight_normalisation_str = "--do-b-weight-normalisation" if opt.do_b_weight_normalisation else ""
+    if opt.BTagRescaleVariableInfo is not None:
+        do_BTagRescaleVariableInfo_str = f"--BTagRescaleVariableInfo {opt.BTagRescaleVariableInfo}"
+    elif opt.use_default_BTagRescaleVariableInfo:
+        do_BTagRescaleVariableInfo_str = "--BTagRescaleVariableInfo"
+    else:
+        do_BTagRescaleVariableInfo_str = ""
 
 # The process var below is the function that will be executed in parallel for each systematic variation. It substitutes the old loop of the systematics to speed up the process.
 # Paths now must be ABSOLUTE!! - CD while multi thread is not a good idea!
@@ -474,7 +493,7 @@ def main():
         target_dir = f"{OUT_PATH}/merged/{file}/{var_dict[var]}"
         MKDIRP(target_dir)
 
-        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {verbose_str} {skip_normalisation_str} {genBinning_str} {do_b_weight_normalisation_str} --abs {custom_accumulator_str}"
+        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {verbose_str} {skip_normalisation_str} {genBinning_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} --abs {custom_accumulator_str}"
         logger.info(command)
 
         # Execute the command using subprocess.run
@@ -504,7 +523,7 @@ def main():
                         logger.error(f"Error processing variable: {e}")
             else:
                 # Single nominal processing for MC
-                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} {do_b_weight_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
+                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} {genBinning_str} --abs {custom_accumulator_str}"
                 subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
         else:
             if opt.type and opt.type.lower() == "mc":
@@ -542,7 +561,7 @@ def main():
 
             MKDIRP(target_folder_path)
 
-        command = f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {opt.type} --process {decompose_string(file, process_map)} {verbose_str} {outfiles_map_str} {do_b_weight_normalisation_str} {skip_normalisation_str} {merge_data_str} {do_syst_str}"
+        command = f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {opt.type} --process {decompose_string(file, process_map)} {verbose_str} {outfiles_map_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} {skip_normalisation_str} {merge_data_str} {do_syst_str}"
         logger.info(command)
         
         # Execute the command using subprocess.run
@@ -740,7 +759,7 @@ def main():
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, SLURM_PATH=BATCH_PATH, dirlist_path=dirlist_path, var_dict=var_dict, 
             cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
             skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, time=opt.time, partition=opt.job_flavor,memory=opt.memory, decompose_string=decompose_string, logger=logger,
-            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str
+            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str, do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str
             )
 
     elif opt.batch == "condor":
@@ -748,7 +767,7 @@ def main():
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=BATCH_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path, 
             var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str, 
             skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, job_flavor=opt.job_flavor, memory=opt.memory,decompose_string=decompose_string, logger=logger,
-            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str
+            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str,do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str
         )
 
     # We don't want to leave trash around

@@ -11,7 +11,7 @@ import pyarrow.parquet as pq
 import numpy as np
 import uproot
 from importlib import resources
-from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights
+from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights, Get_bin_edges_and_ration, apply_rescaling, Get_ratio_with_bWeight
 from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable, split_awkward_arrays_by_length, ensure_nweight_LHEScale
 
 def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_path, cat_dict, gen_binning, logger, rename_dict):
@@ -24,7 +24,6 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
         )
 
         if(_args.do_b_weight_normalisation): IsBtagNorm_sys_arr,WeightSum_preBTag_arr,WeightSum_postBTag_arr,WeightSum_postBTag_sys_arr = Get_WeightSum_Btag([folder_path],logger)
-
         source_files = glob.glob("%s/*.parquet" % folder_path)
         sum_genw_beforesel = 0
         for f in source_files:
@@ -95,11 +94,31 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
             )
             if(_args.do_b_weight_normalisation):
                 if((WeightSum_preBTag_arr[0]/WeightSum_postBTag_arr[0])!=1):
-                    eve = Renormalize_BTag_Weights(eve,target_path,cat,WeightSum_preBTag_arr[0],WeightSum_postBTag_arr[0],WeightSum_postBTag_sys_arr,IsBtagNorm_sys_arr,logger)
+                    eve = Renormalize_BTag_Weights(eve,syst_weight_fields,target_path,cat,WeightSum_preBTag_arr[0],WeightSum_postBTag_arr[0],WeightSum_postBTag_sys_arr[0],IsBtagNorm_sys_arr[0],logger)
                 logger.info(
                     "Successfully added normalised b weight column."
                 )
+            if(_args.BTagRescaleVariableInfo):
+                if not _args.do_b_weight_normalisation:
+                    logger.warning("B-Tag weight rescaling requested but B-Tag weight normalisation not performed. Skipping B-Tag weight rescaling. Please enable --do-b-weight-normalisation to perform B-Tag weight reNormalization first.")
+                    exit(0)
+                if(cat == "NOTAG"):
+                    BTagRescaleVariable_Info = _args.BTagRescaleVariableInfo.split(',')
+                    BTagRescaleVariable_Info[1:] = [int(i) for i in BTagRescaleVariable_Info[1:]]
+                    if len(BTagRescaleVariable_Info) !=4:
+                        raise Exception("Wrong format for BTagRescaleVariableInfo, please provide info in the following format: 'VariableName,nbins,min,max'")
+                    logger.info("Starting B-Tag weight rescaling process")
+                    xaxis_edges,ratio_val = Get_bin_edges_and_ration(eve,target_path,logger,Variable_info=BTagRescaleVariable_Info,plot_name="bTagWeight")
 
+                    rescaled_weights_dict = apply_rescaling(eve,['weight',"bTagWeight"]+syst_weight_fields,xaxis_edges,ratio_val,logger,Variable_info=BTagRescaleVariable_Info)
+                    for weight_field in ["weight","bTagWeight"]+syst_weight_fields:
+                            #With rescaled weight we have to make sure the total sum of the weight conserved.
+                            weight_factor = ak.sum(eve[weight_field])/ak.sum(rescaled_weights_dict[weight_field])
+                            eve[weight_field] = rescaled_weights_dict[weight_field]*weight_factor
+
+                    Get_ratio_with_bWeight(eve,BTagRescaleVariable_Info,bweight_name="bTagWeight",plot_name=target_path+f"/{BTagRescaleVariable_Info[0]}_bTagWeight_rescaled",plot_ratio_min=0.9,plot_ratio_max=1.2)
+                else:
+                        logger.warning(f"skiping the B-Weight rescaling. The scale can be derived in bins of {_args.BTagRescaleVariableInfo} only for NOTAG category sinace we need to derive the scale before we apply any cut")
         else:
             logger.info(
                 "No events survived category selection. Skipping normalisation step."
@@ -210,6 +229,14 @@ def main():
         help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
     )
     parser.add_argument(
+        "--BTagRescaleVariableInfo",
+        nargs="?",
+        const="n_jets,10,0,10",
+        default=None,
+        type=str,
+        help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10', other variable and bin info can be provided 'JetHT,50,0,1000' ",
+    )
+    parser.add_argument(
         "--outfiles-map",
         dest="outfiles_map",
         type=str,
@@ -270,8 +297,6 @@ def main():
     logger_verbosity = "DEBUG" if args.verbose else "INFO"
 
     logger = setup_logger(level=logger_verbosity)
-
-    logger.warning("Renormalize_BTag_Weights is not implemented yet for the new version of merge_root.py")
 
     rename_dict = {
         "mass": "CMS_hgg_mass"
@@ -414,7 +439,7 @@ def main():
             if fallback is not None:
                 fallback_field_names = list(df_dict["NOMINAL"][fallback].keys())
             else:
-                print("No non-empty category found!")
+                logger.info("No non-empty category found!")
             if args.do_syst:
                 # check that the category actually contains something before attempting to split/write
                 # to avoid confusing uproot with completely empty structures
