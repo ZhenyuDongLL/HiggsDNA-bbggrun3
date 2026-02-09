@@ -26,6 +26,20 @@ def choose_jet(jets_variable, n, fill_value):
     return leading_jets_variable
 
 
+def rapidity_from_pt_eta_mass(pt, eta, mass, fill_value=-999.0):
+    with np.errstate(over='ignore', invalid='ignore', divide='ignore'):
+        pz = pt * np.sinh(eta)
+        pz = ak.where(eta == fill_value, fill_value, pz)
+        energy = np.sqrt((pt**2 * np.cosh(eta)**2) + mass**2)
+        rapidity = 0.5 * np.log((energy + pz) / (energy - pz))
+
+    rapidity = ak.fill_none(rapidity, fill_value)
+    rapidity = ak.where(np.isnan(rapidity), fill_value, rapidity)
+    rapidity = ak.where(np.isinf(rapidity), fill_value, rapidity)
+    rapidity = ak.where(eta == fill_value, fill_value, rapidity)
+    return rapidity
+
+
 def add_pnet_prob(
     self,
     jets: ak.highlevel.Array
