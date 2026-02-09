@@ -4,6 +4,7 @@ from importlib import resources
 import os
 import sys
 import time
+import tempfile
 from typing import List
 from copy import deepcopy
 
@@ -120,6 +121,32 @@ def main():
             args.memory = "auto"
 
     logger.info("Start production")
+
+    if args.stage_output and args.dump is None:
+        raise ValueError("--stage-output requires --dump to specify the final tarball destination.")
+
+    stage_dump_location = args.dump
+    if args.stage_output:
+        stage_dump_location = os.environ.get("HIGGSDNA_STAGEOUT_DIR")
+        if stage_dump_location:
+            logger.info(
+                f"Staging dump outputs to scratch directory: {stage_dump_location}"
+            )
+        elif args.executor == "vanilla_lxplus":
+            # In vanilla_lxplus mode the submit wrapper sets HIGGSDNA_STAGEOUT_DIR on workers.
+            stage_dump_location = args.dump
+            logger.info(
+                "Stage output enabled: worker scratch directory will be set by the vanilla_lxplus submit wrapper."
+            )
+        else:
+            stage_dump_location = os.path.join(
+                tempfile.gettempdir(),
+                f"higgsdna_stageout_{os.getpid()}_{int(time.time())}",
+            )
+            os.makedirs(stage_dump_location, exist_ok=True)
+            logger.info(
+                f"Stage output enabled without HIGGSDNA_STAGEOUT_DIR, using local scratch directory: {stage_dump_location}"
+            )
 
     # Here we assume that all the keys are there, otherwise an exception will be raised
     analysis_name = args.json_analysis_file.split("/")[-1].split(".")[0]
@@ -246,7 +273,7 @@ def main():
                 nano_version=args.nano_version,
                 bTagEffFileName=bTagEffFileName,
                 apply_trigger=args.use_trigger,
-                output_location=args.dump,
+                output_location=stage_dump_location,
                 analysis=args.analysis if args.analysis else analysis_name_json,
                 trigger_group=args.triggerGroup,
                 taggers=wf_taggers,
@@ -467,6 +494,8 @@ def main():
             files_per_job=args.files_per_job,
             cluster_per_sample= not args.vlxp_dont_cluster_per_sample,
             max_materialize=args.vlxp_max_materialize,
+            dump_dir=args.dump,
+            stage_output=args.stage_output,
         )
         output = vanilla_submitter.submit()
 
