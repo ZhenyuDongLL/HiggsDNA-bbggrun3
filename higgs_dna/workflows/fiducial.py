@@ -1051,6 +1051,8 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                                     diphotons[
                                         "weight_LHEScale"
                                     ] = events.LHEScaleWeight[selection_mask]
+                                    for index, elem in enumerate(ak.sum(diphotons["weight_LHEScale"], axis=0)):
+                                        metadata[f"sum_weight_LHEScale_{index}"] = str(elem)
                                 else:
                                     logger.info(
                                         f"No {systematic_name} Weights in dataset {dataset_name}"
@@ -1070,6 +1072,8 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                                     ] = events.LHEPdfWeight[selection_mask][
                                         :, :-2
                                     ]
+                                    for index, elem in enumerate(ak.sum(diphotons["weight_LHEPdf"], axis=0)):
+                                        metadata[f"sum_weight_LHEPdf_{index}"] = str(elem)
                                 else:
                                     logger.info(
                                         f"No {systematic_name} Weights in dataset {dataset_name}"
