@@ -18,7 +18,7 @@ from higgs_dna.utils.dumping_utils import (
     dump_pandas,
     get_obj_syst_dict,
 )
-from higgs_dna.utils.misc_utils import choose_jet, DPhiV1V2
+from higgs_dna.utils.misc_utils import choose_jet, DPhiV1V2, rapidity_from_pt_eta_mass
 from higgs_dna.tools.flow_corrections import apply_flow_corrections_to_photons
 
 from higgs_dna.tools.mass_decorrelator import decorrelate_mass_resolution
@@ -91,7 +91,9 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
         )
 
         # Eta-dependent jet pt cuts
-        self.jet_pt_thresholds = [20, 50, 30]
+        # Keep at 30 in the central and far forward region (not below 20, 20-30 low pt jets have problems)
+        # raised to 50 in the 2.5-3.0 absEta region due to jet spikes (JME recommendation)
+        self.jet_pt_thresholds = [30, 50, 30]
         self.jet_eta_thresholds = [2.5, 3.0, 4.7]
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
@@ -194,7 +196,8 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
         s_or_s_applied = False
         s_or_s_ele_applied = False
         for correction in correction_names:
-            if "scale" or "smearing" in correction.lower():
+            correction_name_lower = correction.lower()
+            if any(keyword in correction_name_lower for keyword in ("scale", "smearing")):
                 if "Electron" in correction:
                     s_or_s_ele_applied = True
                 else:
@@ -392,9 +395,15 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 #########################
                 # Leading Jet Variables #
                 #########################
+                genJets_absEta4p7 = genJets[numpy.abs(genJets.eta) < 4.7]
+                genJets_absEta2p5 = genJets[numpy.abs(genJets.eta) < 2.5]
+                diphotons["GenNJ"] = ak.num(genJets_absEta4p7)
+                diphotons["GenNJ_pt30_absEta2p5"] = ak.num(genJets_absEta2p5)
+                diphotons["GenPTJ0"] = choose_jet(genJets_absEta4p7.pt, 0, -999.0)
+                diphotons["GenPTJ0_pt30_absEta2p5"] = choose_jet(genJets_absEta2p5.pt, 0, -999.0)
+
                 # Choose zero (leading) jet and pad with -999 if none
                 GenPTJ0 = choose_jet(genJets.pt, 0, -999.0)
-                diphotons['GenPTJ0'] = GenPTJ0
 
                 gen_first_jet_eta = choose_jet(genJets.eta, 0, -999.0)
                 gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
@@ -404,16 +413,19 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons['gen_first_jet_mass'] = gen_first_jet_mass
                 diphotons['gen_first_jet_phi'] = gen_first_jet_phi
 
-                with numpy.errstate(over='ignore', invalid='ignore'):
-                    gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
-                    gen_first_jet_pz = ak.where(gen_first_jet_eta == -999, -999, gen_first_jet_pz)
-                    gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
+                GenYJ0 = rapidity_from_pt_eta_mass(GenPTJ0, gen_first_jet_eta, gen_first_jet_mass, fill_value=-999.0)
+                diphotons["GenYJ0"] = GenYJ0
 
-                    GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
-
-                GenYJ0 = ak.fill_none(GenYJ0, -999)
-                GenYJ0 = ak.where(numpy.isnan(GenYJ0), -999, GenYJ0)
-                diphotons['GenYJ0'] = GenYJ0
+                GenPTJ0_absEta2p5 = choose_jet(genJets_absEta2p5.pt, 0, -999.0)
+                gen_first_jet_eta_absEta2p5 = choose_jet(genJets_absEta2p5.eta, 0, -999.0)
+                gen_first_jet_mass_absEta2p5 = choose_jet(genJets_absEta2p5.mass, 0, -999.0)
+                GenYJ0_absEta2p5 = rapidity_from_pt_eta_mass(
+                    GenPTJ0_absEta2p5,
+                    gen_first_jet_eta_absEta2p5,
+                    gen_first_jet_mass_absEta2p5,
+                    fill_value=-999.0,
+                )
+                diphotons["GenYJ0_pt30_absEta2p5"] = GenYJ0_absEta2p5
 
                 GenDYHJ0 = GenYJ0 - GenYH
                 # Set all entries above 500 to -999
@@ -447,15 +459,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons['gen_second_jet_mass'] = gen_second_jet_mass
                 diphotons['gen_second_jet_phi'] = gen_second_jet_phi
 
-                with numpy.errstate(over='ignore', invalid='ignore'):
-                    gen_second_jet_pz = GenPTJ1 * numpy.sinh(gen_second_jet_eta)
-                    gen_second_jet_pz = ak.where(gen_second_jet_eta == -999, -999, gen_second_jet_pz)
-                    gen_second_jet_energy = numpy.sqrt((GenPTJ1**2 * numpy.cosh(gen_second_jet_eta)**2) + gen_second_jet_mass**2)
-
-                    GenYJ1 = 0.5 * numpy.log((gen_second_jet_energy + gen_second_jet_pz) / (gen_second_jet_energy - gen_second_jet_pz))
-
-                GenYJ1 = ak.fill_none(GenYJ1, -999)
-                GenYJ1 = ak.where(numpy.isnan(GenYJ1), -999, GenYJ1)
+                GenYJ1 = rapidity_from_pt_eta_mass(GenPTJ1, gen_second_jet_eta, gen_second_jet_mass, fill_value=-999.0)
                 diphotons['GenYJ1'] = GenYJ1
 
                 GenDYJ0J1 = GenYJ0 - GenYJ1
@@ -545,8 +549,6 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 ###########################
                 # Event Level Observables #
                 ###########################
-                diphotons['GenNJ'] = ak.num(genJets)
-
                 # B-Jets
                 # Following the recommendations of https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideBTagMCTools for hadronFlavour
                 # and the Run 2 recommendations for the bjets
@@ -681,6 +683,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             jets = jets[
                 select_jets_eta_dependent(self, jets, diphotons, sel_muons, sel_electrons)
             ]
+            jets = jets[jets.pt > 30]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
 
             # adding selected jets to events to be used in ctagging SF calculation
@@ -717,21 +720,30 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             #########################
             # Leading Jet Variables #
             #########################
+            jets_absEta4p7 = jets[numpy.abs(jets.eta) < 4.7]
+            jets_absEta2p5 = jets[numpy.abs(jets.eta) < 2.5]
+            diphotons["NJ"] = ak.num(jets_absEta4p7)
+            diphotons["NJ_pt30_absEta2p5"] = ak.num(jets_absEta2p5)
+            diphotons["PTJ0"] = choose_jet(jets_absEta4p7.pt, 0, -999.0)
+            diphotons["PTJ0_pt30_absEta2p5"] = choose_jet(jets_absEta2p5.pt, 0, -999.0)
+
             PTJ0 = choose_jet(jets.pt, 0, -999.0)
-            diphotons["PTJ0"] = PTJ0
             first_jet_eta = choose_jet(jets.eta, 0, -999.0)
             first_jet_phi = choose_jet(jets.phi, 0, -999.0)
             first_jet_mass = choose_jet(jets.mass, 0, -999.0)
-            with numpy.errstate(over='ignore', invalid='ignore'):
-                first_jet_pz = PTJ0 * numpy.sinh(first_jet_eta)
-                first_jet_pz = ak.where(first_jet_eta == -999, -999, first_jet_pz)
-                first_jet_energy = numpy.sqrt((PTJ0**2 * numpy.cosh(first_jet_eta)**2) + first_jet_mass**2)
+            YJ0 = rapidity_from_pt_eta_mass(PTJ0, first_jet_eta, first_jet_mass, fill_value=-999.0)
+            diphotons["YJ0"] = YJ0
 
-                YJ0 = 0.5 * numpy.log((first_jet_energy + first_jet_pz) / (first_jet_energy - first_jet_pz))
-
-            YJ0 = ak.fill_none(YJ0, -999)
-            YJ0 = ak.where(numpy.isnan(YJ0), -999, YJ0)
-            diphotons['YJ0'] = YJ0
+            PTJ0_absEta2p5 = choose_jet(jets_absEta2p5.pt, 0, -999.0)
+            first_jet_eta_absEta2p5 = choose_jet(jets_absEta2p5.eta, 0, -999.0)
+            first_jet_mass_absEta2p5 = choose_jet(jets_absEta2p5.mass, 0, -999.0)
+            YJ0_absEta2p5 = rapidity_from_pt_eta_mass(
+                PTJ0_absEta2p5,
+                first_jet_eta_absEta2p5,
+                first_jet_mass_absEta2p5,
+                fill_value=-999.0,
+            )
+            diphotons["YJ0_pt30_absEta2p5"] = YJ0_absEta2p5
 
             diphotons["first_jet_eta"] = first_jet_eta
             diphotons["first_jet_phi"] = first_jet_phi
@@ -762,19 +774,11 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             second_jet_eta = choose_jet(jets.eta, 1, -999.0)
             second_jet_phi = choose_jet(jets.phi, 1, -999.0)
             second_jet_mass = choose_jet(jets.mass, 1, -999.0)
-            with numpy.errstate(over='ignore', invalid='ignore'):
-                second_jet_pz = PTJ1 * numpy.sinh(second_jet_eta)
-                second_jet_pz = ak.where(second_jet_eta == -999, -999, second_jet_pz)
-                second_jet_energy = numpy.sqrt((PTJ1**2 * numpy.cosh(second_jet_eta)**2) + second_jet_mass**2)
+            diphotons["second_jet_eta"] = second_jet_eta
+            diphotons["second_jet_phi"] = second_jet_phi
+            diphotons["second_jet_mass"] = second_jet_mass
 
-                diphotons["second_jet_eta"] = second_jet_eta
-                diphotons["second_jet_phi"] = second_jet_phi
-                diphotons["second_jet_mass"] = second_jet_mass
-
-                YJ1 = 0.5 * numpy.log((second_jet_energy + second_jet_pz) / (second_jet_energy - second_jet_pz))
-
-            YJ1 = ak.fill_none(YJ1, -999)
-            YJ1 = ak.where(numpy.isnan(YJ1), -999, YJ1)
+            YJ1 = rapidity_from_pt_eta_mass(PTJ1, second_jet_eta, second_jet_mass, fill_value=-999.0)
             diphotons['YJ1'] = YJ1
 
             DYJ0J1 = YJ0 - YJ1
@@ -862,9 +866,6 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             # Event Level Observables #
             ###########################
 
-            n_jets = ak.num(jets)
-            NJ = ak.num(jets[(jets.pt > 30) & (numpy.abs(jets.eta) < 4.7)])
-
             # B-Jets
             btag_WP = getBTagMVACut(mva_name=self.bjet_mva,
                                     mva_wp=self.bjet_wp,
@@ -882,9 +883,6 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
 
             first_bjet_mva = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True][btag_mva_column], 0, -999.0)
             diphotons[f"{self.bjet_mva}_ScorebJ0"] = first_bjet_mva
-
-            diphotons["n_jets"] = n_jets
-            diphotons["NJ"] = NJ
 
             # Jet Rapidity Observable
             # Iterate over max six largest pt jets to compute tauJC
