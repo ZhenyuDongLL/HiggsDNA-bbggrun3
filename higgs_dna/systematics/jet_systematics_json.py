@@ -120,9 +120,6 @@ def jerc_jet(
     reg="",
 ):
 
-    if year == "2024":
-        logger.warning("Current 2024 JER is preliminary, 2023PostBPix is used! These ntuples should not be used for a final physics result!")
-
     # first, check if it's data or MC
     if era == "MC" and hasattr(events, "GenPart"):
         logger.debug(
@@ -238,27 +235,27 @@ def jerc_jet(
             "MC": "Summer19UL18_V5_MC",
         },
         "2022preEE": {
-            "RunC": "Summer22_22Sep2023_RunCD_V2_DATA",
-            "RunD": "Summer22_22Sep2023_RunCD_V2_DATA",
-            "MC": "Summer22_22Sep2023_V2_MC",
+            "RunC": "Summer22_22Sep2023_RunCD_V3_DATA",
+            "RunD": "Summer22_22Sep2023_RunCD_V3_DATA",
+            "MC": "Summer22_22Sep2023_V3_MC",
         },
         "2022postEE": {
-            "RunE": "Summer22EE_22Sep2023_RunE_V2_DATA",
-            "RunF": "Summer22EE_22Sep2023_RunF_V2_DATA",
-            "RunG": "Summer22EE_22Sep2023_RunG_V2_DATA",
-            "MC": "Summer22EE_22Sep2023_V2_MC",
+            "RunE": "Summer22EE_22Sep2023_RunE_V3_DATA",
+            "RunF": "Summer22EE_22Sep2023_RunF_V3_DATA",
+            "RunG": "Summer22EE_22Sep2023_RunG_V3_DATA",
+            "MC": "Summer22EE_22Sep2023_V3_MC",
         },
         # For 2023, the correct era is chosen based on the run the event is in.
         # Details: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/merge_requests/118
         "2023preBPix": {
             "Data": "Summer23Prompt23_V2_DATA",
-            "RunCv123": "Summer23Prompt23_RunCv123_V1_DATA",
-            "RunCv4": "Summer23Prompt23_RunCv4_V1_DATA",
+            "RunCv123": "Summer23Prompt23_RunCv123_V2_DATA",
+            "RunCv4": "Summer23Prompt23_RunCv4_V2_DATA",
             "MC": "Summer23Prompt23_V2_MC",
         },
         "2023postBPix": {
             "Data": "Summer23BPixPrompt23_V3_DATA",
-            "RunD": "Summer23BPixPrompt23_RunD_V1_DATA",
+            "RunD": "Summer23BPixPrompt23_RunD_V3_DATA",
             "MC": "Summer23BPixPrompt23_V3_MC",
         },
         "2024": {
