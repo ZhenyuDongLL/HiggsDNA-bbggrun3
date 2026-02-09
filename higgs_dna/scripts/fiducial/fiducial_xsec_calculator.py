@@ -74,6 +74,7 @@ parser.add_argument('--bin', type = str, default = '|0|5000|', help = "Bin bound
 parser.add_argument('--obs', type = str, default = 'PTH', help = "Name of the differential observable: PTH, YH, NJ")
 parser.add_argument('--weight', type = str, default = 'weight', help = "Weight to use.")
 parser.add_argument('--powheg', action="store_true", help="To process powheg sample.")
+parser.add_argument('--per-process-output', action="store_true", help="Also store the fiducial cross sections and acceptances for each process separately.")
 
 args = parser.parse_args()
 
@@ -184,6 +185,13 @@ acc_per_bin_pdf_up = {}
 acc_per_bin_pdf_dn = {}
 acc_per_bin_alpha_up = {}
 acc_per_bin_alpha_dn = {}
+per_process_fid_xsecs = {}
+per_process_acc = {}
+if args.per_process_output:
+    fid_keys = ['fidXS', 'fidXS_scale_up', 'fidXS_scale_dn', 'fidXS_pdf_up', 'fidXS_pdf_dn', 'fidXS_alpha_up', 'fidXS_alpha_dn']
+    acc_keys = ['Acc', 'Acc_scale_up', 'Acc_scale_dn', 'Acc_pdf_up', 'Acc_pdf_dn', 'Acc_alpha_up', 'Acc_alpha_dn']
+    per_process_fid_xsecs = {key: {process: [] for process in processes} for key in fid_keys}
+    per_process_acc = {key: {process: [] for process in processes} for key in acc_keys}
 for b in range(len(obs_bins)-1):
     fid_xsecs_per_bin_process = {}
     fid_xsecs_per_bin_process_scale_up = {}
@@ -293,6 +301,24 @@ for b in range(len(obs_bins)-1):
         fid_xsecs_per_bin_process_alpha_up[process] = acc_per_bin_process_alpha_up[process] * XS_map_alphaS_up['13p6'][process] * 1000 * BR
         fid_xsecs_per_bin_process_alpha_dn[process] = acc_per_bin_process_alpha_dn[process] * XS_map_alphaS_dn['13p6'][process] * 1000 * BR
 
+    if args.per_process_output:
+        for process in processes:
+            per_process_fid_xsecs['fidXS'][process].append(fid_xsecs_per_bin_process[process])
+            per_process_fid_xsecs['fidXS_scale_up'][process].append(fid_xsecs_per_bin_process_scale_up[process])
+            per_process_fid_xsecs['fidXS_scale_dn'][process].append(fid_xsecs_per_bin_process_scale_dn[process])
+            per_process_fid_xsecs['fidXS_pdf_up'][process].append(fid_xsecs_per_bin_process_pdf_up[process])
+            per_process_fid_xsecs['fidXS_pdf_dn'][process].append(fid_xsecs_per_bin_process_pdf_dn[process])
+            per_process_fid_xsecs['fidXS_alpha_up'][process].append(fid_xsecs_per_bin_process_alpha_up[process])
+            per_process_fid_xsecs['fidXS_alpha_dn'][process].append(fid_xsecs_per_bin_process_alpha_dn[process])
+
+            per_process_acc['Acc'][process].append(acc_per_bin_process[process])
+            per_process_acc['Acc_scale_up'][process].append(acc_per_bin_process_scale_up[process])
+            per_process_acc['Acc_scale_dn'][process].append(acc_per_bin_process_scale_dn[process])
+            per_process_acc['Acc_pdf_up'][process].append(acc_per_bin_process_pdf_up[process])
+            per_process_acc['Acc_pdf_dn'][process].append(acc_per_bin_process_pdf_dn[process])
+            per_process_acc['Acc_alpha_up'][process].append(acc_per_bin_process_alpha_up[process])
+            per_process_acc['Acc_alpha_dn'][process].append(acc_per_bin_process_alpha_dn[process])
+
     fid_xsecs_per_bin[b] = np.sum(np.asarray([fid_xsecs_per_bin_process[process] for process in processes]))
     print(f"The fiducial cross section for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] is: {fid_xsecs_per_bin[b]} fb")
 
@@ -377,3 +403,19 @@ with open(output+'.py', 'w') as f:
         f.write('Acc_pdf_dn = '+str(list(acc_per_bin_pdf_dn.values()))+' \n')
         f.write('Acc_alpha_up = '+str(list(acc_per_bin_alpha_up.values()))+' \n')
         f.write('Acc_alpha_dn = '+str(list(acc_per_bin_alpha_dn.values()))+' \n')
+        if args.per_process_output:
+            for process in processes:
+                f.write(f'fidXS_{process} = {per_process_fid_xsecs["fidXS"][process]} \n')
+                f.write(f'fidXS_scale_up_{process} = {per_process_fid_xsecs["fidXS_scale_up"][process]} \n')
+                f.write(f'fidXS_scale_dn_{process} = {per_process_fid_xsecs["fidXS_scale_dn"][process]} \n')
+                f.write(f'fidXS_pdf_up_{process} = {per_process_fid_xsecs["fidXS_pdf_up"][process]} \n')
+                f.write(f'fidXS_pdf_dn_{process} = {per_process_fid_xsecs["fidXS_pdf_dn"][process]} \n')
+                f.write(f'fidXS_alpha_up_{process} = {per_process_fid_xsecs["fidXS_alpha_up"][process]} \n')
+                f.write(f'fidXS_alpha_dn_{process} = {per_process_fid_xsecs["fidXS_alpha_dn"][process]} \n')
+                f.write(f'Acc_{process} = {per_process_acc["Acc"][process]} \n')
+                f.write(f'Acc_scale_up_{process} = {per_process_acc["Acc_scale_up"][process]} \n')
+                f.write(f'Acc_scale_dn_{process} = {per_process_acc["Acc_scale_dn"][process]} \n')
+                f.write(f'Acc_pdf_up_{process} = {per_process_acc["Acc_pdf_up"][process]} \n')
+                f.write(f'Acc_pdf_dn_{process} = {per_process_acc["Acc_pdf_dn"][process]} \n')
+                f.write(f'Acc_alpha_up_{process} = {per_process_acc["Acc_alpha_up"][process]} \n')
+                f.write(f'Acc_alpha_dn_{process} = {per_process_acc["Acc_alpha_dn"][process]} \n')
