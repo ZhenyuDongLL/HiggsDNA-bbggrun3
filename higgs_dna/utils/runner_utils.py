@@ -43,6 +43,12 @@ def get_main_parser():
         help="Path to dump parquet outputs to (default: None)",
     )
     parser.add_argument(
+        "--stage-output",
+        action="store_true",
+        default=False,
+        help="Write dump outputs to a scratch directory for later transfer instead of directly to --dump.",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         default=r"output.coffea",
