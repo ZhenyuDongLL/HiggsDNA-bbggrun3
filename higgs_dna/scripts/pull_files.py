@@ -1152,7 +1152,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2024_Summer24",
             ),
-            "type": "eos",
+            "type": "cvmfs",
         },
         "2025_Winter25": {
             "from": os.path.join(base_path, "Run3-25Prompt-Winter25-NanoAODv15/2025-10-27"),
@@ -1160,7 +1160,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2025_Winter25",
             ),
-            "type": "eos",
+            "type": "cvmfs",
         },
     }
 
