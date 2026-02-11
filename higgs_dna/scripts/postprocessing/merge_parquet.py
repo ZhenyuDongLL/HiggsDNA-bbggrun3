@@ -13,6 +13,7 @@ import numpy as np
 from pathlib import Path
 from importlib import resources
 from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights, Get_bin_edges_and_ration, apply_rescaling, Get_ratio_with_bWeight
+from higgs_dna.scripts.postprocessing.tools.LHE_WeightSum_Calculation import Get_WeightSum_LHE, Renormalize_LHE_Weights
 from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable
 from coffea.processor.accumulator import iadd
 
@@ -98,8 +99,8 @@ def main():
         "--do-b-weight-normalisation",
         default=False,
         action="store_true",
-        help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
-    )
+        help="Perform the bweight normalization to make sure the number of event remain the same before and after applying the b tagging weights",
+     )
     parser.add_argument(
         "--BTagRescaleVariableInfo",
         nargs="?",
@@ -107,6 +108,12 @@ def main():
         default=None,
         type=str,
         help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10', other variable and bin info can be provided 'JetHT,50,0,1000' ",
+    )
+    parser.add_argument(
+        "--do-lhe-weight-normalisation",
+        default=False,
+        action="store_true",
+        help="Perform the LHEScale and LHEPdf normalization to make sure the number of event remain the same to look only at changes due to acceptance",
     )
     parser.add_argument(
         "--custom-accumulator",
@@ -173,8 +180,10 @@ def main():
         logger.info(
             "Extracting sum of gen weights (before selection) from metadata of files to be merged."
         )
-        if(args.do_b_weight_normalisation):
-            IsBtagNorm_sys_arr,WeightSum_preBTag_arr,WeightSum_postBTag_arr,WeightSum_postBTag_sys_arr = Get_WeightSum_Btag(source_paths,logger)
+        if args.do_b_weight_normalisation:
+            IsBtagNorm_sys_arr, WeightSum_preBTag_arr, WeightSum_postBTag_arr, WeightSum_postBTag_sys_arr = Get_WeightSum_Btag(source_paths, logger)
+        if args.do_lhe_weight_normalisation:
+            sum_LHEPdf_beforesel_arr, sum_LHEScale_beforesel_arr, do_lhe_norm = Get_WeightSum_LHE(source_paths, logger)
 
         sum_genw_beforesel_arr = []
         for i, source_path in enumerate(source_paths):
@@ -235,8 +244,11 @@ def main():
                     logger.info("Successfully added normalised weight column")
 
                     if args.do_b_weight_normalisation:
-                        if((WeightSum_preBTag_arr[i]/WeightSum_postBTag_arr[i])!=1):
+                        if (WeightSum_preBTag_arr[i] / WeightSum_postBTag_arr[i]) != 1:
                             batch_arr = Renormalize_BTag_Weights(batch_arr, syst_weight_fields, target_paths[i], cat, WeightSum_preBTag_arr[i], WeightSum_postBTag_arr[i], WeightSum_postBTag_sys_arr[i], IsBtagNorm_sys_arr[i], logger)
+                    if args.do_lhe_weight_normalisation:
+                        if do_lhe_norm[i]:
+                            batch_arr = Renormalize_LHE_Weights(batch_arr, target_paths[i], cat, sum_LHEPdf_beforesel_arr[i], sum_LHEScale_beforesel_arr[i], logger)
 
                 table = ak.to_arrow_table(batch_arr, extensionarray=False)
                 if args.custom_accumulator:

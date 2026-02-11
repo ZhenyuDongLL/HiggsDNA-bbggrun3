@@ -12,6 +12,7 @@ import numpy as np
 import uproot
 from importlib import resources
 from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights, Get_bin_edges_and_ration, apply_rescaling, Get_ratio_with_bWeight
+from higgs_dna.scripts.postprocessing.tools.LHE_WeightSum_Calculation import Get_WeightSum_LHE, Renormalize_LHE_Weights
 from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable, split_awkward_arrays_by_length, ensure_nweight_LHEScale
 
 def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_path, cat_dict, gen_binning, logger, rename_dict):
@@ -23,7 +24,10 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
             "Extracting sum of gen weights (before selection) from metadata of files to be merged."
         )
 
-        if(_args.do_b_weight_normalisation): IsBtagNorm_sys_arr,WeightSum_preBTag_arr,WeightSum_postBTag_arr,WeightSum_postBTag_sys_arr = Get_WeightSum_Btag([folder_path],logger)
+        if _args.do_b_weight_normalisation:
+            IsBtagNorm_sys_arr, WeightSum_preBTag_arr, WeightSum_postBTag_arr, WeightSum_postBTag_sys_arr = Get_WeightSum_Btag([folder_path], logger)
+        if _args.do_lhe_weight_normalisation:
+            sum_LHEPdf_beforesel_arr, sum_LHEScale_beforesel_arr, do_lhe_norm = Get_WeightSum_LHE([folder_path], logger)
         source_files = glob.glob("%s/*.parquet" % folder_path)
         sum_genw_beforesel = 0
         for f in source_files:
@@ -92,12 +96,18 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
             logger.info(
                 "Successfully added normalised weight column and normalized weights of the systematics to dataset"
             )
-            if(_args.do_b_weight_normalisation):
-                if((WeightSum_preBTag_arr[0]/WeightSum_postBTag_arr[0])!=1):
-                    eve = Renormalize_BTag_Weights(eve,syst_weight_fields,target_path,cat,WeightSum_preBTag_arr[0],WeightSum_postBTag_arr[0],WeightSum_postBTag_sys_arr[0],IsBtagNorm_sys_arr[0],logger)
+            if _args.do_b_weight_normalisation:
+                if (WeightSum_preBTag_arr[0] / WeightSum_postBTag_arr[0]) != 1:
+                    eve = Renormalize_BTag_Weights(eve,syst_weight_fields, target_path, cat, WeightSum_preBTag_arr[0], WeightSum_postBTag_arr[0], WeightSum_postBTag_sys_arr[0], IsBtagNorm_sys_arr[0], logger)
                 logger.info(
                     "Successfully added normalised b weight column."
                 )
+            if _args.do_lhe_weight_normalisation:
+                if do_lhe_norm[0]:
+                    eve = Renormalize_LHE_Weights(eve, target_path, cat, sum_LHEPdf_beforesel_arr[0], sum_LHEScale_beforesel_arr[0], logger)
+                    logger.info(
+                        "Successfully added normalised LHE weight columns."
+                    )
             if(_args.BTagRescaleVariableInfo):
                 if not _args.do_b_weight_normalisation:
                     logger.warning("B-Tag weight rescaling requested but B-Tag weight normalisation not performed. Skipping B-Tag weight rescaling. Please enable --do-b-weight-normalisation to perform B-Tag weight reNormalization first.")
@@ -226,7 +236,7 @@ def main():
         "--do-b-weight-normalisation",
         default=False,
         action="store_true",
-        help="Perform the bweight normalization to make sure the number of event remain the same before and after apling the b tagging weights",
+        help="Perform the bweight normalization to make sure the number of event remain the same before and after applying the b tagging weights",
     )
     parser.add_argument(
         "--BTagRescaleVariableInfo",
@@ -235,6 +245,20 @@ def main():
         default=None,
         type=str,
         help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10', other variable and bin info can be provided 'JetHT,50,0,1000' ",
+    )
+    parser.add_argument(
+        "--BTagRescaleVariableInfo",
+        nargs="?",
+        const="n_jets,10,0,10",
+        default=None,
+        type=str,
+        help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10', other variable and bin info can be provided 'JetHT,50,0,1000' ",
+    )
+    parser.add_argument(
+        "--do-lhe-weight-normalisation",
+        default=False,
+        action="store_true",
+        help="Perform the LHEScale and LHEPdf normalization to make sure the number of event remain the same to look only at changes due to acceptance",
     )
     parser.add_argument(
         "--outfiles-map",
