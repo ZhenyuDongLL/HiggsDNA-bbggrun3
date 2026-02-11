@@ -247,14 +247,6 @@ def main():
         help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10', other variable and bin info can be provided 'JetHT,50,0,1000' ",
     )
     parser.add_argument(
-        "--BTagRescaleVariableInfo",
-        nargs="?",
-        const="n_jets,10,0,10",
-        default=None,
-        type=str,
-        help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10', other variable and bin info can be provided 'JetHT,50,0,1000' ",
-    )
-    parser.add_argument(
         "--do-lhe-weight-normalisation",
         default=False,
         action="store_true",
