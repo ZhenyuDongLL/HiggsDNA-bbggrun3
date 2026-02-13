@@ -530,7 +530,7 @@ def main():
                         logger.error(f"Error processing variable: {e}")
             else:
                 # Single nominal processing for MC
-                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} {do_b_weight_normalisation_st} {do_BTagRescaleVariableInfo_str} {do_b_weight_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
+                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} {do_b_weight_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
                 subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
         else:
             if opt.type and opt.type.lower() == "mc":
