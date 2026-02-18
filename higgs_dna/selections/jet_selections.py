@@ -457,7 +457,7 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         "2023preBPix": "Summer23Prompt23_RunC_V1",
         "2023postBPix": "Summer23BPixPrompt23_RunD_V1",
         "2024": "Summer24Prompt24_RunBCDEFGHI_V1",
-        "2025": "Winter25Prompt25_RunCDE_V1",
+        "2025": "Winter25Prompt25_RunCDEFG_V1",
     }
 
     logger.debug(

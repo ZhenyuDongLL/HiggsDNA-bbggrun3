@@ -91,7 +91,7 @@ echo "✅ Total missing: $missing_count"
 if (( missing_count > 0 )); then
     failed_jobs_str="${missing_jobs[*]}"
     echo "ℹ️ Resubmitting jobs: $failed_jobs_str"
-    echo "python3 resubmit_jobs.py $SUB_FILE \"$failed_jobs_str\" "
-    #python3 resubmit_jobs.py $SUB_FILE "$failed_jobs_str"
+    echo "python3 submission/tools_HHbbgg/resubmit_jobs.py $SUB_FILE \"$failed_jobs_str\" "
+    #python3 submission/tools_HHbbgg/resubmit_jobs.py $SUB_FILE "$failed_jobs_str"
 fi
 

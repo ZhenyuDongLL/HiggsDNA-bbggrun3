@@ -43,8 +43,9 @@ def add_jetId(jets, nano_version, year, flattenUnflatten=False):
         else:
             # Example code: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/blob/master/examples/jetidExample.py?ref_type=heads
             # Load CorrectionSet
-            if year == "2025":
-                logger.warning("There is no dedicated 2025 jetID. As the 2025 PUPPI tune is the same as the 2024 one, the 2024 jetID used! ")
+            fallback_years = ["2025", "2016preVFP", "2016postVFP", "2017", "2018"]
+            if year in fallback_years:
+                logger.warning("There is no dedicated {year} jetID. As the {year} PUPPI tune is the same as the 2024 one, the 2024 jetID used! ")
                 year = "2024"
 
             jerc_json = {
