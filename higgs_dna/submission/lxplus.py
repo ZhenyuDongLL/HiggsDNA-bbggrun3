@@ -56,7 +56,6 @@ class LXPlusVanillaSubmitter:
         self.cluster_per_sample = cluster_per_sample
         self.dump_dir = dump_dir
         self.stage_output = stage_output
-        self.logs_dir = None
         self.transfer_inputs_by_analysis = {}
         if self.dump_dir and not str(self.dump_dir).startswith("root://"):
             self.dump_dir = os.path.abspath(self.dump_dir)
@@ -87,8 +86,6 @@ class LXPlusVanillaSubmitter:
 
         self.jobs_dir = os.path.join(self.analysis_dir, "jobs")
         Path(self.jobs_dir).mkdir(parents=True, exist_ok=True)
-        self.logs_dir = os.path.join(self.jobs_dir, "logs")
-        Path(self.logs_dir).mkdir(parents=True, exist_ok=True)
         self.job_files = []
 
         # Create input JSON files and job submission files
@@ -269,18 +266,11 @@ class LXPlusVanillaSubmitter:
                 # Submit file
                 job_file_submit = os.path.join(jobs_dir, f"{base_name}.sub")
                 with open(job_file_submit, "w") as sub:
-                    output_file = f"{base_name}.$(ClusterId).$(ProcId).out"
-                    error_file = f"{base_name}.$(ClusterId).$(ProcId).err"
-                    log_file = f"{base_name}.$(ClusterId).log"
-                    if self.logs_dir:
-                        output_file = os.path.join(self.logs_dir, output_file)
-                        error_file = os.path.join(self.logs_dir, error_file)
-                        log_file = os.path.join(self.logs_dir, log_file)
                     sub.write(f"executable = {job_file_executable}\n")
                     sub.write("arguments = $(ProcId)\n")
-                    sub.write(f"output = {output_file}\n")
-                    sub.write(f"error = {error_file}\n")
-                    sub.write(f"log = {log_file}\n")
+                    sub.write(f"output = {base_name}.$(ClusterId).$(ProcId).out\n")
+                    sub.write(f"error = {base_name}.$(ClusterId).$(ProcId).err\n")
+                    sub.write(f"log = {jobs_dir}/{base_name}.$(ClusterId).log\n")
                     self._write_output_target(sub, job_dir)
                     sub.write(f"RequestMemory = ifThenElse(isUndefined(MemoryUsage), {self.memory_mb}, int(MemoryUsage * 1.1))\n")
                     sub.write("getenv = True\n")
@@ -351,21 +341,14 @@ class LXPlusVanillaSubmitter:
                             exe.write("exit ${RUN_RC}\n")
                         os.chmod(job_file_executable, 0o775)
                     with open(job_file_submit, "w") as sub:
-                        output_file = f"{base_name}.out"
-                        error_file = f"{base_name}.err"
-                        log_file = f"{base_name}.log"
-                        if self.logs_dir:
-                            output_file = os.path.join(self.logs_dir, output_file)
-                            error_file = os.path.join(self.logs_dir, error_file)
-                            log_file = os.path.join(self.logs_dir, log_file)
                         if self.stage_output:
                             sub.write(f"executable = {job_file_executable}\n")
                         else:
                             sub.write("executable = /usr/bin/env\n")
                             sub.write(f"arguments = {sys.prefix}/bin/run_analysis.py {args_} || exit 107\n")
-                        sub.write(f"output = {output_file}\n")
-                        sub.write(f"error = {error_file}\n")
-                        sub.write(f"log = {log_file}\n")
+                        sub.write(f"output = {base_name}.out\n")
+                        sub.write(f"error = {base_name}.err\n")
+                        sub.write(f"log = {jobs_dir}/{base_name}.log\n")
                         self._write_output_target(sub, job_dir)
                         sub.write(f"RequestMemory = ifThenElse(isUndefined(MemoryUsage), {self.memory_mb}, int(MemoryUsage * 1.1))\n")
                         sub.write("getenv = True\n")
