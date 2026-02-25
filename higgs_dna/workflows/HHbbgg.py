@@ -215,7 +215,9 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
         # remove events affected by EcalBadCalibCrystal
         if self.data_kind == "data":
-            events = remove_EcalBadCalibCrystal_events(events)
+            excluded_years = ["2018", "2017", "2016preVFP", "2016postVFP"]
+            if self.year[dataset_name][0] not in excluded_years:
+                events = remove_EcalBadCalibCrystal_events(events)
 
         # add zero photon mass and charge
         # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
@@ -603,9 +605,11 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 select_jets(self, jets, diphotons, sel_muons, sel_electrons)
             ]
             # remove eta spikes (no final recipe): applying pT > 50 GeV for jets with abs(eta) in (2.5, 3)
-            jets = jets[
-                ~((jets.pt < 50) & (numpy.abs(jets.eta) > 2.5) & (numpy.abs(jets.eta) < 3))
-            ]
+            excluded_years = ["2018", "2017", "2016preVFP", "2016postVFP"]
+            if self.year[dataset_name][0] not in excluded_years:
+                jets = jets[
+                    ~((jets.pt < 50) & (numpy.abs(jets.eta) > 2.5) & (numpy.abs(jets.eta) < 3))
+                ]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
             jets["index"] = ak.local_index(jets.pt)
 
@@ -872,7 +876,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             # do mbb regression
             if "2022" in self.year[dataset_name][0]:
                 model_file = os.path.join(os.path.dirname(__file__), "../tools/mjj_model_2022.onnx")
-            elif "2023" in self.year[dataset_name][0] or "2024" in self.year[dataset_name][0] or "2025" in self.year[dataset_name][0]:
+            elif any(y in self.year[dataset_name][0] for y in ["2016preVFP", "2016postVFP", "2017", "2018", "2023", "2024", "2025"]):
                 model_file = os.path.join(os.path.dirname(__file__), "../tools/mjj_model_2023.onnx")
 
             dijets_base = calculate_mbb_regression(model_file, dijets_base)

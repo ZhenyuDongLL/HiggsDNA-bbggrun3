@@ -146,7 +146,9 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
 
         # remove events affected by EcalBadCalibCrystal
         if self.data_kind == "data":
-            events = remove_EcalBadCalibCrystal_events(events)
+            excluded_years = ["2018", "2017", "2016preVFP", "2016postVFP"]
+            if self.year[dataset_name][0] not in excluded_years:
+                events = remove_EcalBadCalibCrystal_events(events)
 
         # add zero photon mass and charge
         # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
