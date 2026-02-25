@@ -161,7 +161,9 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
         # remove events affected by EcalBadCalibCrystal
         if self.data_kind == "data":
-            events = remove_EcalBadCalibCrystal_events(events)
+            excluded_years = ["2018", "2017", "2016preVFP", "2016postVFP"]
+            if self.year[dataset_name][0] not in excluded_years:
+                events = remove_EcalBadCalibCrystal_events(events)
 
         # add zero photon mass and charge
         # TODO: remove this temporary fix when https://github.com/scikit-hep/vector/issues/498 is resolved
@@ -456,10 +458,11 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
 
             # remove "jet horns". Although there is no final recipe, applying pT > 50 GeV for jets with abs(eta) in (2.5, 3) seems to help
             # See https://gitlab.cern.ch/cms-jetmet/coordination/coordination/-/issues/113
-            jets = jets[
-                ~((jets.pt < 50) & (np.abs(jets.eta) > 2.5) & (np.abs(jets.eta) < 3))
-            ]
-
+            excluded_years = ["2018", "2017", "2016preVFP", "2016postVFP"]
+            if self.year[dataset_name][0] not in excluded_years:
+                jets = jets[
+                    ~((jets.pt < 50) & (np.abs(jets.eta) > 2.5) & (np.abs(jets.eta) < 3))
+                ]
             # ordering in pt since corrections may have changed the order
             electrons = electrons[ak.argsort(electrons.pt, ascending=False)]
             muons = muons[ak.argsort(muons.pt, ascending=False)]
