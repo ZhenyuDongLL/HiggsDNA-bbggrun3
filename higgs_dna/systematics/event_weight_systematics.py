@@ -138,6 +138,29 @@ def Pileup(events, weights, year, is_correction=True, **kwargs):
     return weights
 
 
+def L1PreFiring(events, weights, year="2017", is_correction=True, **kwargs):
+    """Function to apply either the L1Prefiring correction to simulation to make it match the prefiring rate of a certain year/period, or the respective uncertainties. The parameter `year` needs to be specified as one of ["2016preVFP", "2016postVFP", "2017", "2018"] for Run-2. Note that the weights are stored in both Run 2 NanoAODv15 and NanoAODv9."""
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]
+    if year not in avail_years:
+        raise ValueError(
+            f"Invalid year '{year}'. Only the following years are supported for L1PreFiring corrections: {avail_years} \n")
+    if "L1PreFiringWeight" not in events.fields:
+        logger.info("No L1Prefiring weights found in the events, skipping systematic/correction.")
+        return weights
+    if is_correction:
+        sf = events.L1PreFiringWeight.Nom
+        sfup, sfdown = None, None
+    else:
+        sf = np.ones(len(events))
+        sf_nom = events.L1PreFiringWeight.Nom
+        sfup = events.L1PreFiringWeight.Up / sf_nom
+        sfdown = events.L1PreFiringWeight.Dn / sf_nom
+
+    name = "L1Prefiring_corr" if is_correction else "L1Prefiring"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
+    return weights
+
+
 def LooseMvaSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
     LooseMvaSF: correction to the event weight on a per photon level, impacting one of the high importance input variable of the DiphotonBDT, binned in eta and r9.

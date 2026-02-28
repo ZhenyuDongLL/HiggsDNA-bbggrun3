@@ -11,6 +11,7 @@ from .photon_systematics import (
 )
 from .event_weight_systematics import (
     Pileup,
+    L1PreFiring,
     SF_photon_ID,
     LooseMvaSF,
     ElectronVetoSF,
@@ -332,6 +333,7 @@ object_corrections = {
 # dict containing "name": varying_function
 weight_systematics = {
     "Pileup": partial(Pileup, is_correction=False),
+    "L1PreFiring": partial(L1PreFiring, is_correction=False),
     "SF_photon_ID": partial(SF_photon_ID, is_correction=False),
     "LooseMvaSF": partial(LooseMvaSF, is_correction=False),
     "ElectronVetoSF": partial(ElectronVetoSF, is_correction=False),
@@ -395,6 +397,7 @@ weight_systematics = {
 # dict containing "name": varying_function
 weight_corrections = {
     "Pileup": partial(Pileup, is_correction=True),
+    "L1PreFiring": partial(L1PreFiring, is_correction=True),
     "SF_photon_ID": partial(SF_photon_ID, is_correction=True),
     "LooseMvaSF": partial(LooseMvaSF, is_correction=True),
     "ElectronVetoSF": partial(ElectronVetoSF, is_correction=True),
