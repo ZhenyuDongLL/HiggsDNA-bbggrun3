@@ -10,7 +10,7 @@ from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
-from higgs_dna.selections.jet_selections import select_jets, select_fatjets, jetvetomap
+from higgs_dna.selections.jet_selections import select_jets, select_jets_eta_dependent, select_fatjets, jetvetomap
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import (
     apply_naming_convention,
@@ -127,6 +127,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
         # jet selection cuts
         self.jet_jetId = "tightLepVeto"  # can be "tightLepVeto" or "tight": https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
         self.jet_max_eta = 4.7
+        self.jet_eta_thresholds = [2.5, 3.0, 4.7]  # For eta-dependent jet pt cuts
 
         self.clean_jet_dipho = False
         self.clean_jet_pho = True
@@ -601,15 +602,18 @@ class HHbbggProcessor(HggSkeletonProcessor):
             events["sel_electrons"] = sel_electrons
 
             # jet selection and pt ordering
+            # follows https://indico.cern.ch/event/1624984/contributions/6896120/
+            if self.year[dataset_name][0] in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
+                self.jet_pt_thresholds = [20, 50, 50]
+                jet_selection_func = select_jets_eta_dependent
+            elif self.year[dataset_name][0] in ["2024"]:
+                self.jet_pt_thresholds = [20, 50, 20]
+                jet_selection_func = select_jets_eta_dependent
+            else:
+                jet_selection_func = select_jets
             jets = jets[
-                select_jets(self, jets, diphotons, sel_muons, sel_electrons)
+                jet_selection_func(self, jets, diphotons, sel_muons, sel_electrons)
             ]
-            # remove eta spikes (no final recipe): applying pT > 50 GeV for jets with abs(eta) in (2.5, 3)
-            excluded_years = ["2018", "2017", "2016preVFP", "2016postVFP"]
-            if self.year[dataset_name][0] not in excluded_years:
-                jets = jets[
-                    ~((jets.pt < 50) & (numpy.abs(jets.eta) > 2.5) & (numpy.abs(jets.eta) < 3))
-                ]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
             jets["index"] = ak.local_index(jets.pt)
 
