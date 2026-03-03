@@ -114,6 +114,7 @@ unit_test:
     - ls -l
     - export PYTHONPATH="$PYTHONPATH:."
     - python -c "import sys;print(sys.path)"
+    - pull_files.py --target Flows --use-xrdcp
     - pytest
 
 release:
