@@ -114,6 +114,8 @@ def get_main_parser():
             "dask/lxplus",
             "dask/casa",  # Use for coffea-casa
             "vanilla_lxplus",
+            "vanilla_slurm",
+            "vanilla_slurm/psi_pnfs",
         ],
         default="futures",  # Local executor (named after concurrent futures package)
         help="The type of executor to use (default: %(default)s). Other options can be implemented. "
@@ -125,7 +127,9 @@ def get_main_parser():
         "- `dask/condor` - tested at DESY, RWTH"
         "- `dask/lpc` - custom lpc/condor setup (due to write access restrictions)"
         "- `dask/lxplus` - custom lxplus/condor setup (due to port restrictions)"
-        "- `vanilla_lxplus` - custom plain lxplus submitter",
+        "- `vanilla_lxplus` - custom plain lxplus submitter"
+        "- `vanilla_slurm` - custom plain SLURM submitter (computation on the node using the original paths)"
+        "- `vanilla_slurm/psi_pnfs` - custom plain SLURM submitter on the PSI Tier 3 (PNFS drive needs special treatment)",
     )
     parser.add_argument(
         "-j",
