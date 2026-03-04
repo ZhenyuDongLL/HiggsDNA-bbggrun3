@@ -498,6 +498,27 @@ def main():
             stage_output=args.stage_output,
         )
         output = vanilla_submitter.submit()
+    elif  "vanilla_slurm" in args.executor:
+        from higgs_dna.submission.slurm import SLURMVanillaSubmitter
+
+        for cmd_str in env_extra:
+            g_var = cmd_str.split()[-1]
+            var, var_value = g_var.split("=")
+            os.environ[var] = var_value
+        args_string = " ".join(sys.argv[1:])
+        vanilla_submitter = SLURMVanillaSubmitter(
+            analysis_name,
+            analysis_orig,
+            args.json_analysis_file,
+            args.dump,
+            sample_dict,
+            args_string,
+            queue=args.queue if args.queue is not None else "standard",
+            time=args.walltime if args.walltime is not None else "12:00:00",
+            execution_at_psi_pnfs=True if args.executor == "vanilla_slurm/psi_pnfs" else False,
+            memory=args.memory,
+        )
+        output = vanilla_submitter.submit()
 
 
 if __name__ == "__main__":
