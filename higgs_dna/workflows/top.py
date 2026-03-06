@@ -28,6 +28,7 @@ import awkward as ak
 import numpy as np
 import vector
 from coffea.analysis_tools import Weights
+import copy
 
 import logging
 
@@ -570,8 +571,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
             if (self.data_kind == "mc" and add_frixione_info == True):
                 diphotons = attach_frixione_isolation_flag_to_diphotons(events["GenPart"], diphotons, frix_cones=[0.05, 0.4])
 
-            # set diphotons as part of the event record
-            events[f"diphotons_{do_variation}"] = diphotons
+            original_diphotons = copy.copy(diphotons)
             # annotate diphotons with event information
             diphotons["event"] = events.event
             diphotons["lumi"] = events.luminosityBlock
@@ -614,7 +614,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                         ]
                         event_weights = varying_function(
                             events=events[selection_mask],
-                            photons=events[f"diphotons_{do_variation}"][selection_mask],
+                            photons=original_diphotons[selection_mask],
                             # adding muons and electrons because I don't want to introduce a naming obligation like e.g. "sel_muons" in the syst functions
                             muons=events["sel_muons"][selection_mask],
                             electrons=events["sel_electrons"][selection_mask],
@@ -689,7 +689,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
                                 ]
                                 event_weights = varying_function(
                                     events=events[selection_mask],
-                                    photons=events[f"diphotons_{do_variation}"][selection_mask],
+                                    photons=original_diphotons[selection_mask],
                                     # adding muons and electrons because I don't want to introduce a naming obligation like e.g. "sel_muons" in the syst functions
                                     muons=events["sel_muons"][selection_mask],
                                     electrons=events["sel_electrons"][selection_mask],

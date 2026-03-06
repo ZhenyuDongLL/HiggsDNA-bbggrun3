@@ -45,6 +45,7 @@ import pandas as pd
 import sys
 import vector
 from coffea.analysis_tools import Weights
+import copy
 
 import logging
 
@@ -281,7 +282,7 @@ class STXSProcessor(HggSkeletonProcessor):
 
             accum_dict = base_dict | lhescale_dict | lhepdf_dict
 
-            accum_df = pd.DataFrame(accum_dict)
+            accum_df = pd.DataFrame(accum_dict, copy=False)
             accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum().reindex(unique_htxs_categories, fill_value=0)
 
             custom_accumulator = {}
@@ -959,8 +960,7 @@ class STXSProcessor(HggSkeletonProcessor):
                 diphotons = diphotons[sorted_gg]
 
             diphotons = ak.firsts(diphotons)
-            # set diphotons as part of the event record
-            events[f"diphotons_{do_variation}"] = diphotons
+            original_diphotons = copy.copy(diphotons)
             # annotate diphotons with event information
             diphotons["event"] = events.event
             diphotons["lumi"] = events.luminosityBlock
@@ -1027,7 +1027,7 @@ class STXSProcessor(HggSkeletonProcessor):
                         ]
                         event_weights = varying_function(
                             events=events[selection_mask],
-                            photons=events[f"diphotons_{do_variation}"][selection_mask],
+                            photons=original_diphotons[selection_mask],
                             electrons=sel_electrons[selection_mask],
                             muons=sel_muons[selection_mask],
                             weights=event_weights,
@@ -1080,7 +1080,7 @@ class STXSProcessor(HggSkeletonProcessor):
                                 ]
                                 event_weights = varying_function(
                                     events=events[selection_mask],
-                                    photons=events[f"diphotons_{do_variation}"][selection_mask],
+                                    photons=original_diphotons[selection_mask],
                                     electrons=sel_electrons[selection_mask],
                                     muons=sel_muons[selection_mask],
                                     weights=event_weights,
@@ -1123,7 +1123,7 @@ class STXSProcessor(HggSkeletonProcessor):
 
                 accum_dict = base_dict | lhescale_dict | lhepdf_dict
 
-                accum_df = pd.DataFrame(accum_dict)
+                accum_df = pd.DataFrame(accum_dict, copy=False)
                 accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum().reindex(unique_htxs_categories, fill_value=0)
 
                 custom_accumulator["sum_genw_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}

@@ -37,6 +37,7 @@ import numpy
 import sys
 import vector
 from coffea.analysis_tools import Weights
+import copy
 
 import logging
 
@@ -963,8 +964,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 diphotons = diphotons[sorted_gg]
 
             diphotons = ak.firsts(diphotons)
-            # set diphotons as part of the event record
-            events[f"diphotons_{do_variation}"] = diphotons
+            original_diphotons = copy.copy(diphotons)
             # annotate diphotons with event information
             diphotons["event"] = events.event
             diphotons["lumi"] = events.luminosityBlock
@@ -1025,7 +1025,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                         )
                         common_args = {
                             "events": events[selection_mask],
-                            "photons": events[f"diphotons_{do_variation}"][selection_mask],
+                            "photons": original_diphotons[selection_mask],
                             "weights": event_weights,
                             "dataset_name": dataset_name,
                             "year": self.year[dataset_name][0],
@@ -1083,7 +1083,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                             else:
                                 common_args = {
                                     "events": events[selection_mask],
-                                    "photons": events[f"diphotons_{do_variation}"][selection_mask],
+                                    "photons": original_diphotons[selection_mask],
                                     "weights": event_weights,
                                     "dataset_name": dataset_name,
                                     "year": self.year[dataset_name][0],
