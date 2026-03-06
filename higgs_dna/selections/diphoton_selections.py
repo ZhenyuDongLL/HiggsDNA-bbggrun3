@@ -16,8 +16,6 @@ def build_diphoton_candidates(photons, min_pt_lead_photon):
     """
     # Sort photons in descending order of pT
     sorted_photons = photons[ak.argsort(photons.pt, ascending=False)]
-    # Ensure a 'charge' field exists; default to zero if not provided
-    sorted_photons["charge"] = ak.zeros_like(sorted_photons.pt)
 
     # Create all possible pairs of photons (combinations) with fields "pho_lead" and "pho_sublead"
     diphotons = ak.combinations(sorted_photons, 2, fields=["pho_lead", "pho_sublead"])

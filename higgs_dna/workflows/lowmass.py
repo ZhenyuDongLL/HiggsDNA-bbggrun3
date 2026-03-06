@@ -43,6 +43,7 @@ import numpy
 import sys
 import vector
 from coffea.analysis_tools import Weights
+import copy
 
 import logging
 
@@ -669,8 +670,7 @@ class LowMassProcessor(HggSkeletonProcessor):
                 diphotons = diphotons[sorted_gg]
 
             diphotons = ak.firsts(diphotons)
-            # set diphotons as part of the event record
-            events[f"diphotons_{do_variation}"] = diphotons
+            original_diphotons = copy.copy(diphotons)
             # annotate diphotons with event information
             diphotons["event"] = events.event
             diphotons["lumi"] = events.luminosityBlock
@@ -740,7 +740,7 @@ class LowMassProcessor(HggSkeletonProcessor):
                         varying_function = available_weight_corrections[correction_name]
                         event_weights = varying_function(
                             events=events[selection_mask],
-                            photons=events[f"diphotons_{do_variation}"][selection_mask],
+                            photons=original_diphotons[selection_mask],
                             weights=event_weights,
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
@@ -789,9 +789,7 @@ class LowMassProcessor(HggSkeletonProcessor):
                                 ]
                                 event_weights = varying_function(
                                     events=events[selection_mask],
-                                    photons=events[f"diphotons_{do_variation}"][
-                                        selection_mask
-                                    ],
+                                    photons=original_diphotons[selection_mask],
                                     weights=event_weights,
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],

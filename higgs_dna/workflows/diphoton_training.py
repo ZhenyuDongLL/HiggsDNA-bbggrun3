@@ -41,6 +41,7 @@ import numpy
 import sys
 import vector
 from coffea.analysis_tools import Weights
+import copy
 
 import logging
 
@@ -756,8 +757,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                 sorted_gg = ak.argsort(diphotons.best_tag, stable=True)
                 diphotons = diphotons[sorted_gg]
 
-            # set diphotons as part of the event record
-            dipho_events[f"diphotons_{do_variation}"] = diphotons
+            original_diphotons = copy.copy(diphotons)
             # annotate diphotons with event information
             diphotons["event"] = dipho_events.event
             diphotons["lumi"] = dipho_events.luminosityBlock
@@ -828,7 +828,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                         ]
                         event_weights = varying_function(
                             events=dipho_events[selection_mask],
-                            photons=dipho_events[f"diphotons_{do_variation}"][selection_mask],
+                            photons=original_diphotons[selection_mask],
                             weights=event_weights,
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
@@ -878,9 +878,7 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                                 ]
                                 event_weights = varying_function(
                                     events=dipho_events[selection_mask],
-                                    photons=dipho_events[f"diphotons_{do_variation}"][
-                                        selection_mask
-                                    ],
+                                    photons=original_diphotons[selection_mask],
                                     weights=event_weights,
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],

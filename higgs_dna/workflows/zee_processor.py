@@ -18,6 +18,7 @@ import logging
 import warnings
 import numpy
 import sys
+import copy
 from coffea.analysis_tools import Weights
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
 from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTagMVACut
@@ -493,8 +494,7 @@ class ZeeProcessor(HggSkeletonProcessor):
             diphotons["Njets2p5"] = Njets2p5
 
             diphotons = ak.firsts(diphotons)
-            # set diphotons as part of the event record
-            events[f"diphotons_{do_variation}"] = diphotons
+            original_diphotons = copy.copy(diphotons)
             # annotate diphotons with event information
             diphotons["event"] = events.event
             diphotons["lumi"] = events.luminosityBlock
@@ -543,7 +543,7 @@ class ZeeProcessor(HggSkeletonProcessor):
                         ]
                         common_args = {
                             "events": events[selection_mask],
-                            "photons": events[f"diphotons_{do_variation}"][selection_mask],
+                            "photons": original_diphotons[selection_mask],
                             "weights": event_weights,
                             "dataset_name": dataset_name,
                             "year": self.year[dataset_name][0],
@@ -597,7 +597,7 @@ class ZeeProcessor(HggSkeletonProcessor):
                             else:
                                 common_args = {
                                     "events": events[selection_mask],
-                                    "photons": events[f"diphotons_{do_variation}"][selection_mask],
+                                    "photons": original_diphotons[selection_mask],
                                     "weights": event_weights,
                                     "dataset_name": dataset_name,
                                     "year": self.year[dataset_name][0],
