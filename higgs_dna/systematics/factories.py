@@ -189,6 +189,7 @@ def add_jme_corr_syst(corrections_dict, systematics_dict, logger):
             "jec_pnet_RunCv4": partial(jerc_jet, pt=None, era="RunCv4", level="L1L2L3Res", reg="PNetRegression"),
             "jec_pnetNu_RunCv4": partial(jerc_jet, pt=None, era="RunCv4", level="L1L2L3Res", reg="PNetRegressionPlusNeutrino"),
             "jec_Data2024": partial(jerc_jet, pt=None, era="Data", level="L1L2L3Res"),
+            "jec_Data2024_clipping": partial(jerc_jet, pt=None, era="Data", level="L1L2L3Res", clipping_24=True),
             "jec_AK8_Data2024": partial(jerc_jet, pt=None, era="Data", level="L1L2L3Res", AK8=True),
             # "jec_pnet_Data2024": partial(jerc_jet, pt=None, era="Data", level="L1L2L3Res", reg="PNetRegression"),
             # "jec_pnetNu_Data2024": partial(jerc_jet, pt=None, era="Data", level="L1L2L3Res", reg="PNetRegressionPlusNeutrino"),
