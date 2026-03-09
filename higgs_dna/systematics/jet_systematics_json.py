@@ -119,6 +119,7 @@ def jerc_jet(
     AK8=False,
     reg="",
     is_Run2_v15=False,
+    clipping_24=False,
 ):
     if year in ("2024", "2025"):
         logger.warning("Current 2024 and 2025 JER are preliminary, 2023PostBPix is used! These ntuples should not be used for a final physics result!")
@@ -276,6 +277,11 @@ def jerc_jet(
     }
     jec = jec_version[year][era]
     tag_jec = "_".join([jec, level, algo])
+    if clipping_24:
+        tag_L1 = "_".join([jec, "L1FastJet", algo])
+        tag_L2 = "_".join([jec, "L2Relative", algo])
+        tag_L3 = "_".join([jec, "L3Absolute", algo])
+        tag_L2L3 = "_".join([jec, "L2L3Residual", algo])
 
     # get the correction sets
     cset = correctionlib.CorrectionSet.from_file(jerc_json[year])
@@ -351,7 +357,101 @@ def jerc_jet(
     }
 
     # jec central
-    if apply_jec:
+    if clipping_24:
+        logger.info("[ jerc_jet ] Applying JEC corrections with L2L3Residual clipping")
+        if tag_L1 in list(cset.compound.keys()):
+            sf_L1 = cset.compound[tag_L1]
+        elif tag_L1 in list(cset.keys()):
+            sf_L1 = cset[tag_L1]
+        else:
+            logger.error(
+                f"[ jerc_jet ] No JEC correction: {tag_L1} - Year: {year} - Era: {era} - Level: L1FastJet"
+            )
+            exit(-1)
+
+        if tag_L2 in list(cset.compound.keys()):
+            sf_L2 = cset.compound[tag_L2]
+        elif tag_L2 in list(cset.keys()):
+            sf_L2 = cset[tag_L2]
+        else:
+            logger.error(
+                f"[ jerc_jet ] No JEC correction: {tag_L2} - Year: {year} - Era: {era} - Level: L2Relative"
+            )
+            exit(-1)
+
+        if tag_L3 in list(cset.compound.keys()):
+            sf_L3 = cset.compound[tag_L3]
+        elif tag_L3 in list(cset.keys()):
+            sf_L3 = cset[tag_L3]
+        else:
+            logger.error(
+                f"[ jerc_jet ] No JEC correction: {tag_L3} - Year: {year} - Era: {era} - Level: L3Absolute"
+            )
+            exit(-1)
+
+        if tag_L2L3 in list(cset.compound.keys()):
+            sf_L2L3 = cset.compound[tag_L2L3]
+        elif tag_L2L3 in list(cset.keys()):
+            sf_L2L3 = cset[tag_L2L3]
+        else:
+            logger.error(
+                f"[ jerc_jet ] No JEC correction: {tag_L2L3} - Year: {year} - Era: {era} - Level: L2L3Residual"
+            )
+            exit(-1)
+
+        eval_dict_L1 = {
+            "JetPt": jets.pt_raw,
+            "JetEta": jets.eta,
+            "Rho": jets.rho_value,
+            "JetA": jets.area,
+            **({"run": jets.run} if (era == "Data") else {}),
+        }
+
+        inputs_L1 = [eval_dict_L1[input.name] for input in sf_L1.inputs]
+        sf_L1_value = sf_L1.evaluate(*inputs_L1)
+        jets["pt_L1"] = sf_L1_value * jets["pt_raw"]
+        jets["mass_L1"] = sf_L1_value * jets["mass_raw"]
+
+        eval_dict_L2 = {
+            "JetPt": jets.pt_L1,
+            "JetEta": jets.eta,
+            "JetPhi": jets.phi,
+            **({"run": jets.run} if (era == "Data") else {}),
+        }
+        inputs_L2 = [eval_dict_L2[input.name] for input in sf_L2.inputs]
+        sf_L2_value = sf_L2.evaluate(*inputs_L2)
+        jets["pt_L2"] = sf_L2_value * jets["pt_L1"]
+        jets["mass_L2"] = sf_L2_value * jets["mass_L1"]
+
+        eval_dict_L3 = {
+            "JetPt": jets.pt_L2,
+            "JetEta": jets.eta,
+            **({"run": jets.run} if (era == "Data") else {}),
+        }
+        inputs_L3 = [eval_dict_L3[input.name] for input in sf_L3.inputs]
+        sf_L3_value = sf_L3.evaluate(*inputs_L3)
+        jets["pt_L3"] = sf_L3_value * jets["pt_L2"]
+        jets["mass_L3"] = sf_L3_value * jets["mass_L2"]
+
+        # Clip the correction to 50 GeV if the pT of the jet is less than 50 GeV and the eta is between 2.0 and 2.5
+        eval_dict_L2L3 = {
+            "JetPt": ak.where(
+                (jets.pt_L3 < 50) & (abs(jets.eta) > 2.0) & (abs(jets.eta) < 2.5),
+                50,
+                jets.pt_L3
+            ),
+            "JetEta": jets.eta,
+            "JetPhi": jets.phi,
+            **({"run": jets.run} if (era == "Data") else {}),
+        }
+        inputs_L2L3 = [eval_dict_L2L3[input.name] for input in sf_L2L3.inputs]
+        sf_L2L3_value = sf_L2L3.evaluate(*inputs_L2L3)
+        jets["pt_L2L3"] = sf_L2L3_value * jets["pt_L3"]
+        jets["mass_L2L3"] = sf_L2L3_value * jets["mass_L3"]
+        # update the nominal pt and mass
+        jets["pt"] = jets["pt_L2L3"]
+        jets["mass"] = jets["mass_L2L3"]
+    elif apply_jec:
         # get the correction
         if tag_jec in list(cset.compound.keys()):
             sf = cset.compound[tag_jec]
