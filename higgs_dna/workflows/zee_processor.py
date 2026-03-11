@@ -21,7 +21,7 @@ import sys
 import copy
 from coffea.analysis_tools import Weights
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
-from higgs_dna.selections.jet_selections import select_jets, jetvetomap, getBTagMVACut
+from higgs_dna.selections.jet_selections import select_jets_eta_dependent, jetvetomap, getBTagMVACut
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.utils.misc_utils import choose_jet
 
@@ -95,6 +95,14 @@ class ZeeProcessor(HggSkeletonProcessor):
         # diphoton preselection cuts - Based on Dielectron trigger
         self.min_pt_photon = 12.0
         self.min_pt_lead_photon = 23.0
+
+        # Eta-dependent jet pt cuts
+        if self.year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
+            self.jet_pt_thresholds = [30, 50, 50]
+            self.jet_eta_thresholds = [2.5, 3.0, 4.7]
+        else:
+            self.jet_pt_thresholds = [30, 50, 30]
+            self.jet_eta_thresholds = [2.5, 3.0, 4.7]
 
     def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
         pass
@@ -439,7 +447,7 @@ class ZeeProcessor(HggSkeletonProcessor):
 
             # jet selection and pt ordering
             jets = jets[
-                select_jets(self, jets, diphotons, sel_muons, sel_electrons)
+                select_jets_eta_dependent(self, jets, diphotons, sel_muons, sel_electrons)
             ]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
 

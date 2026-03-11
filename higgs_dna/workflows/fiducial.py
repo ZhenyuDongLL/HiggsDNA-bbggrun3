@@ -9,7 +9,7 @@ from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
-from higgs_dna.selections.jet_selections import select_jets_eta_dependent, jetvetomap, getBTagMVACut
+from higgs_dna.selections.jet_selections import select_jets, select_jets_eta_dependent, jetvetomap, getBTagMVACut
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import (
     diphoton_ak_array,
@@ -90,12 +90,6 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             validate_with_electrons=validate_with_electrons,
             output_format=output_format
         )
-
-        # Eta-dependent jet pt cuts
-        # Keep at 30 in the central and far forward region (not below 20, 20-30 low pt jets have problems)
-        # raised to 50 in the 2.5-3.0 absEta region due to jet spikes (JME recommendation)
-        self.jet_pt_thresholds = [30, 50, 30]
-        self.jet_eta_thresholds = [2.5, 3.0, 4.7]
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
@@ -682,11 +676,23 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             ]
             sel_muons = muons[select_muons(self, muons, diphotons)]
 
-            # jet selection and pt ordering
+            # jet selection
+            # Eta-dependent jet pt cuts
+            # Keep at 30 in the central and far forward region (not below 20, 20-30 low pt jets have problems)
+            # raised to 50 in the 2.5-3.0 absEta region due to jet spikes (JME recommendation)
+            if self.year[dataset_name][0] in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
+                self.jet_pt_thresholds = [30, 50, 50]
+                self.jet_eta_thresholds = [2.5, 3.0, 4.7]
+                jet_selection_func = select_jets_eta_dependent
+            elif self.year[dataset_name][0] in ["2024"]:
+                self.jet_pt_thresholds = [30, 50, 30]
+                self.jet_eta_thresholds = [2.5, 3.0, 4.7]
+                jet_selection_func = select_jets_eta_dependent
+            else:
+                jet_selection_func = select_jets
             jets = jets[
-                select_jets_eta_dependent(self, jets, diphotons, sel_muons, sel_electrons)
+                jet_selection_func(self, jets, diphotons, sel_muons, sel_electrons)
             ]
-            jets = jets[jets.pt > 30]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
 
             # adding selected jets to events to be used in ctagging SF calculation
