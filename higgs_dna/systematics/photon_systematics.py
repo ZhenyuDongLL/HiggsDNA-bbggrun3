@@ -236,3 +236,49 @@ def Material(pt, events, year="2017", is_correction=True):
             )
             * _pt[:, None]
         )
+
+
+def PhotonIDMVAShape(mvaID, events, year="2024", is_correction=True):
+    """
+    Photon MVA ID shape systematic derived via quantile mapping of the
+    data--MC mvaID discrepancy.
+
+    There is no correction associated with this systematic -- the normalizing
+    flows *are* the correction.  Calling with ``is_correction=True`` raises
+    a ``RuntimeError``.
+
+    When ``is_correction=False`` the function loads the pre-derived
+    correctionlib JSON, evaluates an additive shift delta(mvaID) for every
+    photon, and returns the up / down varied mvaID values as an (N, 2) array.
+
+    https://indico.cern.ch/event/1624987/#31-shape-systematic-on-the-pho
+    """
+    if is_correction:
+        raise RuntimeError(
+            "PhotonIDMVAShape has no correction to apply -- the normalizing "
+            "flow corrections fulfil that role.  Use --doFlow-corrections "
+            "to apply them, and request this entry only as a systematic."
+        )
+
+    if not hasattr(events, "GenPart"):
+        raise ValueError("PhotonIDMVAShape corrections should only be applied to MC!")
+
+    if ak.all(mvaID == ak.flatten(events.Photon.mvaID)):
+        raise ValueError("mvaID values are identical to those in the original NanoAOD. You must apply flow corrections to use `PhotonIDMVAShape`!")
+
+    logger.warning("[PhotonIDMVAShape] This is preliminary and was derived with an mvaID > -0.9 cut using Zee-based corrections. Both of these will be revised once the Zmmy-based corrections are ready.")
+    jsonpog_file = os.path.join(
+        os.path.dirname(__file__),
+        f"JSONs/PhotonIDMVAShape/{year}/PhotonIDMVAShape.json.gz",
+    )
+    evaluator = correctionlib.CorrectionSet.from_file(jsonpog_file)["PhotonIDMVAShape"]
+
+    delta = evaluator.evaluate(mvaID)
+
+    mvaID_up = np.clip(mvaID + delta, -1.0, 1.0)
+    mvaID_down = np.clip(mvaID - delta, -1.0, 1.0)
+
+    return ak.concatenate(
+        [mvaID_up[:, None], mvaID_down[:, None]],
+        axis=1,
+    )
