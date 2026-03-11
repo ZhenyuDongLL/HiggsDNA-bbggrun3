@@ -8,6 +8,7 @@ from .photon_systematics import (
     FNUF,
     ShowerShape,
     Material,
+    PhotonIDMVAShape,
 )
 from .event_weight_systematics import (
     Pileup,
@@ -260,6 +261,14 @@ object_systematics = {
             "kind": "UpDownSystematic",
             "what": "pt",
             "varying_function": partial(Material, year="2017", is_correction=False),
+        },
+    },
+    "PhotonIDMVAShape": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "mvaID",
+            "varying_function": partial(PhotonIDMVAShape, is_correction=False),
         },
     },
     "JetPtScale_dummy": {

@@ -326,6 +326,26 @@ def get_shower_shape_json(logger, target_dir, use_xrdcp=False):
     fetch_file("ShowerShape", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
+def get_photonid_mva_shape_json(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/PhotonIDMVAShape"
+        )
+
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/ingredients"
+
+    from_to_dict = {
+        "2024": {
+            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+            "to": f"{to_prefix}/2024/PhotonIDMVAShape.json.gz",
+            "type": "eos",
+        },
+    }
+    fetch_file("PhotonIDMVAShape", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
 def get_loose_mva_json(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
@@ -1802,7 +1822,8 @@ def main():
             "HHbbgg_mbb_reg_model",
             "HHbbgg_weight_interference",
             "HHbbgg_bpairing",
-            "MuonScaRe"
+            "MuonScaRe",
+            "PhotonIDMVAShape"
         ],
     )
 
@@ -1868,6 +1889,7 @@ def main():
         get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_muon_scale_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_HHbbgg_DNN_bpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_photonid_mva_shape_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "GoldenJSON":
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PU":
@@ -1934,6 +1956,8 @@ def main():
         get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "HHbbgg_bpairing":
         get_HHbbgg_DNN_bpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "PhotonIDMVAShape":
+        get_photonid_mva_shape_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     else:
         logger.info("Unknown target, exit now!")
         exit(0)
