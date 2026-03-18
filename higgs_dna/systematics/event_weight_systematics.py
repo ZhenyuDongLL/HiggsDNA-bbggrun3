@@ -1986,33 +1986,60 @@ def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=10
     """
     logger.warning("Applying PNet c-tagging SFs")
     # era/year defined as parameter of the function, only Run2 is implemented up to now
-    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018"]
+    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
     if year not in avail_years:
         print(f"\n WARNING: only cTagSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
 
     ctag_systematics = [
-        'Stat',
-        'LHEScaleWeight_muF_ttbar',
-        'LHEScaleWeight_muF_wjets',
-        'LHEScaleWeight_muF_zjets',
-        'LHEScaleWeight_muR_ttbar',
-        'LHEScaleWeight_muR_wjets',
-        'LHEScaleWeight_muR_zjets',
-        'PSWeightISR_ttbar',
-        'PSWeightISR_wjets',
-        'PSWeightISR_zjets',
-        'PSWeightFSR_ttbar',
-        'PSWeightFSR_wjets',
-        'PSWeightFSR_zjets',
-        'XSec_WJets_c',
-        'XSec_WJets_b',
-        'XSec_ZJets_c',
-        'XSec_ZJets_b',
-        'JER',
-        'JES',
-        'PUWeight',
-        # 'PUJetID'
+        "Stat",
+        # "LHEScaleWeight_muF_ttbar",
+        # "LHEScaleWeight_muF_singlet",
+        # "LHEScaleWeight_muF_wjets",
+        # "LHEScaleWeight_muF_zjets",
+        # "LHEScaleWeight_muF_diboson",
+        # "LHEScaleWeight_muR_ttbar",
+        # "LHEScaleWeight_muR_singlet",
+        # "LHEScaleWeight_muR_wjets",
+        # "LHEScaleWeight_muR_zjets",
+        # "LHEScaleWeight_muR_diboson",
+        # "LHEScaleWeight_aS_ttbar",
+        # "LHEScaleWeight_aS_singlet",
+        # "LHEScaleWeight_aS_wjets",
+        # "LHEScaleWeight_aS_zjets",
+        # "LHEScaleWeight_aS_diboson",
+        # "LHEScaleWeight_PDF_ttbar",
+        # "LHEScaleWeight_PDF_singlet",
+        # "LHEScaleWeight_PDF_wjets",
+        # "LHEScaleWeight_PDF_zjets",
+        # "LHEScaleWeight_PDF_diboson",
+        # "PSWeightISR_ttbar",
+        # "PSWeightISR_singlet",
+        # "PSWeightISR_wjets",
+        # "PSWeightISR_zjets",
+        # "PSWeightISR_diboson",
+        # "PSWeightFSR_ttbar",
+        # "PSWeightFSR_singlet",
+        # "PSWeightFSR_wjets",
+        # "PSWeightFSR_zjets",
+        # "PSWeightFSR_diboson",
+        # "TTWeight_ttbar",
+        "XSec_WJets_c",
+        "XSec_WJets_b",
+        "XSec_ZJets_c",
+        "XSec_ZJets_b",
+        "XSec_ttbar",
+        "XSec_singlet_tW",
+        "XSec_singlet_tCh",
+        "JES",
+        "JER",
+        "PUWeight",
+        "Ele_Reco",
+        "Ele_ID",
+        "Ele_Trigger",
+        "Mu_ID",
+        "Mu_Iso",
+        "Mu_Trigger",
     ]
 
     # if self._opts['split_stat_unc']:
@@ -2049,6 +2076,34 @@ def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=10
                 os.path.dirname(__file__), "JSONs/cTagSF/2018/flavTaggingSF_2018_UL.json.gz"
             ),
             "method": "particleNetAK4_shape",
+            "systs": ctag_systematics,
+        },
+        "2022preEE": {
+            "file": os.path.join(
+                os.path.dirname(__file__), "JSONs/cTagSF/2022_Summer22/flavTaggingSF_2022preEE.json.gz"
+            ),
+            "method": "ParticleNetAK4_pseudocontinuous",
+            "systs": ctag_systematics,
+        },
+        "2022postEE": {
+            "file": os.path.join(
+                os.path.dirname(__file__), "JSONs/cTagSF/2022_Summer22EE/flavTaggingSF_2022postEE.json.gz"
+            ),
+            "method": "ParticleNetAK4_pseudocontinuous",
+            "systs": ctag_systematics,
+        },
+        "2023preBPix": {
+            "file": os.path.join(
+                os.path.dirname(__file__), "JSONs/cTagSF/2023_Summer23/flavTaggingSF_2023preBPix.json.gz"
+            ),
+            "method": "ParticleNetAK4_pseudocontinuous",
+            "systs": ctag_systematics,
+        },
+        "2023postBPix": {
+            "file": os.path.join(
+                os.path.dirname(__file__), "JSONs/cTagSF/2023_Summer23BPix/flavTaggingSF_2023postBPix.json.gz"
+            ),
+            "method": "ParticleNetAK4_pseudocontinuous",
             "systs": ctag_systematics,
         },
     }
@@ -2091,13 +2146,15 @@ def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=10
             # ParticleNetAK4 -- exclusive b- and c-tagging categories
             # 5x: b-tagged; 4x: c-tagged;
             # 0: light
+            # -1: untagged
             wp = evaluate_ctag_wp(meta["HPC_ctag_WPs"]["wps"], nth_jet_pn_b_plus_c, nth_jet_pn_b_vs_c)
-
+            valid_wp = (wp != -1)
+            wp_evaluate = ak.where(valid_wp, wp, 0)  # for untagged jets we set wp to 0, but we will fill the SF with 1 later
             _sf.append(
                 evaluator.evaluate(
                     "central",
                     nth_jet_hFlav,
-                    wp,
+                    wp_evaluate,
                     nth_jet_abs_eta,
                     nth_jet_pt,
                 )
@@ -2105,7 +2162,7 @@ def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=10
 
             # and fill the places where we had dummies with ones
             _sf[i] = ak.where(
-                masks[i],
+                masks[i] & valid_wp,
                 _sf[i],
                 dummy_sf,
             )
@@ -2152,12 +2209,14 @@ def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=10
 
             # evaluate the working point
             wp = evaluate_ctag_wp(meta["HPC_ctag_WPs"]["wps"], nth_jet_pn_b_plus_c, nth_jet_pn_b_vs_c)
+            valid_wp = (wp != -1)
+            wp_evaluate = ak.where(valid_wp, wp, 0)  # for untagged jets we set wp to 0, but we will fill the SF with 1 later
 
             _sf.append(
                 evaluator.evaluate(
                     "central",
                     nth_jet_hFlav,
-                    wp,
+                    wp_evaluate,
                     nth_jet_abs_eta,
                     nth_jet_pt,
                 )
@@ -2165,7 +2224,7 @@ def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=10
 
             # and fill the places where we had dummies with ones
             _sf[i] = ak.where(
-                masks[i],
+                masks[i] & valid_wp,
                 _sf[i],
                 dummy_sf,
             )
@@ -2200,13 +2259,15 @@ def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=10
 
                 # evaluate the working point
                 wp = evaluate_ctag_wp(meta["HPC_ctag_WPs"]["wps"], nth_jet_pn_b_plus_c, nth_jet_pn_b_vs_c)
+                valid_wp = (wp != -1)
+                wp_evaluate = ak.where(valid_wp, wp, 0)  # for untagged jets we set wp to 0, but we will fill the SF with 1 later
 
                 if "Stat" not in syst_name:
                     _sfup.append(
                         evaluator.evaluate(
                             "up_" + syst_name,
                             nth_jet_hFlav,
-                            wp,
+                            wp_evaluate,
                             nth_jet_abs_eta,
                             nth_jet_pt,
                         )
@@ -2216,16 +2277,16 @@ def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=10
                         evaluator.evaluate(
                             "down_" + syst_name,
                             nth_jet_hFlav,
-                            wp,
+                            wp_evaluate,
                             nth_jet_abs_eta,
                             nth_jet_pt,
                         )
                     )
 
                 else:
-                    sf_central = evaluator.evaluate("central", nth_jet_hFlav, wp, nth_jet_abs_eta, nth_jet_pt)
-                    sf_stat_up = evaluator.evaluate(f'up_{syst_name}', nth_jet_hFlav, wp, nth_jet_abs_eta, nth_jet_pt)
-                    sf_stat_dn = evaluator.evaluate(f'down_{syst_name}', nth_jet_hFlav, wp, nth_jet_abs_eta, nth_jet_pt)
+                    sf_central = evaluator.evaluate("central", nth_jet_hFlav, wp_evaluate, nth_jet_abs_eta, nth_jet_pt)
+                    sf_stat_up = evaluator.evaluate(f'up_{syst_name}', nth_jet_hFlav, wp_evaluate, nth_jet_abs_eta, nth_jet_pt)
+                    sf_stat_dn = evaluator.evaluate(f'down_{syst_name}', nth_jet_hFlav, wp_evaluate, nth_jet_abs_eta, nth_jet_pt)
                     err = (np.abs(sf_stat_up - sf_central) + np.abs(sf_central - sf_stat_dn)) / 2
                     np.random.seed(np.random.randint(0, 2**32))
                     sf_toys = np.random.normal(sf_central[:, None], err[:, None], (len(nth_jet_hFlav), n_toys))
@@ -2239,12 +2300,12 @@ def cTagSF_WPs(events, weights, meta, is_correction=True, year="2017", n_toys=10
 
                 # and fill the places where we had dummies with ones
                 _sfup[i] = ak.where(
-                    masks[i],
+                    masks[i] & valid_wp,
                     _sfup[i],
                     dummy_sf,
                 )
                 _sfdown[i] = ak.where(
-                    masks[i],
+                    masks[i] & valid_wp,
                     _sfdown[i],
                     dummy_sf,
                 )
