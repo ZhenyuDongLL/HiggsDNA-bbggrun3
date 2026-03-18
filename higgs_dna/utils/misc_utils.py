@@ -91,9 +91,14 @@ def add_pnet_prob(
 
 def evaluate_ctag_wp(ctag_wps, nth_jet_pn_b_plus_c, nth_jet_pn_b_vs_c):
     """ParticleNetAK4 -- exclusive b- and c-tagging categories
-    5x: b-tagged; 4x: c-tagged; 0: light
+    5x: b-tagged; 5x: c-tagged; 0: light
+
+    Returns
+    -------
+    wp: ak.Array
+        working point category for each jet (-1 for invalid scores)
     """
-    wp = ak.zeros_like(nth_jet_pn_b_plus_c)
+    wp = ak.ones_like(nth_jet_pn_b_plus_c) * -1  # Initialize with -1 for invalid scores
     for wp_cfg in ctag_wps:
         wp_ids = ak.ones_like(nth_jet_pn_b_plus_c) * wp_cfg[0]
         wp = ak.where(

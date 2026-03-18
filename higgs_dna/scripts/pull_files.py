@@ -720,6 +720,26 @@ def get_2D_HF_tag_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2018/ctagging_2018.json.gz",
             "type": "eos",
         },
+        "2022preEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/2D_HF_Tagging/flavTaggingSF_2022preEE.json.gz",
+            "to": f"{to_prefix}/2022_Summer22/flavTaggingSF_2022preEE.json.gz",
+            "type": "eos",
+        },
+        "2022postEE": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/2D_HF_Tagging/flavTaggingSF_2022postEE.json.gz",
+            "to": f"{to_prefix}/2022_Summer22EE/flavTaggingSF_2022postEE.json.gz",
+            "type": "eos",
+        },
+        "2023preBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/2D_HF_Tagging/flavTaggingSF_2023preBPix.json.gz",
+            "to": f"{to_prefix}/2023_Summer23/flavTaggingSF_2023preBPix.json.gz",
+            "type": "eos",
+        },
+        "2023postBPix": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/2D_HF_Tagging/flavTaggingSF_2023postBPix.json.gz",
+            "to": f"{to_prefix}/2023_Summer23BPix/flavTaggingSF_2023postBPix.json.gz",
+            "type": "eos",
+        },
     }
     fetch_file("2D_HFTag", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -1864,6 +1884,7 @@ def main():
         get_mass_decorrelation_CDF(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_Flow_files(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_ctag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_2D_HF_tag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_btag_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_photonid_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_jetmet_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
