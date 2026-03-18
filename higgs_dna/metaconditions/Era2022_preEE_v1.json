@@ -582,7 +582,7 @@
 
     "hpcMVA_ggh_vs_hb" :
     {
-        "weightFile" : [""],
+        "weightFile" : ["weights_260127_2022_postEE_even.xgb", "weights_260127_2022_postEE_odd.xgb"],
         "version" : "xgb",
         "inputs": [
             "pt",

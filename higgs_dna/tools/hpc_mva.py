@@ -393,11 +393,11 @@ def calculate_ggh_vs_hb_mva(
     """
 
     if mva[0] is None:
-        return diphotons, events_bdt
+        return diphotons
     elif len(diphotons) == 0:
         logger.info("no events surviving event selection, adding fake ggh vs hb bdt score")
         diphotons["ggh_vs_hb_bdt_score"] = ak.zeros_like(diphotons.mass)
-        return diphotons, events_bdt
+        return diphotons
 
     ggh_vs_hb = []
     ggh_vs_hb.append(mva[0][0])

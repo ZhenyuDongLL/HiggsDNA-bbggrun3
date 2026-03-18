@@ -1675,6 +1675,16 @@ def get_hpc_bdt_weights(logger, target_dir, use_xrdcp=False):
             "to": to_prefix,
             "type": "eos",
         },
+        "2022": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/Run3/hpc_bdt_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        },
+        "2023": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/Run3/hpc_bdt_weights/",
+            "to": to_prefix,
+            "type": "eos",
+        },
     }
 
     fetch_file("HPCBDT", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
