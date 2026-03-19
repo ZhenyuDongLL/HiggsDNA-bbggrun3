@@ -814,6 +814,53 @@ class HHbbggProcessor(HggSkeletonProcessor):
                     gen_CosThetaStar_HH = ak.where(diHiggs_bool, gen_CosThetaStar_HH, -999)
                     diphotons["gen_CosThetaStar_HH"] = gen_CosThetaStar_HH
 
+                # add the generation-level variables for EFT reweighting
+                genHiggs_mask_hardProc = (events.GenPart.pdgId == 25) & (events.GenPart.genPartIdxMother == 0)
+                if ak.sum(ak.num(events.GenPart[genHiggs_mask_hardProc])) != 0:
+                    genHiggs_hardProc = ak.pad_none(events.GenPart[genHiggs_mask_hardProc], 2)
+                    mask_bb_hardProc = (ak.any(genHiggs_hardProc.children.pdgId == 5, axis=2)) & (ak.any(genHiggs_hardProc.children.pdgId == -5, axis=2))
+                    mask_gg_hardProc = (ak.all(genHiggs_hardProc.children.pdgId == 22, axis=2))
+                    mask_two_part_hardProc = (ak.num(genHiggs_hardProc.children.pdgId, axis=2) == 2)
+                    genHiggs_hardProc["charge"] = ak.zeros_like(genHiggs_hardProc.pt)
+                    genHiggs_hardProc = ak.with_name(genHiggs_hardProc, "PtEtaPhiMCandidate")
+                    diHiggs_bool_hardProc = (
+                        ak.num(events.GenPart[genHiggs_mask_hardProc], axis=1) == 2
+                    )
+                    try:
+                        genHiggs_hardProc = genHiggs_hardProc[ak.argsort(genHiggs_hardProc.pt, ascending=False)]
+                    except ValueError as e:
+                        logger.warning(f"Error sorting genHiggs_hardProc: {e}")
+                    genHiggsdecay_hardProc = ak.zip(
+                        {
+                            "Higgs_toGG": mask_gg_hardProc & mask_two_part_hardProc,
+                            "Higgs_tobb": mask_bb_hardProc & mask_two_part_hardProc,
+                        }
+                    )
+                    for decay in ["Higgs_tobb", "Higgs_toGG"]:
+                        for prop in gen_properties:
+                            key = f"gen{decay}_{prop}_hardProc"
+                            value = choose_jet(getattr(genHiggs_hardProc[genHiggsdecay_hardProc[decay]], prop), 0, -999.0)
+                            diphotons[key] = value
+
+                    # add in gen_mHH_hardProc (if exists)
+                    genH1_hardProc = genHiggs_hardProc[ak.local_index(genHiggs_hardProc, axis=1) == 0]
+                    genH2_hardProc = genHiggs_hardProc[ak.local_index(genHiggs_hardProc, axis=1) == 1]
+                    genHH_hardProc = genH1_hardProc + genH2_hardProc
+                    gen_mHH_hardProc = ak.firsts((genHH_hardProc).mass)
+                    gen_mHH_hardProc = ak.where(diHiggs_bool_hardProc, gen_mHH_hardProc, -999)
+                    diphotons["gen_mHH_hardProc"] = gen_mHH_hardProc
+
+                    # add in gen_pT_HH_hardProc (if exists)
+                    gen_pT_HH_hardProc = ak.firsts((genHH_hardProc).pt)
+                    gen_pT_HH_hardProc = ak.where(diHiggs_bool_hardProc, gen_pT_HH_hardProc, -999)
+                    diphotons["gen_pT_HH_hardProc"] = gen_pT_HH_hardProc
+
+                    # add in gen_cosThetaStar_HH_hardProc (if exists)
+                    genH1_boosted_hardProc = genH1_hardProc.boost(-genHH_hardProc.boostvec)
+                    gen_CosThetaStar_HH_hardProc = ak.firsts(numpy.cos(genH1_boosted_hardProc.theta))
+                    gen_CosThetaStar_HH_hardProc = ak.where(diHiggs_bool_hardProc, gen_CosThetaStar_HH_hardProc, -999)
+                    diphotons["gen_CosThetaStar_HH_hardProc"] = gen_CosThetaStar_HH_hardProc
+
                 # Add the truth information
                 param_values = get_truth_info_dict(filename)
                 for key in param_values.keys():
