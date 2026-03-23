@@ -105,6 +105,34 @@ def get_jersmear(_eval_dict, _ceval, _jer_sf_tag, _syst="nom"):
     return _eval_dict, _jersmear
 
 
+def apply_split_jec_variations(jec_syst_map, jec, algo, cset, year, era, eval_dict, jets, AK8):
+    for i in jec_syst_map:
+        # get the total uncertainty
+        tag_jec_syst = "_".join([jec, jec_syst_map[i], algo])
+        try:
+            sf = cset[tag_jec_syst]
+        except BaseException:
+            logger.error(
+                f"[ jerc_jet ] No JEC systematic: {tag_jec_syst} - Year: {year} - Era: {era}"
+            )
+            exit(-1)
+        # systematics
+        inputs = [eval_dict[input.name] for input in sf.inputs]
+        sf_delta = sf.evaluate(*inputs)
+
+        # divide by correction since it is already applied before
+        corr_up_variation = 1 + sf_delta
+        corr_down_variation = 1 - sf_delta
+
+        i_name = i
+        if AK8:
+            i_name = i.replace("jec_", "jec_AK8_")
+        jets[f"pt_{i_name}_up"] = jets.pt * corr_up_variation
+        jets[f"pt_{i_name}_down"] = jets.pt * corr_down_variation
+        jets[f"mass_{i_name}_up"] = jets.mass * corr_up_variation
+        jets[f"mass_{i_name}_down"] = jets.mass * corr_down_variation
+
+
 def jerc_jet(
     pt,
     events,
@@ -126,7 +154,7 @@ def jerc_jet(
     # first, check if it's data or MC
     if era == "MC" and hasattr(events, "GenPart"):
         logger.debug(
-            f"[ jerc_jet ] - JERC for simulation - Year: {year} - Era: {era} - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst}, AK8: {AK8}, Regression: {reg} - JER: {apply_jer}, systematics: {jer_syst}"
+            f"[ jerc_jet ] - JERC for simulation - Year: {year} - Era: {era} - JEC: {apply_jec}, systematics: {jec_syst}, splitting: {split_jec_syst}, AK8: {AK8}, Regression: {reg} - JER: {apply_jer}, systematics: {jer_syst}"
         )
     elif (("Run" in era) or ("Data" in era)) and (not hasattr(events, "GenPart")):
         apply_jec = True
@@ -135,7 +163,7 @@ def jerc_jet(
         apply_jer = False
         jer_syst = False
         logger.debug(
-            f"[ jerc_jet ] - JERC for Data - Year: {year} - Era: {era} - Only JEC to be applied - JEC: {apply_jec}, systematics: {jec_syst}, Regrouped: {split_jec_syst}, AK8: {AK8}, Regression: {reg} - JER: {apply_jer}, systematics: {jer_syst}"
+            f"[ jerc_jet ] - JERC for Data - Year: {year} - Era: {era} - Only JEC to be applied - JEC: {apply_jec}, systematics: {jec_syst}, splitting: {split_jec_syst}, AK8: {AK8}, Regression: {reg} - JER: {apply_jer}, systematics: {jer_syst}"
         )
     else:
         logger.error(f"[ jerc_jet ] - Era: {era} doesn't match the input dataset")
@@ -562,29 +590,8 @@ def jerc_jet(
         jetTag = "jec"
         if AK8:
             jetTag = "jec_AK8"
-        if not split_jec_syst:
-            # get the total uncertainty
-            tag_jec_syst = "_".join([jec, "Total", algo])
-            try:
-                sf = cset[tag_jec_syst]
-            except BaseException:
-                logger.error(
-                    f"[ jerc_jet ] No JEC systematic: {tag_jec_syst} - Year: {year} - Era: {era}"
-                )
-                exit(-1)
-            # systematics
-            inputs = [eval_dict[input.name] for input in sf.inputs]
-            sf_delta = sf.evaluate(*inputs)
-
-            # divide by correction since it is already applied before
-            corr_up_variation = 1 + sf_delta
-            corr_down_variation = 1 - sf_delta
-
-            jets[f"pt_{jetTag}_syst_Total_up"] = jets.pt * corr_up_variation
-            jets[f"pt_{jetTag}_syst_Total_down"] = jets.pt * corr_down_variation
-            jets[f"mass_{jetTag}_syst_Total_up"] = jets.mass * corr_up_variation
-            jets[f"mass_{jetTag}_syst_Total_down"] = jets.mass * corr_down_variation
-        else:
+        if split_jec_syst == "regrouped":
+            # regrouped JEC systematics
             jec_syst_regrouped = {
                 "2016preVFP": {
                     # regrouped jec uncertainty
@@ -651,181 +658,142 @@ def jerc_jet(
                     "jec_syst_Regrouped_Total": "Regrouped_Total",
                 },
                 "2022preEE": {
-                    "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
-                    "jec_syst_AbsoluteScale": "AbsoluteScale",
-                    "jec_syst_AbsoluteStat": "AbsoluteStat",
-                    "jec_syst_FlavorQCD": "FlavorQCD",
-                    "jec_syst_Fragmentation": "Fragmentation",
-                    "jec_syst_PileUpDataMC": "PileUpDataMC",
-                    "jec_syst_PileUpPtBB": "PileUpPtBB",
-                    "jec_syst_PileUpPtEC1": "PileUpPtEC1",
-                    "jec_syst_PileUpPtEC2": "PileUpPtEC2",
-                    "jec_syst_PileUpPtHF": "PileUpPtHF",
-                    "jec_syst_PileUpPtRef": "PileUpPtRef",
-                    "jec_syst_RelativeFSR": "RelativeFSR",
-                    "jec_syst_RelativeJEREC1": "RelativeJEREC1",
-                    "jec_syst_RelativeJEREC2": "RelativeJEREC2",
-                    "jec_syst_RelativeJERHF": "RelativeJERHF",
-                    "jec_syst_RelativePtBB": "RelativePtBB",
-                    "jec_syst_RelativePtEC1": "RelativePtEC1",
-                    "jec_syst_RelativePtEC2": "RelativePtEC2",
-                    "jec_syst_RelativePtHF": "RelativePtHF",
-                    "jec_syst_RelativeBal": "RelativeBal",
-                    "jec_syst_RelativeSample": "RelativeSample",
-                    "jec_syst_RelativeStatEC": "RelativeStatEC",
-                    "jec_syst_RelativeStatFSR": "RelativeStatFSR",
-                    "jec_syst_RelativeStatHF": "RelativeStatHF",
-                    "jec_syst_SinglePionECAL": "SinglePionECAL",
-                    "jec_syst_SinglePionHCAL": "SinglePionHCAL",
-                    "jec_syst_TimePtEta": "TimePtEta",
-                    "jec_syst_Total": "Total",
+                    "jec_syst_Absolute_2022": "Regrouped_Absolute_2022",
+                    "jec_syst_Absolute": "Regrouped_Absolute",
+                    "jec_syst_BBEC1_2022": "Regrouped_BBEC1_2022",
+                    "jec_syst_BBEC1": "Regrouped_BBEC1",
+                    "jec_syst_EC2_2022": "Regrouped_EC2_2022",
+                    "jec_syst_EC2": "Regrouped_EC2",
+                    "jec_syst_FlavorQCD": "Regrouped_FlavorQCD",
+                    "jec_syst_HF_2022": "Regrouped_HF_2022",
+                    "jec_syst_HF": "Regrouped_HF",
+                    "jec_syst_RelativeBal": "Regrouped_Absolute",
+                    "jec_syst_RelativeSample_2022": "Regrouped_RelativeSample_2022",
+                    # total regrouped jec uncertainty
+                    "jec_syst_Regrouped_Total": "Regrouped_Total",
                 },
                 "2022postEE": {
-                    "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
-                    "jec_syst_AbsoluteScale": "AbsoluteScale",
-                    "jec_syst_AbsoluteStat": "AbsoluteStat",
-                    "jec_syst_FlavorQCD": "FlavorQCD",
-                    "jec_syst_Fragmentation": "Fragmentation",
-                    "jec_syst_PileUpDataMC": "PileUpDataMC",
-                    "jec_syst_PileUpPtBB": "PileUpPtBB",
-                    "jec_syst_PileUpPtEC1": "PileUpPtEC1",
-                    "jec_syst_PileUpPtEC2": "PileUpPtEC2",
-                    "jec_syst_PileUpPtHF": "PileUpPtHF",
-                    "jec_syst_PileUpPtRef": "PileUpPtRef",
-                    "jec_syst_RelativeFSR": "RelativeFSR",
-                    "jec_syst_RelativeJEREC1": "RelativeJEREC1",
-                    "jec_syst_RelativeJEREC2": "RelativeJEREC2",
-                    "jec_syst_RelativeJERHF": "RelativeJERHF",
-                    "jec_syst_RelativePtBB": "RelativePtBB",
-                    "jec_syst_RelativePtEC1": "RelativePtEC1",
-                    "jec_syst_RelativePtEC2": "RelativePtEC2",
-                    "jec_syst_RelativePtHF": "RelativePtHF",
-                    "jec_syst_RelativeBal": "RelativeBal",
-                    "jec_syst_RelativeSample": "RelativeSample",
-                    "jec_syst_RelativeStatEC": "RelativeStatEC",
-                    "jec_syst_RelativeStatFSR": "RelativeStatFSR",
-                    "jec_syst_RelativeStatHF": "RelativeStatHF",
-                    "jec_syst_SinglePionECAL": "SinglePionECAL",
-                    "jec_syst_SinglePionHCAL": "SinglePionHCAL",
-                    "jec_syst_TimePtEta": "TimePtEta",
-                    "jec_syst_Total": "Total",
+                    "jec_syst_Absolute_2022EE": "Regrouped_Absolute_2022EE",
+                    "jec_syst_Absolute": "Regrouped_Absolute",
+                    "jec_syst_BBEC1_2022EE": "Regrouped_BBEC1_2022EE",
+                    "jec_syst_BBEC1": "Regrouped_BBEC1",
+                    "jec_syst_EC2_2022EE": "Regrouped_EC2_2022EE",
+                    "jec_syst_EC2": "Regrouped_EC2",
+                    "jec_syst_FlavorQCD": "Regrouped_FlavorQCD",
+                    "jec_syst_HF_2022EE": "Regrouped_HF_2022EE",
+                    "jec_syst_HF": "Regrouped_HF",
+                    "jec_syst_RelativeBal": "Regrouped_Absolute",
+                    "jec_syst_RelativeSample_2022EE": "Regrouped_RelativeSample_2022EE",
+                    # total regrouped jec uncertainty
+                    "jec_syst_Regrouped_Total": "Regrouped_Total",
                 },
                 "2023preBPix": {
-                    "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
-                    "jec_syst_AbsoluteScale": "AbsoluteScale",
-                    "jec_syst_AbsoluteStat": "AbsoluteStat",
-                    "jec_syst_FlavorQCD": "FlavorQCD",
-                    "jec_syst_Fragmentation": "Fragmentation",
-                    "jec_syst_PileUpDataMC": "PileUpDataMC",
-                    "jec_syst_PileUpPtBB": "PileUpPtBB",
-                    "jec_syst_PileUpPtEC1": "PileUpPtEC1",
-                    "jec_syst_PileUpPtEC2": "PileUpPtEC2",
-                    "jec_syst_PileUpPtHF": "PileUpPtHF",
-                    "jec_syst_PileUpPtRef": "PileUpPtRef",
-                    "jec_syst_RelativeFSR": "RelativeFSR",
-                    "jec_syst_RelativeJEREC1": "RelativeJEREC1",
-                    "jec_syst_RelativeJEREC2": "RelativeJEREC2",
-                    "jec_syst_RelativeJERHF": "RelativeJERHF",
-                    "jec_syst_RelativePtBB": "RelativePtBB",
-                    "jec_syst_RelativePtEC1": "RelativePtEC1",
-                    "jec_syst_RelativePtEC2": "RelativePtEC2",
-                    "jec_syst_RelativePtHF": "RelativePtHF",
-                    "jec_syst_RelativeBal": "RelativeBal",
-                    "jec_syst_RelativeSample": "RelativeSample",
-                    "jec_syst_RelativeStatEC": "RelativeStatEC",
-                    "jec_syst_RelativeStatFSR": "RelativeStatFSR",
-                    "jec_syst_RelativeStatHF": "RelativeStatHF",
-                    "jec_syst_SinglePionECAL": "SinglePionECAL",
-                    "jec_syst_SinglePionHCAL": "SinglePionHCAL",
-                    "jec_syst_TimePtEta": "TimePtEta",
-                    "jec_syst_Total": "Total",
+                    "jec_syst_Absolute_2023": "Regrouped_Absolute_2023",
+                    "jec_syst_Absolute": "Regrouped_Absolute",
+                    "jec_syst_BBEC1_2023": "Regrouped_BBEC1_2023",
+                    "jec_syst_BBEC1": "Regrouped_BBEC1",
+                    "jec_syst_EC2_2023": "Regrouped_EC2_2023",
+                    "jec_syst_EC2": "Regrouped_EC2",
+                    "jec_syst_FlavorQCD": "Regrouped_FlavorQCD",
+                    "jec_syst_HF_2023": "Regrouped_HF_2023",
+                    "jec_syst_HF": "Regrouped_HF",
+                    "jec_syst_RelativeBal": "Regrouped_Absolute",
+                    "jec_syst_RelativeSample_2023": "Regrouped_RelativeSample_2023",
+                    # total regrouped jec uncertainty
+                    "jec_syst_Regrouped_Total": "Regrouped_Total",
                 },
                 "2023postBPix": {
-                    "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
-                    "jec_syst_AbsoluteScale": "AbsoluteScale",
-                    "jec_syst_AbsoluteStat": "AbsoluteStat",
-                    "jec_syst_FlavorQCD": "FlavorQCD",
-                    "jec_syst_Fragmentation": "Fragmentation",
-                    "jec_syst_PileUpDataMC": "PileUpDataMC",
-                    "jec_syst_PileUpPtBB": "PileUpPtBB",
-                    "jec_syst_PileUpPtEC1": "PileUpPtEC1",
-                    "jec_syst_PileUpPtEC2": "PileUpPtEC2",
-                    "jec_syst_PileUpPtHF": "PileUpPtHF",
-                    "jec_syst_PileUpPtRef": "PileUpPtRef",
-                    "jec_syst_RelativeFSR": "RelativeFSR",
-                    "jec_syst_RelativeJEREC1": "RelativeJEREC1",
-                    "jec_syst_RelativeJEREC2": "RelativeJEREC2",
-                    "jec_syst_RelativeJERHF": "RelativeJERHF",
-                    "jec_syst_RelativePtBB": "RelativePtBB",
-                    "jec_syst_RelativePtEC1": "RelativePtEC1",
-                    "jec_syst_RelativePtEC2": "RelativePtEC2",
-                    "jec_syst_RelativePtHF": "RelativePtHF",
-                    "jec_syst_RelativeBal": "RelativeBal",
-                    "jec_syst_RelativeSample": "RelativeSample",
-                    "jec_syst_RelativeStatEC": "RelativeStatEC",
-                    "jec_syst_RelativeStatFSR": "RelativeStatFSR",
-                    "jec_syst_RelativeStatHF": "RelativeStatHF",
-                    "jec_syst_SinglePionECAL": "SinglePionECAL",
-                    "jec_syst_SinglePionHCAL": "SinglePionHCAL",
-                    "jec_syst_TimePtEta": "TimePtEta",
-                    "jec_syst_Total": "Total",
+                    "jec_syst_Absolute_2023BPix": "Regrouped_Absolute_2023BPix",
+                    "jec_syst_Absolute": "Regrouped_Absolute",
+                    "jec_syst_BBEC1_2023BPix": "Regrouped_BBEC1_2023BPix",
+                    "jec_syst_BBEC1": "Regrouped_BBEC1",
+                    "jec_syst_EC2_2023BPix": "Regrouped_EC2_2023BPix",
+                    "jec_syst_EC2": "Regrouped_EC2",
+                    "jec_syst_FlavorQCD": "Regrouped_FlavorQCD",
+                    "jec_syst_HF_2023BPix": "Regrouped_HF_2023BPix",
+                    "jec_syst_HF": "Regrouped_HF",
+                    "jec_syst_RelativeBal": "Regrouped_Absolute",
+                    "jec_syst_RelativeSample_2023BPix": "Regrouped_RelativeSample_2023BPix",
+                    # total regrouped jec uncertainty
+                    "jec_syst_Regrouped_Total": "Regrouped_Total",
                 },
                 "2024": {
-                    "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
-                    "jec_syst_AbsoluteScale": "AbsoluteScale",
-                    "jec_syst_AbsoluteStat": "AbsoluteStat",
-                    "jec_syst_FlavorQCD": "FlavorQCD",
-                    "jec_syst_Fragmentation": "Fragmentation",
-                    "jec_syst_PileUpDataMC": "PileUpDataMC",
-                    "jec_syst_PileUpPtBB": "PileUpPtBB",
-                    "jec_syst_PileUpPtEC1": "PileUpPtEC1",
-                    "jec_syst_PileUpPtEC2": "PileUpPtEC2",
-                    "jec_syst_PileUpPtHF": "PileUpPtHF",
-                    "jec_syst_PileUpPtRef": "PileUpPtRef",
-                    "jec_syst_RelativeFSR": "RelativeFSR",
-                    "jec_syst_RelativeJEREC1": "RelativeJEREC1",
-                    "jec_syst_RelativeJEREC2": "RelativeJEREC2",
-                    "jec_syst_RelativeJERHF": "RelativeJERHF",
-                    "jec_syst_RelativePtBB": "RelativePtBB",
-                    "jec_syst_RelativePtEC1": "RelativePtEC1",
-                    "jec_syst_RelativePtEC2": "RelativePtEC2",
-                    "jec_syst_RelativePtHF": "RelativePtHF",
-                    "jec_syst_RelativeBal": "RelativeBal",
-                    "jec_syst_RelativeSample": "RelativeSample",
-                    "jec_syst_RelativeStatEC": "RelativeStatEC",
-                    "jec_syst_RelativeStatFSR": "RelativeStatFSR",
-                    "jec_syst_RelativeStatHF": "RelativeStatHF",
-                    "jec_syst_SinglePionECAL": "SinglePionECAL",
-                    "jec_syst_SinglePionHCAL": "SinglePionHCAL",
-                    "jec_syst_TimePtEta": "TimePtEta",
-                    "jec_syst_Total": "Total",
+                    "jec_syst_Absolute_2024": "Regrouped_Absolute_2024",
+                    "jec_syst_Absolute": "Regrouped_Absolute",
+                    "jec_syst_BBEC1_2024": "Regrouped_BBEC1_2024",
+                    "jec_syst_BBEC1": "Regrouped_BBEC1",
+                    "jec_syst_EC2_2024": "Regrouped_EC2_2024",
+                    "jec_syst_EC2": "Regrouped_EC2",
+                    "jec_syst_FlavorQCD": "Regrouped_FlavorQCD",
+                    "jec_syst_HF_2024": "Regrouped_HF_2024",
+                    "jec_syst_HF": "Regrouped_HF",
+                    "jec_syst_RelativeBal": "Regrouped_Absolute",
+                    "jec_syst_RelativeSample_2024": "Regrouped_RelativeSample_2024",
+                    # total regrouped jec uncertainty
+                    "jec_syst_Regrouped_Total": "Regrouped_Total",
                 },
             }
-            for i in jec_syst_regrouped[year]:
-                # get the total uncertainty
-                tag_jec_syst = "_".join([jec, jec_syst_regrouped[year][i], algo])
-                try:
-                    sf = cset[tag_jec_syst]
-                except BaseException:
-                    logger.error(
-                        f"[ jerc_jet ] No JEC systematic: {tag_jec_syst} - Year: {year} - Era: {era}"
-                    )
-                    exit(-1)
-                # systematics
-                inputs = [eval_dict[input.name] for input in sf.inputs]
-                sf_delta = sf.evaluate(*inputs)
+            apply_split_jec_variations(
+                jec_syst_regrouped[year], jec, algo, cset, year, era, eval_dict, jets, AK8
+            )
+        elif split_jec_syst == "full":
+            # full splitting of JEC systematics
+            jec_syst_full = {
+                "jec_syst_AbsoluteMPFBias": "AbsoluteMPFBias",
+                "jec_syst_AbsoluteScale": "AbsoluteScale",
+                "jec_syst_AbsoluteStat": "AbsoluteStat",
+                "jec_syst_FlavorQCD": "FlavorQCD",
+                "jec_syst_Fragmentation": "Fragmentation",
+                "jec_syst_PileUpDataMC": "PileUpDataMC",
+                "jec_syst_PileUpPtBB": "PileUpPtBB",
+                "jec_syst_PileUpPtEC1": "PileUpPtEC1",
+                "jec_syst_PileUpPtEC2": "PileUpPtEC2",
+                "jec_syst_PileUpPtHF": "PileUpPtHF",
+                "jec_syst_PileUpPtRef": "PileUpPtRef",
+                "jec_syst_RelativeFSR": "RelativeFSR",
+                "jec_syst_RelativeJEREC1": "RelativeJEREC1",
+                "jec_syst_RelativeJEREC2": "RelativeJEREC2",
+                "jec_syst_RelativeJERHF": "RelativeJERHF",
+                "jec_syst_RelativePtBB": "RelativePtBB",
+                "jec_syst_RelativePtEC1": "RelativePtEC1",
+                "jec_syst_RelativePtEC2": "RelativePtEC2",
+                "jec_syst_RelativePtHF": "RelativePtHF",
+                "jec_syst_RelativeBal": "RelativeBal",
+                "jec_syst_RelativeSample": "RelativeSample",
+                "jec_syst_RelativeStatEC": "RelativeStatEC",
+                "jec_syst_RelativeStatFSR": "RelativeStatFSR",
+                "jec_syst_RelativeStatHF": "RelativeStatHF",
+                "jec_syst_SinglePionECAL": "SinglePionECAL",
+                "jec_syst_SinglePionHCAL": "SinglePionHCAL",
+                "jec_syst_TimePtEta": "TimePtEta",
+                "jec_syst_Total": "Total",
+            }
+            apply_split_jec_variations(
+                jec_syst_full, jec, algo, cset, year, era, eval_dict, jets, AK8
+            )
+        else:
+            # get the total uncertainty
+            tag_jec_syst = "_".join([jec, "Total", algo])
+            try:
+                sf = cset[tag_jec_syst]
+            except BaseException:
+                logger.error(
+                    f"[ jerc_jet ] No JEC systematic: {tag_jec_syst} - Year: {year} - Era: {era}"
+                )
+                exit(-1)
+            # systematics
+            inputs = [eval_dict[input.name] for input in sf.inputs]
+            sf_delta = sf.evaluate(*inputs)
 
-                # divide by correction since it is already applied before
-                corr_up_variation = 1 + sf_delta
-                corr_down_variation = 1 - sf_delta
+            # divide by correction since it is already applied before
+            corr_up_variation = 1 + sf_delta
+            corr_down_variation = 1 - sf_delta
 
-                i_name = i
-                if AK8:
-                    i_name = i.replace("jec_", "jec_AK8_")
-                jets[f"pt_{i_name}_up"] = jets.pt * corr_up_variation
-                jets[f"pt_{i_name}_down"] = jets.pt * corr_down_variation
-                jets[f"mass_{i_name}_up"] = jets.mass * corr_up_variation
-                jets[f"mass_{i_name}_down"] = jets.mass * corr_down_variation
+            jets[f"pt_{jetTag}_syst_Total_up"] = jets.pt * corr_up_variation
+            jets[f"pt_{jetTag}_syst_Total_down"] = jets.pt * corr_down_variation
+            jets[f"mass_{jetTag}_syst_Total_up"] = jets.mass * corr_up_variation
+            jets[f"mass_{jetTag}_syst_Total_down"] = jets.mass * corr_down_variation
+
     jets_jagged = ak.unflatten(jets, counts)
     if AK8:
         events["FatJet"] = jets_jagged

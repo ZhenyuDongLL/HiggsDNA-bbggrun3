@@ -153,6 +153,8 @@ class HHbbggProcessor(HggSkeletonProcessor):
         self.num_fatjets_to_store = 4
         self.num_leptons_to_store = 4
 
+        self.min_mvaid = -0.9
+
         # Choose fiducial cut
         self.fiducialCuts = "store_flag"  # right now, this is needed even though default for HHbbgg workflow is store_flag as the defualt command line argument for fiducialCuts ('classical') over rides the default of the workflow
 

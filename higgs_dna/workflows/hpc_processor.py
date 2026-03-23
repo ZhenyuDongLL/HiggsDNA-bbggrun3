@@ -131,7 +131,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
         self.min_pt_mgg_sublead_photon = 0.25
         self.min_mass_range = 100
         self.max_mass_range = 180
-        self.min_mvaid = -0.9
+        self.min_mvaid = -0.7
         self.max_sc_eta = 2.5
         self.gap_barrel_eta = 1.4442
         self.gap_endcap_eta = 1.566

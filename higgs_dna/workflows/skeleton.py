@@ -62,7 +62,7 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
     # photon preselection cuts
     min_pt_photon = 25.0
     min_pt_lead_photon = 35.0
-    min_mvaid = -0.9
+    min_mvaid = -0.7
     max_sc_eta = 2.5
     gap_barrel_eta = 1.4442
     gap_endcap_eta = 1.566
