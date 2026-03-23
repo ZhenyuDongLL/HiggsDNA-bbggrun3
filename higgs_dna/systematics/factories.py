@@ -26,10 +26,16 @@ def add_jme_corr_syst(corrections_dict, systematics_dict, logger):
             "jec_jet_upart_syst": partial(jerc_jet, pt=None, apply_jec=True, jec_syst=True, reg="UParTRegression"),
             "jec_jet_upartNu_syst": partial(jerc_jet, pt=None, apply_jec=True, jec_syst=True, reg="UParTRegressionPlusNeutrino"),
             "jec_jet_regrouped_syst": partial(
-                jerc_jet, pt=None, apply_jec=True, jec_syst=True, split_jec_syst=True
+                jerc_jet, pt=None, apply_jec=True, jec_syst=True, split_jec_syst="regrouped"
+            ),
+            "jec_jet_full_syst": partial(
+                jerc_jet, pt=None, apply_jec=True, jec_syst=True, split_jec_syst="full"
             ),
             "jec_fatjet_regrouped_syst": partial(
-                jerc_jet, pt=None, apply_jec=True, jec_syst=True, split_jec_syst=True, AK8=True
+                jerc_jet, pt=None, apply_jec=True, jec_syst=True, split_jec_syst="regrouped", AK8=True
+            ),
+            "jec_fatjet_full_syst": partial(
+                jerc_jet, pt=None, apply_jec=True, jec_syst=True, split_jec_syst="full", AK8=True
             ),
             "jerc_jet": partial(jerc_jet, pt=None, apply_jec=True, apply_jer=True),
             "jerc_fatjet": partial(jerc_jet, pt=None, apply_jec=True, apply_jer=True, AK8=True),
@@ -116,7 +122,7 @@ def add_jme_corr_syst(corrections_dict, systematics_dict, logger):
                 pt=None,
                 apply_jec=True,
                 jec_syst=True,
-                split_jec_syst=True,
+                split_jec_syst="regrouped",
                 apply_jer=True,
                 jer_syst=True,
             ),
@@ -125,7 +131,26 @@ def add_jme_corr_syst(corrections_dict, systematics_dict, logger):
                 pt=None,
                 apply_jec=True,
                 jec_syst=True,
-                split_jec_syst=True,
+                split_jec_syst="regrouped",
+                apply_jer=True,
+                jer_syst=True,
+                AK8=True,
+            ),
+            "jerc_jet_full_syst": partial(
+                jerc_jet,
+                pt=None,
+                apply_jec=True,
+                jec_syst=True,
+                split_jec_syst="full",
+                apply_jer=True,
+                jer_syst=True,
+            ),
+            "jerc_fatjet_full_syst": partial(
+                jerc_jet,
+                pt=None,
+                apply_jec=True,
+                jec_syst=True,
+                split_jec_syst="full",
                 apply_jer=True,
                 jer_syst=True,
                 AK8=True,
