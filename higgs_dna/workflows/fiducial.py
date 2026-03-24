@@ -680,12 +680,8 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             # Eta-dependent jet pt cuts
             # Keep at 30 in the central and far forward region (not below 20, 20-30 low pt jets have problems)
             # raised to 50 in the 2.5-3.0 absEta region due to jet spikes (JME recommendation)
-            if self.year[dataset_name][0] in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]:
+            if self.year[dataset_name][0] in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix","2024"]:
                 self.jet_pt_thresholds = [30, 50, 50]
-                self.jet_eta_thresholds = [2.5, 3.0, 4.7]
-                jet_selection_func = select_jets_eta_dependent
-            elif self.year[dataset_name][0] in ["2024"]:
-                self.jet_pt_thresholds = [30, 50, 30]
                 self.jet_eta_thresholds = [2.5, 3.0, 4.7]
                 jet_selection_func = select_jets_eta_dependent
             else:
