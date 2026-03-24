@@ -64,7 +64,7 @@ def energyErrShift(energyErr, events, year="2022postEE", is_correction=True):
         uncertainty_dn = np.ones(len(_energyErr)) * 0.98
         return (
             np.concatenate(
-                (uncertainty_up.reshape(-1, 1), uncertainty_dn.reshape(-1, 1)), axis=1
+                (uncertainty_up[:, None], uncertainty_dn[:, None]), axis=1
             )
             * _energyErr[:, None]
         )
@@ -124,7 +124,7 @@ def FNUF(pt, events, year="2017", is_correction=True):
         # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
         return (
             np.concatenate(
-                (uncertainty_up.reshape(-1, 1), uncertainty_dn.reshape(-1, 1)), axis=1
+                (uncertainty_up[:, None], uncertainty_dn[:, None]), axis=1
             )
             * _pt[:, None]
         )
@@ -176,7 +176,7 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
         # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
         return (
             np.concatenate(
-                (uncertainty_up.reshape(-1, 1), uncertainty_dn.reshape(-1, 1)), axis=1
+                (uncertainty_up[:, None], uncertainty_dn[:, None]), axis=1
             )
             * _pt[:, None]
         )
@@ -232,7 +232,7 @@ def Material(pt, events, year="2017", is_correction=True):
         # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
         return (
             np.concatenate(
-                (uncertainty_up.reshape(-1, 1), uncertainty_dn.reshape(-1, 1)), axis=1
+                (uncertainty_up[:, None], uncertainty_dn[:, None]), axis=1
             )
             * _pt[:, None]
         )

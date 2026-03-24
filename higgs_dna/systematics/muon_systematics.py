@@ -361,8 +361,8 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
                 # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
                 return np.concatenate(
                     (
-                        (muons_pt_scalecorr_up.to_numpy()).reshape(-1, 1),
-                        (muons_pt_scalecorr_down.to_numpy()).reshape(-1, 1),
+                        muons_pt_scalecorr_up[:, None],
+                        muons_pt_scalecorr_down[:, None],
                     ),
                     axis=1,
                 ) * (ak.ones_like(muons.pt_nanoaod)[:, None])
@@ -384,8 +384,8 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
                 # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
                 return np.concatenate(
                     (
-                        (muons_pt_rescorr_up.to_numpy()).reshape(-1, 1),
-                        (muons_pt_rescorr_down.to_numpy()).reshape(-1, 1),
+                        muons_pt_rescorr_up[:, None],
+                        muons_pt_rescorr_down[:, None],
                     ),
                     axis=1,
                 ) * (ak.ones_like(muons.pt_nanoaod)[:, None])
