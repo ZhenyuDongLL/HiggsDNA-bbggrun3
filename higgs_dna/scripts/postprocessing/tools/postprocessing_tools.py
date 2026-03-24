@@ -1,5 +1,9 @@
 import numpy as np
 import awkward as ak
+import uproot
+from packaging.version import parse as parse_version
+_use_mktree = parse_version(uproot.__version__) >= parse_version("5.7.0")
+
 
 def extract_tuples(input_string):
     tuples = []
@@ -172,3 +176,15 @@ def ensure_nweight_LHEScale(d):
     else:
         d["nweight_LHEScale"] = np.asarray(branch, dtype=np.int32)
     return d
+
+def make_tree(file, treename, branch_dict):
+    """
+    Create a ROOT TTree with the given name and branches from the provided dictionary.
+    The branch_dict should have the branch names as keys
+    and the corresponding arrays (as NumPy or Awkward) as values.
+    """
+    if _use_mktree:
+        file.mkdir(treename.rsplit("/", 1)[0])
+        file.mktree(treename, branch_dict)
+    else:
+        file[treename] = branch_dict

@@ -13,7 +13,7 @@ import uproot
 from importlib import resources
 from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Get_WeightSum_Btag, Renormalize_BTag_Weights, Get_bin_edges_and_ration, apply_rescaling, Get_ratio_with_bWeight
 from higgs_dna.scripts.postprocessing.tools.LHE_WeightSum_Calculation import Get_WeightSum_LHE, Renormalize_LHE_Weights
-from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable, split_awkward_arrays_by_length, ensure_nweight_LHEScale
+from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable, split_awkward_arrays_by_length, ensure_nweight_LHEScale, make_tree
 
 def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_path, cat_dict, gen_binning, logger, rename_dict):
 
@@ -470,7 +470,7 @@ def main():
                         logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                         if i == 0:
-                            file[names[cat]] = current_dict
+                            make_tree(file, names[cat], current_dict)
                         else:
                             file[names[cat]].extend(current_dict)
 
@@ -510,7 +510,7 @@ def main():
                                 logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                                 if i == 0:
-                                    file[syst_name + "01sigma"] = current_dict
+                                    make_tree(file, syst_name + "01sigma", current_dict)
                                 else:
                                     file[syst_name + "01sigma"].extend(current_dict)
 
@@ -531,19 +531,19 @@ def main():
                                 logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                                 if i == 0:
-                                    file[syst_name + "01sigma"] = current_dict
+                                    make_tree(file, syst_name + "01sigma", current_dict)
                                 else:
                                     file[syst_name + "01sigma"].extend(current_dict)
 
                 else:
                     logger.info(f"No events survived category selection for cat: {cat}. Empty tree will be written.")
-                    file[names[cat]] = create_empty_tree(fallback_field_names)
+                    make_tree(file, names[cat], create_empty_tree(fallback_field_names))
 
                     # now for each syst variation, do the same empty tree
                     for syst_name, weight, syst_, c in labels[cat]:
                         if syst_ == "NOMINAL":
                             continue
-                        file[syst_name + "01sigma"] = create_empty_tree(fallback_field_names)
+                        make_tree(file, syst_name + "01sigma", create_empty_tree(fallback_field_names))
 
             else:
                 # if there are no syst there is no df_dict["NOMINAL"] entry in the dict
@@ -559,7 +559,7 @@ def main():
 
                         if i == 0:
                             current_dict = ensure_nweight_LHEScale(current_dict)
-                            file[names[cat]] = current_dict
+                            make_tree(file, names[cat], current_dict)
                         else:
                             current_dict = ensure_nweight_LHEScale(current_dict)
                             file[names[cat]].extend(current_dict)
@@ -575,12 +575,12 @@ def main():
                             logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                             if i == 0:
-                                file[names[cat]] = current_dict
+                                make_tree(file, names[cat], current_dict)
                             else:
                                 file[names[cat]].extend(current_dict)
                 else:
                     logger.info(f"No events survived category selection for cat: {cat}. Empty tree will be written.")
-                    file[names[cat]] = create_empty_tree(fallback_field_names)
+                    make_tree(file, names[cat], create_empty_tree(fallback_field_names))
 
         logger.info(
             f"Successfully wrote ROOT file for process {process}."
