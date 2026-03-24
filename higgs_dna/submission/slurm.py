@@ -25,7 +25,7 @@ def create_slurm_script(job_name, script_path, output_path, sample, error_path, 
         script_file.write(f"#SBATCH --partition={partition}\n")
         script_file.write(f"#SBATCH --mem={memory}\n")
         if n_jobs > 1:
-            script_file.write(f"#SBATCH --array=0-{n_jobs-1}\n")
+            script_file.write(f"#SBATCH --array=0-{n_jobs - 1}\n")
             script_file.write("\n")
             script_file.write("echo \"Running on node $HOSTNAME\"\n")
             script_file.write("echo \"Job ID: $SLURM_JOB_ID\"\n")

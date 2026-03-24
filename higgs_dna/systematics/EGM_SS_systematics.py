@@ -100,7 +100,7 @@ def EGM_Scale_Trad(pt, events, year="2022postEE", is_correction=True, restrictio
         corr_down_variation = uncertainty_down
 
         # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
-        return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * pt_raw[:, None]
+        return np.concatenate((corr_up_variation[:, None], corr_down_variation[:, None]), axis=1) * pt_raw[:, None]
 
 
 def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_electron=False):
@@ -176,7 +176,7 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
         corr_down_variation = rng.normal(loc=1., scale=smear_down)
 
         # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
-        return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * pt_raw[:, None]
+        return np.concatenate((corr_up_variation[:, None], corr_down_variation[:, None]), axis=1) * pt_raw[:, None]
 
 
 def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians="1G", restriction=None, is_electron=False):
@@ -288,26 +288,26 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
         corr_down_variation = 1 - escale
 
         if restriction == "EB":
-            isEE_mask = ak.to_numpy(ak.flatten(egm_object.isScEtaEE))
-            corr_up_variation[isEE_mask] = 1.0
-            corr_down_variation[isEE_mask] = 1.0
+            isEE_mask = ak.flatten(egm_object.isScEtaEE)
+            corr_up_variation = np.where(isEE_mask, 1.0, corr_up_variation)
+            corr_down_variation = np.where(isEE_mask, 1.0, corr_down_variation)
         elif restriction == "EE":
-            isEB_mask = ak.to_numpy(ak.flatten(egm_object.isScEtaEB))
-            corr_up_variation[isEB_mask] = 1.0
-            corr_down_variation[isEB_mask] = 1.0
+            isEB_mask = ak.flatten(egm_object.isScEtaEB)
+            corr_up_variation = np.where(isEB_mask, 1.0, corr_up_variation)
+            corr_down_variation = np.where(isEB_mask, 1.0, corr_down_variation)
         elif restriction is not None:
             logger.error("The restriction is not implemented yet! Valid options are [\"EB\", \"EE\"] \n Exiting. \n")
             sys.exit(1)
 
         # Increasing uncertainties (by a factor 3) for 2024 in the high endcap region (|eta|>2.1) due to non-closure
         if year in ["2024", "2025"] and restriction != "EB" and is_electron:
-            high_endcap_mask = ak.to_numpy(ak.flatten(abs(egm_object.ScEta) > 2.1))
-            corr_up_variation[high_endcap_mask] = 1 + 3.0 * escale[high_endcap_mask]
-            corr_down_variation[high_endcap_mask] = 1 - 3.0 * escale[high_endcap_mask]
+            high_endcap_mask = ak.flatten(abs(egm_object.ScEta) > 2.1)
+            corr_up_variation = np.where(high_endcap_mask, 1 + 3.0 * escale, corr_up_variation)
+            corr_down_variation = np.where(high_endcap_mask, 1 - 3.0 * escale, corr_down_variation)
 
         # Coffea does the unflattenning step itself and sets this value as pt of the up/down variations
         # scale uncertainties are applied on the smeared pt
-        return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * _pt[:, None]
+        return np.concatenate((corr_up_variation[:, None], corr_down_variation[:, None]), axis=1) * _pt[:, None]
 
 
 def double_smearing(std_normal, std_flat, mu, sigma, sigma_scale, frac, old_convention=True):
@@ -491,8 +491,8 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
                 smear_down = smear - fac
 
                 # apply EE inflation only where mask_ee is True
-                smear_up[mask_high_ee] = smear[mask_high_ee] + factor_ee * esmear[mask_high_ee]
-                smear_down[mask_high_ee] = smear[mask_high_ee] - factor_ee * esmear[mask_high_ee]
+                smear_up = np.where(mask_high_ee, smear + factor_ee * esmear, smear_up)
+                smear_down = np.where(mask_high_ee, smear - factor_ee * esmear, smear_down)
 
                 return smear_up, smear_down
 
@@ -524,4 +524,4 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
 
         # coffea does the unflattenning step itself and sets this value as pt of the up/down variations
         # smearing uncertainties are applied on the raw pt because the smearing is redone from scratch
-        return np.concatenate((corr_up_variation.reshape(-1,1), corr_down_variation.reshape(-1,1)), axis=1) * pt_raw[:, None]
+        return np.concatenate((corr_up_variation[:, None], corr_down_variation[:, None]), axis=1) * pt_raw[:, None]
