@@ -8,7 +8,7 @@ import json
 import yaml
 import numpy as np
 from importlib import resources
-from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import split_awkward_arrays_by_length, ensure_nweight_LHEScale
+from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import split_awkward_arrays_by_length, ensure_nweight_LHEScale, make_tree
 
 def main():
     parser = argparse.ArgumentParser(
@@ -319,7 +319,7 @@ def main():
                         logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                         if i == 0:
-                            file[names[cat]] = current_dict
+                            make_tree(file, names[cat], current_dict)
                         else:
                             file[names[cat]].extend(current_dict)
                     
@@ -360,7 +360,7 @@ def main():
                                 logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                                 if i == 0:
-                                    file[syst_name + "01sigma"] = current_dict
+                                    make_tree(file, syst_name + "01sigma", current_dict)
                                 else:
                                     file[syst_name + "01sigma"].extend(current_dict)
 
@@ -381,7 +381,7 @@ def main():
                                 logger.debug(f"Size of current_dict: {sum(array_sizes.values())} bytes")
 
                                 if i == 0:
-                                    file[syst_name + "01sigma"] = current_dict
+                                    make_tree(file, syst_name + "01sigma", current_dict)
                                 else:
                                     file[syst_name + "01sigma"].extend(current_dict)
 
@@ -404,7 +404,7 @@ def main():
                         logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
 
                         if i == 0:
-                            file[names[cat]] = current_dict
+                            make_tree(file, names[cat], current_dict)
                         else:
                             file[names[cat]].extend(current_dict)
 
@@ -421,7 +421,7 @@ def main():
                             logger.debug(f"Size of current_dict: {sum(array_sizes.values())}")
 
                             if i == 0:
-                                file[names[cat]] = current_dict
+                                make_tree(file, names[cat], current_dict)
                             else:
                                 file[names[cat]].extend(current_dict)
                 else:

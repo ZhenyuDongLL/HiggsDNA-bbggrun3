@@ -3,6 +3,7 @@ import shutil
 import argparse
 import uproot
 from higgs_dna.utils.logger_utils import setup_logger
+from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import make_tree
 
 
 def get_trees_in_directory(file_path, directory_name):
@@ -47,7 +48,7 @@ def process_root_file(file_path, output_directory):
             elif fiducial_region == 'Out':
                 mask = tree.arrays()["fiducialTagger_20"] < 20.5  # Events out of the fiducial region
             selected_data = {branch: tree.arrays()[branch][mask] for branch in branches_to_save}
-            output_directory[output_tree_name] = selected_data
+            make_tree(output_directory, output_tree_name, selected_data)
 
 
 def main():
