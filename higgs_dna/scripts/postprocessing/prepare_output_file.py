@@ -166,6 +166,12 @@ def main():
         help="Optional: Path to the JSON containing the binning at gen-level.",
     )
     parser.add_option(
+        "--diff-variable",
+        dest="diff_variable",
+        default="",
+        help="Optional: Differential variable key to select from genBinning (e.g. 'PTH').",
+    )
+    parser.add_option(
         "--skip-normalisation",
         dest="skip_normalisation",
         action="store_true",
@@ -291,10 +297,18 @@ def main():
         help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10' if you want use other bariable used --BTagRescaleVariableInfo option"
         )
     parser.add_option(
-        "--do-lhe-weight-normalisation",
+        "--do-theory-weight-normalisation",
+        dest="do_theory_weight_normalisation",
         default=False,
         action="store_true",
-        help="Perform the LHEScale and LHEPdf normalization to make sure the number of event remain the same to look only at changes due to acceptance",
+        help="Perform theory-weight normalization (LHEScale/LHEPdf/AlphaS/PS) to focus on acceptance effects.",
+    )
+    parser.add_option(
+        "--do-lhe-weight-normalisation",
+        dest="do_theory_weight_normalisation",
+        default=False,
+        action="store_true",
+        help="DEPRECATED: use --do-theory-weight-normalisation.",
     )
     parser.add_option(
         "--n-workers",
@@ -476,6 +490,7 @@ def main():
             os.system(f"mv {EXEC_PATH}/dirlist.txt {OUT_PATH}/dirlist.txt")
 
     genBinning_str = f"--genBinning {opt.genBinning}" if (opt.genBinning != "")  else ""
+    diff_variable_str = f"--diff-variable {opt.diff_variable}" if opt.diff_variable else ""
     tbasket_str = f"--tbasket-length {opt.root_tbasket_length}" if (opt.root_tbasket_length != "") else ""
     outfiles_map_str = f"--outfiles-map {outfiles_map_file}" if (opt.outfiles_map != "")  else ""
     custom_accumulator_str = "--custom-accumulator" if opt.custom_accumulator else ""
@@ -492,7 +507,7 @@ def main():
         do_BTagRescaleVariableInfo_str = "--BTagRescaleVariableInfo"
     else:
         do_BTagRescaleVariableInfo_str = ""
-    do_lhe_weight_normalisation_str = "--do-lhe-weight-normalisation" if opt.do_lhe_weight_normalisation else ""
+    do_theory_weight_normalisation_str = "--do-theory-weight-normalisation" if opt.do_theory_weight_normalisation else ""
 
 # The process var below is the function that will be executed in parallel for each systematic variation. It substitutes the old loop of the systematics to speed up the process.
 # Paths now must be ABSOLUTE!! - CD while multi thread is not a good idea!
@@ -500,7 +515,7 @@ def main():
         target_dir = f"{OUT_PATH}/merged/{file}/{var_dict[var]}"
         MKDIRP(target_dir)
 
-        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {verbose_str} {skip_normalisation_str} {genBinning_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} {do_lhe_weight_normalisation_str} --abs {custom_accumulator_str}"
+        command = f"merge_parquet.py --source {IN_PATH}/{file}/{var_dict[var]} --target {target_dir}/ --cats {cat_dict} {verbose_str} {skip_normalisation_str} {genBinning_str} {diff_variable_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} {do_theory_weight_normalisation_str} --abs {custom_accumulator_str}"
         logger.info(command)
 
         # Execute the command using subprocess.run
@@ -530,7 +545,7 @@ def main():
                         logger.error(f"Error processing variable: {e}")
             else:
                 # Single nominal processing for MC
-                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} {do_b_weight_normalisation_str} {genBinning_str} --abs {custom_accumulator_str}"
+                command = f"merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_path}/ --cats {cat_dict_loc} {verbose_str} {skip_normalisation_str} {genBinning_str} {diff_variable_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} {do_theory_weight_normalisation_str} --abs {custom_accumulator_str}"
                 subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
         else:
             if opt.type and opt.type.lower() == "mc":
@@ -543,7 +558,7 @@ def main():
                 raise Exception(f"The selected target files: {target_file}* already exist")
             if not os.path.exists(data_dir_path):
                 MKDIRP(data_dir_path)
-            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_file} --cats {cat_dict_loc} {verbose_str} --is-data {genBinning_str} --abs {custom_accumulator_str}'
+            command = f'merge_parquet.py --source {IN_PATH}/{file}/nominal --target {target_file} --cats {cat_dict_loc} {verbose_str} --is-data {genBinning_str} {diff_variable_str} --abs {custom_accumulator_str}'
             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
 
     def root_process_var(cat_dict_loc, var_dict_loc, IN_PATH, OUT_PATH, SCRIPT_DIR, file, verbose_str, skip_normalisation_str):
@@ -568,7 +583,7 @@ def main():
 
             MKDIRP(target_folder_path)
 
-        command = f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} --vars {var_dict_loc} --type {opt.type} --process {decompose_string(file, process_map)} {verbose_str} {outfiles_map_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} {do_lhe_weight_normalisation_str} {skip_normalisation_str} {merge_data_str} {do_syst_str}"
+        command = f"merge_root.py --source {source_folder_path} --target {target_file_path} --cats {cat_dict_loc} --abs {genBinning_str} {diff_variable_str} --vars {var_dict_loc} --type {opt.type} --process {decompose_string(file, process_map)} {verbose_str} {outfiles_map_str} {do_b_weight_normalisation_str} {do_BTagRescaleVariableInfo_str} {do_theory_weight_normalisation_str} {skip_normalisation_str} {merge_data_str} {do_syst_str}"
         logger.info(command)
         
         # Execute the command using subprocess.run
@@ -633,7 +648,7 @@ def main():
                             continue
                         dirpath, dirnames, filenames = next(os.walk(f'{OUT_PATH}/merged/Data_{file.split("_")[-1]}'))
                         if len(filenames) > 0:
-                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data --merge-all-data {genBinning_str} {verbose_str} --abs {custom_accumulator_str}'
+                            command = f'merge_parquet.py --source {OUT_PATH}/merged/Data_{file.split("_")[-1]} --target {OUT_PATH}/merged/Data_{file.split("_")[-1]}/allData_ --cats {cat_dict_loc} --is-data --merge-all-data {genBinning_str} {diff_variable_str} {verbose_str} --abs {custom_accumulator_str}'
                             subprocess.run(command, shell=True, cwd=SCRIPT_DIR, check=True)
                             break
                         else:
@@ -765,16 +780,18 @@ def main():
         slurm_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, SLURM_PATH=BATCH_PATH, dirlist_path=dirlist_path, var_dict=var_dict,
             cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
+            diff_variable_str=diff_variable_str,
             skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, time=opt.time, partition=opt.job_flavor,memory=opt.memory, decompose_string=decompose_string, logger=logger,
-            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str, do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str, do_lhe_weight_normalisation_str=do_lhe_weight_normalisation_str
+            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str, do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str, do_theory_weight_normalisation_str=do_theory_weight_normalisation_str
             )
 
     elif opt.batch == "condor":
         htcondor_postprocessing(
             _opt=opt, OUT_PATH=OUT_PATH, IN_PATH=IN_PATH, CONDOR_PATH=BATCH_PATH, SCRIPT_DIR=SCRIPT_DIR, dirlist_path=dirlist_path,
             var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
+            diff_variable_str=diff_variable_str,
             skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, job_flavor=opt.job_flavor, memory=opt.memory,decompose_string=decompose_string, logger=logger,
-            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str,do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str, do_lhe_weight_normalisation_str=do_lhe_weight_normalisation_str
+            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str,do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str, do_theory_weight_normalisation_str=do_theory_weight_normalisation_str
         )
 
     # We don't want to leave trash around
