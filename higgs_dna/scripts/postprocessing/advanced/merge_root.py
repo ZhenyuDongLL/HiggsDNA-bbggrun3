@@ -15,6 +15,22 @@ from higgs_dna.scripts.postprocessing.tools.Btag_WeightSum_Calculation import Ge
 from higgs_dna.scripts.postprocessing.tools.LHE_WeightSum_Calculation import Get_WeightSum_LHE, Renormalize_LHE_Weights
 from higgs_dna.scripts.postprocessing.tools.postprocessing_tools import filter_and_set_diff_variable, split_awkward_arrays_by_length, ensure_nweight_LHEScale, make_tree
 
+def get_active_gen_binning(gen_binning, diff_variable, logger):
+    if gen_binning is None:
+        return None
+
+    if not diff_variable:
+        return gen_binning
+
+    if diff_variable in gen_binning:
+        return {diff_variable: gen_binning[diff_variable]}
+
+    logger.warning(
+        f"Differential variable '{diff_variable}' was requested but not found in genBinning keys: {list(gen_binning.keys())}. "
+        "Falling back to all genBinning entries."
+    )
+    return gen_binning
+
 def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_path, cat_dict, gen_binning, logger, rename_dict):
 
     renamed_dict = {}
@@ -26,7 +42,7 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
 
         if _args.do_b_weight_normalisation:
             IsBtagNorm_sys_arr, WeightSum_preBTag_arr, WeightSum_postBTag_arr, WeightSum_postBTag_sys_arr = Get_WeightSum_Btag([folder_path], logger)
-        if _args.do_lhe_weight_normalisation:
+        if _args.do_theory_weight_normalisation:
             sum_LHEPdf_beforesel_arr, sum_LHEScale_beforesel_arr, do_lhe_norm = Get_WeightSum_LHE([folder_path], logger)
         source_files = glob.glob("%s/*.parquet" % folder_path)
         sum_genw_beforesel = 0
@@ -85,6 +101,11 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
                     var_dict = {k[1:]: v for k, v in var_dict.items()}
                 else:
                     selectionVariableName = keys
+                if selectionVariableName not in eve.fields:
+                    logger.warning(
+                        f"Skipping gen-binning variable '{keys}' because selection field '{selectionVariableName}' is not present in input parquet fields."
+                    )
+                    continue
                 eve = filter_and_set_diff_variable(eve, var_dict, selectionVariableName, "diffVariable_" + keys)
         syst_weight_fields = [field for field in eve.fields if (("weight_" in field) and ("Up" in field or "Down" in field))]
         logger.debug(f"Found systematic weight fields: {syst_weight_fields}")
@@ -102,7 +123,7 @@ def get_dataset(_args, folder_path, cat, is_data, is_syst, source_path, target_p
                 logger.info(
                     "Successfully added normalised b weight column."
                 )
-            if _args.do_lhe_weight_normalisation:
+            if _args.do_theory_weight_normalisation:
                 if do_lhe_norm[0]:
                     eve = Renormalize_LHE_Weights(eve, target_path, cat, sum_LHEPdf_beforesel_arr[0], sum_LHEScale_beforesel_arr[0], logger)
                     logger.info(
@@ -233,6 +254,13 @@ def main():
         help="Optional: Path to the JSON containing the binning at gen-level.",
     )
     parser.add_argument(
+        "--diff-variable",
+        type=str,
+        dest="diff_variable",
+        default="",
+        help="Optional: Differential variable key to select from genBinning (e.g. 'PTH').",
+    )
+    parser.add_argument(
         "--do-b-weight-normalisation",
         default=False,
         action="store_true",
@@ -247,10 +275,18 @@ def main():
         help="Rescaling variable info. If passed with no value, defaults to 'n_jets,10,0,10', other variable and bin info can be provided 'JetHT,50,0,1000' ",
     )
     parser.add_argument(
-        "--do-lhe-weight-normalisation",
+        "--do-theory-weight-normalisation",
+        dest="do_theory_weight_normalisation",
         default=False,
         action="store_true",
-        help="Perform the LHEScale and LHEPdf normalization to make sure the number of event remain the same to look only at changes due to acceptance",
+        help="Perform theory-weight normalization (LHEScale/LHEPdf/AlphaS/PS) to focus on acceptance effects.",
+    )
+    parser.add_argument(
+        "--do-lhe-weight-normalisation",
+        dest="do_theory_weight_normalisation",
+        default=False,
+        action="store_true",
+        help="DEPRECATED: use --do-theory-weight-normalisation.",
     )
     parser.add_argument(
         "--outfiles-map",
@@ -272,6 +308,10 @@ def main():
     target_path = args.target
 
     BASEDIR = resources.files("higgs_dna").joinpath("")
+
+    logger_verbosity = "DEBUG" if args.verbose else "INFO"
+
+    logger = setup_logger(level=logger_verbosity)
 
     # load outfiles templates
     if args.outfiles_map:
@@ -307,12 +347,9 @@ def main():
             genBinning_path = os.path.join(BASEDIR, "scripts/postprocessing/sample_gen_binning.json")
         with open(genBinning_path, 'r') as json_file:
             gen_binning = json.load(json_file)
+        gen_binning = get_active_gen_binning(gen_binning, args.diff_variable, logger)
     else:
         gen_binning = None
-
-    logger_verbosity = "DEBUG" if args.verbose else "INFO"
-
-    logger = setup_logger(level=logger_verbosity)
 
     rename_dict = {
         "mass": "CMS_hgg_mass"
