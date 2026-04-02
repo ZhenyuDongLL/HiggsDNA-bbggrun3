@@ -2,7 +2,7 @@ from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
-from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attributes, match_jet, match_fatjet_hbb
+from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attributes, match_jet, match_fatjet_hbb, match_jet_to_genpart
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.tools.HHbbgg_bpairing import Compute_DNN_bpairing
 from higgs_dna.tools.HHbbgg_mbb_regression import calculate_mbb_regression
@@ -489,14 +489,13 @@ class HHbbggProcessor(HggSkeletonProcessor):
                     "charge": ak.zeros_like(
                         jets.pt
                     ),  # added this because jet charge is not a property of photons in nanoAOD v11. We just need the charge to build jet collection.
-                    "hFlav": jets.hadronFlavour
-                    if self.data_kind == "mc"
-                    else ak.zeros_like(jets.pt),
+                    "hFlav": jets.hadronFlavour if self.data_kind == "mc" else ak.zeros_like(jets.pt),
                     "btagDeepFlav_B": jets.btagDeepFlavB,
                     "btagDeepFlav_CvB": jets.btagDeepFlavCvB,
                     "btagDeepFlav_CvL": jets.btagDeepFlavCvL,
                     "btagDeepFlav_QG": jets.btagDeepFlavQG,
                     "btagPNetB": jets.btagPNetB,
+                    "btagPNetCvL": jets.btagPNetCvL,
                     "btagPNetQvG": jets.btagPNetQvG,
                     "PNetRegPtRawCorr": jets.PNetRegPtRawCorr,  # Eventually we should add PNet bTag into if statements like below... keeping for now for 2022-23 DNN pairing and mass reg models
                     "PNetRegPtRawCorrNeutrino": jets.PNetRegPtRawCorrNeutrino,
@@ -511,7 +510,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                         {"btagRobustParTAK4B": jets.btagRobustParTAK4B, "btagRobustParTAK4QG": jets.btagRobustParTAK4QG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version == 13 else {}
                     ),
                     **(
-                        {"btagUParTAK4B": jets.btagUParTAK4B, "UParTRegPtRawCorr": jets.UParTAK4RegPtRawCorr, "UParTRegPtRawCorrNeutrino": jets.UParTAK4RegPtRawCorrNeutrino, "UParTRegPtRawRes": jets.UParTAK4RegPtRawRes, "btagUParTAK4QvG": jets.btagUParTAK4QvG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version >= 14 else {}
+                        {"btagUParTAK4B": jets.btagUParTAK4B, "btagUParTAK4CvL": jets.btagUParTAK4CvL, "UParTRegPtRawCorr": jets.UParTAK4RegPtRawCorr, "UParTRegPtRawCorrNeutrino": jets.UParTAK4RegPtRawCorrNeutrino, "UParTRegPtRawRes": jets.UParTAK4RegPtRawRes, "btagUParTAK4QvG": jets.btagUParTAK4QvG, "neHEF": jets.neHEF, "neEmEF": jets.neEmEF, "chMultiplicity": jets.chMultiplicity, "neMultiplicity": jets.neMultiplicity, "chEmEF": jets.chEmEF, "chHEF": jets.chHEF, "muEF": jets.muEF} if self.nano_version >= 14 else {}
                     ),
 
                 }
@@ -697,6 +696,31 @@ class HHbbggProcessor(HggSkeletonProcessor):
                     for key, jet_flav in [(f"fatjet{i + 1}_genMatched", False), (f"fatjet{i + 1}_genFlav", True)]:
                         value = match_jet(fatjets, genjetsAK8, i, -999.0, jet_size=0.8, jet_flav=jet_flav)
                         diphotons[key] = value
+
+                # Build gen particle collection for bjet matching:
+                #   isPrompt: excludes quarks from hadron decays (secondary vertices)
+                #   isLastCopy: one entry per parton, no duplicates
+                #   abs(pdgId) <= 21: quarks and gluons only, no bosons/hadrons
+                gen_parts = events.GenPart[
+                    events.GenPart.hasFlags(["isPrompt", "isLastCopy"])
+                    & (abs(events.GenPart.pdgId) <= 21)
+                ]
+                # Walk up the mother chain to find the true mother (first ancestor with
+                # a different abs(pdgId)), skipping intermediate same-particle copies.
+                # Breaks early once no particle has a same-species ancestor remaining.
+                mom_idx = gen_parts.genPartIdxMother
+                for _ in range(10):
+                    safe_idx = ak.where(mom_idx >= 0, mom_idx, 0)
+                    mom_pdgId_iter = events.GenPart[safe_idx].pdgId
+                    is_same_particle = (abs(mom_pdgId_iter) == abs(gen_parts.pdgId)) & (mom_idx >= 0)
+                    if not ak.any(is_same_particle):
+                        break
+                    grandmom_idx = ak.where(mom_idx >= 0, events.GenPart[safe_idx].genPartIdxMother, -1)
+                    mom_idx = ak.where(is_same_particle, grandmom_idx, mom_idx)
+                safe_mom_idx = ak.where(mom_idx >= 0, mom_idx, 0)
+                gen_parts["mother_pdgId"] = ak.where(mom_idx >= 0, events.GenPart[safe_mom_idx].pdgId, 0)
+                gen_parts["charge"] = ak.zeros_like(gen_parts.pt)
+                gen_parts = ak.with_name(gen_parts, "PtEtaPhiMCandidate")
 
                 # add in gen 4-momenta #
                 genPart_status = (
@@ -972,11 +996,13 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 lead_bjet_mass = choose_jet(dijets["first_jet"].mass, 0, -999.0)
                 lead_bjet_charge = choose_jet(dijets["first_jet"].charge, 0, -999.0)
                 lead_bjet_btagPNetB = choose_jet(dijets["first_jet"].btagPNetB, 0, -999.0)
+                lead_bjet_btagPNetCvL = choose_jet(dijets["first_jet"].btagPNetCvL, 0, -999.0)
                 lead_bjet_PNetRegPtRawCorr = choose_jet(dijets["first_jet"].PNetRegPtRawCorr, 0, -999.0)
                 lead_bjet_PNetRegPtRawCorrNeutrino = choose_jet(dijets["first_jet"].PNetRegPtRawCorrNeutrino, 0, -999.0)
                 lead_bjet_PNetRegPtRawRes = choose_jet(dijets["first_jet"].PNetRegPtRawRes, 0, -999.0)
                 if self.nano_version >= 14:
                     lead_bjet_btagUParTAK4B = choose_jet(dijets["first_jet"].btagUParTAK4B, 0, -999.0)
+                    lead_bjet_btagUParTAK4CvL = choose_jet(dijets["first_jet"].btagUParTAK4CvL, 0, -999.0)
                     lead_bjet_UParTRegPtRawCorr = choose_jet(dijets["first_jet"].UParTRegPtRawCorr, 0, -999.0)
                     lead_bjet_UParTRegPtRawCorrNeutrino = choose_jet(dijets["first_jet"].UParTRegPtRawCorrNeutrino, 0, -999.0)
                     lead_bjet_UParTRegPtRawRes = choose_jet(dijets["first_jet"].UParTRegPtRawRes, 0, -999.0)
@@ -991,11 +1017,13 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 sublead_bjet_mass = choose_jet(dijets["second_jet"].mass, 0, -999.0)
                 sublead_bjet_charge = choose_jet(dijets["second_jet"].charge, 0, -999.0)
                 sublead_bjet_btagPNetB = choose_jet(dijets["second_jet"].btagPNetB, 0, -999.0)
+                sublead_bjet_btagPNetCvL = choose_jet(dijets["second_jet"].btagPNetCvL, 0, -999.0)
                 sublead_bjet_PNetRegPtRawCorr = choose_jet(dijets["second_jet"].PNetRegPtRawCorr, 0, -999.0)
                 sublead_bjet_PNetRegPtRawCorrNeutrino = choose_jet(dijets["second_jet"].PNetRegPtRawCorrNeutrino, 0, -999.0)
                 sublead_bjet_PNetRegPtRawRes = choose_jet(dijets["second_jet"].PNetRegPtRawRes, 0, -999.0)
                 if self.nano_version >= 14:
                     sublead_bjet_btagUParTAK4B = choose_jet(dijets["second_jet"].btagUParTAK4B, 0, -999.0)
+                    sublead_bjet_btagUParTAK4CvL = choose_jet(dijets["second_jet"].btagUParTAK4CvL, 0, -999.0)
                     sublead_bjet_UParTRegPtRawCorr = choose_jet(dijets["second_jet"].UParTRegPtRawCorr, 0, -999.0)
                     sublead_bjet_UParTRegPtRawCorrNeutrino = choose_jet(dijets["second_jet"].UParTRegPtRawCorrNeutrino, 0, -999.0)
                     sublead_bjet_UParTRegPtRawRes = choose_jet(dijets["second_jet"].UParTRegPtRawRes, 0, -999.0)
@@ -1058,6 +1086,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 # Add the bjet matching
                 #   - boolean array of matched bjet
                 #   - genPartonFlav array of matched genbJet
+                #   - pdgId and mother pdgId of closest prompt quark/gluon gen particle
                 if self.data_kind == "mc":
                     for bjet_type, bjet_4mom in {
                         "lead": ak.firsts(dijets["first_jet"]),
@@ -1066,6 +1095,11 @@ class HHbbggProcessor(HggSkeletonProcessor):
                         for key, jet_flav in [(f"{bjet_type}_bjet_genMatched", False), (f"{bjet_type}_bjet_genFlav", True)]:
                             value = match_jet(bjet_4mom, genjets, None, -999.0, jet_flav=jet_flav)
                             diphotons[f"{AnType}_{key}"] = value
+                        matched_pdgId, matched_mother_pdgId = match_jet_to_genpart(
+                            bjet_4mom, gen_parts, -999.0, jet_size=0.4
+                        )
+                        diphotons[f"{AnType}_{bjet_type}_bjet_genPdgId"] = matched_pdgId
+                        diphotons[f"{AnType}_{bjet_type}_bjet_genMotherPdgId"] = matched_mother_pdgId
 
                 # Get the HHbbgg object
                 HHbbgg = get_HHbbgg(self, diphotons, dijets)
@@ -1098,11 +1132,13 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons[f"{AnType}_lead_bjet_mass"] = lead_bjet_mass
                 diphotons[f"{AnType}_lead_bjet_charge"] = lead_bjet_charge
                 diphotons[f"{AnType}_lead_bjet_btagPNetB"] = lead_bjet_btagPNetB
+                diphotons[f"{AnType}_lead_bjet_btagPNetCvL"] = lead_bjet_btagPNetCvL
                 diphotons[f"{AnType}_lead_bjet_PNetRegPtRawCorr"] = lead_bjet_PNetRegPtRawCorr
                 diphotons[f"{AnType}_lead_bjet_PNetRegPtRawCorrNeutrino"] = lead_bjet_PNetRegPtRawCorrNeutrino
                 diphotons[f"{AnType}_lead_bjet_PNetRegPtRawRes"] = lead_bjet_PNetRegPtRawRes
                 if self.nano_version >= 14:
                     diphotons[f"{AnType}_lead_bjet_btagUParTAK4B"] = lead_bjet_btagUParTAK4B
+                    diphotons[f"{AnType}_lead_bjet_btagUParTAK4CvL"] = lead_bjet_btagUParTAK4CvL
                     diphotons[f"{AnType}_lead_bjet_UParTRegPtRawCorr"] = lead_bjet_UParTRegPtRawCorr
                     diphotons[f"{AnType}_lead_bjet_UParTRegPtRawCorrNeutrino"] = lead_bjet_UParTRegPtRawCorrNeutrino
                     diphotons[f"{AnType}_lead_bjet_UParTRegPtRawRes"] = lead_bjet_UParTRegPtRawRes
@@ -1117,11 +1153,13 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons[f"{AnType}_sublead_bjet_mass"] = sublead_bjet_mass
                 diphotons[f"{AnType}_sublead_bjet_charge"] = sublead_bjet_charge
                 diphotons[f"{AnType}_sublead_bjet_btagPNetB"] = sublead_bjet_btagPNetB
+                diphotons[f"{AnType}_sublead_bjet_btagPNetCvL"] = sublead_bjet_btagPNetCvL
                 diphotons[f"{AnType}_sublead_bjet_PNetRegPtRawCorr"] = sublead_bjet_PNetRegPtRawCorr
                 diphotons[f"{AnType}_sublead_bjet_PNetRegPtRawCorrNeutrino"] = sublead_bjet_PNetRegPtRawCorrNeutrino
                 diphotons[f"{AnType}_sublead_bjet_PNetRegPtRawRes"] = sublead_bjet_PNetRegPtRawRes
                 if self.nano_version >= 14:
                     diphotons[f"{AnType}_sublead_bjet_btagUParTAK4B"] = sublead_bjet_btagUParTAK4B
+                    diphotons[f"{AnType}_sublead_bjet_btagUParTAK4CvL"] = sublead_bjet_btagUParTAK4CvL
                     diphotons[f"{AnType}_sublead_bjet_UParTRegPtRawCorr"] = sublead_bjet_UParTRegPtRawCorr
                     diphotons[f"{AnType}_sublead_bjet_UParTRegPtRawCorrNeutrino"] = sublead_bjet_UParTRegPtRawCorrNeutrino
                     diphotons[f"{AnType}_sublead_bjet_UParTRegPtRawRes"] = sublead_bjet_UParTRegPtRawRes
