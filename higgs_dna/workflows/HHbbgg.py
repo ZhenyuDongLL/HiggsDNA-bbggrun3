@@ -84,6 +84,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
         doFlow_corrections: bool = False,
         validate_with_electrons: bool = False,
         output_format: str = "parquet",
+        split_mc: bool = False,
     ) -> None:
         super().__init__(
             metaconditions,
@@ -107,6 +108,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             output_format=output_format
         )
 
+        self.split_mc = split_mc
         self.bbgg_analysis = ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair"]
         self.nano_version = nano_version
         self.name_convention = "DAS"
@@ -167,6 +169,15 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
+
+        # MC splitting based on event ID and year for 2024 and 2025 datasets
+        if self.split_mc and self.data_kind == "mc":
+            if self.year[dataset_name][0] == "2024":
+                # Keep only even event IDs for 2024
+                events = events[events.event % 2 == 0]
+            elif self.year[dataset_name][0] == "2025":
+                # Keep only odd event IDs for 2025
+                events = events[events.event % 2 != 0]
 
         # here we start recording possible coffea accumulators
         # most likely histograms, could be counters, arrays, ...

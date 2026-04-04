@@ -930,7 +930,7 @@ for sample in samples:
     os.chmod(parent_dir, 0o777)
 
     # Construct the command
-    command = f"python submission/tools_HHbbgg/produce_one_mc.py --keyword {sample['keyword']} --cmsdas {sample['cmsdas']} --parent-dir {parent_dir} --year {sample['year']} --nano {sample['nano']}"  # --memory 20GB{(' --dbs-instance '+sample['dbs-instance']) if 'dbs-instance' in sample.keys() else ''}{(' --where '+sample['where']) if 'where' in sample.keys() else ''}"
+    command = f"python submission/tools_HHbbgg/produce_one_mc.py --keyword {sample['keyword']} --cmsdas {sample['cmsdas']} --parent-dir {parent_dir} --year {sample['year']} --nano {sample['nano']} --split-mc"  # --memory 20GB{(' --dbs-instance '+sample['dbs-instance']) if 'dbs-instance' in sample.keys() else ''}{(' --where '+sample['where']) if 'where' in sample.keys() else ''}"
 
     print(f"Executing: {command}")  # Print the command being executed
     subprocess.run(command, shell=True, check=True)

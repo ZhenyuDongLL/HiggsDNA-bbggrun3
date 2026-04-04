@@ -48,11 +48,14 @@ def run_analysis(nano_version, parent_dir, keyword, year, memory):
     os.system(command)
 
 
-def update_json_config(keyword, year):
+def update_json_config(keyword, year, split_mc=False):
     # Using the preliminary JSON - to be updated for final results
     with open("submission/tools_HHbbgg/prelim_runner_mc_template.json", "r") as f:
         config = json.load(f)
     config["samplejson"] = f"samples_mc_{year}_{keyword}.json"
+    if "split_mc" in config:
+        if ("2024" in year) or ("2025" in year):
+            config["split_mc"] = split_mc  # Enable MC splitting for 2024 and 2025
     if "year" in config:
         config["year"].pop("GluGluToHH", None)
         config["year"][keyword] = [f"{year}"]
@@ -113,6 +116,7 @@ def main():
     parser.add_argument("-y", "--year", required=True, choices=["2022postEE","2022preEE","2023postBPix","2023preBPix", "2024", "2018","2017","2016preVFP","2016postVFP"], help="year")
     parser.add_argument("-n", "--nano", required=True, help="nano-version")
     parser.add_argument("-m", "--memory", help="condor job memory")
+    parser.add_argument("-s", "--split-mc", action="store_true", help="Enable MC splitting by event ID (even for 2024, odd for 2025)")
     parser.add_argument(
         "-w",
         "--where",
@@ -138,7 +142,7 @@ def main():
     fetch_datasets(sample_file, dbs_instance=args.instance, region=args.where)
 
     # Update and save JSON configuration
-    update_json_config(args.keyword, args.year)
+    update_json_config(args.keyword, args.year, split_mc=args.split_mc)
 
     # Launch jobs
     run_analysis(args.nano, args.parent_dir, args.keyword, args.year, args.memory)
