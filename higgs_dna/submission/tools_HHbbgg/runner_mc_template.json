@@ -3,6 +3,7 @@
 "workflow": "HHbbgg",
 "metaconditions": "Era2022_v1",
 "taggers": [],
+"split_mc": true,
 "year": {
     "GluGluToHH": ["2023preBPix"]
 },
