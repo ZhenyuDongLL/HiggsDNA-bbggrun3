@@ -509,7 +509,13 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
     }
     # recompute jetId before vetomap
     jets["jetId"] = add_jetId(jets, self.nano_version, year)
-    jetId_cut = (jets.jetId == 6)
+    run2_years = ["2016preVFP", "2016postVFP", "2017", "2018"]
+    if year in run2_years:
+        # Tight ID requirement
+        jetId_cut = ((jets.jetId == 2) | (jets.jetId == 6))
+    else:
+        # tightLepVeto requirement
+        jetId_cut = (jets.jetId == 6)
 
     input_dict["type"] = "jetvetomap"
     inputs = [input_dict[input.name] for input in cset[key_map[year]].inputs]
@@ -520,11 +526,15 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
         & (jetId_cut)
         & ((jets.chEmEF + jets.neEmEF) < 0.9)
     )
+    if year in run2_years:
+        flag_veto_jet = flag_veto_jet & (
+            (jets.muonIdx1 == -1) & (jets.muonIdx2 == -1)
+        )
     sel_obj.add("vetomap", flag_veto_jet)
     sel_veto_jet = sel_obj.all(*(sel_obj.names))
     sel_good_jet = ~ak.Array(sel_veto_jet)
     logger.debug(
-        f"[{systematic}] total: {len(sel_good_jet)}, pass: {ak.sum(sel_good_jet)}"
+        f"[{systematic}] total jets: {len(sel_good_jet)}, pass jets: {ak.sum(sel_good_jet)}"
     )
     sel_good_jet_jagged = ak.unflatten(sel_good_jet, count)
     flag_veto_jet_jagged = ak.unflatten(flag_veto_jet, count)
@@ -532,14 +542,22 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
     sel_event_veto = ~ak.any(flag_veto_jet_jagged, axis=1)
 
     # Apply the veto mask, preserving all fields
-    filtered_events = events[sel_event_veto]
-
-    filtered_events["Photon"] = events.Photon[sel_event_veto]
-    filtered_events["Jet"] = (jets_jagged[sel_good_jet_jagged])[sel_event_veto]
-    # * Need to add Muon varibles for muon s&s uncertainties
-    filtered_events["Muon"] = events.Muon[sel_event_veto]
+    if year in run2_years:
+        # Run2: veto only jets
+        filtered_events = events
+        filtered_events["Photon"] = events.Photon
+        filtered_events["Jet"] = jets_jagged[sel_good_jet_jagged]
+        # * Need to add Muon varibles for muon s&s uncertainties
+        filtered_events["Muon"] = events.Muon
+    else:
+        # Run3: veto entire event if ANY jet is bad
+        filtered_events = events[sel_event_veto]
+        filtered_events["Photon"] = events.Photon[sel_event_veto]
+        filtered_events["Jet"] = (jets_jagged[sel_good_jet_jagged])[sel_event_veto]
+        # * Need to add Muon varibles for muon s&s uncertainties
+        filtered_events["Muon"] = events.Muon[sel_event_veto]
 
     logger.debug(
-        f"[{systematic}] total event: {len(sel_event_veto)}, pass event: {ak.sum(sel_event_veto)}"
+        f"[{systematic}] total event: {len(sel_event_veto)}, pass event: {len(filtered_events)}"
     )
     return filtered_events
