@@ -111,7 +111,9 @@ def getCosThetaStar_gg(HHbbgg):
 
     Hgg_photon_boosted = Hgg_photon.boost(hggforboost)
 
-    return Hgg_photon_boosted.costheta
+    # Take the negative of the cosine since 'hggforboost'
+    # points opposite the actual hgg in 3-space
+    return -np.cos(Hgg_photon_boosted.deltaangle(hggforboost))
 
 
 def getCosThetaStar_jj(HHbbgg):
@@ -129,7 +131,9 @@ def getCosThetaStar_jj(HHbbgg):
 
     Hjj_jet_boosted = Hjj_jet.boost(hjjforboost)
 
-    return Hjj_jet_boosted.costheta
+    # Take the negative of the cosine since 'hjjforboost'
+    # points opposite the actual hjj in 3-space
+    return -np.cos(Hjj_jet_boosted.deltaangle(hjjforboost))
 
 
 def disjoint_dijets(dijet1, dijet2):
