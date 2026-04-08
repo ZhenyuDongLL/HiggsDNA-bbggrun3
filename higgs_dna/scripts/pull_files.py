@@ -1001,6 +1001,11 @@ def get_Flow_files(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2024_model/",
             "type": "eos",
         },
+        "2025": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/Flows/",
+            "to": f"{to_prefix}/2025_model/",
+            "type": "eos",
+        },
     }
     fetch_file("Flows", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
