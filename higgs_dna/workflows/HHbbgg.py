@@ -7,6 +7,7 @@ from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.tools.HHbbgg_bpairing import Compute_DNN_bpairing
 from higgs_dna.tools.HHbbgg_mbb_regression import calculate_mbb_regression
 from higgs_dna.tools.jetID import add_jetId
+from higgs_dna.tools.mc_splitting import split_mc_events
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
@@ -171,13 +172,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
 
         # MC splitting based on event ID and year for 2024 and 2025 datasets
-        if self.split_mc and self.data_kind == "mc":
-            if self.year[dataset_name][0] == "2024":
-                # Keep only even event IDs for 2024
-                events = events[events.event % 2 == 0]
-            elif self.year[dataset_name][0] == "2025":
-                # Keep only odd event IDs for 2025
-                events = events[events.event % 2 != 0]
+        events = split_mc_events(events, split_mc=self.split_mc, data_kind=self.data_kind, year=self.year[dataset_name][0])
 
         # here we start recording possible coffea accumulators
         # most likely histograms, could be counters, arrays, ...
