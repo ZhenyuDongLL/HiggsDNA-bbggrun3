@@ -59,6 +59,7 @@ def test_processors(processor_class):
     subprocess.run("xrdcp root://eoscms.cern.ch//eos/cms/store/group/phys_b2g/HHbbgg/jafan/mbbModels/mjj_model_2023.onnx higgs_dna/tools/mjj_model_2023.onnx", shell=True)
     subprocess.run("xrdcp root://eoscms.cern.ch//eos/cms/store/group/phys_b2g/HHbbgg/jafan/mbbModels/mjj_model_2022.onnx higgs_dna/tools/mjj_model_2022.onnx", shell=True)
     subprocess.run("xrdcp root://eoscms.cern.ch//eos/cms/store/group/phys_b2g/HHbbgg/ejourdhu/DNN_bpairing/DNN_bpairing_allyears.onnx higgs_dna/tools/HHbbgg_DNN_bpairing_allyears.onnx", shell=True)
+    subprocess.run("xrdcp root://eoscms.cern.ch//eos/cms/store/group/phys_b2g/HHbbgg/chouy/vbf_pairing/HHbbgg_vbfpairing_Run3.onnx higgs_dna/tools/HHbbgg_vbfpairing_Run3.onnx", shell=True)
 
     # Choose datasets to run over appropriately
     # In the future, should specify datasets on eos instead of local files

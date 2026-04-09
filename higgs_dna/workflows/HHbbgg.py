@@ -5,6 +5,7 @@ from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrysta
 from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_gen_attributes, match_jet, match_fatjet_hbb
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.tools.HHbbgg_bpairing import Compute_DNN_bpairing
+from higgs_dna.tools.HHbbgg_vbfpairing import apply_VBFHH_pairing
 from higgs_dna.tools.HHbbgg_mbb_regression import calculate_mbb_regression
 from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.tools.mc_splitting import split_mc_events
@@ -110,7 +111,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
         )
 
         self.split_mc = split_mc
-        self.bbgg_analysis = ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair"]
+        self.bbgg_analysis = ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair", "nonResReg_vbfpair"]
         self.nano_version = nano_version
         self.name_convention = "DAS"
 
@@ -947,7 +948,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
             for AnType in self.bbgg_analysis:
                 dijets = dijets_base
-                if AnType not in ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair"]:
+                if AnType not in ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair", "nonResReg_vbfpair"]:
                     raise NotImplementedError
                 if "DNNpair" in AnType :
                     try :
@@ -1183,10 +1184,8 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 diphotons[f"{AnType}_CosThetaStar_gg"] = ak.fill_none(getCosThetaStar_gg(HHbbgg), -999.0)
                 diphotons[f"{AnType}_CosThetaStar_jj"] = ak.fill_none(getCosThetaStar_jj(HHbbgg), -999.0)
 
-                if AnType in ["nonRes", "nonResReg", "nonResReg_DNNpair"]:
+                if AnType in ["nonRes", "nonResReg", "nonResReg_DNNpair", "nonResReg_vbfpair"]:
                     # Add VBF jets information
-                    # HHbbgg = ak.with_name(HHbbgg, "PtEtaPhiMCandidate", behavior=candidate.behavior)
-                    # jets = ak.with_name(jets, "PtEtaPhiMCandidate", behavior=candidate.behavior)
                     jets["dr_VBFj_b1"] = ak.fill_none(jets.delta_r(HHbbgg.first_jet), -999.0)
                     jets["dr_VBFj_b2"] = ak.fill_none(jets.delta_r(HHbbgg.second_jet), -999.0)
                     jets["dr_VBFj_g1"] = ak.fill_none(jets.delta_r(HHbbgg.pho_lead), -999.0)
@@ -1194,55 +1193,77 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
                     # VBF jet selection
                     vbf_jets = jets[(jets.pt > 30) & (jets.dr_VBFj_b1 > 0.4) & (jets.dr_VBFj_b2 > 0.4)]
-                    vbf_jet_pair = ak.combinations(
+                    vbf_dijets = ak.combinations(
                         vbf_jets, 2, fields=("first_jet", "second_jet")
                     )
-                    vbf = ak.zip({
-                        "first_jet": vbf_jet_pair["first_jet"],
-                        "second_jet": vbf_jet_pair["second_jet"],
-                        "dijet": vbf_jet_pair["first_jet"] + vbf_jet_pair["second_jet"],
-                    })
-                    vbf = vbf[vbf.first_jet.pt > 40.]
-                    vbf = vbf[ak.argsort(vbf.dijet.mass, ascending=False)]
-                    vbf = ak.firsts(vbf)
+                    vbf_pair = vbf_dijets["first_jet"] + vbf_dijets["second_jet"]
+                    vbf_dijets["mass"] = vbf_pair.mass
+                    vbf_dijets["pt"] = vbf_pair.pt
+                    vbf_dijets["eta"] = vbf_pair.eta
+                    vbf_dijets["phi"] = vbf_pair.phi
+                    vbf_dijets["charge"] = vbf_pair.charge
+                    vbf_dijets = ak.with_name(vbf_dijets, "PtEtaPhiMCandidate")
+
+                    vbf_dijets = vbf_dijets[vbf_dijets.first_jet.pt > 40.]
+                    vbf_dijets = vbf_dijets[ak.argsort(vbf_dijets.mass, ascending=False)]
+
+                    if "vbfpair" in AnType :
+                        if any(y in self.year[dataset_name][0] for y in ["2016", "2017", "2018"]):
+                            VBFpair_model = os.path.join(os.path.dirname(__file__), "../tools/HHbbgg_vbfpairing_Run2.onnx")
+                        elif any(y in self.year[dataset_name][0] for y in ["2022", "2023", "2024", "2025"]):
+                            VBFpair_model = os.path.join(os.path.dirname(__file__), "../tools/HHbbgg_vbfpairing_Run3.onnx")
+
+                        vbf_dijets = apply_VBFHH_pairing(VBFpair_model, vbf_dijets, diphotons)
+                        try:
+                            vbf_dijets = vbf_dijets[vbf_dijets["vbfpair_Class"] == 1]
+                        except ValueError as e:
+                            logger.warning(f"Error sorting dijets: {e}")
+
+                    vbf_dijets = ak.firsts(vbf_dijets)
 
                     # Store VBF jets properties
-                    vbf_jets_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "PNetRegPtRawCorr", "PNetRegPtRawCorrNeutrino", "PNetRegPtRawRes", "btagPNetQvG", "btagDeepFlav_QG", "rawFactor", "pt_orig"]
-                    for i in vbf.fields:
-                        vbf_properties = vbf_jets_properties if i != "dijet" else vbf_jets_properties[:5]
-                        for prop in vbf_properties:
-                            key = f"VBF_{i}_{prop}"
-                            value = ak.fill_none(getattr(vbf[i], prop), -999)
+                    vbf_jets_properties = ["pt", "eta", "phi", "mass", "charge", "btagPNetB", "PNetRegPtRawCorr", "PNetRegPtRawCorrNeutrino", "PNetRegPtRawRes", "btagPNetQvG", "btagDeepFlav_QG", "rawFactor", "pt_orig", "index"]
+                    for i in ["first_jet", "second_jet"]:
+                        for prop in vbf_jets_properties:
+                            key = f"{AnType}_VBF_{i}_{prop}"
+                            value = ak.fill_none(getattr(vbf_dijets[i], prop), -999)
                             # Store the value in the diphotons dictionary
                             diphotons[key] = value
+                    diphotons[f"{AnType}_VBF_first_jet_PtOverM"] = ak.fill_none(vbf_dijets.first_jet.pt / vbf_dijets.mass, -999)
+                    diphotons[f"{AnType}_VBF_second_jet_PtOverM"] = ak.fill_none(vbf_dijets.second_jet.pt / vbf_dijets.mass, -999)
 
-                    diphotons["VBF_first_jet_PtOverM"] = ak.where(diphotons.VBF_first_jet_pt != -999, diphotons.VBF_first_jet_pt / diphotons.VBF_dijet_mass, -999)
-                    diphotons["VBF_second_jet_PtOverM"] = ak.where(diphotons.VBF_second_jet_pt != -999, diphotons.VBF_second_jet_pt / diphotons.VBF_dijet_mass, -999)
-                    diphotons["VBF_first_jet_index"] = ak.fill_none(vbf.first_jet.index, -999)
-                    diphotons["VBF_second_jet_index"] = ak.fill_none(vbf.second_jet.index, -999)
+                    for prop in vbf_jets_properties[:5]:
+                        key = f"{AnType}_VBF_dijet_{prop}"
+                        value = ak.fill_none(getattr(vbf_dijets, prop), -999)
+                        diphotons[key] = value
 
-                    diphotons["VBF_jet_eta_prod"] = ak.fill_none(vbf.first_jet.eta * vbf.second_jet.eta, -999)
-                    diphotons["VBF_jet_eta_diff"] = ak.fill_none(vbf.first_jet.eta - vbf.second_jet.eta, -999)
-                    diphotons["VBF_jet_eta_sum"] = ak.fill_none(vbf.first_jet.eta + vbf.second_jet.eta, -999)
+                    if "vbfpair" in AnType :
+                        diphotons[f"{AnType}_VBF_dijet_vbfpair_Class"] = ak.fill_none(vbf_dijets.vbfpair_Class, -999)
+                        diphotons[f"{AnType}_VBF_dijet_vbfpair_Score_bb"] = ak.fill_none(vbf_dijets.vbfpair_Score_bb, -999.0)
+                        diphotons[f"{AnType}_VBF_dijet_vbfpair_Score_jj"] = ak.fill_none(vbf_dijets.vbfpair_Score_jj, -999.0)
 
-                    diphotons["VBF_DeltaR_j1b1"] = ak.fill_none(vbf.first_jet.dr_VBFj_b1, -999)
-                    diphotons["VBF_DeltaR_j1b2"] = ak.fill_none(vbf.first_jet.dr_VBFj_b2, -999)
-                    diphotons["VBF_DeltaR_j2b1"] = ak.fill_none(vbf.second_jet.dr_VBFj_b1, -999)
-                    diphotons["VBF_DeltaR_j2b2"] = ak.fill_none(vbf.second_jet.dr_VBFj_b2, -999)
+                    diphotons[f"{AnType}_VBF_jet_eta_prod"] = ak.fill_none(vbf_dijets.first_jet.eta * vbf_dijets.second_jet.eta, -999)
+                    diphotons[f"{AnType}_VBF_jet_eta_diff"] = ak.fill_none(vbf_dijets.first_jet.eta - vbf_dijets.second_jet.eta, -999)
+                    diphotons[f"{AnType}_VBF_jet_eta_sum"] = ak.fill_none(vbf_dijets.first_jet.eta + vbf_dijets.second_jet.eta, -999)
 
-                    diphotons["VBF_DeltaR_j1g1"] = ak.fill_none(vbf.first_jet.dr_VBFj_g1, -999)
-                    diphotons["VBF_DeltaR_j1g2"] = ak.fill_none(vbf.first_jet.dr_VBFj_g2, -999)
-                    diphotons["VBF_DeltaR_j2g1"] = ak.fill_none(vbf.second_jet.dr_VBFj_g1, -999)
-                    diphotons["VBF_DeltaR_j2g2"] = ak.fill_none(vbf.second_jet.dr_VBFj_g2, -999)
+                    diphotons[f"{AnType}_VBF_DeltaR_j1b1"] = ak.fill_none(vbf_dijets.first_jet.dr_VBFj_b1, -999)
+                    diphotons[f"{AnType}_VBF_DeltaR_j1b2"] = ak.fill_none(vbf_dijets.first_jet.dr_VBFj_b2, -999)
+                    diphotons[f"{AnType}_VBF_DeltaR_j2b1"] = ak.fill_none(vbf_dijets.second_jet.dr_VBFj_b1, -999)
+                    diphotons[f"{AnType}_VBF_DeltaR_j2b2"] = ak.fill_none(vbf_dijets.second_jet.dr_VBFj_b2, -999)
 
-                    DeltaR_jb = ak.Array([diphotons["VBF_DeltaR_j1b1"], diphotons["VBF_DeltaR_j2b1"], diphotons["VBF_DeltaR_j1b2"], diphotons["VBF_DeltaR_j2b2"]])
-                    DeltaR_jg = ak.Array([diphotons["VBF_DeltaR_j1g1"], diphotons["VBF_DeltaR_j2g1"], diphotons["VBF_DeltaR_j1g2"], diphotons["VBF_DeltaR_j2g2"]])
+                    diphotons[f"{AnType}_VBF_DeltaR_j1g1"] = ak.fill_none(vbf_dijets.first_jet.dr_VBFj_g1, -999)
+                    diphotons[f"{AnType}_VBF_DeltaR_j1g2"] = ak.fill_none(vbf_dijets.first_jet.dr_VBFj_g2, -999)
+                    diphotons[f"{AnType}_VBF_DeltaR_j2g1"] = ak.fill_none(vbf_dijets.second_jet.dr_VBFj_g1, -999)
+                    diphotons[f"{AnType}_VBF_DeltaR_j2g2"] = ak.fill_none(vbf_dijets.second_jet.dr_VBFj_g2, -999)
 
-                    diphotons["VBF_DeltaR_jb_min"] = ak.min(DeltaR_jb, axis=0)
-                    diphotons["VBF_DeltaR_jg_min"] = ak.min(DeltaR_jg, axis=0)
+                    DeltaR_jb = ak.Array([diphotons[f"{AnType}_VBF_DeltaR_j1b1"], diphotons[f"{AnType}_VBF_DeltaR_j2b1"], diphotons[f"{AnType}_VBF_DeltaR_j1b2"], diphotons[f"{AnType}_VBF_DeltaR_j2b2"]])
+                    DeltaR_jg = ak.Array([diphotons[f"{AnType}_VBF_DeltaR_j1g1"], diphotons[f"{AnType}_VBF_DeltaR_j2g1"], diphotons[f"{AnType}_VBF_DeltaR_j1g2"], diphotons[f"{AnType}_VBF_DeltaR_j2g2"]])
 
-                    diphotons["VBF_Cgg"] = ak.where(diphotons.VBF_jet_eta_diff != -999, Cxx(diphotons.eta, diphotons.VBF_jet_eta_diff, diphotons.VBF_jet_eta_sum), -999)
-                    diphotons["VBF_Cbb"] = ak.where(diphotons.VBF_jet_eta_diff != -999, Cxx(diphotons.nonRes_dijet_eta, diphotons.VBF_jet_eta_diff, diphotons.VBF_jet_eta_sum), -999)
+                    diphotons[f"{AnType}_VBF_DeltaR_jb_min"] = ak.min(DeltaR_jb, axis=0)
+                    diphotons[f"{AnType}_VBF_DeltaR_jg_min"] = ak.min(DeltaR_jg, axis=0)
+
+                    diphotons[f"{AnType}_VBF_Cgg"] = ak.where(~ak.is_none(vbf_dijets), Cxx(HHbbgg.obj_diphoton.eta, diphotons[f"{AnType}_VBF_jet_eta_diff"], diphotons[f"{AnType}_VBF_jet_eta_sum"]), -999)
+                    diphotons[f"{AnType}_VBF_Cbb"] = ak.where(~ak.is_none(vbf_dijets), Cxx(HHbbgg.obj_dijet.eta, diphotons[f"{AnType}_VBF_jet_eta_diff"], diphotons[f"{AnType}_VBF_jet_eta_sum"]), -999)
 
                 # add flags for the presence of btagged jets for the different analyses
                 diphotons[f"{AnType}_has_two_btagged_jets"] = (diphotons[f"{AnType}_sublead_bjet_pt"] > -998)

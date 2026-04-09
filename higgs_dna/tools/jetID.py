@@ -39,13 +39,70 @@ def add_jetId(jets, nano_version, year, flattenUnflatten=False):
             )
 
             return (passJetIdTight * (1 << 1)) | (passJetIdTightLepVeto * (1 << 2))
-
+        elif nano_version == 15 and year in ["2016preVFP", "2016postVFP"]:
+            # Run 2 NanoAOD v15 2016 recipe
+            passJetIdTight = ak.where(
+                abs_eta <= 2.4,
+                (jets.neHEF < 0.9)
+                & (jets.neEmEF < 0.9)
+                & (jets.chMultiplicity + jets.neMultiplicity > 1)
+                & (jets.chHEF > 0.0)
+                & (jets.chMultiplicity > 0),
+                ak.where(
+                    (abs_eta > 2.4) & (abs_eta <= 2.7),
+                    (jets.neHEF < 0.98)
+                    & (jets.neEmEF < 0.99),
+                    ak.where(
+                        (abs_eta > 2.7) & (abs_eta <= 3.0),
+                        jets.neMultiplicity >= 1,
+                        (jets.neMultiplicity > 2)
+                        & (jets.neEmEF < 0.9)
+                    )
+                )
+            )
+            passJetIdTightLepVeto = ak.where(
+                abs_eta <= 2.4,
+                passJetIdTight
+                & (jets.muEF < 0.8)
+                & (jets.chEmEF < 0.8),
+                passJetIdTight
+            )
+            return (passJetIdTight * (1 << 1)) | (passJetIdTightLepVeto * (1 << 2))
+        elif nano_version == 15 and year in ["2017", "2018"]:
+            # Run 2 NanoAOD v15 2017/2018
+            passJetIdTight = ak.where(
+                abs_eta <= 2.6,
+                (jets.neHEF < 0.9)
+                & (jets.neEmEF < 0.9)
+                & (jets.chMultiplicity + jets.neMultiplicity > 1)
+                & (jets.chHEF > 0.0)
+                & (jets.chMultiplicity > 0),
+                ak.where(
+                    (abs_eta > 2.6) & (abs_eta <= 2.7),
+                    (jets.neHEF < 0.90)
+                    & (jets.neEmEF < 0.99),
+                    ak.where(
+                        (abs_eta > 2.7) & (abs_eta <= 3.0),
+                        jets.neHEF < 0.9999,
+                        (jets.neMultiplicity > 2)
+                        & (jets.neEmEF < 0.9)
+                    )
+                )
+            )
+            passJetIdTightLepVeto = ak.where(
+                abs_eta <= 2.7,
+                passJetIdTight
+                & (jets.muEF < 0.8)
+                & (jets.chEmEF < 0.8),
+                passJetIdTight
+            )
+            return (passJetIdTight * (1 << 1)) | (passJetIdTightLepVeto * (1 << 2))
         else:
             # Example code: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/blob/master/examples/jetidExample.py?ref_type=heads
             # Load CorrectionSet
-            fallback_years = ["2025", "2016preVFP", "2016postVFP", "2017", "2018"]
+            fallback_years = ["2025"]
             if year in fallback_years:
-                logger.warning("There is no dedicated {year} jetID. As the {year} PUPPI tune is the same as the 2024 one, the 2024 jetID used! ")
+                logger.warning(f"There is no dedicated {year} jetID. As the {year} PUPPI tune is the same as the 2024 one, the 2024 jetID used! ")
                 year = "2024"
 
             jerc_json = {
