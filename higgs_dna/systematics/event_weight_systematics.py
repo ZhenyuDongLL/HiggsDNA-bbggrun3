@@ -545,14 +545,14 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]
     if year not in avail_years:
         logger.warning(f"\n WARNING: only TriggerSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
     elif "2016" in year:
         year = "2016"
 
-    if year in ["2016", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
+    if year in ["2016", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]:
         json_file_lead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_lead_{year}.json")
         json_file_sublead = os.path.join(os.path.dirname(__file__), f"JSONs/TriggerSF/{year}/TriggerSF_sublead_{year}.json")
 
@@ -599,7 +599,7 @@ def TriggerSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
-    elif "2022" in year or "2023" in year or "2024" in year:
+    elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]:
 
         # If flow corrections are applied, we use the raw (uncorrected) r9 for the trigger SF evaluation
         if hasattr(photons["pho_lead"], 'raw_r9'):
