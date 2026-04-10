@@ -1772,9 +1772,14 @@ def get_HHbbgg_DNN_bpairing_model(logger, target_dir, use_xrdcp=False):
         )
 
     from_to_dict = {
-        "HHbbgg_bpairing": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/ejourdhu/DNN_bpairing/DNN_bpairing_allyears.onnx",
-            "to": f"{to_prefix}/HHbbgg_DNN_bpairing_allyears.onnx",
+        "HHbbgg_HbbPairing_Run2": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/lindo/HHbbgg_bpairing_Run2_allyears.onnx",
+            "to": f"{to_prefix}/HHbbgg_bpairing_Run2_allyears.onnx",
+            "type": "eos",
+        },
+        "HHbbgg_HbbPairing_Run3": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/lindo/HHbbgg_bpairing_Run3_allyears.onnx",
+            "to": f"{to_prefix}/HHbbgg_bpairing_Run3_allyears.onnx",
             "type": "eos",
         },
     }
