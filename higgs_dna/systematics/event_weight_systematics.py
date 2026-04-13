@@ -36,10 +36,8 @@ def SF_photon_ID(
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023preBPix/IDMVA0p19_2023PreBPiX.json")
     elif year == "2023postBPix":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023postBPix/IDMVA0p19_2023PostBPiX.json")
-    # preliminary 2024 results, has to be changed once the official SFs are available
     elif year == "2024":
-        json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2023postBPix/IDMVA0p19_2023PostBPiX.json")
-        logger.warning("Using 2023postBPix SFs for 2024 as a placeholder until 2024 SFs are available! These NTuples cannot be used for a final physics result.")
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/SF_photon_ID/2024/2024_phoid0p24_SF.json")
 
     if "2023" in year or "2024" in year:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["IDMVA_SF"]
@@ -161,28 +159,27 @@ def L1PreFiring(events, weights, year="2017", is_correction=True, **kwargs):
     return weights
 
 
-def LooseMvaSF(photons, weights, year="2017", is_correction=True, **kwargs):
+def LoosePhoIdSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
-    LooseMvaSF: correction to the event weight on a per photon level, impacting one of the high importance input variable of the DiphotonBDT, binned in eta and r9.
+    LoosePhoIdSF: correction to the event weight on a per photon level, impacting one of the high importance input variable of the DiphotonBDT, binned in eta and r9.
     for original implementation look at: https://github.com/cms-analysis/flashgg/blob/2677dfea2f0f40980993cade55144636656a8a4f/Systematics/python/flashggDiPhotonSystematics2017_Legacy_cfi.py
     And for presentation on the study: https://indico.cern.ch/event/963617/contributions/4103623/attachments/2141570/3608645/Zee_Validation_UL2017_Update_09112020_Prasant.pdf
 
-    2022: up to this point, it applies the 2017 SF with the new formula for combining the SF for the diphoton candidate.
+    Run2: Taken from flashgg, the SFs correspond to the custom Hgg PhoID, the loose working point was set to -0.9
+    Run3: Computed with the EGM PhoID, the loose working point is set to -0.7
     """
 
     # era/year defined as parameter of the function, only 2017 is implemented up to now
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
     if year not in avail_years:
-        print(f"\n WARNING: only LooseMvaSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        print(f"\n WARNING: only LoosePhoIDSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
     elif "2016" in year:
         year = "2016"
 
-    # make this read the 2022 files when available!
-    # 2017 file should be renamed with the year in its name...
-    json_file = os.path.join(os.path.dirname(__file__), f"JSONs/LooseMvaSF/{year}/LooseMvaSF_{year}.json")
-    evaluator = correctionlib.CorrectionSet.from_file(json_file)["LooseMvaSF"]
+    json_file = os.path.join(os.path.dirname(__file__), f"JSONs/LoosePhoIDSF/{year}/LoosePhoIDSF_{year}.json")
     if year in ["2016", "2017", "2018"]:
+        evaluator = correctionlib.CorrectionSet.from_file(json_file)["LooseMvaSF"]
         if is_correction:
             # only calculate correction to nominal weight
             sf_lead = evaluator.evaluate(
@@ -222,24 +219,17 @@ def LooseMvaSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
-    elif "2022" in year:
-
+    elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
+        evaluator = correctionlib.CorrectionSet.from_file(json_file)["IDMVA_SF"]
         if is_correction:
             # only calculate correction to nominal weight
-            # ToDo: include pT!!!
-            sf_lead_p_lead = evaluator.evaluate(
-                "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9  # photons["pho_lead"].pt
+            sf_lead = evaluator.evaluate(
+                abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "nominal"
             )
-            sf_lead_p_sublead = evaluator.evaluate(
-                "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9  # photons["pho_sublead"].pt
+            sf_sublead = evaluator.evaluate(
+                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "nominal"
             )
-            sf_sublead_p_lead = evaluator.evaluate(
-                "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9  # photons["pho_lead"].pt
-            )
-            sf_sublead_p_sublead = evaluator.evaluate(
-                "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9  # photons["pho_sublead"].pt
-            )
-            sf = sf_lead_p_lead * sf_sublead_p_sublead + sf_lead_p_sublead * sf_sublead_p_lead - sf_lead_p_lead * sf_lead_p_sublead
+            sf = sf_lead * sf_sublead
 
             sfup, sfdown = None, None
 
@@ -247,52 +237,26 @@ def LooseMvaSF(photons, weights, year="2017", is_correction=True, **kwargs):
             # only calculate systs
             sf = np.ones(len(weights._weight))
 
-            # get nominal SF to divide it out
-            sf_lead_p_lead = evaluator.evaluate(
-                "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9  # photons["pho_lead"].pt
+            sf_lead = evaluator.evaluate(
+                abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "nominal"
             )
-            sf_lead_p_sublead = evaluator.evaluate(
-                "nominal", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9  # photons["pho_sublead"].pt
+            sf_sublead = evaluator.evaluate(
+                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "nominal"
             )
-            sf_sublead_p_lead = evaluator.evaluate(
-                "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9  # photons["pho_lead"].pt
-            )
-            sf_sublead_p_sublead = evaluator.evaluate(
-                "nominal", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9  # photons["pho_sublead"].pt
-            )
-            _sf = sf_lead_p_lead * sf_sublead_p_sublead + sf_lead_p_sublead * sf_sublead_p_lead - sf_lead_p_lead * sf_lead_p_sublead
+            _sf = sf_lead * sf_sublead
 
-            # up SF
-            sfup_lead_p_lead = evaluator.evaluate(
-                "up", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9  # photons["pho_lead"].pt
+            sf_unc_lead = evaluator.evaluate(
+                abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "uncertainty"
             )
-            sfup_lead_p_sublead = evaluator.evaluate(
-                "up", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9  # photons["pho_sublead"].pt
+            sf_unc_sublead = evaluator.evaluate(
+                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "uncertainty"
             )
-            sfup_sublead_p_lead = evaluator.evaluate(
-                "up", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9  # photons["pho_lead"].pt
-            )
-            sfup_sublead_p_sublead = evaluator.evaluate(
-                "up", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9  # photons["pho_sublead"].pt
-            )
-            sfup = (sfup_lead_p_lead * sfup_sublead_p_sublead + sfup_lead_p_sublead * sfup_sublead_p_lead - sfup_lead_p_lead * sfup_lead_p_sublead) / _sf
 
-            # down SF
-            sfdown_lead_p_lead = evaluator.evaluate(
-                "down", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9  # photons["pho_lead"].pt
-            )
-            sfdown_lead_p_sublead = evaluator.evaluate(
-                "down", abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9  # photons["pho_sublead"].pt
-            )
-            sfdown_sublead_p_lead = evaluator.evaluate(
-                "down", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9  # photons["pho_lead"].pt
-            )
-            sfdown_sublead_p_sublead = evaluator.evaluate(
-                "down", abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9  # photons["pho_sublead"].pt
-            )
-            sfdown = (sfdown_lead_p_lead * sfdown_sublead_p_sublead + sfdown_lead_p_sublead * sfdown_sublead_p_lead - sfdown_lead_p_lead * sfdown_lead_p_sublead) / _sf
+            sfup = (sf_lead + sf_unc_lead) * (sf_sublead + sf_unc_sublead) / _sf
 
-    name = "LooseMvaSF_corr" if is_correction else "LooseMvaSF"
+            sfdown = (sf_lead - sf_unc_lead) * (sf_sublead - sf_unc_sublead) / _sf
+
+    name = "LoosePhoIDSF_corr" if is_correction else "LoosePhoIDSF"
     weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
 
     return weights
@@ -438,10 +402,8 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023preBPix/Preselection_2023PreBPix.json")
     elif year == "2023postBPix":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2023PostBPiX.json")
-    # For 2024 use 2023postBPix SFs for now. This is only a placeholder until 2024 SFs are available!
     elif year == "2024":
-        json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2023PostBPiX.json")
-        logger.warning("Using 2023postBPix Preselection SFs for 2024 as a placeholder until 2024 SFs are available! These NTuples cannot be used for a final physics result.")
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2024.json")
 
     if year in ["2016", "2017", "2018"]:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["PreselSF"]

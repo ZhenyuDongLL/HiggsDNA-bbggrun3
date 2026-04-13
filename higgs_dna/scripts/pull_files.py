@@ -346,30 +346,59 @@ def get_photonid_mva_shape_json(logger, target_dir, use_xrdcp=False):
     fetch_file("PhotonIDMVAShape", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
-def get_loose_mva_json(logger, target_dir, use_xrdcp=False):
+def get_loose_phoID_json(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
     else:
         to_prefix = os.path.join(
-            resource_dir, "../higgs_dna/systematics/JSONs/LooseMvaSF"
+            resource_dir, "../higgs_dna/systematics/JSONs/LoosePhoIDSF"
         )
+    
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/ingredients"
+    loose_phoID_subfolder_name = "loose_phoID_SF"
 
     from_to_dict = {
         "2016": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/2016/LooseMvaSF_2016.json",
-            "to": f"{to_prefix}/2016/LooseMvaSF_2016.json",
+            "to": f"{to_prefix}/2016/LoosePhoIDSF_2016.json",
             "type": "eos",
         },
         "2017": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/2017/LooseMvaSF_2017.json",
-            "to": f"{to_prefix}/2017/LooseMvaSF_2017.json",
+            "to": f"{to_prefix}/2017/LoosePhoIDSF_2017.json",
             "type": "eos",
         },
         "2018": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/tbevilac/JSONs/2018/LooseMvaSF_2018.json",
-            "to": f"{to_prefix}/2018/LooseMvaSF_2018.json",
+            "to": f"{to_prefix}/2018/LoosePhoIDSF_2018.json",
             "type": "eos",
         },
+        "2022preEE": {
+            "from": os.path.join(path_to_ingredients, "2022", loose_phoID_subfolder_name, "2022PreEE_IDMVA0p7_SF.json"),
+            "to": f"{to_prefix}/2022preEE/LoosePhoIDSF_2022PreEE.json",
+            "type": "eos",
+        },
+        "2022postEE": {
+            "from": os.path.join(path_to_ingredients, "2022", loose_phoID_subfolder_name, "2022PostEE_IDMVA0p7_SF.json"),
+            "to": f"{to_prefix}/2022postEE/LoosePhoIDSF_2022PostEE.json",
+            "type": "eos",
+        },
+        "2023preBPix": {
+            "from": os.path.join(path_to_ingredients, "2023", loose_phoID_subfolder_name, "2023PreBPiX_IDMVA0p7_SF.json"),
+            "to": f"{to_prefix}/2023preBPix/LoosePhoIDSF_2023PreBPix.json",
+            "type": "eos",
+        },
+        "2023postBPix": {
+            "from": os.path.join(path_to_ingredients, "2023", loose_phoID_subfolder_name, "2023PostBPiX_IDMVA0p7_SF.json"),
+            "to": f"{to_prefix}/2023postBPix/LoosePhoIDSF_2023PostBPiX.json",
+            "type": "eos",
+        },
+        "2024": {
+            "from": os.path.join(path_to_ingredients, "2024", loose_phoID_subfolder_name, "2024_phoid0p7_SF.json"),
+            "to": f"{to_prefix}/2024/LoosePhoIDSF_2024.json",
+            "type": "eos",
+        },
+
     }
     fetch_file("LooseMva", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -517,6 +546,11 @@ def get_presel_json(logger, target_dir, use_xrdcp=False):
         "2023postBPix": {
             "from": os.path.join(path_to_ingredients, "2023", presel_subfolder_name, "Preselection_2023PostBPiX.json"),
             "to": f"{to_prefix}/2023postBPix/Preselection_2023PostBPiX.json",
+            "type": "eos",
+        },
+        "2024": {
+            "from": os.path.join(path_to_ingredients, "2024", presel_subfolder_name, "2024_preselection_SF.json"),
+            "to": f"{to_prefix}/2024/Preselection_2024.json",
             "type": "eos",
         },
     }
@@ -796,6 +830,11 @@ def get_photonid_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2023postBPix/IDMVA0p19_2023PostBPiX.json",
             "type": "eos",
         },
+        "2024": {
+            "from": os.path.join(path_to_ingredients, "2024", phoID_subfolder_name, "2024_phoid0p24_SF.json"),
+            "to": f"{to_prefix}/2024/2024_phoid0p24_SF.json",
+            "type": "eos",
+        }
     }
     fetch_file("PhotonID", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -1902,7 +1941,7 @@ def main():
         get_jer_files(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_material_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_fnuf_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
-        get_loose_mva_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_loose_phoID_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_shower_shape_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_trigger_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_presel_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
@@ -1954,7 +1993,7 @@ def main():
     elif args.target == "ShowerShape":
         get_shower_shape_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "LooseMva":
-        get_loose_mva_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_loose_phoID_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "TriggerSF":
         get_trigger_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PreselSF":
