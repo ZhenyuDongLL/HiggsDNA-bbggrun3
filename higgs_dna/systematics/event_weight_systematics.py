@@ -50,12 +50,20 @@ def SF_photon_ID(
     if "2022" in year or "2023" in year or "2024" in year:
         if is_correction:
             # only calculate correction to nominal weight
-            sf_lead = evaluator.evaluate(
-                abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "nominal"
-            )
-            sf_sublead = evaluator.evaluate(
-                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "nominal"
-            )
+            if "2024" in year:
+                sf_lead = evaluator.evaluate(
+                    abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt, "nominal"
+                )
+                sf_sublead = evaluator.evaluate(
+                    abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt, "nominal"
+                )
+            else:
+                sf_lead = evaluator.evaluate(
+                    abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "nominal"
+                )
+                sf_sublead = evaluator.evaluate(
+                    abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "nominal"
+                )
             sf = sf_lead * sf_sublead
 
             sfup, sfdown = None, None
@@ -64,21 +72,36 @@ def SF_photon_ID(
             # only calculate systs
 
             sf = np.ones(len(weights._weight))
+            if "2024" in year:
+                sf_lead = evaluator.evaluate(
+                    abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt, "nominal"
+                )
+                sf_sublead = evaluator.evaluate(
+                    abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt, "nominal"
+                )
+                _sf = sf_lead * sf_sublead
 
-            sf_lead = evaluator.evaluate(
-                abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "nominal"
-            )
-            sf_sublead = evaluator.evaluate(
-                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "nominal"
-            )
-            _sf = sf_lead * sf_sublead
+                sf_unc_lead = evaluator.evaluate(
+                    abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt, "uncertainty"
+                )
+                sf_unc_sublead = evaluator.evaluate(
+                    abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt, "uncertainty"
+                )
+            else:
+                sf_lead = evaluator.evaluate(
+                    abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "nominal"
+                )
+                sf_sublead = evaluator.evaluate(
+                    abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "nominal"
+                )
+                _sf = sf_lead * sf_sublead
 
-            sf_unc_lead = evaluator.evaluate(
-                abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "uncertainty"
-            )
-            sf_unc_sublead = evaluator.evaluate(
-                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "uncertainty"
-            )
+                sf_unc_lead = evaluator.evaluate(
+                    abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "uncertainty"
+                )
+                sf_unc_sublead = evaluator.evaluate(
+                    abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "uncertainty"
+                )
 
             sfup = (sf_lead + sf_unc_lead) * (sf_sublead + sf_unc_sublead) / _sf
 
@@ -224,10 +247,10 @@ def LoosePhoIdSF(photons, weights, year="2017", is_correction=True, **kwargs):
         if is_correction:
             # only calculate correction to nominal weight
             sf_lead = evaluator.evaluate(
-                abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "nominal"
+                abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt, "nominal"
             )
             sf_sublead = evaluator.evaluate(
-                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "nominal"
+                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt, "nominal"
             )
             sf = sf_lead * sf_sublead
 
@@ -238,18 +261,18 @@ def LoosePhoIdSF(photons, weights, year="2017", is_correction=True, **kwargs):
             sf = np.ones(len(weights._weight))
 
             sf_lead = evaluator.evaluate(
-                abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "nominal"
+                abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt, "nominal"
             )
             sf_sublead = evaluator.evaluate(
-                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "nominal"
+                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt, "nominal"
             )
             _sf = sf_lead * sf_sublead
 
             sf_unc_lead = evaluator.evaluate(
-                abs(photons["pho_lead"].ScEta), photons["pho_lead"].pt, "uncertainty"
+                abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, photons["pho_lead"].pt, "uncertainty"
             )
             sf_unc_sublead = evaluator.evaluate(
-                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].pt, "uncertainty"
+                abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, photons["pho_sublead"].pt, "uncertainty"
             )
 
             sfup = (sf_lead + sf_unc_lead) * (sf_sublead + sf_unc_sublead) / _sf
@@ -403,7 +426,7 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
     elif year == "2023postBPix":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2023PostBPiX.json")
     elif year == "2024":
-        json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2024.json")
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2024/Preselection_2024.json")
 
     if year in ["2016", "2017", "2018"]:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["PreselSF"]
