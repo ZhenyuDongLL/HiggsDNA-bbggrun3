@@ -114,6 +114,8 @@ class LowMassProcessor(HggSkeletonProcessor):
         # leading/subleading photon pT over m_gg cuts
         self.ptom1_cut = 0.47
         self.ptom2_cut = 0.28
+        # mvaid cut > -0.9
+        self.min_mvaid = -0.9
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
