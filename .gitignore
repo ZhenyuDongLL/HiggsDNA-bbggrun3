@@ -1,7 +1,10 @@
 # Editors
 .vscode/
 .idea/
-.swp
+
+# Swap
+*.swp
+*.swx
 
 # Vagrant
 .vagrant/
