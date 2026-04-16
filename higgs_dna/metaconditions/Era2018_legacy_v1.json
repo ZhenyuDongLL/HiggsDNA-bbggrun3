@@ -34,8 +34,40 @@
 
     "flashggPhotons" :
     {
-        "photonIdMVAweightfile_EB" : "flashgg/MicroAOD/data/HggPhoId_94X_barrel_BDT_v2.weights.xml",
-        "photonIdMVAweightfile_EE" : "flashgg/MicroAOD/data/HggPhoId_94X_endcap_BDT_v2.weights.xml",
+        "photonIdMVAweightfile_EB" : "XGB_Model_Barrel_EGM_Fall2017V2_PhoID.json",
+        "photonIdMVAweightfile_EE" : "XGB_Model_Endcap_EGM_Fall2017V2_PhoID.json",
+        "inputs_EB": 
+        [
+            "energyRaw",
+            "r9",
+            "sieie",
+            "etaWidth",
+            "phiWidth",
+            "sieip",
+            "s4",
+            "pfPhoIso03",
+            "pfChargedIsoPFPV",
+            "pfChargedIsoWorstVtx",
+            "ScEta",
+            "fixedGridRhoAll"
+        ],
+        "inputs_EE":
+        [
+            "energyRaw",
+            "r9",
+            "sieie",
+            "etaWidth",
+            "phiWidth",
+            "sieip",
+            "s4",
+            "pfPhoIso03",
+            "pfChargedIsoPFPV",
+            "pfChargedIsoWorstVtx",
+            "ScEta",
+            "fixedGridRhoAll",
+            "esEffSigmaRR",
+            "esEnergyOverRawE"
+        ],
         "effAreasConfigFile" : "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_TrueVtx.txt",
         "is2017" : true
     },

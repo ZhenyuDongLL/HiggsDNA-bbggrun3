@@ -34,8 +34,8 @@
 
     "flashggPhotons" :
     {
-        "photonIdMVAweightfile_EB" : "XGB_Model_Barrel_SA_phoID_UL2017_woCorr.json",
-        "photonIdMVAweightfile_EE" : "XGB_Model_Endcap_SA_phoID_UL2017_woCorr.json",
+        "photonIdMVAweightfile_EB" : "XGB_Model_Barrel_EGM_Fall2017V2_PhoID.json",
+        "photonIdMVAweightfile_EE" : "XGB_Model_Endcap_EGM_Fall2017V2_PhoID.json",
         "inputs_EB": 
         [
             "energyRaw",
@@ -48,7 +48,7 @@
             "pfPhoIso03",
             "pfChargedIsoPFPV",
             "pfChargedIsoWorstVtx",
-            "eta",
+            "ScEta",
             "fixedGridRhoAll"
         ],
         "inputs_EE":
@@ -63,7 +63,7 @@
             "pfPhoIso03",
             "pfChargedIsoPFPV",
             "pfChargedIsoWorstVtx",
-            "eta",
+            "ScEta",
             "fixedGridRhoAll",
             "esEffSigmaRR",
             "esEnergyOverRawE"

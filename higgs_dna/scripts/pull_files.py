@@ -1037,7 +1037,7 @@ def get_Flow_files(logger, target_dir, use_xrdcp=False):
 
     from_to_dict = {
         "Run2": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/hgg_photon_id_mva_weights/",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/Flows/hgg_photon_id_mva_weights/",
             "to": f"{to_prefix}/run2_mvaID_models/",
             "type": "eos",
         },
