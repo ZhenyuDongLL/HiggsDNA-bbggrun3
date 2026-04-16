@@ -53,15 +53,20 @@ def Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians=
     return EGM_Smearing_IJazZ(pt, events, year, is_correction, gaussians, is_electron=False)
 
 
-def energyErrShift(energyErr, events, year="2022postEE", is_correction=True):
+def energyErrShift(energyErr, events, year="2022postEE", is_correction=True, workflow="base"):
     # See also https://indico.cern.ch/event/1131803/contributions/4758593/attachments/2398621/4111806/Hgg_Differentials_Approval_080322.pdf#page=47
     # 2% with flows justified by https://indico.cern.ch/event/1495536/#20-study-of-the-sigma_mm-mismo
     if is_correction:
         return events
     else:
         _energyErr = ak.flatten(events.Photon.energyErr)
-        uncertainty_up = np.ones(len(_energyErr)) * 1.02
-        uncertainty_dn = np.ones(len(_energyErr)) * 0.98
+        if workflow == "lowmass":
+            # For lowmass: 4% is a preliminary estimate, based on the observed data-MC discrepancies in the energy resolution.
+            uncertainty_up = np.ones(len(_energyErr)) * 1.04
+            uncertainty_dn = np.ones(len(_energyErr)) * 0.96
+        else:
+            uncertainty_up = np.ones(len(_energyErr)) * 1.02
+            uncertainty_dn = np.ones(len(_energyErr)) * 0.98
         return (
             np.concatenate(
                 (uncertainty_up[:, None], uncertainty_dn[:, None]), axis=1
@@ -132,7 +137,7 @@ def FNUF(pt, events, year="2017", is_correction=True):
 
 # Same old same old, just reiterated: if the functions are called in the base processor by Photon.add_systematic(... "what"="pt"...), the pt is passed to the function as first argument.
 # Open for better solutions.
-def ShowerShape(pt, events, year="2017", is_correction=True):
+def ShowerShape(pt, events, year="2017", is_correction=True, workflow="base"):
     """
     ---This is an implementation of the ShowerShape uncertainty copied from flashgg,
     --- Preliminary JSON (run2 I don't know if this needs to be changed) file created with correctionlib starting from flashgg: https://github.com/cms-analysis/flashgg/blob/2677dfea2f0f40980993cade55144636656a8a4f/Systematics/python/flashggDiPhotonSystematics2017_Legacy_cfi.py
@@ -145,6 +150,13 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
     eta = ak.flatten(events.Photon.ScEta)
     r9 = ak.flatten(events.Photon.r9)
     _pt = ak.flatten(events.Photon.pt)
+    if workflow == "lowmass":
+        logger.warning(f"""You selected the workflow {workflow}.
+                        The ShowerShape systematic is not yet rederived for the Run3 lowmass analysis, but we apply the same systematic of Run2 2018.
+                       """)
+        year = "2018"
+        # add also energy here for lowmass
+        _energy = ak.flatten(events.Photon.energy)
 
     # era/year defined as parameter of the function
     avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018"]
@@ -164,6 +176,11 @@ def ShowerShape(pt, events, year="2017", is_correction=True):
         corrected_photons = events.Photon
         corr_pt = ak.unflatten(corr_pt, counts)
         corrected_photons["pt"] = corr_pt
+        # add also energy here for lowmass
+        if workflow == "lowmass":
+            corr_energy = _energy * correction
+            corr_energy = ak.unflatten(corr_energy, counts)
+            corrected_photons["energy"] = corr_energy
         events["Photon"] = corrected_photons
 
         return events
@@ -238,7 +255,7 @@ def Material(pt, events, year="2017", is_correction=True):
         )
 
 
-def PhotonIDMVAShape(mvaID, events, year="2024", is_correction=True):
+def PhotonIDMVAShape(mvaID, events, year="2024", is_correction=True, workflow="base"):
     """
     Photon MVA ID shape systematic derived via quantile mapping of the
     data--MC mvaID discrepancy.
@@ -265,6 +282,43 @@ def PhotonIDMVAShape(mvaID, events, year="2024", is_correction=True):
 
     if ak.all(mvaID == ak.flatten(events.Photon.mvaID)):
         raise ValueError("mvaID values are identical to those in the original NanoAOD. You must apply flow corrections to use `PhotonIDMVAShape`!")
+
+    # For Lowmass: a linear shift of the mvaID values, with different parameters for
+    # EB and EE is applied as a preliminary estimate of the systematic uncertainty
+    if workflow == "lowmass":
+        _mvaID = ak.flatten(events.Photon.mvaID)[:, None]
+        _isScEtaEB = ak.flatten(events.Photon.isScEtaEB)[:, None]
+
+        x_min = {"EB": 0, "EE": 0}
+        x_max = {"EB": 1, "EE": 1}
+        y_min = {"EB": 0.04, "EE": 0.05}
+        y_max = {"EB": 0.01, "EE": 0.01}
+        slope = {
+            "EB": (y_min["EB"] - y_max["EB"]) / (-x_min["EB"] + x_max["EB"]),
+            "EE": (y_min["EE"] - y_max["EE"]) / (-x_min["EE"] + x_max["EE"]),
+        }
+
+        Up_IDMVA = {}
+        Down_IDMVA = {}
+
+        for region in ["EB", "EE"]:
+            Up_IDMVA[region] = np.where(
+                _mvaID < x_min[region],
+                (_mvaID + y_min[region]),
+                (y_min[region] - ((_mvaID - x_min[region]) * slope[region]) + _mvaID),
+            )
+            Up_IDMVA[region] = np.clip(Up_IDMVA[region], None, 1)
+            Down_IDMVA[region] = np.where(
+                _mvaID < x_min[region],
+                (_mvaID - y_min[region]),
+                (-y_min[region] + ((_mvaID - x_min[region]) * slope[region]) + _mvaID),
+            )
+            Down_IDMVA[region] = np.clip(Down_IDMVA[region], -1, None)
+
+        uncertainty_up = ak.where(_isScEtaEB, Up_IDMVA["EB"], Up_IDMVA["EE"])
+        uncertainty_down = ak.where(_isScEtaEB, Down_IDMVA["EB"], Down_IDMVA["EE"])
+
+        return np.concatenate((uncertainty_up, uncertainty_down), axis=1)
 
     logger.warning("[PhotonIDMVAShape] This is preliminary and was derived with an mvaID > -0.9 cut using Zee-based corrections. Both of these will be revised once the Zmmy-based corrections are ready.")
     jsonpog_file = os.path.join(

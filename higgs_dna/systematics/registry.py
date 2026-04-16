@@ -31,6 +31,11 @@ from .event_weight_systematics import (
     electron_reco_sf_for_Zee_val_photons,
     atLeast1LeptonIdSF,
     Higgs_plus_HF_syst,
+    SF_photon_ID_LM,
+    ElectronVetoSF_LM,
+    ElectronIndexSF_LM,
+    PreselSF_LM,
+    TriggerSF_LM,
 )
 from .jet_systematics import (
     jet_pt_scale_dummy,
@@ -303,6 +308,30 @@ object_systematics = {
             "varying_function": MET_syst_Unclustered,
         },
     },
+    "energyErrShift_LM": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "energyErr",
+            "varying_function": partial(energyErrShift, is_correction=False, workflow="lowmass"),
+        },
+    },
+    "photonIDMVAShift_LM": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "mvaID",
+            "varying_function": partial(PhotonIDMVAShape, is_correction=False, workflow="lowmass"),
+        },
+    },
+    "ShowerShape_LM": {
+        "object": "Photon",
+        "args": {
+            "kind": "UpDownSystematic",
+            "what": "mvaID",
+            "varying_function": partial(ShowerShape, is_correction=False, workflow="lowmass"),
+        },
+    },
 }
 
 # functions correcting nominal object quantities to be placed here
@@ -336,6 +365,8 @@ object_corrections = {
         skip_JEC=False,
         is_correction=True,
     ),
+    "energyErrShift_LM": partial(energyErrShift, energyErr=None, is_correction=True, workflow="lowmass"),
+    "ShowerShape_LM": partial(ShowerShape, pt=None, is_correction=True, workflow="lowmass"),
 }
 
 # functions adding systematic variations to event weights to be placed here
@@ -400,6 +431,11 @@ weight_systematics = {
     "Higgs_plus_c_pt25_syst50": partial(Higgs_plus_HF_syst, min_pt=25, flav="c", rel_unc=0.5),
     "Higgs_plus_c_pt20_syst100": partial(Higgs_plus_HF_syst, min_pt=20, flav="c", rel_unc=1.0),
     "Higgs_plus_c_pt25_syst100": partial(Higgs_plus_HF_syst, min_pt=25, flav="c", rel_unc=1.0),
+    "SF_photon_ID_LM": partial(SF_photon_ID_LM, is_correction=False),
+    "ElectronVetoSF_LM": partial(ElectronVetoSF_LM, is_correction=False),
+    "ElectronIndexSF_LM": partial(ElectronIndexSF_LM, is_correction=False),
+    "PreselSF_LM": partial(PreselSF_LM, is_correction=False),
+    "TriggerSF_LM": partial(TriggerSF_LM, is_correction=False),
 }
 
 # functions correcting nominal event weights to be placed here
@@ -454,4 +490,9 @@ weight_corrections = {
         mu_SF_names=("NUM_MediumID_DEN_TrackerMuons", "NUM_TightPFIso_DEN_MediumID"),
         is_correction=True,
     ),
+    "SF_photon_ID_LM": partial(SF_photon_ID_LM, is_correction=True),
+    "ElectronVetoSF_LM": partial(ElectronVetoSF_LM, is_correction=True),
+    "ElectronIndexSF_LM": partial(ElectronIndexSF_LM, is_correction=True),
+    "PreselSF_LM": partial(PreselSF_LM, is_correction=True),
+    "TriggerSF_LM": partial(TriggerSF_LM, is_correction=True),
 }

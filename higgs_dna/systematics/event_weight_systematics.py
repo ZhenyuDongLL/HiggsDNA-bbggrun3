@@ -3013,3 +3013,596 @@ def atLeast1LeptonIdSF(
             )
 
         return weights
+
+
+def TriggerSF_LM(photons, weights, year="2022postEE", is_correction=True, **kwargs):
+    """
+    Lowmass Trigger SFs of Run3
+    """
+
+    # Currently only have Run3 2022 corrections available, for other Run3 years, using 2022 SFs temporarily
+    avail_years = [
+        "2022preEE",
+        "2022postEE",
+        "2023preBPix",
+        "2023postBPix",
+        "2024",
+        "2025",
+    ]
+    if year not in avail_years:
+        logger.warning(
+            f"\n WARNING: only TriggerSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n"
+        )
+        exit()
+
+    if year in [
+        "2022preEE",
+        "2022postEE",
+        "2023preBPix",
+        "2023postBPix",
+        "2024",
+        "2025",
+    ]:
+        if year not in ["2022preEE", "2022postEE"]:
+            logger.warning(
+                f"Using 2022postEE LowmassTrigger SFs for {year} as a placeholder until {year} SFs are available!"
+            )
+            _year = "2022postEE"
+        else:
+            _year = year
+        json_file_lead = os.path.join(
+            os.path.dirname(__file__),
+            f"JSONs/TriggerSF_LM/{_year}/Lowmass_seeded_leg_efficinecy.json",
+        )
+        json_file_sublead = os.path.join(
+            os.path.dirname(__file__),
+            f"JSONs/TriggerSF_LM/{_year}/Lowmass_unseeded_leg_efficinecy.json",
+        )
+
+    evaluator_lead = correctionlib.CorrectionSet.from_file(json_file_lead)["TriggerSF"]
+    evaluator_sublead = correctionlib.CorrectionSet.from_file(json_file_sublead)[
+        "TriggerSF"
+    ]
+
+    if year in [
+        "2022preEE",
+        "2022postEE",
+        "2023preBPix",
+        "2023postBPix",
+        "2024",
+        "2025",
+    ]:
+        # If flow corrections are applied, we use the raw (uncorrected) r9 for the trigger SF evaluation
+        if hasattr(photons["pho_lead"], "raw_r9"):
+            sf_lead_p_lead = evaluator_lead.evaluate(
+                "nominal",
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].raw_r9,
+                photons["pho_lead"].pt,
+            )
+            sf_lead_p_sublead = evaluator_lead.evaluate(
+                "nominal",
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].raw_r9,
+                photons["pho_sublead"].pt,
+            )
+            sf_sublead_p_lead = evaluator_sublead.evaluate(
+                "nominal",
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].raw_r9,
+                photons["pho_lead"].pt,
+            )
+            sf_sublead_p_sublead = evaluator_sublead.evaluate(
+                "nominal",
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].raw_r9,
+                photons["pho_sublead"].pt,
+            )
+        else:
+            sf_lead_p_lead = evaluator_lead.evaluate(
+                "nominal",
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].r9,
+                photons["pho_lead"].pt,
+            )
+            sf_lead_p_sublead = evaluator_lead.evaluate(
+                "nominal",
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].r9,
+                photons["pho_sublead"].pt,
+            )
+            sf_sublead_p_lead = evaluator_sublead.evaluate(
+                "nominal",
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].r9,
+                photons["pho_lead"].pt,
+            )
+            sf_sublead_p_sublead = evaluator_sublead.evaluate(
+                "nominal",
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].r9,
+                photons["pho_sublead"].pt,
+            )
+
+        if is_correction:
+            # only calculate correction to nominal weight
+            sf = (
+                sf_lead_p_lead * sf_sublead_p_sublead
+                + sf_lead_p_sublead * sf_sublead_p_lead
+                - sf_lead_p_lead * sf_lead_p_sublead
+            )
+
+            sfup, sfdown = None, None
+
+        else:
+            # only calculate systs
+            sf = np.ones(len(weights._weight))
+            # get nominal SF to divide it out
+            _sf = (
+                sf_lead_p_lead * sf_sublead_p_sublead
+                + sf_lead_p_sublead * sf_sublead_p_lead
+                - sf_lead_p_lead * sf_lead_p_sublead
+            )
+
+            # up SF
+            sfup_lead_p_lead = evaluator_lead.evaluate(
+                "up",
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].r9,
+                photons["pho_lead"].pt,
+            )
+            sfup_lead_p_sublead = evaluator_lead.evaluate(
+                "up",
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].r9,
+                photons["pho_sublead"].pt,
+            )
+            sfup_sublead_p_lead = evaluator_sublead.evaluate(
+                "up",
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].r9,
+                photons["pho_lead"].pt,
+            )
+            sfup_sublead_p_sublead = evaluator_sublead.evaluate(
+                "up",
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].r9,
+                photons["pho_sublead"].pt,
+            )
+            sfup = (
+                sfup_lead_p_lead * sfup_sublead_p_sublead
+                + sfup_lead_p_sublead * sfup_sublead_p_lead
+                - sfup_lead_p_lead * sfup_lead_p_sublead
+            ) / _sf
+
+            # down SF
+            sfdown_lead_p_lead = evaluator_lead.evaluate(
+                "down",
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].r9,
+                photons["pho_lead"].pt,
+            )
+            sfdown_lead_p_sublead = evaluator_lead.evaluate(
+                "down",
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].r9,
+                photons["pho_sublead"].pt,
+            )
+            sfdown_sublead_p_lead = evaluator_sublead.evaluate(
+                "down",
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].r9,
+                photons["pho_lead"].pt,
+            )
+            sfdown_sublead_p_sublead = evaluator_sublead.evaluate(
+                "down",
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].r9,
+                photons["pho_sublead"].pt,
+            )
+            sfdown = (
+                sfdown_lead_p_lead * sfdown_sublead_p_sublead
+                + sfdown_lead_p_sublead * sfdown_sublead_p_lead
+                - sfdown_lead_p_lead * sfdown_lead_p_sublead
+            ) / _sf
+
+    name = "TriggerSF_corr" if is_correction else "TriggerSF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
+
+    return weights
+
+
+def SF_photon_ID_LM(photons, weights, year="2022postEE", is_correction=True, **kwargs):
+    """
+    Run3 Lowmass photon ID SFs. Only have 2022 SFs available for now,
+    using them as placeholders for other years until the official SFs are available
+    """
+    # era/year defined as parameter of the function
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    if year not in avail_years:
+        logger.warning(
+            f"\n WARNING: only photon ID SFs for the year strings {avail_years} are already implemented! \n Exiting. \n"
+        )
+        logger.warning(
+            "If you need the SFs for the central Egamma MVA ID for Run 2 UL, take action yourself or contact us!"
+        )
+        exit()
+
+    if year == "2022preEE":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/SF_photon_ID_LM/2022/IDMVA0p9_2022PreEE_LowHgg.json",
+        )
+    elif year == "2022postEE":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/SF_photon_ID_LM/2022/IDMVA0p9_2022PostEE_LowHgg.json",
+        )
+    # preliminary 2023, 2024 results, has to be changed once the official SFs are available
+    elif year == "2023preBPix":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/SF_photon_ID_LM/2022/IDMVA0p9_2022PostEE_LowHgg.json",
+        )
+        logger.warning(
+            f"Using 2022postEE Lowmass PhotonID SFs for {year} as a placeholder until {year} SFs are available!"
+        )
+    elif year == "2023postBPix":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/SF_photon_ID_LM/2022/IDMVA0p9_2022PostEE_LowHgg.json",
+        )
+        logger.warning(
+            f"Using 2022postEE Lowmass PhotonID SFs for {year} as a placeholder until {year} SFs are available!"
+        )
+    elif year == "2024":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/SF_photon_ID_LM/2022/IDMVA0p9_2022PostEE_LowHgg.json",
+        )
+        logger.warning(
+            f"Using 2022postEE Lowmass PhotonID SFs for {year} as a placeholder until {year} SFs are available!"
+        )
+
+    evaluator = correctionlib.CorrectionSet.from_file(json_file)["IDMVA_SF"]
+
+    # In principle, we should use the fully correct formula https://indico.cern.ch/event/1360948/contributions/5783762/attachments/2788516/4870824/24_02_02_HIG-23-014_PreAppPres.pdf#page=7
+    # However, if the SF is pt-binned, the approximation of the multiplication of the two SFs is fully exact
+    # N.B. These phoID SFs are computed for the workin point optimised for the fiducial XS analysis (0.25 for 22, and 0.19 for 23)
+    if "2022" in year or "2023" in year or "2024" in year:
+        if is_correction:
+            # only calculate correction to nominal weight
+            sf_lead = evaluator.evaluate(
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].r9,
+                photons["pho_lead"].pt,
+                "nominal",
+            )
+            sf_sublead = evaluator.evaluate(
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].r9,
+                photons["pho_sublead"].pt,
+                "nominal",
+            )
+            sf = sf_lead * sf_sublead
+
+            sfup, sfdown = None, None
+
+        else:
+            # only calculate systs
+
+            sf = np.ones(len(weights._weight))
+            sf_lead = evaluator.evaluate(
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].r9,
+                photons["pho_lead"].pt,
+                "nominal",
+            )
+            sf_sublead = evaluator.evaluate(
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].r9,
+                photons["pho_sublead"].pt,
+                "nominal",
+            )
+            _sf = sf_lead * sf_sublead
+
+            sf_unc_lead = evaluator.evaluate(
+                abs(photons["pho_lead"].ScEta),
+                photons["pho_lead"].r9,
+                photons["pho_lead"].pt,
+                "uncertainty",
+            )
+            sf_unc_sublead = evaluator.evaluate(
+                abs(photons["pho_sublead"].ScEta),
+                photons["pho_sublead"].r9,
+                photons["pho_sublead"].pt,
+                "uncertainty",
+            )
+
+            sfup = (sf_lead + sf_unc_lead) * (sf_sublead + sf_unc_sublead) / _sf
+
+            sfdown = (sf_lead - sf_unc_lead) * (sf_sublead - sf_unc_sublead) / _sf
+
+    name = "SF_photon_ID_corr" if is_correction else "SF_photon_ID"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
+
+    return weights
+
+
+def PreselSF_LM(photons, weights, year="2022postEE", is_correction=True, **kwargs):
+    """
+    Run3 Lowmass preselection SFs. Only have 2022 SFs available for now
+    Using them as placeholders for other years until the official SFs are available
+    """
+    # era/year defined as parameter of the function
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    if year not in avail_years:
+        logger.warning(
+            f"\n WARNING: only preselection SFs for the year strings {avail_years} are already implemented! \n Exiting. \n"
+        )
+        exit()
+
+    if year == "2022preEE":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/Preselection_LM/2022/Preselection_2022PreEE_LowHgg.json",
+        )
+    elif year == "2022postEE":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/Preselection_LM/2022/Preselection_2022PostEE_LowHgg.json",
+        )
+    # preliminary 2023, 2024 results, has to be changed once the official SFs are available
+    elif year == "2023preBPix":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/Preselection_LM/2022/Preselection_2022PostEE_LowHgg.json",
+        )
+        logger.warning(
+            f"Using 2022postEE Lowmass Preselection SFs for {year} as a placeholder until {year} SFs are available!"
+        )
+    elif year == "2023postBPix":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/Preselection_LM/2022/Preselection_2022PostEE_LowHgg.json",
+        )
+        logger.warning(
+            f"Using 2022postEE Lowmass Preselection SFs for {year} as a placeholder until {year} SFs are available!"
+        )
+    elif year == "2024":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/Preselection_LM/2022/Preselection_2022PostEE_LowHgg.json",
+        )
+        logger.warning(
+            f"Using 2022postEE Lowmass Preselection SFs for {year} as a placeholder until {year} SFs are available!"
+        )
+
+    evaluator = correctionlib.CorrectionSet.from_file(json_file)["Preselection_SF"]
+
+    if is_correction:
+        # only calculate correction to nominal weight
+        sf_lead = evaluator.evaluate(
+            abs(photons["pho_lead"].ScEta),
+            photons["pho_lead"].r9,
+            photons["pho_lead"].pt,
+            "nominal",
+        )
+        sf_sublead = evaluator.evaluate(
+            abs(photons["pho_sublead"].ScEta),
+            photons["pho_sublead"].r9,
+            photons["pho_sublead"].pt,
+            "nominal",
+        )
+        sf = sf_lead * sf_sublead
+
+        sfup, sfdown = None, None
+    else:
+        # only calculate systs
+
+        sf = np.ones(len(weights._weight))
+        sf_lead = evaluator.evaluate(
+            abs(photons["pho_lead"].ScEta),
+            photons["pho_lead"].r9,
+            photons["pho_lead"].pt,
+            "nominal",
+        )
+        sf_sublead = evaluator.evaluate(
+            abs(photons["pho_sublead"].ScEta),
+            photons["pho_sublead"].r9,
+            photons["pho_sublead"].pt,
+            "nominal",
+        )
+        _sf = sf_lead * sf_sublead
+
+        sf_unc_lead = evaluator.evaluate(
+            abs(photons["pho_lead"].ScEta),
+            photons["pho_lead"].r9,
+            photons["pho_lead"].pt,
+            "uncertainty",
+        )
+        sf_unc_sublead = evaluator.evaluate(
+            abs(photons["pho_sublead"].ScEta),
+            photons["pho_sublead"].r9,
+            photons["pho_sublead"].pt,
+            "uncertainty",
+        )
+
+        sfup = (sf_lead + sf_unc_lead) * (sf_sublead + sf_unc_sublead) / _sf
+
+        sfdown = (sf_lead - sf_unc_lead) * (sf_sublead - sf_unc_sublead) / _sf
+
+    name = "PreselSF_corr" if is_correction else "PreselSF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
+
+    return weights
+
+
+def ElectronIndexSF_LM(
+    photons, weights, year="2022postEE", is_correction=True, **kwargs
+):
+    """
+    Run3 Lowmass Electron Index Selection SFs. Only have 2022 SFs available for now
+    Using them as placeholders for other years until the official SFs are available
+    """
+
+    # era/year defined as parameter of the function
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    if year not in avail_years:
+        logger.warning(
+            f"\n WARNING: only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n"
+        )
+        exit()
+
+    if year == "2022preEE":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/ElectronIdxSF_LM/2022/preEE_EIdx_SFcorrections.json",
+        )
+    elif year == "2022postEE":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/ElectronIdxSF_LM/2022/postEE_EIdx_SFcorrections.json",
+        )
+    elif "2023preBPix" in year:
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/ElectronIdxSF_LM/2022/postEE_EIdx_SFcorrections.json",
+        )
+        logger.warning(
+            f"Using 2022postEE Lowmass Electron Index SFs for {year} as a placeholder until {year} SFs are available!"
+        )
+    elif "2023postBPix" in year:
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/ElectronIdxSF_LM/2022/postEE_EIdx_SFcorrections.json",
+        )
+        logger.warning(
+            f"Using 2022postEE Lowmass Electron Index SFs for {year} as a placeholder until {year} SFs are available!"
+        )
+
+    evaluator = correctionlib.CorrectionSet.from_file(json_file)["EIdx_SFs"]
+
+    if is_correction:
+        # only calculate correction to nominal weight
+        sf_lead = evaluator.evaluate(
+            abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, "nominal"
+        )
+        sf_sublead = evaluator.evaluate(
+            abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, "nominal"
+        )
+        sf = sf_lead * sf_sublead
+
+        sfup, sfdown = None, None
+
+    else:
+        # only calculate systs
+        sf = np.ones(len(weights._weight))
+        sf_lead = evaluator.evaluate(
+            abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, "nominal"
+        )
+        sf_sublead = evaluator.evaluate(
+            abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, "nominal"
+        )
+        _sf = sf_lead * sf_sublead
+
+        unc_lead = evaluator.evaluate(
+            abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, "uncertainty"
+        )
+        unc_sublead = evaluator.evaluate(
+            abs(photons["pho_sublead"].ScEta),
+            photons["pho_sublead"].r9,
+            "uncertainty",
+        )
+
+        sfup = (sf_lead + unc_lead) * (sf_sublead + unc_sublead) / _sf
+        sfdown = (sf_lead - unc_lead) * (sf_sublead - unc_sublead) / _sf
+
+    name = "ElectronIndexSF_corr" if is_correction else "ElectronIndexSF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
+
+    return weights
+
+
+def ElectronVetoSF_LM(
+    photons, weights, year="2022postEE", is_correction=True, **kwargs
+):
+    """
+    Run3 Lowmass Electron Veto Selection SFs. Only have 2022 SFs available for now
+    Using them as placeholders for other years until the official SFs are available
+    """
+
+    # era/year defined as parameter of the function
+    avail_years = [
+        "2022preEE",
+        "2022postEE",
+        "2023preBPix",
+        "2023postBPix",
+    ]
+    if year not in avail_years:
+        logger.warning(
+            f"\n WARNING: only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n"
+        )
+        exit()
+
+    # presentation of SF: https://indico.cern.ch/event/1360961/#173-run-3-electron-veto-sfs
+    if year == "2022preEE":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/ElectronVetoSF_LM/2022/preEE_PSV_SFcorrections.json",
+        )
+    elif year == "2022postEE":
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/ElectronVetoSF_LM/2022/postEE_PSV_SFcorrections.json",
+        )
+    else:
+        json_file = os.path.join(
+            os.path.dirname(__file__),
+            "JSONs/ElectronVetoSF_LM/2022/postEE_PSV_SFcorrections.json",
+        )
+        logger.warning(
+            f"Using 2022postEE Lowmass Electron Veto SFs for {year} as a placeholder until {year} SFs are available!"
+        )
+
+    evaluator = correctionlib.CorrectionSet.from_file(json_file)["PSV_SFs"]
+
+    if is_correction:
+        # only calculate correction to nominal weight
+        sf_lead = evaluator.evaluate(
+            abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, "nominal"
+        )
+        sf_sublead = evaluator.evaluate(
+            abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, "nominal"
+        )
+        sf = sf_lead * sf_sublead
+
+        sfup, sfdown = None, None
+
+    else:
+        # only calculate systs
+        sf = np.ones(len(weights._weight))
+        sf_lead = evaluator.evaluate(
+            abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, "nominal"
+        )
+        sf_sublead = evaluator.evaluate(
+            abs(photons["pho_sublead"].ScEta), photons["pho_sublead"].r9, "nominal"
+        )
+        _sf = sf_lead * sf_sublead
+
+        unc_lead = evaluator.evaluate(
+            abs(photons["pho_lead"].ScEta), photons["pho_lead"].r9, "uncertainty"
+        )
+        unc_sublead = evaluator.evaluate(
+            abs(photons["pho_sublead"].ScEta),
+            photons["pho_sublead"].r9,
+            "uncertainty",
+        )
+
+        sfup = (sf_lead + unc_lead) * (sf_sublead + unc_sublead) / _sf
+        sfdown = (sf_lead - unc_lead) * (sf_sublead - unc_sublead) / _sf
+
+    name = "ElectronVetoSF_corr" if is_correction else "ElectronVetoSF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
+
+    return weights

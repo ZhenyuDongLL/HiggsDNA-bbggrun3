@@ -1885,6 +1885,146 @@ def get_muon_scale_smearing(logger, target_dir, use_xrdcp=False):
     unzip_gz_with_gunzip(logger, to_prefix)
 
 
+def get_trigger_json_lowmass(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/TriggerSF_LM"
+        )
+
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs_LM"
+    trigger_subfolder_name = "TriggerSF_LM"
+
+    from_to_dict = {
+        "2022preEE_lead": {
+            "from": os.path.join(path_to_ingredients, trigger_subfolder_name, "2022preEE", "Lowmass_seeded_leg_efficinecy.json"),
+            "to": f"{to_prefix}/2022preEE/Lowmass_seeded_leg_efficinecy.json",
+            "type": "eos",
+        },
+        "2022preEE_sublead": {
+            "from": os.path.join(path_to_ingredients, trigger_subfolder_name, "2022preEE", "Lowmass_unseeded_leg_efficinecy.json"),
+            "to": f"{to_prefix}/2022preEE/Lowmass_unseeded_leg_efficinecy.json",
+            "type": "eos",
+        },
+        "2022postEE_lead": {
+            "from": os.path.join(path_to_ingredients, trigger_subfolder_name, "2022postEE", "Lowmass_seeded_leg_efficinecy.json"),
+            "to": f"{to_prefix}/2022postEE/Lowmass_seeded_leg_efficinecy.json",
+            "type": "eos",
+        },
+        "2022postEE_sublead": {
+            "from": os.path.join(path_to_ingredients, trigger_subfolder_name, "2022postEE", "Lowmass_unseeded_leg_efficinecy.json"),
+            "to": f"{to_prefix}/2022postEE/Lowmass_unseeded_leg_efficinecy.json",
+            "type": "eos",
+        },
+    }
+    fetch_file("TriggerSF_LM", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
+def get_presel_json_lowmass(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/Preselection_LM"
+        )
+
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs_LM"
+    presel_subfolder_name = "Preselection_LM"
+
+    from_to_dict = {
+        "2022preEE": {
+            "from": os.path.join(path_to_ingredients, presel_subfolder_name, "2022", "Preselection_2022PreEE_LowHgg.json"),
+            "to": f"{to_prefix}/2022/Preselection_2022PreEE_LowHgg.json",
+            "type": "eos",
+        },
+        "2022postEE": {
+            "from": os.path.join(path_to_ingredients, presel_subfolder_name, "2022", "Preselection_2022PostEE_LowHgg.json"),
+            "to": f"{to_prefix}/2022/Preselection_2022PostEE_LowHgg.json",
+            "type": "eos",
+        }
+    }
+
+    fetch_file("PreselSF_LM", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
+def get_eveto_json_lowmass(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/ElectronVetoSF_LM"
+        )
+
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs_LM"
+    eveto_subfolder_name = "ElectronVetoSF_LM"
+
+    from_to_dict = {
+        "2022preEE": {
+            "from": os.path.join(path_to_ingredients, eveto_subfolder_name, "2022", "preEE_PSV_SFcorrections.json"),
+            "to": f"{to_prefix}/2022/preEE_PSV_SFcorrections.json",
+            "type": "eos",
+        },
+        "2022postEE": {
+            "from": os.path.join(path_to_ingredients, eveto_subfolder_name, "2022", "postEE_PSV_SFcorrections.json"),
+            "to": f"{to_prefix}/2022/postEE_PSV_SFcorrections.json",
+            "type": "eos",
+        },
+    }
+    fetch_file("eVetoSF_LM", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+def get_electronIdx_json_lowmass(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/ElectronIdxSF_LM"
+        )
+
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs_LM"
+    electronIdx_subfolder_name = "ElectronIdxSF_LM"
+
+    from_to_dict = {
+        "2022preEE": {
+            "from": os.path.join(path_to_ingredients, electronIdx_subfolder_name, "2022", "preEE_EIdx_SFcorrections.json"),
+            "to": f"{to_prefix}/2022/preEE_EIdx_SFcorrections.json",
+            "type": "eos",
+        },
+        "2022postEE": {
+            "from": os.path.join(path_to_ingredients, electronIdx_subfolder_name, "2022", "postEE_EIdx_SFcorrections.json"),
+            "to": f"{to_prefix}/2022/postEE_EIdx_SFcorrections.json",
+            "type": "eos",
+        },
+    }
+    fetch_file("ElectronIdxSF_LM", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
+def get_photonid_json_lowmass(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/SF_photon_ID_LM"
+        )
+
+    path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs_LM"
+    phoID_subfolder_name = "SF_photon_ID_LM"
+
+    from_to_dict = {
+        "2022preEE": {
+            "from": os.path.join(path_to_ingredients, phoID_subfolder_name, "2022", "IDMVA0p9_2022PreEE_LowHgg.json"),
+            "to": f"{to_prefix}/2022/IDMVA0p9_2022PreEE_LowHgg.json",
+            "type": "eos",
+        },
+        "2022postEE": {
+            "from": os.path.join(path_to_ingredients, phoID_subfolder_name, "2022", "IDMVA0p9_2022PostEE_LowHgg.json"),
+            "to": f"{to_prefix}/2022/IDMVA0p9_2022PostEE_LowHgg.json",
+            "type": "eos",
+        },
+    }
+    fetch_file("PhotonID_LM", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Simple utility script to retrieve the needed files for corections, luminostiy mask, systematics uncertainties ..."
@@ -1999,6 +2139,11 @@ def main():
         get_HHbbgg_DNN_bpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_HHbbgg_DNN_vbfpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_photonid_mva_shape_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_trigger_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_presel_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_eveto_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_electronIdx_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_photonid_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "GoldenJSON":
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PU":
@@ -2069,6 +2214,16 @@ def main():
         get_HHbbgg_DNN_vbfpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PhotonIDMVAShape":
         get_photonid_mva_shape_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "TriggerSF_LM":
+        get_trigger_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "PreselSF_LM":
+        get_presel_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "eVetoSF_LM":
+        get_eveto_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "ElectronIdxSF_LM":
+        get_electronIdx_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "PhotonID_LM":
+        get_photonid_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     else:
         logger.info("Unknown target, exit now!")
         exit(0)
