@@ -461,11 +461,11 @@ def jerc_jet(
         jets["pt_L3"] = sf_L3_value * jets["pt_L2"]
         jets["mass_L3"] = sf_L3_value * jets["mass_L2"]
 
-        # Clip the correction to 50 GeV if the pT of the jet is less than 50 GeV and the eta is between 2.0 and 2.5
+        # Clip the correction to 30 GeV if the pT of the jet is less than 30 GeV and the eta is between 2.0 and 2.5
         eval_dict_L2L3 = {
             "JetPt": ak.where(
-                (jets.pt_L3 < 50) & (abs(jets.eta) > 2.0) & (abs(jets.eta) < 2.5),
-                50,
+                (jets.pt_L3 < 30) & (abs(jets.eta) > 2.0) & (abs(jets.eta) < 2.5),
+                30,
                 jets.pt_L3
             ),
             "JetEta": jets.eta,
