@@ -15,6 +15,10 @@ def test_photonid():
     labels = photons.fields
     model_path = "tests/models/PhoID_barrel_UL2017.json.gz"
     model = load_bdt(model_path)
-    mva = calculate_photonid_mva((model, labels), photons)
+    mva = calculate_photonid_mva(
+        (model, labels),
+        photons,
+        sigmoid=True
+    )
 
     assert np.median(mva) > 0.9

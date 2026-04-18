@@ -267,10 +267,14 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         photons = ak.flatten(photons)
         isEB = ak.to_numpy(numpy.abs(photons.eta) < 1.5)
         mva_EB = calculate_photonid_mva(
-            (self.photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]), photons
+            (self.photonid_mva_EB, self.meta["flashggPhotons"]["inputs_EB"]),
+            photons,
+            sigmoid=True
         )
         mva_EE = calculate_photonid_mva(
-            (self.photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]), photons
+            (self.photonid_mva_EE, self.meta["flashggPhotons"]["inputs_EE"]),
+            photons,
+            sigmoid=True
         )
         mva = ak.where(isEB, mva_EB, mva_EE)
         photons["mvaID"] = mva
