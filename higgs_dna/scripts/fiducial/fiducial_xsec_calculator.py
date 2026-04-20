@@ -383,7 +383,11 @@ print(f"The inclusive fiducial cross section (alpha_up) is given by: {final_fid_
 final_fid_xsec_alpha_dn = np.sum(np.asarray([fid_xsecs_per_bin_alpha_dn[b] for b in range(len(obs_bins)-1)]))
 print(f"The inclusive fiducial cross section (alpha_dn) is given by: {final_fid_xsec_alpha_dn} fb")
 
-output = 'fidXS_'+args.obs+'_'+args.process
+output_obs = args.obs
+if output_obs.startswith("Gen"):
+    output_obs = output_obs[3:]
+
+output = 'fidXS_'+output_obs+'_'+args.process
 if args.powheg: output += '_powheg'
 if args.weight != "weight": output += '_'+args.weight
 

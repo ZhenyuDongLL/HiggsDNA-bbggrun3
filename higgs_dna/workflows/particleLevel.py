@@ -3,8 +3,13 @@ from higgs_dna.systematics import object_corrections as available_object_correct
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.utils.dumping_utils import diphoton_ak_array, dump_ak_array, diphoton_list_to_pandas, dump_pandas
 
-from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_genJets, get_higgs_gen_attributes
-from higgs_dna.utils.misc_utils import choose_jet
+from higgs_dna.tools.gen_helpers import (
+    get_fiducial_flag,
+    get_genJets,
+    get_higgs_gen_attributes,
+    get_higgs_truth_attributes,
+)
+from higgs_dna.utils.misc_utils import choose_jet, DPhiV1V2, rapidity_from_pt_eta_mass
 
 from typing import Any, Dict, List, Optional
 import awkward as ak
@@ -130,24 +135,15 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
         # Filling with some dummy values
         diphotons = ak.Array({"pt": numpy.ones(len(events))})
 
-        events["GenIsolatedPhoton"] = ak.pad_none(events["GenIsolatedPhoton"], 2)
-
-        diphotons["leadingGenIsolatedPhoton_pt"] = events.GenIsolatedPhoton[:,0].pt
-        diphotons["leadingGenIsolatedPhoton_eta"] = events.GenIsolatedPhoton[:,0].eta
-        diphotons["leadingGenIsolatedPhoton_phi"] = events.GenIsolatedPhoton[:,0].phi
-
-        diphotons["subleadingGenIsolatedPhoton_pt"] = events.GenIsolatedPhoton[:,1].pt
-        diphotons["subleadingGenIsolatedPhoton_eta"] = events.GenIsolatedPhoton[:,1].eta
-        diphotons["subleadingGenIsolatedPhoton_phi"] = events.GenIsolatedPhoton[:,1].phi
-
         diphotons['fiducialClassicalFlag'] = get_fiducial_flag(events, flavour='Classical')
         diphotons['fiducialGeometricFlag'] = get_fiducial_flag(events, flavour='Geometric')
-        diphotons['GenPTH'], diphotons['GenYH'], diphotons['GenPhiH'], _, _ = get_higgs_gen_attributes(events)
+        GenPTH, GenYH, GenPhiH, GenLeadPho, GenSubleadPho = get_higgs_gen_attributes(events)
+        TruthPTH, TruthYH = get_higgs_truth_attributes(events)
 
         genJets = get_genJets(
             events,
             pt_cut=30.,
-            eta_cut=2.5,
+            eta_cut=4.7,
             jet_pho_min_dr=self.jet_pho_min_dr,
             jet_ele_min_dr=self.jet_ele_min_dr,
             jet_muo_min_dr=self.jet_muo_min_dr,
@@ -156,8 +152,275 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
             muon_pt_threshold=self.muon_pt_threshold,
             muon_max_eta=self.muon_max_eta,
         )
+        genJets_absEta2p5 = genJets[numpy.abs(genJets.eta) < 2.5]
+
+        ######################
+        # Diphoton Variables #
+        ######################
+        GenPTH = ak.fill_none(GenPTH, -999.0)
+        diphotons['GenPTH'] = GenPTH
+
+        GenYH = ak.fill_none(GenYH, -999)
+        GenYH = ak.where(numpy.isnan(GenYH), -999, GenYH)
+        diphotons['GenYH'] = GenYH
+
+        diphotons["GenLeadPt"] = ak.fill_none(GenLeadPho.pt, -999.0)
+        diphotons["GenLeadEta"] = ak.fill_none(GenLeadPho.eta, -999.0)
+        diphotons["GenLeadPhi"] = ak.fill_none(GenLeadPho.phi, -999.0)
+        diphotons["GenSubleadPt"] = ak.fill_none(GenSubleadPho.pt, -999.0)
+        diphotons["GenSubleadEta"] = ak.fill_none(GenSubleadPho.eta, -999.0)
+        diphotons["GenSubleadPhi"] = ak.fill_none(GenSubleadPho.phi, -999.0)
+
+        GenDeltaPhoPhi = GenLeadPho.phi - GenSubleadPho.phi
+        GenDeltaPhoPhi_pi_array = ak.full_like(GenDeltaPhoPhi, 2 * numpy.pi)
+        # Select the smallest angle
+        GenDeltaPhoPhi = ak.where(
+            GenDeltaPhoPhi > numpy.pi,
+            GenDeltaPhoPhi - GenDeltaPhoPhi_pi_array,
+            GenDeltaPhoPhi
+        )
+        GenDeltaPhoPhi = ak.where(
+            GenDeltaPhoPhi < -numpy.pi,
+            GenDeltaPhoPhi + GenDeltaPhoPhi_pi_array,
+            GenDeltaPhoPhi
+        )
+        GenAcop = ak.full_like(GenDeltaPhoPhi, numpy.pi) - GenDeltaPhoPhi
+        GenThetaEtaStar = numpy.tan(GenAcop / 2) / numpy.cosh((GenLeadPho.eta - GenSubleadPho.eta) / 2)
+        GenThetaEtaStar = ak.fill_none(GenThetaEtaStar, -999.0)
+        diphotons['GenThetaEtaStar'] = GenThetaEtaStar
+
+        GenAbsDeltaPhoPhi = numpy.abs(GenDeltaPhoPhi)
+        GenPhiAcop = ak.full_like(GenAbsDeltaPhoPhi, numpy.pi) - GenAbsDeltaPhoPhi
+        GenPhiEtaStar = numpy.tan(GenPhiAcop / 2) / numpy.cosh((GenLeadPho.eta - GenSubleadPho.eta) / 2)
+        GenAbsPhiEtaStar = numpy.abs(GenPhiEtaStar)
+        GenAbsPhiEtaStar = ak.fill_none(GenAbsPhiEtaStar, -999.0)
+        diphotons["GenAbsPhiEtaStar"] = GenAbsPhiEtaStar
+
+        GenDiphoton = GenLeadPho + GenSubleadPho
+        GenDiPhoMass = GenDiphoton.mass
+        GenDiPhoPT = GenDiphoton.pt
+        GenCosThetaStarCS = 2 * (((GenLeadPho.pz * GenSubleadPho.energy) - (GenLeadPho.energy * GenSubleadPho.pz)) / (GenDiPhoMass * numpy.sqrt(GenDiPhoMass**2 + GenDiPhoPT**2)))
+        GenCosThetaStarCS = ak.fill_none(GenCosThetaStarCS, -999.0)
+        diphotons['GenCosThetaStarCS'] = GenCosThetaStarCS
+
+        #########################
+        # Leading Jet Variables #
+        #########################
+        # Choose zero (leading) jet and pad with -999 if none
+        GenPTJ0 = choose_jet(genJets.pt, 0, -999.0)
+        diphotons['GenPTJ0'] = GenPTJ0
+        diphotons["GenPTJ0_pt30_absEta2p5"] = choose_jet(genJets_absEta2p5.pt, 0, -999.0)
+
+        gen_first_jet_eta = choose_jet(genJets.eta, 0, -999.0)
+        gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
+        gen_first_jet_phi = choose_jet(genJets.phi, 0, -999.0)
+
+        diphotons['gen_first_jet_eta'] = gen_first_jet_eta
+        diphotons['gen_first_jet_mass'] = gen_first_jet_mass
+        diphotons['gen_first_jet_phi'] = gen_first_jet_phi
+
+        with numpy.errstate(over='ignore', invalid='ignore'):
+            gen_first_jet_pz = GenPTJ0 * numpy.sinh(gen_first_jet_eta)
+            gen_first_jet_pz = ak.where(gen_first_jet_eta == -999, -999, gen_first_jet_pz)
+            gen_first_jet_energy = numpy.sqrt((GenPTJ0**2 * numpy.cosh(gen_first_jet_eta)**2) + gen_first_jet_mass**2)
+
+            GenYJ0 = 0.5 * numpy.log((gen_first_jet_energy + gen_first_jet_pz) / (gen_first_jet_energy - gen_first_jet_pz))
+
+        GenYJ0 = ak.fill_none(GenYJ0, -999)
+        GenYJ0 = ak.where(numpy.isnan(GenYJ0), -999, GenYJ0)
+        diphotons['GenYJ0'] = GenYJ0
+
+        GenPTJ0_absEta2p5 = choose_jet(genJets_absEta2p5.pt, 0, -999.0)
+        gen_first_jet_eta_absEta2p5 = choose_jet(genJets_absEta2p5.eta, 0, -999.0)
+        gen_first_jet_mass_absEta2p5 = choose_jet(genJets_absEta2p5.mass, 0, -999.0)
+        diphotons["GenYJ0_pt30_absEta2p5"] = rapidity_from_pt_eta_mass(
+            GenPTJ0_absEta2p5,
+            gen_first_jet_eta_absEta2p5,
+            gen_first_jet_mass_absEta2p5,
+            fill_value=-999.0,
+        )
+
+        GenDYHJ0 = GenYJ0 - GenYH
+        # Set all entries above 500 to -999
+        GenDYHJ0 = ak.where(
+            numpy.abs(GenDYHJ0) > 500,
+            -999,
+            GenDYHJ0
+        )
+        GenDYHJ0 = ak.fill_none(GenDYHJ0, -999.0)
+        diphotons["GenDYHJ0"] = GenDYHJ0
+
+        GenHPhi = ak.fill_none(GenPhiH, -999)
+
+        GenDPhiHJ0 = gen_first_jet_phi - GenHPhi
+        GenDPhiHJ0 = (GenDPhiHJ0 + numpy.pi) % (2 * numpy.pi) - numpy.pi
+        GenDPhiHJ0 = ak.where(GenHPhi == -999, -999, GenDPhiHJ0)
+        GenDPhiHJ0 = ak.where(gen_first_jet_phi == -999, -999, GenDPhiHJ0)
+        diphotons["GenDPhiHJ0"] = GenDPhiHJ0
+
+        #################################
+        # Next-to-leading Jet Variables #
+        #################################
+        GenPTJ1 = choose_jet(genJets.pt, 1, -999.0)
+        diphotons['GenPTJ1'] = GenPTJ1
+
+        gen_second_jet_eta = choose_jet(genJets.eta, 1, -999.0)
+        gen_second_jet_mass = choose_jet(genJets.mass, 1, -999.0)
+        gen_second_jet_phi = choose_jet(genJets.phi, 1, -999.0)
+
+        diphotons['gen_second_jet_eta'] = gen_second_jet_eta
+        diphotons['gen_second_jet_mass'] = gen_second_jet_mass
+        diphotons['gen_second_jet_phi'] = gen_second_jet_phi
+
+        with numpy.errstate(over='ignore', invalid='ignore'):
+            gen_second_jet_pz = GenPTJ1 * numpy.sinh(gen_second_jet_eta)
+            gen_second_jet_pz = ak.where(gen_second_jet_eta == -999, -999, gen_second_jet_pz)
+            gen_second_jet_energy = numpy.sqrt((GenPTJ1**2 * numpy.cosh(gen_second_jet_eta)**2) + gen_second_jet_mass**2)
+
+            GenYJ1 = 0.5 * numpy.log((gen_second_jet_energy + gen_second_jet_pz) / (gen_second_jet_energy - gen_second_jet_pz))
+
+        GenYJ1 = ak.fill_none(GenYJ1, -999)
+        GenYJ1 = ak.where(numpy.isnan(GenYJ1), -999, GenYJ1)
+        diphotons['GenYJ1'] = GenYJ1
+
+        GenDYJ0J1 = GenYJ0 - GenYJ1
+        # Set all entries above 500 to -999
+        GenDYJ0J1 = ak.where(
+            numpy.abs(GenDYJ0J1) > 500,
+            -999,
+            GenDYJ0J1
+        )
+        # Set all entries which are precisely 0 to -999
+        GenDYJ0J1 = ak.where(
+            GenDYJ0J1 == 0,
+            -999,
+            GenDYJ0J1
+        )
+        GenDYJ0J1 = ak.fill_none(GenDYJ0J1, -999.0)
+        diphotons["GenDYJ0J1"] = GenDYJ0J1
+
+        gen_first_jet_vector = ak.zip({
+            "pt": GenPTJ0,
+            "eta": gen_first_jet_eta,
+            "phi": gen_first_jet_phi,
+            "mass": gen_first_jet_mass
+        }, with_name="Momentum4D")
+
+        gen_second_jet_vector = ak.zip({
+            "pt": GenPTJ1,
+            "eta": gen_second_jet_eta,
+            "phi": gen_second_jet_phi,
+            "mass": gen_second_jet_mass
+        }, with_name="Momentum4D")
+
+        GenDPhiJ0J1 = DPhiV1V2(gen_first_jet_vector, gen_second_jet_vector)
+        diphotons["GenDPhiJ0J1"] = GenDPhiJ0J1
+
+        padded_genJets = genJets[ak.argsort(genJets.pt, ascending=False)]
+        # First build the dijet system out of the leading and subleading jet (in pt)
+        padded_genJets = ak.pad_none(genJets, 2)
+        genDijet = padded_genJets[:, 0] + padded_genJets[:, 1]
+
+        GenMassJ0J1 = ak.fill_none(genDijet.mass, -999.0)
+        diphotons["GenMassJ0J1"] = GenMassJ0J1
+
+        GenDijetEta = ak.fill_none(genDijet.eta, -999.0)
+        GenDiphotonEta = ak.fill_none(GenDiphoton.eta, -999.0)
+        GenDEtaJ0J1H = GenDijetEta - GenDiphotonEta
+        # Set all entries which are precisely 0 to -999
+        GenDEtaJ0J1H = ak.where(
+            GenDEtaJ0J1H == 0,
+            -999,
+            GenDEtaJ0J1H
+        )
+        # Set all entries which are above 500 in absolute value to -999 (come from either no diphoton or no dijet system)
+        GenDEtaJ0J1H = ak.where(
+            numpy.abs(GenDEtaJ0J1H) > 500,
+            -999,
+            GenDEtaJ0J1H
+        )
+        GenDEtaJ0J1H = ak.fill_none(GenDEtaJ0J1H, -999.0)
+        diphotons["GenDEtaJ0J1H"] = GenDEtaJ0J1H
+
+        GenDijetPhi = ak.fill_none(genDijet.phi, -999)
+        GenHPhi = ak.fill_none(GenPhiH, -999)
+
+        GenDPhiHJ0J1 = GenDijetPhi - GenPhiH
+        GenDPhiHJ0J1 = (GenDPhiHJ0J1 + numpy.pi) % (2 * numpy.pi) - numpy.pi
+        GenDPhiHJ0J1 = ak.where(GenHPhi == -999, -999, GenDPhiHJ0J1)
+        GenDPhiHJ0J1 = ak.where(GenDijetPhi == -999, -999, GenDPhiHJ0J1)
+        diphotons["GenDPhiHJ0J1"] = GenDPhiHJ0J1
+
+        GenEtaJ0J1 = gen_first_jet_eta - gen_second_jet_eta
+        # Set all entries which are precisely 0 to -999
+        GenEtaJ0J1 = ak.where(
+            GenEtaJ0J1 == 0,
+            -999,
+            GenEtaJ0J1
+        )
+        # Set all entries which are above 500 in absolute value to -999 (come from either no diphoton or no dijet system)
+        GenEtaJ0J1 = ak.where(
+            numpy.abs(GenEtaJ0J1) > 500,
+            -999,
+            GenEtaJ0J1
+        )
+        GenEtaJ0J1 = ak.fill_none(GenEtaJ0J1, -999.0)
+        diphotons["GenEtaJ0J1"] = GenEtaJ0J1
+
+        ###########################
+        # Event Level Observables #
+        ###########################
         diphotons['GenNJ'] = ak.num(genJets)
-        diphotons['GenPTJ0'] = choose_jet(genJets.pt, 0, -999.0)  # Choose zero (leading) jet and pad with -999 if none
+        diphotons["GenNJ_pt30_absEta2p5"] = ak.num(genJets_absEta2p5)
+
+        # B-Jets
+        # Following the recommendations of https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideBTagMCTools for hadronFlavour
+        # and the Run 2 recommendations for the bjets
+        genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 4.7)
+        genBJetCondition = genJetCondition & (genJets.hadronFlavour == 5)
+        genJets = ak.with_field(genJets, genBJetCondition, "GenIsBJet")
+        num_bjets = ak.sum(genJets["GenIsBJet"], axis=-1)
+        diphotons["GenNBJet"] = num_bjets
+
+        gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
+        diphotons["GenPTbJ0"] = gen_first_bjet_pt
+
+        # Jet Rapidity Observable
+        # Iterate over max six largest pt jets to compute tauJC
+        GenTauJC_list = []
+        GenTauJC_maxJets = 10
+        for i in range(GenTauJC_maxJets):
+            mass = choose_jet(genJets.mass, i, -999.0)
+            pt = choose_jet(genJets.pt, i, -999.0)
+            eta = choose_jet(genJets.eta, i, -999.0)
+
+            with numpy.errstate(over='ignore', invalid='ignore'):
+                cosh_eta = numpy.cosh(eta)
+                sinh_eta = numpy.sinh(eta)
+
+                energy = numpy.sqrt((pt**2 * cosh_eta**2) + mass**2)
+                pz = pt * sinh_eta
+
+                # If energy or pz is inf (cause of the hyperbolic functions), set them to -999
+                # later set every GenTauJC to -999 which has a value of precisely 0 (corresponding to a transverse momentum of exactly 0 GeV)
+                energy = ak.where(numpy.isinf(energy), -999, energy)
+                pz = ak.where(numpy.isinf(pz), -999, pz)
+
+                transverse_mass = numpy.sqrt(pt**2 + mass**2)
+
+                y = numpy.log((numpy.sqrt((mass**2 + pt**2) * cosh_eta**2) + (pt * sinh_eta)) / transverse_mass)
+
+                tau_jc = numpy.sqrt(energy**2 - pz**2) / (2 * numpy.cosh(y - GenYH))
+            GenTauJC_list.append(tau_jc)
+
+            logger.debug(f"GenTauJC: Jet {i}: Energy={energy}, Pz={pz}, TauJC={tau_jc}")
+
+        # Convert to awkward array for proper axis manipulation
+        GenTauJC_array = ak.Array(GenTauJC_list)
+        GenTauJC = ak.max(GenTauJC_array, axis=0)
+        GenTauJC = ak.where(GenTauJC == 0, -999, GenTauJC)
+        GenTauJC = ak.fill_none(GenTauJC, -999.0)
+        diphotons["GenTauJC"] = GenTauJC
 
         # workflow specific processing
         events, process_extra = self.process_extra(events)
@@ -172,6 +435,8 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
         # annotate diphotons with dZ information (difference between z position of GenVtx and PV) as required by flashggfinalfits
         diphotons["genWeight"] = events.genWeight
         diphotons["dZ"] = events.GenVtx.z - events.PV.z
+        diphotons["TruthPTH"] = TruthPTH
+        diphotons["TruthYH"] = TruthYH
 
         for i in range(9):
             diphotons["LHEScaleWeight_" + str(i)] = events.LHEScaleWeight[:,i]

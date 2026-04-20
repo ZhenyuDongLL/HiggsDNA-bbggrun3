@@ -3,7 +3,7 @@ from higgs_dna.workflows.skeleton import HggSkeletonProcessor
 from higgs_dna.tools.SC_eta import add_photon_SC_eta
 from higgs_dna.tools.EELeak_region import veto_EEleak_flag
 from higgs_dna.tools.EcalBadCalibCrystal_events import remove_EcalBadCalibCrystal_events
-from higgs_dna.tools.gen_helpers import get_fiducial_flag
+from higgs_dna.tools.gen_helpers import get_fiducial_flag, get_higgs_truth_attributes
 from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from higgs_dna.tools.jetID import add_jetId
 from higgs_dna.selections.photon_selections import photon_preselection
@@ -505,6 +505,9 @@ class HggBaseProcessor(HggSkeletonProcessor):  # type: ignore
             if self.data_kind == "mc":
                 diphotons["genWeight"] = events.genWeight
                 diphotons["dZ"] = events.GenVtx.z - events.PV.z
+                TruthPTH, TruthYH = get_higgs_truth_attributes(events)
+                diphotons["TruthPTH"] = TruthPTH
+                diphotons["TruthYH"] = TruthYH
             # Fill zeros for data because there is no GenVtx for data, obviously
             else:
                 diphotons["dZ"] = ak.zeros_like(events.PV.z)
