@@ -56,7 +56,7 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
             bTagEffFileName=bTagEffFileName,
             output_location=output_location,
             taggers=taggers,
-            trigger_group=".*SingleEle.*",
+            trigger_group=trigger_group,    # previously hardcoded ".*SingleEle.*"
             analysis="tagAndProbe",
             applyCQR=applyCQR,
             skipJetVetoMap=False,
