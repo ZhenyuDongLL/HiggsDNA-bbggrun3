@@ -7,7 +7,7 @@ import os
 from packaging.version import parse as parse_version
 
 
-def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_mva_run3, logger=None):
+def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_mva_function, logger=None):
     """
     Apply normalizing flow corrections to the photon collection and update the photonID MVA.
 
@@ -16,14 +16,18 @@ def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_
         events (ak.Array): The events collection.
         meta (dict): Metadata containing correction inputs".
         year (str): The dataset year identifier.
-        add_photonid_mva_run3 (callable): Function to recompute the photonID MVA.
+        add_photonid_mva_function (callable): Function to recompute the photonID MVA.
         logger (logging.Logger, optional).
 
     Returns:
         ak.Array: The updated photon collection with flow corrections applied.
     """
-    if logger is not None:
-        logger.info("Calculating normalizing flow corrections to photon MVA ID inputs")
+    is_run2 = any([y in year for y in ["2016", "2017", "2018"]])
+    is_run3 = any([y in year for y in ["2022", "2023", "2024", "2025", "2026"]])
+    if logger is not None and is_run2:
+        logger.info("Calculating normalizing flow corrections to Run 2 photon MVA ID inputs")
+    elif logger is not None and is_run3:
+        logger.info("Calculating normalizing flow corrections to Run 3 photon MVA ID inputs")
 
     # Get counts to be used for unflattening the corrected inputs.
     counts = photons.num() if hasattr(photons, "num") else ak.num(photons)
@@ -45,8 +49,16 @@ def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_
         photons["raw_" + str(var)] = photons[str(var)]
         photons[str(var)] = ak.unflatten(corrected_inputs[:, i], counts)
 
-    # Update the photonID MVA using the new, corrected inputs.
-    photons["mvaID"] = ak.unflatten(add_photonid_mva_run3(photons, events), counts)
+    # Update the photonID MVA using the new, corrected inputs. The Run 2 helper
+    # returns the full jagged photon collection, while the Run 3 helper returns
+    # flat MVA values.
+    updated_mva = add_photonid_mva_function(photons, events)
+    if hasattr(updated_mva, "fields") and "mvaID" in updated_mva.fields:
+        photons["mvaID"] = updated_mva["mvaID"]
+    elif len(updated_mva) == len(counts):
+        photons["mvaID"] = updated_mva
+    else:
+        photons["mvaID"] = ak.unflatten(updated_mva, counts)
 
     return photons
 

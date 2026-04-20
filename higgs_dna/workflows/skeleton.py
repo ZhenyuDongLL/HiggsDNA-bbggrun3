@@ -12,7 +12,7 @@ from higgs_dna.metaconditions import diphoton as diphoton_mva_dir
 from higgs_dna.tools.diphoton_mva import calculate_retrained_diphoton_mva as calculate_diphoton_mva
 from higgs_dna.utils.misc_utils import infer_nano_version
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable
 
 import functools
 import operator
@@ -386,3 +386,28 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
     def postprocess(self, accumulant: Dict[Any, Any]) -> Any:
         """Has to be implemented in the subclass."""
         pass
+
+    def resolve_flows_photonid_mva(self, events: ak.Array) -> Callable[[ak.Array, ak.Array], ak.Array]:
+        dataset_name = events.metadata["dataset"]
+
+        # Check any run 2 or run 3 so we can warn on run 2+3 case, which should not happen and breaks the flow corrections logic
+        has_run2 = any([y in self.year[dataset_name][idx] for y in ["2016", "2017", "2018"] for idx in range(len(self.year[dataset_name]))])
+        has_run3 = any([y in self.year[dataset_name][idx] for y in ["2022", "2023", "2024", "2025", "2026"] for idx in range(len(self.year[dataset_name]))])
+        if not has_run2 and not has_run3:
+            warnings.warn(
+                "Unable to determine which photonid MVA to use for the normalizing flow corrections for "
+                + f"dataset {dataset_name} with year {self.year[dataset_name]}. Falling back to Run 3 "
+                + "photonid MVA for the normalizing flow corrections, but please check if this is correct!"
+            )
+            return self.add_photonid_mva_run3
+        elif has_run2 and has_run3:
+            warnings.warn(
+                f"Dataset {dataset_name} with years {self.year[dataset_name]} seems to contain events from both Run 2 and Run 3. "
+                + "This is unexpected and breaks the normalizing flow corrections logic. Falling back to "
+                + "Run 3 photonid MVA for normalizing flows. Please check if the year information is correct!"
+            )
+            return self.add_photonid_mva_run3
+        elif has_run2:
+            return self.add_photonid_mva
+        else:
+            return self.add_photonid_mva_run3
