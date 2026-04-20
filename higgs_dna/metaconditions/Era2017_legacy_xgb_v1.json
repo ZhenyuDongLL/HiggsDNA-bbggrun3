@@ -68,6 +68,54 @@
             "esEffSigmaRR",
             "esEnergyOverRawE"
         ],
+        "inputs_EB_corr": 
+        [
+            "energyRaw",
+            "corr_r9",
+            "corr_sieie",
+            "corr_etaWidth",
+            "corr_phiWidth",
+            "corr_sieip",
+            "corr_s4",
+            "corr_pfPhoIso03",
+            "corr_pfChargedIsoPFPV",
+            "corr_pfChargedIsoWorstVtx",
+            "ScEta",
+            "fixedGridRhoAll"
+        ],
+        "inputs_EE_corr":
+        [
+            "energyRaw",
+            "corr_r9",
+            "corr_sieie",
+            "corr_etaWidth",
+            "corr_phiWidth",
+            "corr_sieip",
+            "corr_s4",
+            "corr_pfPhoIso03",
+            "corr_pfChargedIsoPFPV",
+            "corr_pfChargedIsoWorstVtx",
+            "ScEta",
+            "fixedGridRhoAll",
+            "corr_esEffSigmaRR",
+            "corr_esEnergyOverRawE"
+        ],
+        "flow_inputs":
+        [
+            "r9",
+            "sieie",
+            "etaWidth",
+            "phiWidth",
+            "sieip",
+            "s4",
+            "pfPhoIso03",
+            "pfChargedIsoPFPV",
+            "pfChargedIsoWorstVtx",
+            "esEffSigmaRR",
+            "esEnergyOverRawE",
+            "energyErr"
+        ],
+        "Isolation_transform_order": [6,7,8,9,10],
         "effAreasConfigFile" : "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_TrueVtx.txt",
         "is2017" : true
     },

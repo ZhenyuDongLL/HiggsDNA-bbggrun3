@@ -70,10 +70,7 @@ def calculate_flow_corrections(photon: ak.Array, events, inputs_list, isolation_
 
     # These variables will be used as conditions to the normalizing flow - they will not be transformed!
     # Rho and the IsData boolean is also used, but they will be added later, since the photon container dont have pile up information
-    if any(x in year for x in ["2016", "2017", "2018"]):
-        conditions_list = ["pt", "eta", "phi"]
-    else:
-        conditions_list = ["pt","ScEta","phi"]
+    conditions_list = ["pt","ScEta","phi"]
 
     # Internal default parameters of the flows were changed in version 1.5.0, so we need to check the version to load the models correctly and avoid errors when loading old models with new versions of zuko
     if parse_version(zuko.__version__) >= parse_version("1.5.0"):
