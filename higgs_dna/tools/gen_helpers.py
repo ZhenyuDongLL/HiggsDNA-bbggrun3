@@ -204,6 +204,16 @@ def get_higgs_gen_attributes(events: ak.Array) -> ak.Array:
     return (pt, y, phi, lead_pho, sublead_pho)
 
 
+def get_higgs_truth_attributes(events: ak.Array) -> ak.Array:
+    """
+    Return truth-level Higgs kinematics derived from the HTXS inputs.
+    """
+    TruthPTH = ak.fill_none(events.HTXS.Higgs_pt, -999.0)
+    TruthYH = ak.fill_none(events.HTXS.Higgs_y, -999.0)
+
+    return (TruthPTH, TruthYH)
+
+
 def match_jet(reco_jets, gen_jets, n, fill_value, jet_size=0.4, jet_flav=False):
     """
     this helper function is used to identify if a reco jet (or lepton) has a matching gen jet (lepton) for MC,
