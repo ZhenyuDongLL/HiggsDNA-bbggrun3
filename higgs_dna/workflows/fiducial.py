@@ -378,9 +378,9 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                     GenDeltaPhoPhi
                 )
                 GenAcop = ak.full_like(GenDeltaPhoPhi, numpy.pi) - GenDeltaPhoPhi
-                GenThetaEtaStar = numpy.tan(GenAcop / 2) / numpy.cosh((GenLeadPho.eta - GenSubleadPho.eta) / 2)
-                GenThetaEtaStar = ak.fill_none(GenThetaEtaStar, -999.0)
-                diphotons['GenThetaEtaStar'] = GenThetaEtaStar
+                GenPhiEtaStar = numpy.tan(GenAcop / 2) / numpy.cosh((GenLeadPho.eta - GenSubleadPho.eta) / 2)
+                GenPhiEtaStar = ak.fill_none(GenPhiEtaStar, -999.0)
+                diphotons['GenPhiEtaStar'] = GenPhiEtaStar
 
                 GenDiphoton = GenLeadPho + GenSubleadPho
                 GenDiPhoMass = GenDiphoton.mass
@@ -394,17 +394,20 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 #########################
                 genJets_absEta4p7 = genJets[numpy.abs(genJets.eta) < 4.7]
                 genJets_absEta2p5 = genJets[numpy.abs(genJets.eta) < 2.5]
-                diphotons["GenNJ"] = ak.num(genJets_absEta4p7)
-                diphotons["GenNJ_pt30_absEta2p5"] = ak.num(genJets_absEta2p5)
-                diphotons["GenPTJ0"] = choose_jet(genJets_absEta4p7.pt, 0, -999.0)
-                diphotons["GenPTJ0_pt30_absEta2p5"] = choose_jet(genJets_absEta2p5.pt, 0, -999.0)
 
                 # Choose zero (leading) jet and pad with -999 if none
-                GenPTJ0 = choose_jet(genJets.pt, 0, -999.0)
+                GenPTJ0_absEta4p7 = choose_jet(genJets_absEta4p7.pt, 0, -999.0)
+                GenPTJ0 = choose_jet(genJets_absEta2p5.pt, 0, -999.0)
+                diphotons["GenNJ"] = ak.num(genJets_absEta4p7)
+                diphotons["GenNJ_pt30_absEta2p5"] = ak.num(genJets_absEta2p5)
+                diphotons["GenPTJ0"] = GenPTJ0
 
-                gen_first_jet_eta = choose_jet(genJets.eta, 0, -999.0)
-                gen_first_jet_mass = choose_jet(genJets.mass, 0, -999.0)
-                gen_first_jet_phi = choose_jet(genJets.phi, 0, -999.0)
+                gen_first_jet_eta_absEta4p7 = choose_jet(genJets_absEta4p7.eta, 0, -999.0)
+                gen_first_jet_mass_absEta4p7 = choose_jet(genJets_absEta4p7.mass, 0, -999.0)
+                gen_first_jet_phi_absEta4p7 = choose_jet(genJets_absEta4p7.phi, 0, -999.0)
+                gen_first_jet_eta = choose_jet(genJets_absEta2p5.eta, 0, -999.0)
+                gen_first_jet_mass = choose_jet(genJets_absEta2p5.mass, 0, -999.0)
+                gen_first_jet_phi = choose_jet(genJets_absEta2p5.phi, 0, -999.0)
 
                 diphotons['gen_first_jet_eta'] = gen_first_jet_eta
                 diphotons['gen_first_jet_mass'] = gen_first_jet_mass
@@ -413,16 +416,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 GenYJ0 = rapidity_from_pt_eta_mass(GenPTJ0, gen_first_jet_eta, gen_first_jet_mass, fill_value=-999.0)
                 diphotons["GenYJ0"] = GenYJ0
 
-                GenPTJ0_absEta2p5 = choose_jet(genJets_absEta2p5.pt, 0, -999.0)
-                gen_first_jet_eta_absEta2p5 = choose_jet(genJets_absEta2p5.eta, 0, -999.0)
-                gen_first_jet_mass_absEta2p5 = choose_jet(genJets_absEta2p5.mass, 0, -999.0)
-                GenYJ0_absEta2p5 = rapidity_from_pt_eta_mass(
-                    GenPTJ0_absEta2p5,
-                    gen_first_jet_eta_absEta2p5,
-                    gen_first_jet_mass_absEta2p5,
-                    fill_value=-999.0,
-                )
-                diphotons["GenYJ0_pt30_absEta2p5"] = GenYJ0_absEta2p5
+                GenYJ0_absEta4p7 = rapidity_from_pt_eta_mass(GenPTJ0_absEta4p7, gen_first_jet_eta_absEta4p7, gen_first_jet_mass_absEta4p7, fill_value=-999.0)
 
                 GenDYHJ0 = GenYJ0 - GenYH
                 # Set all entries above 500 to -999
@@ -445,21 +439,22 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 #################################
                 # Next-to-leading Jet Variables #
                 #################################
-                GenPTJ1 = choose_jet(genJets.pt, 1, -999.0)
+                GenPTJ1 = choose_jet(genJets_absEta4p7.pt, 1, -999.0)
                 diphotons['GenPTJ1'] = GenPTJ1
 
-                gen_second_jet_eta = choose_jet(genJets.eta, 1, -999.0)
-                gen_second_jet_mass = choose_jet(genJets.mass, 1, -999.0)
-                gen_second_jet_phi = choose_jet(genJets.phi, 1, -999.0)
+                gen_second_jet_eta_absEta4p7 = choose_jet(genJets_absEta4p7.eta, 1, -999.0)
+                gen_second_jet_mass_absEta4p7 = choose_jet(genJets_absEta4p7.mass, 1, -999.0)
+                gen_second_jet_phi_absEta4p7 = choose_jet(genJets_absEta4p7.phi, 1, -999.0)
 
-                diphotons['gen_second_jet_eta'] = gen_second_jet_eta
-                diphotons['gen_second_jet_mass'] = gen_second_jet_mass
-                diphotons['gen_second_jet_phi'] = gen_second_jet_phi
+                diphotons['gen_second_jet_eta'] = gen_second_jet_eta_absEta4p7
+                diphotons['gen_second_jet_mass'] = gen_second_jet_mass_absEta4p7
+                diphotons['gen_second_jet_phi'] = gen_second_jet_phi_absEta4p7
 
-                GenYJ1 = rapidity_from_pt_eta_mass(GenPTJ1, gen_second_jet_eta, gen_second_jet_mass, fill_value=-999.0)
-                diphotons['GenYJ1'] = GenYJ1
+                GenYJ1_absEta4p7 = rapidity_from_pt_eta_mass(GenPTJ1, gen_second_jet_eta_absEta4p7, gen_second_jet_mass_absEta4p7, fill_value=-999.0)
+                diphotons['GenYJ1'] = GenYJ1_absEta4p7
 
-                GenDYJ0J1 = GenYJ0 - GenYJ1
+                # For multi-jet variables we use the cut abs(eta) < 4.7
+                GenDYJ0J1 = GenYJ0_absEta4p7 - GenYJ1_absEta4p7
                 # Set all entries above 500 to -999
                 GenDYJ0J1 = ak.where(
                     numpy.abs(GenDYJ0J1) > 500,
@@ -475,26 +470,26 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 GenDYJ0J1 = ak.fill_none(GenDYJ0J1, -999.0)
                 diphotons["GenDYJ0J1"] = GenDYJ0J1
 
-                gen_first_jet_vector = ak.zip({
-                    "pt": GenPTJ0,
-                    "eta": gen_first_jet_eta,
-                    "phi": gen_first_jet_phi,
-                    "mass": gen_first_jet_mass
+                gen_first_jet_vector_absEta4p7 = ak.zip({
+                    "pt": GenPTJ0_absEta4p7,
+                    "eta": gen_first_jet_eta_absEta4p7,
+                    "phi": gen_first_jet_phi_absEta4p7,
+                    "mass": gen_first_jet_mass_absEta4p7
                 }, with_name="Momentum4D")
 
-                gen_second_jet_vector = ak.zip({
+                gen_second_jet_vector_absEta4p7 = ak.zip({
                     "pt": GenPTJ1,
-                    "eta": gen_second_jet_eta,
-                    "phi": gen_second_jet_phi,
-                    "mass": gen_second_jet_mass
+                    "eta": gen_second_jet_eta_absEta4p7,
+                    "phi": gen_second_jet_phi_absEta4p7,
+                    "mass": gen_second_jet_mass_absEta4p7
                 }, with_name="Momentum4D")
 
-                GenDPhiJ0J1 = DPhiV1V2(gen_first_jet_vector, gen_second_jet_vector)
+                GenDPhiJ0J1 = DPhiV1V2(gen_first_jet_vector_absEta4p7, gen_second_jet_vector_absEta4p7)
                 diphotons["GenDPhiJ0J1"] = GenDPhiJ0J1
 
-                padded_genJets = genJets[ak.argsort(genJets.pt, ascending=False)]
+                padded_genJets = genJets_absEta4p7[ak.argsort(genJets_absEta4p7.pt, ascending=False)]
                 # First build the dijet system out of the leading and subleading jet (in pt)
-                padded_genJets = ak.pad_none(genJets, 2)
+                padded_genJets = ak.pad_none(genJets_absEta4p7, 2)
                 genDijet = padded_genJets[:, 0] + padded_genJets[:, 1]
 
                 GenMassJ0J1 = ak.fill_none(genDijet.mass, -999.0)
@@ -527,7 +522,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 GenDPhiHJ0J1 = ak.where(GenDijetPhi == -999, -999, GenDPhiHJ0J1)
                 diphotons["GenDPhiHJ0J1"] = GenDPhiHJ0J1
 
-                GenEtaJ0J1 = gen_first_jet_eta - gen_second_jet_eta
+                GenEtaJ0J1 = gen_first_jet_eta_absEta4p7 - gen_second_jet_eta_absEta4p7
                 # Set all entries which are precisely 0 to -999
                 GenEtaJ0J1 = ak.where(
                     GenEtaJ0J1 == 0,
@@ -549,23 +544,20 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 # B-Jets
                 # Following the recommendations of https://twiki.cern.ch/twiki/bin/view/CMSPublic/SWGuideBTagMCTools for hadronFlavour
                 # and the Run 2 recommendations for the bjets
-                genJetCondition = (genJets.pt > 30) & (numpy.abs(genJets.eta) < 4.7)
-                genBJetCondition = genJetCondition & (genJets.hadronFlavour == 5)
-                genJets = ak.with_field(genJets, genBJetCondition, "GenIsBJet")
-                num_bjets = ak.sum(genJets["GenIsBJet"], axis=-1)
+                genJetCondition = (genJets_absEta4p7.pt > 30)
+                genBJetCondition = genJetCondition & (genJets_absEta4p7.hadronFlavour == 5)
+                genJets_absEta4p7 = ak.with_field(genJets_absEta4p7, genBJetCondition, "GenIsBJet")
+                num_bjets = ak.sum(genJets_absEta4p7["GenIsBJet"], axis=-1)
                 diphotons["GenNBJet"] = num_bjets
-
-                gen_first_bjet_pt = choose_jet(genJets[genJets["GenIsBJet"] == True].pt, 0, -999.0)
-                diphotons["GenPTbJ0"] = gen_first_bjet_pt
 
                 # Jet Rapidity Observable
                 # Iterate over max six largest pt jets to compute tauJC
                 GenTauJC_list = []
                 GenTauJC_maxJets = 10
                 for i in range(GenTauJC_maxJets):
-                    mass = choose_jet(genJets.mass, i, -999.0)
-                    pt = choose_jet(genJets.pt, i, -999.0)
-                    eta = choose_jet(genJets.eta, i, -999.0)
+                    mass = choose_jet(genJets_absEta4p7.mass, i, -999.0)
+                    pt = choose_jet(genJets_absEta4p7.pt, i, -999.0)
+                    eta = choose_jet(genJets_absEta4p7.eta, i, -999.0)
 
                     with numpy.errstate(over='ignore', invalid='ignore'):
                         cosh_eta = numpy.cosh(eta)
@@ -714,9 +706,9 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                 DeltaPhoPhi
             )
             Acop = ak.full_like(DeltaPhoPhi, numpy.pi) - DeltaPhoPhi
-            ThetaEtaStar = numpy.tan(Acop / 2) / numpy.cosh((LeadPho.eta - SubleadPho.eta) / 2)
-            ThetaEtaStar = ak.fill_none(ThetaEtaStar, -999.0)
-            diphotons['ThetaEtaStar'] = ThetaEtaStar
+            PhiEtaStar = numpy.tan(Acop / 2) / numpy.cosh((LeadPho.eta - SubleadPho.eta) / 2)
+            PhiEtaStar = ak.fill_none(PhiEtaStar, -999.0)
+            diphotons['PhiEtaStar'] = PhiEtaStar
 
             AbsDeltaPhoPhi = numpy.abs(DeltaPhoPhi)
             PhiAcop = ak.full_like(AbsDeltaPhoPhi, numpy.pi) - AbsDeltaPhoPhi
@@ -736,26 +728,19 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             jets_absEta2p5 = jets[numpy.abs(jets.eta) < 2.5]
             diphotons["NJ"] = ak.num(jets_absEta4p7)
             diphotons["NJ_pt30_absEta2p5"] = ak.num(jets_absEta2p5)
-            diphotons["PTJ0"] = choose_jet(jets_absEta4p7.pt, 0, -999.0)
-            diphotons["PTJ0_pt30_absEta2p5"] = choose_jet(jets_absEta2p5.pt, 0, -999.0)
+            PTJ0 = choose_jet(jets_absEta2p5.pt, 0, -999.0)
+            PTJ0_absEta4p7 = choose_jet(jets_absEta4p7.pt, 0, -999.0)
+            diphotons["PTJ0"] = PTJ0
 
-            PTJ0 = choose_jet(jets.pt, 0, -999.0)
-            first_jet_eta = choose_jet(jets.eta, 0, -999.0)
-            first_jet_phi = choose_jet(jets.phi, 0, -999.0)
-            first_jet_mass = choose_jet(jets.mass, 0, -999.0)
+            first_jet_eta = choose_jet(jets_absEta2p5.eta, 0, -999.0)
+            first_jet_phi = choose_jet(jets_absEta2p5.phi, 0, -999.0)
+            first_jet_mass = choose_jet(jets_absEta2p5.mass, 0, -999.0)
+            first_jet_eta_absEta4p7 = choose_jet(jets_absEta4p7.eta, 0, -999.0)
+            first_jet_phi_absEta4p7 = choose_jet(jets_absEta4p7.phi, 0, -999.0)
+            first_jet_mass_absEta4p7 = choose_jet(jets_absEta4p7.mass, 0, -999.0)
             YJ0 = rapidity_from_pt_eta_mass(PTJ0, first_jet_eta, first_jet_mass, fill_value=-999.0)
+            YJ0_absEta4p7 = rapidity_from_pt_eta_mass(PTJ0_absEta4p7, first_jet_eta_absEta4p7, first_jet_mass_absEta4p7, fill_value=-999.0)
             diphotons["YJ0"] = YJ0
-
-            PTJ0_absEta2p5 = choose_jet(jets_absEta2p5.pt, 0, -999.0)
-            first_jet_eta_absEta2p5 = choose_jet(jets_absEta2p5.eta, 0, -999.0)
-            first_jet_mass_absEta2p5 = choose_jet(jets_absEta2p5.mass, 0, -999.0)
-            YJ0_absEta2p5 = rapidity_from_pt_eta_mass(
-                PTJ0_absEta2p5,
-                first_jet_eta_absEta2p5,
-                first_jet_mass_absEta2p5,
-                fill_value=-999.0,
-            )
-            diphotons["YJ0_pt30_absEta2p5"] = YJ0_absEta2p5
 
             diphotons["first_jet_eta"] = first_jet_eta
             diphotons["first_jet_phi"] = first_jet_phi
@@ -781,19 +766,19 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             #################################
             # Next-to-leading Jet Variables #
             #################################
-            PTJ1 = choose_jet(jets.pt, 1, -999.0)
+            PTJ1 = choose_jet(jets_absEta4p7.pt, 1, -999.0)
             diphotons["PTJ1"] = PTJ1
-            second_jet_eta = choose_jet(jets.eta, 1, -999.0)
-            second_jet_phi = choose_jet(jets.phi, 1, -999.0)
-            second_jet_mass = choose_jet(jets.mass, 1, -999.0)
-            diphotons["second_jet_eta"] = second_jet_eta
-            diphotons["second_jet_phi"] = second_jet_phi
-            diphotons["second_jet_mass"] = second_jet_mass
+            second_jet_eta_absEta4p7 = choose_jet(jets_absEta4p7.eta, 1, -999.0)
+            second_jet_phi_absEta4p7 = choose_jet(jets_absEta4p7.phi, 1, -999.0)
+            second_jet_mass_absEta4p7 = choose_jet(jets_absEta4p7.mass, 1, -999.0)
+            diphotons["second_jet_eta"] = second_jet_eta_absEta4p7
+            diphotons["second_jet_phi"] = second_jet_phi_absEta4p7
+            diphotons["second_jet_mass"] = second_jet_mass_absEta4p7
 
-            YJ1 = rapidity_from_pt_eta_mass(PTJ1, second_jet_eta, second_jet_mass, fill_value=-999.0)
-            diphotons['YJ1'] = YJ1
+            YJ1_absEta4p7 = rapidity_from_pt_eta_mass(PTJ1, second_jet_eta_absEta4p7, second_jet_mass_absEta4p7, fill_value=-999.0)
+            diphotons['YJ1'] = YJ1_absEta4p7
 
-            DYJ0J1 = YJ0 - YJ1
+            DYJ0J1 = YJ0_absEta4p7 - YJ1_absEta4p7
             # Set all entries above 500 to -999
             DYJ0J1 = ak.where(
                 numpy.abs(DYJ0J1) > 500,
@@ -809,25 +794,25 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             DYJ0J1 = ak.fill_none(DYJ0J1, -999.0)
             diphotons["DYJ0J1"] = DYJ0J1
 
-            first_jet_vector = ak.zip({
-                "pt": PTJ0,
-                "eta": first_jet_eta,
-                "phi": first_jet_phi,
-                "mass": first_jet_mass
+            first_jet_vector_absEta4p7 = ak.zip({
+                "pt": PTJ0_absEta4p7,
+                "eta": first_jet_eta_absEta4p7,
+                "phi": first_jet_phi_absEta4p7,
+                "mass": first_jet_mass_absEta4p7
             }, with_name="Momentum4D")
 
-            second_jet_vector = ak.zip({
+            second_jet_vector_absEta4p7 = ak.zip({
                 "pt": PTJ1,
-                "eta": second_jet_eta,
-                "phi": second_jet_phi,
-                "mass": second_jet_mass
+                "eta": second_jet_eta_absEta4p7,
+                "phi": second_jet_phi_absEta4p7,
+                "mass": second_jet_mass_absEta4p7
             }, with_name="Momentum4D")
 
-            DPhiJ0J1 = DPhiV1V2(first_jet_vector, second_jet_vector)
+            DPhiJ0J1 = DPhiV1V2(first_jet_vector_absEta4p7, second_jet_vector_absEta4p7)
             diphotons["DPhiJ0J1"] = DPhiJ0J1
 
             # First build the dijet system out of the leading and subleading jet (in pt)
-            padded_jets = ak.pad_none(jets, 2)
+            padded_jets = ak.pad_none(jets_absEta4p7, 2)
             dijet = padded_jets[:, 0] + padded_jets[:, 1]
 
             MassJ0J1 = ak.fill_none(dijet.mass, -999.0)
@@ -858,7 +843,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             DPhiHJ0J1 = ak.where(DijetPhi == -999, -999, DPhiHJ0J1)
             diphotons["DPhiHJ0J1"] = DPhiHJ0J1
 
-            EtaJ0J1 = first_jet_eta - second_jet_eta
+            EtaJ0J1 = first_jet_eta_absEta4p7 - second_jet_eta_absEta4p7
             # Set all entries which are precisely 0 to -999
             EtaJ0J1 = ak.where(
                 EtaJ0J1 == 0,
@@ -885,25 +870,19 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
 
             btag_mva_column = list(btagMVA_selection[self.bjet_mva].keys())[0]
 
-            bJetCondition = (jets.pt > 30) & (abs(jets.eta) < 4.7) & (jets[btag_mva_column] >= btag_WP)
-            jets = ak.with_field(jets, bJetCondition, f"{self.bjet_mva}_IsBJet")
-            num_bjets = ak.sum(jets[f"{self.bjet_mva}_IsBJet"], axis=-1)
+            bJetCondition = (jets_absEta4p7.pt > 30) & (jets_absEta4p7[btag_mva_column] >= btag_WP)
+            jets_absEta4p7 = ak.with_field(jets_absEta4p7, bJetCondition, f"{self.bjet_mva}_IsBJet")
+            num_bjets = ak.sum(jets_absEta4p7[f"{self.bjet_mva}_IsBJet"], axis=-1)
             diphotons[f"{self.bjet_mva}_NBJet"] = num_bjets
-
-            first_bjet_pt = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True].pt, 0, -999.0)
-            diphotons[f"{self.bjet_mva}_PTbJ0"] = first_bjet_pt
-
-            first_bjet_mva = choose_jet(jets[jets[f"{self.bjet_mva}_IsBJet"] == True][btag_mva_column], 0, -999.0)
-            diphotons[f"{self.bjet_mva}_ScorebJ0"] = first_bjet_mva
 
             # Jet Rapidity Observable
             # Iterate over max six largest pt jets to compute tauJC
             TauJC_list = []
             TauJC_maxJets = 10
             for i in range(TauJC_maxJets):
-                mass = choose_jet(jets.mass, i, -999.0)
-                pt = choose_jet(jets.pt, i, -999.0)
-                eta = choose_jet(jets.eta, i, -999.0)
+                mass = choose_jet(jets_absEta4p7.mass, i, -999.0)
+                pt = choose_jet(jets_absEta4p7.pt, i, -999.0)
+                eta = choose_jet(jets_absEta4p7.eta, i, -999.0)
 
                 with numpy.errstate(over='ignore', invalid='ignore'):
                     cosh_eta = numpy.cosh(eta)

@@ -520,11 +520,11 @@ class ZeeProcessor(HggSkeletonProcessor):
                 DeltaPhoPhi,
             )
             Acop = ak.full_like(DeltaPhoPhi, numpy.pi) - DeltaPhoPhi
-            ThetaEtaStar = numpy.tan(Acop / 2) / numpy.cosh(
+            PhiEtaStar = numpy.tan(Acop / 2) / numpy.cosh(
                 (LeadPho.eta - SubleadPho.eta) / 2
             )
-            ThetaEtaStar = ak.fill_none(ThetaEtaStar, -999.0)
-            diphotons["ThetaEtaStar"] = ThetaEtaStar
+            PhiEtaStar = ak.fill_none(PhiEtaStar, -999.0)
+            diphotons["PhiEtaStar"] = PhiEtaStar
 
             AbsDeltaPhoPhi = numpy.abs(DeltaPhoPhi)
             PhiAcop = ak.full_like(AbsDeltaPhoPhi, numpy.pi) - AbsDeltaPhoPhi
