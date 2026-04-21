@@ -156,6 +156,7 @@ higgs_dna/systematics/JSONs/Preselection/
 higgs_dna/systematics/JSONs/ElectronVetoSF/
 higgs_dna/systematics/JSONs/SF_photon_ID/
 higgs_dna/systematics/JSONs/LoosePhoIDSF/
+higgs_dna/systematics/JSONs/LooseMvaSF/
 # Weight-based jets
 higgs_dna/systematics/JSONs/cTagSF/
 higgs_dna/systematics/JSONs/bTagSF/
