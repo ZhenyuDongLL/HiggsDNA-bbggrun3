@@ -261,7 +261,7 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         self, photons: ak.Array, events: ak.Array
     ) -> ak.Array:
         self.initialize_photonid_mva()
-        
+
         photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll * ak.ones_like(
             photons.pt
         )
