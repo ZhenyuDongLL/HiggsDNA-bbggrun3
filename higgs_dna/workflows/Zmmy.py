@@ -471,6 +471,9 @@ class ZmmyProcessor(HggSkeletonProcessor):
 
             ## Performing photon corrections using normalizing flows
             if self.data_kind == "mc" and self.doFlow_corrections:
+                # TODO: Run 2 photon ID MVA switching
+                #       - other workflows use `apply_flow_corrections_to_photons()` but `calculate_flow_corrections()` used here
+                #       - MVAid recalculation here is different from other workflows
                 # Applyting the Flow corrections to all photons before pre-selection
                 corrected_inputs, var_list = calculate_flow_corrections(
                     photon_in_mmy_collection,
