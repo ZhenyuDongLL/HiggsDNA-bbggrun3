@@ -260,6 +260,8 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
     def add_photonid_mva(
         self, photons: ak.Array, events: ak.Array
     ) -> ak.Array:
+        self.initialize_photonid_mva()
+        
         photons["fixedGridRhoAll"] = events.Rho.fixedGridRhoAll * ak.ones_like(
             photons.pt
         )

@@ -247,18 +247,7 @@ class ZeeProcessor(HggSkeletonProcessor):
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
-            print(f"self.year: {self.year}, dataset_name: {dataset_name}, self.year[dataset_name][0]: {self.year[dataset_name][0]}")  # TEMP
-            if any([y in self.year[dataset_name][0] for y in ["2016", "2017", "2018"]]):
-                flows_photonid_mva = self.add_photonid_mva
-            elif any([y in self.year[dataset_name][0] for y in ["2022", "2023", "2024", "2025", "2026"]]):
-                flows_photonid_mva = self.add_photonid_mva_run3
-            else:
-                warnings.warn(
-                    "Unable to determine which photonid MVA to use for the normalizing flow corrections for "
-                    + f"dataset {dataset_name} with year {self.year[dataset_name][0]}. Falling back to Run 3 "
-                    + "photonid MVA for the normalizing flow corrections, but please check if this is correct!"
-                )
-                flows_photonid_mva = self.add_photonid_mva_run3
+            flows_photonid_mva = self.resolve_flows_photonid_mva(events)
             original_photons = apply_flow_corrections_to_photons(
                 original_photons,
                 events,

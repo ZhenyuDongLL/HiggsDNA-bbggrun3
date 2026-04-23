@@ -1032,13 +1032,17 @@ def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
 def get_Flow_files(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
+        to_prefix_run2_mva = target_dir
     else:
         to_prefix = os.path.join(resource_dir, "../higgs_dna/tools/flows")
+        to_prefix_run2_mva = os.path.join(
+            resource_dir, "../higgs_dna/metaconditions/photon_id_mva_weights"
+        )
 
     from_to_dict = {
         "Run2": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/Flows/hgg_photon_id_mva_weights/",
-            "to": f"{to_prefix}/run2_mvaID_models/",
+            "to": to_prefix_run2_mva,
             "type": "eos",
         },
         "2016": {
