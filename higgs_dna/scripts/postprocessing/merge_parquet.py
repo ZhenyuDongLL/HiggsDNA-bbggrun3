@@ -153,6 +153,12 @@ def main():
         dest="custom_accumulator",
         help="If set, the script will process the custom accumulator from the parquet files.",
     )
+    parser.add_argument(
+        "--events-per-row-group",
+        default=131_072,  # 128k events per row group as default (can be adjusted based on memory constraints)
+        type=int,
+        help="Number of events per row group in the output parquet file. Default is 131_072.",
+    )
 
     args = parser.parse_args()
     source_paths = args.source.split(",")
@@ -255,7 +261,10 @@ def main():
             # Process in batches
             writer = None
 
-            for batch in dataset.to_batches(filter=pq.filters_to_expression(cat_dict[cat]["cat_filter"])):
+            tables_buffer = []
+            current_buffered_rows = 0
+
+            for batch in dataset.to_batches(filter=pq.filters_to_expression(cat_dict[cat]["cat_filter"]), batch_size=args.events_per_row_group, batch_readahead=2, fragment_readahead=2):
                 batch_arr = ak.from_arrow(batch)
 
                 if (not args.is_data) & (not args.skip_normalisation):
@@ -295,11 +304,29 @@ def main():
                 else:
                     table = table.replace_schema_metadata()
 
+                tables_buffer.append(table)
+                current_buffered_rows += table.num_rows
+
+                if current_buffered_rows >= args.events_per_row_group:
+                    merged_table = pa.concat_tables(tables_buffer).combine_chunks()
+                    if writer is None:
+                        schema = merged_table.schema
+                        writer = pq.ParquetWriter(output_file, schema)
+                        logger.info(f"saving output file {output_file = }")
+
+                    writer.write_table(merged_table)
+
+                    tables_buffer = []
+                    current_buffered_rows = 0
+
+            if len(tables_buffer) > 0:
+                merged_table = pa.concat_tables(tables_buffer).combine_chunks()
                 if writer is None:
-                    schema = table.schema
+                    schema = merged_table.schema
                     writer = pq.ParquetWriter(output_file, schema)
                     logger.info(f"saving output file {output_file = }")
-                writer.write_table(table)
+
+                writer.write_table(merged_table)
 
             if writer:
                 writer.close()
@@ -322,7 +349,7 @@ def main():
                         orig_metadata = dataset.schema.metadata
                         # Process in batches
                         writer = None
-                        for batch in dataset.to_batches():
+                        for batch in dataset.to_batches(batch_size=args.events_per_row_group, batch_readahead=2, fragment_readahead=2):
                             batch_arr = ak.from_arrow(batch)
                             rescaled_weights_dict = apply_rescaling(batch_arr,['weight',"bTagWeight"]+syst_weight_fields,xaxis_edges,ratio_val,logger,Variable_info=BTagRescaleVariable_Info)
                             for weight_field in ["weight","bTagWeight"]+syst_weight_fields:
