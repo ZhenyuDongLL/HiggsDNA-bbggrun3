@@ -16,6 +16,8 @@ WHlto2G:      whl
 whl:          whl
 WHtoGG:       wh
 WHto2G:       wh
+WminusHto2G:  wh
+WplusHto2G:   wh
 wh:           wh
 ZHtoGG:       zh
 ZHto2G:       zh
