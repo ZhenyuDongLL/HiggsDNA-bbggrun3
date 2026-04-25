@@ -17,6 +17,7 @@ from higgs_dna.utils.dumping_utils import (
     diphoton_list_to_pandas,
     dump_pandas,
     get_obj_syst_dict,
+    apply_naming_convention,
 )
 from higgs_dna.utils.misc_utils import choose_jet, DPhiV1V2, rapidity_from_pt_eta_mass
 from higgs_dna.tools.flow_corrections import apply_flow_corrections_to_photons
@@ -90,6 +91,17 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
             validate_with_electrons=validate_with_electrons,
             output_format=output_format
         )
+
+        self.name_convention = "DAS"
+
+        if self.year in ["2022preEE", "2022postEE"]:
+            self.min_mvaid = 0.25
+        elif self.year in ["2023preBPix", "2023postBPix"]:
+            self.min_mvaid = 0.19
+        elif self.year in ["2024"]:
+            self.min_mvaid = 0.24
+        else:
+            self.min_mvaid = -0.7
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
         dataset_name = events.metadata["dataset"]
@@ -1192,13 +1204,7 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
                         ]
                     ]
 
-                fname = (
-                    events.attrs[
-                        "@events_factory"
-                    ]._partition_key.replace("/", "_")
-                    + ".%s" % self.output_format
-                )
-                fname = (fname.replace("%2F","")).replace("%3B1","")
+                fname = apply_naming_convention(self, events)
                 subdirs = []
                 if "dataset" in events.metadata:
                     subdirs.append(events.metadata["dataset"])
