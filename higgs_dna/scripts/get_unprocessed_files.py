@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import fnmatch
 from higgs_dna.utils.logger_utils import setup_logger
 from higgs_dna.utils.runner_utils import get_proxy
 from XRootD import client
@@ -85,6 +86,12 @@ def get_fetcher_args() -> argparse.Namespace:
         help="Skip xrootd bad files when retrieving Legacy UUID",
         default=False,
         action='store_true'
+    )
+    parser.add_argument(
+        "--regexp",
+        type=str,
+        help="Only check samples whose dataset name matches the provided regular expression.",
+        default="",
     )
 
     return parser.parse_args()
@@ -296,7 +303,7 @@ def process_dataset(name: str, sample_files: list, convention: str, limit, timeo
 
 
 # Create a dict of form {'dataset':{'uuid':(nevent,physical_location)}} from the sample.json file.
-def parse_sample_json(samples_json: str, convention: str, limit, timeout, workers, skipbadfiles):
+def parse_sample_json(samples_json: str, convention: str, limit, timeout, workers, skipbadfiles, regexp: str):
     """
     Create a dict of form {'dataset':{'uuid': (nevent, physical_location)}}
     from the provided sample.json file, processing each dataset in parallel.
@@ -357,6 +364,9 @@ def parse_sample_json(samples_json: str, convention: str, limit, timeout, worker
 
             # Submit each dataset task
             for name in samples:
+                if regexp!="" and not fnmatch.fnmatch(name, regexp):
+                    logger.info(f"Skipping dataset {name} as it does not match the provided regular expression.")
+                    continue
                 future_results[name] = executor.submit(submit_dataset, name, samples[name], global_progress, global_task_id, spinner_progress)
 
             # Handle results and update progress
@@ -423,7 +433,7 @@ def main():
     get_proxy()
 
     # Create dicts from sample.json and parquet directory
-    root_dict = parse_sample_json(args.json, args.convention, args.limit, args.timeout, args.workers, args.skipbadfiles)
+    root_dict = parse_sample_json(args.json, args.convention, args.limit, args.timeout, args.workers, args.skipbadfiles, args.regexp)
     pq_dict = create_pq_dict(args.source, root_dict)
 
     logger.info("Starting creation of output file.")
