@@ -139,7 +139,7 @@ def fetch_file(target_name, logger, from_to_dict, use_xrdcp=False, type="url"):
                     with urllib.request.urlopen(s) as f:
                         json_object = f.read().decode("utf-8")
                 except Exception:
-                    logger.info(
+                    logger.warning(
                         "INFO: urllib did not work, falling back to requests to fetch file from URL..."
                     )
                     pass
