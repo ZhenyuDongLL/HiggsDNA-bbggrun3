@@ -61,8 +61,8 @@ def Get_WeightSum_LHE(source_paths, logger):
                         sum_LHEPdf_beforesel.append(float(pq.read_schema(f).metadata[LHEPdf_field]))
                     else:
                         sum_LHEPdf_beforesel[LHEPdf_idx] += float(pq.read_schema(f).metadata[LHEPdf_field])
-            except:
-                logger.info(
+            except KeyError:
+                logger.warning(
                     "Skipping the renormalization of LHE weights. Please check if you have stored sum of the LHE weights in the metadata with proper naming. "
                     "Example: sum_weight_LHEScale_0, sum_weight_LHEPdf_0."
                 )

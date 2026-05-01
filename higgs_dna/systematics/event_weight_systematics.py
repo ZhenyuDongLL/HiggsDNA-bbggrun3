@@ -745,8 +745,8 @@ def AlphaS(photons, events, weights, dataset_name, **kwargs):
             weightUp=events.LHEPdfWeight[:, -1],
             weightDown=events.LHEPdfWeight[:, -2],
         )
-    except:
-        logger.debug(
+    except (AttributeError, IndexError):
+        logger.warning(
             f"No LHEPdf Weights in dataset {dataset_name}, skip systematic: {systematic}"
         )
         return weights
@@ -774,8 +774,8 @@ def PartonShower(photons, events, weights, dataset_name, **kwargs):
             weightUp=events.PSWeight[:, 1],
             weightDown=events.PSWeight[:, 3],
         )
-    except:
-        logger.debug(
+    except (AttributeError, IndexError):
+        logger.warning(
             f"No PS Weights in dataset {dataset_name}, skip systematic: {systematic}"
         )
         return weights
@@ -1145,7 +1145,7 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
         btageff_dict = ast.literal_eval(btageff_clib._data)
 
         avail_procs = [current_proc["key"] for current_proc in btageff_dict["corrections"][0]["data"]["content"]]
-    except:
+    except OSError:
         logger.error("\n Error when reading the dataset name from the correction lib. \n")
         exit()
 

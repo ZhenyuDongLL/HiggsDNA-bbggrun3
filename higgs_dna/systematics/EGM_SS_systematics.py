@@ -44,7 +44,7 @@ def EGM_Scale_Trad(pt, events, year="2022postEE", is_correction=True, restrictio
         cset = correctionlib.CorrectionSet.from_file(path_json)
         scale_evaluator = cset.compound["Scale"]
         smear_and_syst_evaluator = cset["SmearAndSyst"]
-    except:
+    except OSError:
         logger.error(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
         sys.exit(1)
 
@@ -135,7 +135,7 @@ def EGM_Smearing_Trad(pt, events, year="2022postEE", is_correction=True, is_elec
     try:
         cset = correctionlib.CorrectionSet.from_file(path_json)
         smear_and_syst_evaluator = cset["SmearAndSyst"]
-    except:
+    except OSError:
         logger.error(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
         sys.exit(1)
 
@@ -242,7 +242,7 @@ def EGM_Scale_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussians
         path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing', valid_years_paths[year] + gaussian_postfix + ending)
         try:
             cset = correctionlib.CorrectionSet.from_file(path_json)
-        except:
+        except OSError:
             logger.error(f"WARNING: the JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
             sys.exit(1)
         # Convention of Fabrice and Paul: Capitalise IX (for some reason)
@@ -397,7 +397,7 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
         path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing', valid_years_paths[year] + gaussian_postfix + ending)
         try:
             cset = correctionlib.CorrectionSet.from_file(path_json)
-        except:
+        except OSError:
             logger.error(f"The JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
             sys.exit(1)
         # Convention of Fabrice and Paul: Capitalise IX (for some reason)
@@ -443,7 +443,7 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
             path_json = os.path.join(os.path.dirname(__file__), 'JSONs/scaleAndSmearing', valid_years_paths[year] + ending)
             try:
                 cset = correctionlib.CorrectionSet.from_file(path_json)
-            except:
+            except OSError:
                 logger.error(f"The JSON file {path_json} could not be found! \n Check if the file has been pulled \n pull_files.py -t SS-IJazZ \n")
                 sys.exit(1)
             if "BPix" in year:

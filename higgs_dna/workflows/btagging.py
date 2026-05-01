@@ -132,8 +132,8 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
             try:
                 lumimask = select_lumis(self.year[dataset_name][0], events, logger)
                 events = events[lumimask]
-            except:
-                logger.info(
+            except KeyError:
+                logger.warning(
                     f"[ lumimask ] Skip now! Unable to find year info of {dataset_name}"
                 )
         # metadata array to append to higgsdna output
