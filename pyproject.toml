@@ -39,7 +39,7 @@ dependencies = [
   "rich",
   "torch",
   "requests",
-  "zuko==1.4.1",
+  "zuko>=1.4.1,!=1.5.0",
   "onnx",
   "onnxruntime",
   "pyarrow",

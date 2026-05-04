@@ -4,6 +4,7 @@ import zuko
 import numpy as np
 import sys
 import os
+from packaging.version import parse as parse_version
 
 
 def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_mva_run3, logger=None):
@@ -71,30 +72,59 @@ def calculate_flow_corrections(photon: ak.Array, events, inputs_list, isolation_
     # Rho and the IsData boolean is also used, but they will be added later, since the photon container dont have pile up information
     conditions_list = ["pt","ScEta","phi"]
 
-    # Reading the normalizing flow models!
-    if (year == "2022postEE"):
-        flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2)
-        path_means_std = os.path.join(os.path.dirname(__file__), 'flows/postEE/')
-        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
-    elif (year == "2022preEE"):
-        flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2)
-        path_means_std = os.path.join(os.path.dirname(__file__), 'flows/preEE/')
-        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
-    elif ('2023' in year):
-        flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
-        path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2023_model/')
-        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
-    elif ('2024' in year):
-        flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
-        path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2024_model/')
-        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
-    elif ('2025' in year):
-        flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
-        path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2025_model/')
-        flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+    # Internal default parameters of the flows were changed in version 1.5.0, so we need to check the version to load the models correctly and avoid errors when loading old models with new versions of zuko
+    if parse_version(zuko.__version__) >= parse_version("1.5.0"):
+
+        # Reading the normalizing flow models!
+        if (year == "2022postEE"):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, slope=1e-4)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/postEE/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False), strict=False)
+        elif (year == "2022preEE"):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, slope=1e-4)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/preEE/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False), strict=False)
+        elif ('2023' in year):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2,slope=1e-4, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2023_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False), strict=False)
+        elif ('2024' in year):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, slope=1e-4, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2024_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False), strict=False)
+        elif ('2025' in year):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, slope=1e-4, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2025_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False), strict=False)
+        else:
+            print('\nThere is no model trained for this specific year!! - Exiting')
+            sys.exit(0)
     else:
-        print('\nThere is no model trained for this specific year!! - Exiting')
-        sys.exit(0)
+
+        # Reading the normalizing flow models!
+        if (year == "2022postEE"):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/postEE/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+        elif (year == "2022preEE"):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/preEE/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+        elif ('2023' in year):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2023_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+        elif ('2024' in year):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2024_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+        elif ('2025' in year):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2025_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+        else:
+            print('\nThere is no model trained for this specific year!! - Exiting')
+            sys.exit(0)
 
     rho = events.Rho.fixedGridRhoAll * ak.ones_like(photon.pt)
     rho = ak.flatten(rho)

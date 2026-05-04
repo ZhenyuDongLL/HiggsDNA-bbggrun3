@@ -6,8 +6,10 @@ To (re-)generate the reference files after a verified-good run:
 
 import os
 import pytest
+import numpy
 import torch
 import zuko
+from packaging.version import parse as parse_version
 
 from higgs_dna.tools.flow_corrections import apply_flow
 
@@ -18,6 +20,10 @@ FLOW_CONFIGS = {
     "2023_model": dict(features=16, context=5, bins=10, transforms=5, hidden_features=[256, 256], passes=2),
     "2024_model": dict(features=16, context=5, bins=10, transforms=5, hidden_features=[256, 256], passes=2),
 }
+if parse_version(zuko.__version__) > parse_version("1.5.0"):
+    for cfg in FLOW_CONFIGS.values():
+        cfg["slope"] = 1e-4
+
 NUM_VARS = 16
 NUM_CONDITIONS = 5
 BATCH_SIZE = 4
@@ -43,9 +49,16 @@ def _load_flow(model_dir: str, cfg: dict):
     """Construct an NSF flow and load the saved state dict."""
     flow = zuko.flows.NSF(**cfg)
     state_path = os.path.join(model_dir, "best_model_.pth")
-    flow.load_state_dict(
-        torch.load(state_path, map_location=torch.device("cpu"), weights_only=False)
-    )
+    if parse_version(zuko.__version__) == parse_version("1.5.0"):
+        raise ImportError("zuko 1.5.0 is not compatible with the flows")
+    if parse_version(zuko.__version__) > parse_version("1.5.0"):
+        flow.load_state_dict(
+            torch.load(state_path, map_location=torch.device("cpu"), weights_only=False), strict=False
+        )
+    else:
+        flow.load_state_dict(
+            torch.load(state_path, map_location=torch.device("cpu"), weights_only=False)
+        )
     return flow
 
 
@@ -82,10 +95,9 @@ def test_flow_output_matches_reference(model_fixture):
     result = apply_flow(inputs, conditions, flow)
     reference = torch.load(ref_path, map_location="cpu", weights_only=False)
 
-    torch.testing.assert_close(
+    numpy.testing.assert_allclose(
         result,
         reference,
         atol=ATOL,
         rtol=0,
-        msg=f"Flow output for '{name}' differs from reference.",
     )
