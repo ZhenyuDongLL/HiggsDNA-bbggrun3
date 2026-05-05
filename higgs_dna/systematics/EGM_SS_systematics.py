@@ -358,7 +358,10 @@ def EGM_Smearing_IJazZ(pt, events, year="2022postEE", is_correction=True, gaussi
         if year in ["2024"]:
             use_mvaID = True
 
-    old_smearing_convention = year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    if is_electron:
+        old_smearing_convention = year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    else:
+        old_smearing_convention = year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
 
     # for later unflattening:
     counts = ak.num(egm_object.pt)

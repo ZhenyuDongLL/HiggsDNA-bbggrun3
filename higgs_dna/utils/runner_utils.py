@@ -93,10 +93,9 @@ def get_main_parser():
     parser.add_argument(
         "--nano-version",
         dest="nano_version",
-        type=int,
-        default=None,
+        type=str,
         required=True,
-        help="NanoAOD version used in the analysis.",
+        help="NanoAOD version used in the analysis, or 'auto' for automatic detection.",
     )
 
     # Scale out

@@ -331,6 +331,7 @@ class HplusCharmProcessor(HggSkeletonProcessor):  # type: ignore
         raise NotImplementedError
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
+        self.resolve_nano_version(events)
         dataset_name = events.metadata["dataset"]
         self.dataset_name = dataset_name
 

@@ -167,6 +167,7 @@ higgs_dna/systematics/JSONs/scaleAndSmearing/
 higgs_dna/systematics/JSONs/FNUF/
 higgs_dna/systematics/JSONs/Material
 higgs_dna/systematics/JSONs/ShowerShape/
+higgs_dna/systematics/JSONs/PhotonIDMVAShape/
 # Variable-based central (e.g. JME)
 higgs_dna/systematics/JSONs/POG/
 # B-Tagging efficiencies (analysis-specific), keep midRun3.json.gz as an example file
@@ -206,3 +207,4 @@ higgs_dna/metaconditions/diphoton/*.xgb
 higgs_dna/metaconditions/photon_id_mva_weights/*.json
 higgs_dna/metaconditions/hpc_bdt/*.h5
 higgs_dna/metaconditions/hpc_bdt/*.xgb
+higgs_dna/metaconditions/corrections/cqr_weights/

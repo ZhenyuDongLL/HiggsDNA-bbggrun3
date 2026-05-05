@@ -270,7 +270,7 @@ def main():
                 metaconditions=json.load(f),
                 systematics=systematics,
                 corrections=corrections,
-                nano_version=args.nano_version,
+                nano_version=None if args.nano_version == "auto" else int(args.nano_version),
                 bTagEffFileName=bTagEffFileName,
                 apply_trigger=args.use_trigger,
                 output_location=stage_dump_location,

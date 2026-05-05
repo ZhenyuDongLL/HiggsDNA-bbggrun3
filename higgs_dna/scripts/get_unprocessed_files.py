@@ -194,9 +194,8 @@ def create_pq_dict(path, root_dict):
     # Retrieve the uuid and event chunks from the parquet name.
     for dataset, file_list in tree.items():
         for filename in file_list:
-            index = 1 if filename.startswith("_") else 0
-            uuid = filename.split('_')[index]
-            ev_range = (filename.split('_')[index+2]).replace(".parquet", "").replace(".txt", "")
+            uuid = filename.split('_Events_')[0].lstrip('_')
+            ev_range = filename.split('_')[-1].replace(".parquet", "").replace(".txt", "")
 
             if dataset not in parquetinfo:
                 parquetinfo[dataset] = {}
@@ -247,8 +246,9 @@ def process_dataset(name: str, sample_files: list, convention: str, limit, timeo
     # use the cvmfs source for dasgoclient because it works for everyone
     # Both local infrastructures with cvmfs and lxplus!
     for rootf in files_from_unique_directories:
-        cmd = ("/cvmfs/cms.cern.ch/common/dasgoclient -query='dataset file={} status=* | "
-               "grep dataset.name | grep dataset.status'").format(rootf)
+        private_appendix = " instance=prod/phys03" if "/store/user/" in rootf else ""
+        cmd = ("/cvmfs/cms.cern.ch/common/dasgoclient -query='dataset file={} status=*{} | "
+               "grep dataset.name | grep dataset.status'").format(rootf, private_appendix)
         out = subprocess.check_output(cmd, shell=True, universal_newlines=True, timeout=timeout if timeout != 0 else None).strip()
         dataset_info.append(out)
 
@@ -266,8 +266,9 @@ def process_dataset(name: str, sample_files: list, convention: str, limit, timeo
     # Get all root files in the datasets.
     nested_file_list = []
     for dataset in dataset_list:
-        cmd = ("/cvmfs/cms.cern.ch/common/dasgoclient -query='file status=* dataset={} | "
-               "grep file.name | grep file.nevents'").format(dataset.strip())
+        private_appendix = " instance=prod/phys03" if dataset.strip().endswith("/USER") else ""
+        cmd = ("/cvmfs/cms.cern.ch/common/dasgoclient -query='file status=* dataset={}{} | "
+               "grep file.name | grep file.nevents'").format(dataset.strip(), private_appendix)
         out = subprocess.check_output(cmd, shell=True, universal_newlines=True, timeout=timeout if timeout != 0 else None).splitlines()
         nested_file_list.append(out)
     # Flatten the list of all root files

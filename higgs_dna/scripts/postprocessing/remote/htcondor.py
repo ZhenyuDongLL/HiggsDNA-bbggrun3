@@ -100,7 +100,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
                     submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
                     submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                    submit_file.write("max_retries = 3\n")
+                    submit_file.write("max_retries = 10\n")
                     submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                     if memory != None:
                         submit_file.write(f"request_memory = {memory}\n")
@@ -187,7 +187,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
                             submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
                             submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                            submit_file.write("max_retries = 3\n")
+                            submit_file.write("max_retries = 10\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             if memory != None:
                                 submit_file.write(f"request_memory = {memory}\n")
@@ -245,7 +245,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
                             submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
                             submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                            submit_file.write("max_retries = 3\n")
+                            submit_file.write("max_retries = 10\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             if memory != None:
                                 submit_file.write(f"request_memory = {memory}\n")
@@ -308,7 +308,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
                             submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
                             submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                            submit_file.write("max_retries = 3\n")
+                            submit_file.write("max_retries = 10\n")
                             submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                             if memory != None:
                                 submit_file.write(f"request_memory = {memory}\n")
@@ -391,7 +391,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
                         submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
                         submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                        submit_file.write("max_retries = 3\n")
+                        submit_file.write("max_retries = 10\n")
                         submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                         if memory != None:
                             submit_file.write(f"request_memory = {memory}\n")
@@ -457,7 +457,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                     submit_file.write("MY.XRDCP_CREATE_DIR     = True\n")
                     submit_file.write(f"""MY.SingularityImage     = "{_opt.apptainer_image}"\n""")
                     submit_file.write("""MY.SINGULARITY_EXTRA_ARGUMENTS = "-B /afs -B /cvmfs/cms.cern.ch -B /tmp -B /etc/sysconfig/ngbauth-submit -B ${XDG_RUNTIME_DIR} -B /eos --env KRB5CCNAME='FILE:${XDG_RUNTIME_DIR}/krb5cc'"\n""")
-                    submit_file.write("max_retries = 3\n")
+                    submit_file.write("max_retries = 10\n")
                     submit_file.write("requirements = Machine =!= LastRemoteHost\n")
                     if memory != None:
                         submit_file.write(f"request_memory = {memory}\n")

@@ -17,6 +17,10 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
     # setting up the decorrelator
     df = pandas.DataFrame()
 
+    if year == "2025":
+        year = "2024"
+        print("Using the 2024 CDFs for 2025")
+
     if type == "nominal":
         if year == "2022postEE":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/nominal_sigma_m_postEE_CDFs.pkl.gz')

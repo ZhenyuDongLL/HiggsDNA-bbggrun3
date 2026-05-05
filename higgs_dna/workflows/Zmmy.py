@@ -127,6 +127,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
         return triggered
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
+        self.resolve_nano_version(events)
         dataset = events.metadata["dataset"]
         eve_sel = PackedSelection()
 
@@ -629,6 +630,7 @@ class ZmmyHist(HggSkeletonProcessor):
         # muon selection cuts
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
+        self.resolve_nano_version(events)
         dataset = events.metadata["dataset"]
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "genWeight") else "data"
@@ -1102,6 +1104,7 @@ class ZmmyZptHist(ZmmyHist):
         # muon selection cuts
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
+        self.resolve_nano_version(events)
         dataset = events.metadata["dataset"]
 
         nbins = 100

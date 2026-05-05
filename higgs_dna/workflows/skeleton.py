@@ -10,6 +10,7 @@ from higgs_dna.tools.photonid_mva import calculate_photonid_mva, load_photonid_m
 from higgs_dna.tools.photonid_mva import calculate_photonid_mva_run3, load_photonid_mva_run3
 from higgs_dna.metaconditions import diphoton as diphoton_mva_dir
 from higgs_dna.tools.diphoton_mva import calculate_retrained_diphoton_mva as calculate_diphoton_mva
+from higgs_dna.utils.misc_utils import infer_nano_version
 
 from typing import Any, Dict, List, Optional
 
@@ -150,7 +151,7 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
 
         logger.debug(f"Setting up processor with metaconditions: {self.meta}")
 
-        if (self.bjet_mva != "deepJet") and (self.nano_version < 12):
+        if (self.bjet_mva != "deepJet") and (self.nano_version is not None) and (self.nano_version < 12):
             logger.warning(f"\n {self.bjet_mva} is supported for nanoAOD v12 and above. Please check to have a valid implementation of the HF tagger score...\n")
 
         self.taggers = []
@@ -356,6 +357,16 @@ class HggSkeletonProcessor(processor.ProcessorABC):  # type: ignore
         photons["mass"] = ak.zeros_like(photons.pt)
         photons["charge"] = ak.zeros_like(photons.pt)
         return photons
+
+    def resolve_nano_version(self, events: ak.Array) -> None:
+        """Resolve self.nano_version from events when --nano-version=auto was passed."""
+        if self.nano_version is not None:
+            return
+        self.nano_version = infer_nano_version(events)
+        if self.nano_version is None:
+            logger.error("Unable to infer NanoAOD version from events. Please provide it explicitly using the --nano-version argument.")
+            raise ValueError("Unable to infer NanoAOD version from events. Please provide it explicitly using the --nano-version argument.")
+        logger.info(f"Detected NanoAOD version: {self.nano_version}")
 
     @abstractmethod
     def process(self, events: ak.Array) -> Dict[Any, Any]:

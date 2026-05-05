@@ -42,6 +42,7 @@ def process_custom_accumulator(source_path, logger):
             file_accumulator = pq.read_schema(f).metadata[b'custom_accumulator']
         except KeyError:
             logger.warning(f"Custom accumulator requested but not found in file {f}")
+            file_accumulator = b"{}"
         file_accumulator = json.loads(file_accumulator)
         if accumulator is None:
             accumulator = file_accumulator

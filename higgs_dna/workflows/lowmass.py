@@ -157,6 +157,7 @@ class LowMassProcessor(HggSkeletonProcessor):
         return events
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
+        self.resolve_nano_version(events)
         dataset_name = events.metadata["dataset"]
 
         # ! preselection updated since Run3 2023
