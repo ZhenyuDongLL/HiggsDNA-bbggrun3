@@ -265,6 +265,10 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
     muons_jagged = events.Muon
     muons = ak.flatten(muons_jagged)
 
+    if year == "2025":
+        year = "2024"
+        logger.info("[ Muon S&S ] WARNING: there are no specific scale corrections for 2025 yet, using 2024 corrections instead.")
+
     if year == "2022preEE":
         path_json = os.path.join(
             os.path.dirname(__file__), "JSONs/MuonScaRe/2022_Summer22.json"

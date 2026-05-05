@@ -230,3 +230,39 @@ def DPhiV1V2(vec1, vec2):
         dphi = ak.where(valid, np.arccos(dot) * diff_sign * cross_sign, -999.0)
 
     return dphi
+
+
+def infer_nano_version(events):
+    """
+    Infer the nano version based on which fields appear.
+
+    Versions and their “first-appearance” conditions:
+      v10: "etaWidth" in events.Photon.fields
+      v11: "mvaMuID" in events.Muon.fields
+      v12: "btagPNetB" in events.Jet.fields
+      v13: "superclusterEta" in events.Photon.fields
+      v14: "btagUParTAK4B" in events.Jet.fields
+      v15: "globalParT3_QCD" in events.FatJet.fields
+
+    Each of these fields, once introduced, remains in all subsequent versions.
+    """
+    # v15 and above
+    if "globalParT3_QCD" in events.FatJet.fields:
+        return 15
+    # v14 and above
+    if "btagUParTAK4B" in events.Jet.fields:
+        return 14
+    # v13 and above
+    if "superclusterEta" in events.Photon.fields:
+        return 13
+    # v12 and above
+    if "btagPNetB" in events.Jet.fields:
+        return 12
+    # v11 and above
+    if "mvaMuID" in events.Muon.fields:
+        return 11
+    # v10 and above
+    if "etaWidth" in events.Photon.fields:
+        return 10
+    else:
+        return None

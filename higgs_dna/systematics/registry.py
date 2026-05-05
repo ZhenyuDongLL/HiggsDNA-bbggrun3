@@ -36,6 +36,7 @@ from .event_weight_systematics import (
     ElectronIndexSF_LM,
     PreselSF_LM,
     TriggerSF_LM,
+    Tau_ID,
 )
 from .jet_systematics import (
     jet_pt_scale_dummy,
@@ -51,6 +52,10 @@ from .electron_systematics import (
 
 from .muon_systematics import (
     muon_pt_scare
+)
+
+from .tau_systematics import (
+    Tau_EnergyScale
 )
 
 from .MET_systematics import (
@@ -332,6 +337,14 @@ object_systematics = {
             "varying_function": partial(ShowerShape, is_correction=False, workflow="lowmass"),
         },
     },
+    "Tau_EnergyScale": {
+        "object": "Tau",
+        "args": {
+            "kind": "UpDownMultiSystematic",
+            "what": ["pt", "mass"],
+            "varying_function": partial(Tau_EnergyScale, is_correction=False),
+        }
+    },
 }
 
 # functions correcting nominal object quantities to be placed here
@@ -367,6 +380,7 @@ object_corrections = {
     ),
     "energyErrShift_LM": partial(energyErrShift, energyErr=None, is_correction=True, workflow="lowmass"),
     "ShowerShape_LM": partial(ShowerShape, pt=None, is_correction=True, workflow="lowmass"),
+    "Tau_EnergyScale": partial(Tau_EnergyScale, ptmass=None, year=None, is_correction=True),
 }
 
 # functions adding systematic variations to event weights to be placed here
@@ -436,6 +450,7 @@ weight_systematics = {
     "ElectronIndexSF_LM": partial(ElectronIndexSF_LM, is_correction=False),
     "PreselSF_LM": partial(PreselSF_LM, is_correction=False),
     "TriggerSF_LM": partial(TriggerSF_LM, is_correction=False),
+    "Tau_ID": partial(Tau_ID, is_correction=False),
 }
 
 # functions correcting nominal event weights to be placed here
@@ -495,4 +510,5 @@ weight_corrections = {
     "ElectronIndexSF_LM": partial(ElectronIndexSF_LM, is_correction=True),
     "PreselSF_LM": partial(PreselSF_LM, is_correction=True),
     "TriggerSF_LM": partial(TriggerSF_LM, is_correction=True),
+    "Tau_ID": partial(Tau_ID, is_correction=True),
 }

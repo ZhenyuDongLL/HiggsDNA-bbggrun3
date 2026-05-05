@@ -99,6 +99,7 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         pass
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
+        self.resolve_nano_version(events)
 
         print("\n \t INFO: running top processor. \n")
         dataset_name = events.metadata["dataset"]

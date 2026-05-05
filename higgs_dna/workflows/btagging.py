@@ -99,6 +99,7 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
         )
 
     def process(self, events: ak.Array) -> Dict[Any, Any]:
+        self.resolve_nano_version(events)
         dataset_name = events.metadata["dataset"]
 
         # data or monte carlo?

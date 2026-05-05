@@ -2468,7 +2468,7 @@ def electronSFs(
     **kwargs,
 ):
     """
-    Electron identification or reconstruction scale factors for Run 3 (2022/2023).
+    Electron identification or reconstruction scale factors for Run 3 (2022/2023/2024).
     Documentation: https://twiki.cern.ch/twiki/bin/view/CMS/EgammSFandSSRun3
     Can either return jagged per-electron SFs for a given variation or add event-level
     weights to a coffea Weights container. In the latter case, the SF corresponds
@@ -2481,7 +2481,7 @@ def electronSFs(
         Needs: pt, eta, and (for 2023) phi.
     weights : coffea.analysis_tools.Weights or None
         Is modified unless return_jagged=True.
-    year : {"2022preEE","2022postEE","2023preBPix","2023postBPix"}
+    year : {"2022preEE","2022postEE","2023preBPix","2023postBPix", "2024"}
     sf_key : str
         ID WP ("Loose","Medium","Tight","wp90iso","wp80iso") or "Reco".
         In the "Reco" case, the SFs are obtained in three pt slices and combined into one SF.
@@ -2496,7 +2496,7 @@ def electronSFs(
     -------
     Weights or ak.Array
     """
-    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
     if year not in avail_years:
         logger.error(f"Only electron corrections for {avail_years} implemented!")
         raise ValueError(f"Year '{year}' not supported for electron corrections.")
@@ -2508,6 +2508,7 @@ def electronSFs(
         "2022postEE": "2022Re-recoE+PromptFG",
         "2023preBPix": "2023PromptC",
         "2023postBPix": "2023PromptD",
+        "2024": "2024Prompt",
     }[year]
 
     # Flatten per-electron inputs
@@ -3603,6 +3604,61 @@ def ElectronVetoSF_LM(
         sfdown = (sf_lead - unc_lead) * (sf_sublead - unc_sublead) / _sf
 
     name = "ElectronVetoSF_corr" if is_correction else "ElectronVetoSF"
+    weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
+
+    return weights
+
+
+def Tau_ID(taus, weights, year, is_correction=True, wp_VSjet="Medium", wp_VSe="VVLoose", **kwargs):
+    year_mapping = {
+        "2022preEE": "2022_Summer22",
+        "2022postEE": "2022_Summer22EE",
+        "2023preBPix": "2023_Summer23",
+        "2023postBPix": "2023_Summer23BPix",
+        "2024": "2024_Summer24",
+    }
+    folder_name = year_mapping.get(year)
+    json_name = "DeepTau2018v2p5VSjet"
+    if folder_name and json_name:
+        path_to_json = os.path.join(os.path.dirname(__file__), f"JSONs/POG/TAU/{folder_name}/tau.json.gz")
+        evaluator = correctionlib.CorrectionSet.from_file(path_to_json)[json_name]
+    else:
+        raise ValueError(f"Year {year} not supported for TAU ID SFs.")
+
+    era_syst_map = {
+        "2022preEE": ("syst_2022_preEE_up", "syst_2022_preEE_down"),
+        "2022postEE": ("syst_2022_postEE_up", "syst_2022_postEE_down"),
+        "2023preBPix": ("syst_2023_preBPix_up", "syst_2023_preBPix_down"),
+        "2023postBPix": ("syst_2023_postBPix_up", "syst_2023_postBPix_down"),
+        "2024": ("up", "down"),
+    }
+    syst_up_str, syst_down_str = era_syst_map[year]
+
+    counts = ak.num(taus)
+    taus_flat = ak.flatten(taus)
+
+    pt = ak.to_numpy(taus_flat.pt)
+    dm = ak.to_numpy(taus_flat.decayMode)
+    genPartFlav = ak.to_numpy(taus_flat.genPartFlav)
+
+    sf_nom_flat = evaluator.evaluate(pt, dm, genPartFlav, wp_VSjet, wp_VSe, "nom", "dm")
+
+    if is_correction:
+        sf = ak.to_numpy(ak.prod(ak.unflatten(sf_nom_flat, counts), axis=1))
+        sfup, sfdown = None, None
+    else:
+        sf_up_flat = evaluator.evaluate(pt, dm, genPartFlav, wp_VSjet, wp_VSe, syst_up_str, "dm")
+        sf_down_flat = evaluator.evaluate(pt, dm, genPartFlav, wp_VSjet, wp_VSe, syst_down_str, "dm")
+
+        prod_nom = ak.to_numpy(ak.prod(ak.unflatten(sf_nom_flat, counts), axis=1))
+        prod_up = ak.to_numpy(ak.prod(ak.unflatten(sf_up_flat, counts), axis=1))
+        prod_down = ak.to_numpy(ak.prod(ak.unflatten(sf_down_flat, counts), axis=1))
+
+        sf = np.ones(len(weights._weight))
+        sfup = prod_up / prod_nom
+        sfdown = prod_down / prod_nom
+
+    name = "Tau_ID_corr" if is_correction else "Tau_ID"
     weights.add(name=name, weight=sf, weightUp=sfup, weightDown=sfdown)
 
     return weights

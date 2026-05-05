@@ -39,4 +39,4 @@ def test_parser():
         "--nano-version", "13"
     ])
     assert args.json_analysis_file == "path_to_json.json"
-    assert args.nano_version == 13
+    assert args.nano_version == "13"

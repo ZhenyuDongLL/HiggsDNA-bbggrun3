@@ -355,11 +355,11 @@ def main():
     )
     (opt, args) = parser.parse_args()
 
-    opt.output = os.path.realpath(opt.output)
+    opt.output = os.path.realpath(opt.output) if opt.output else ""
     opt.genBinning = os.path.realpath(opt.genBinning) if (opt.genBinning != "") else ""
 
     # Create output folder if it does not exist
-    if not os.path.exists(opt.output):
+    if opt.output and not os.path.exists(opt.output):
         MKDIRP(opt.output)
 
     BASEDIR = resources.files("higgs_dna").joinpath("")

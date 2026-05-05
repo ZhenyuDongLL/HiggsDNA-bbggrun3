@@ -160,6 +160,10 @@ class STXSProcessor(HggSkeletonProcessor):
         self.jet_tau_min_dr = 0.4
         self.clean_jet_tau = True
 
+    def process(self, events: ak.Array) -> Dict[Any, Any]:
+        self.resolve_nano_version(events)
+        dataset_name = events.metadata["dataset"]
+
         bjet_mva = ["deepJet"]
         if self.nano_version >= 12:
             bjet_mva.append("particleNet")
@@ -169,9 +173,6 @@ class STXSProcessor(HggSkeletonProcessor):
             bjet_mva.append("btagUParTAK4B")
         self.bjet_mva = bjet_mva
         self.bjet_wp = ["L", "M", "T", "XT", "XXT"]
-
-    def process(self, events: ak.Array) -> Dict[Any, Any]:
-        dataset_name = events.metadata["dataset"]
 
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
@@ -730,7 +731,8 @@ class STXSProcessor(HggSkeletonProcessor):
                     "idDeepTau2018v2p5VSmu": taus.idDeepTau2018v2p5VSmu,
                     "idDeepTau2018v2p5VSjet": taus.idDeepTau2018v2p5VSjet,
                     "leptonFlavour": ak.full_like(taus.pt, 2),
-                    "leptonID": ak.full_like(taus.pt, -999.0)  # TODO: we don't have a score, only WPs
+                    "leptonID": ak.full_like(taus.pt, -999.0),  # TODO: we don't have a score, only WPs
+                    **({"genPartFlav": taus.genPartFlav} if self.data_kind == "mc" else {})
                 }
             )
             taus = ak.with_name(taus, "PtEtaPhiMCandidate")
@@ -868,10 +870,7 @@ class STXSProcessor(HggSkeletonProcessor):
                         diphotons[f"J{i}_{bjet_mva}_is{bjet_wp}"] = jet_collection[f"J{i}_{bjet_mva}_is{bjet_wp}"]
             diphotons["n_jets"] = n_jets
             diphotons["NJ"] = Njets2p5
-            if self.nano_version > 13:
-                diphotons["n_bjets"] = ak.sum(jets["btagUParTAK4B_isT"], axis=1)
-            else:
-                diphotons["n_bjets"] = ak.sum(jets["particleNet_isT"], axis=1)
+            diphotons["n_bjets"] = ak.sum(jets["particleNet_isT"], axis=1)
 
             # Extract forwardmost selected jet
             eta_sort_idxs = ak.argsort(numpy.abs(jets.eta), ascending=False)
@@ -1030,10 +1029,12 @@ class STXSProcessor(HggSkeletonProcessor):
                             photons=original_diphotons[selection_mask],
                             electrons=sel_electrons[selection_mask],
                             muons=sel_muons[selection_mask],
+                            taus=sel_taus[selection_mask],
                             weights=event_weights,
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
                         )
+                diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
 
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
@@ -1083,6 +1084,7 @@ class STXSProcessor(HggSkeletonProcessor):
                                     photons=original_diphotons[selection_mask],
                                     electrons=sel_electrons[selection_mask],
                                     muons=sel_muons[selection_mask],
+                                    taus=sel_taus[selection_mask],
                                     weights=event_weights,
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],

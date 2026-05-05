@@ -125,6 +125,11 @@ def getBTagMVACut(mva_name, mva_wp, year):
         "2023postBPix",
         "2024",
     ]
+    if year == "2025":
+        year = "2024"
+        logger.info(
+            "BTV correctionlib for 2025 not available, using 2024 corrections instead."
+        )
     if year not in avail_years:
         logger.warning(
             f"\n BTV correctionlib for {year} not found! Don't cut on the selected B-Tag MVA. The b-related variables are most likely not correct.\n"

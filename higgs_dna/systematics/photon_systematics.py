@@ -280,7 +280,7 @@ def PhotonIDMVAShape(mvaID, events, year="2024", is_correction=True, workflow="b
     if not hasattr(events, "GenPart"):
         raise ValueError("PhotonIDMVAShape corrections should only be applied to MC!")
 
-    if ak.all(mvaID == ak.flatten(events.Photon.mvaID)):
+    if len(mvaID) > 0 and ak.all(mvaID == ak.flatten(events.Photon.mvaID)):
         raise ValueError("mvaID values are identical to those in the original NanoAOD. You must apply flow corrections to use `PhotonIDMVAShape`!")
 
     # For Lowmass: a linear shift of the mvaID values, with different parameters for

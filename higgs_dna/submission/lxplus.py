@@ -288,7 +288,7 @@ class LXPlusVanillaSubmitter:
                     sub.write('periodic_hold = ( JobStatus == 7 ) && ((CurrentTime - EnteredCurrentStatus) > 300)\n')
                     sub.write('periodic_hold_reason = "Job stuck suspended >5m — requeueing"\n')
                     sub.write('periodic_release = ( JobStatus == 5 ) && ((CurrentTime - EnteredCurrentStatus) > 60)\n')
-                    sub.write('max_retries = 3\n')
+                    sub.write('max_retries = 10\n')
                     if max_mat is not None:
                         sub.write(f"max_materialize = {max_mat}\n")
                     sub.write('requirements = Machine =!= LastRemoteHost\n')
@@ -369,7 +369,7 @@ class LXPlusVanillaSubmitter:
                         sub.write('periodic_hold = ( JobStatus == 7 ) && ((CurrentTime - EnteredCurrentStatus) > 300)\n')
                         sub.write('periodic_hold_reason = "Job stuck suspended >5m — requeueing"\n')
                         sub.write('periodic_release = ( JobStatus == 5 ) && ((CurrentTime - EnteredCurrentStatus) > 60)\n')
-                        sub.write('max_retries = 3\n')
+                        sub.write('max_retries = 10\n')
                         if max_mat is not None:
                             sub.write(f"max_materialize = {max_mat}\n")
                         sub.write('requirements = Machine =!= LastRemoteHost\n')

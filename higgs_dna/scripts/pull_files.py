@@ -337,6 +337,26 @@ def get_photonid_mva_shape_json(logger, target_dir, use_xrdcp=False):
     path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/ingredients"
 
     from_to_dict = {
+        "2022preEE": {
+            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+            "to": f"{to_prefix}/2022preEE/PhotonIDMVAShape.json.gz",
+            "type": "eos",
+        },
+        "2022postEE": {
+            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+            "to": f"{to_prefix}/2022postEE/PhotonIDMVAShape.json.gz",
+            "type": "eos",
+        },
+        "2022preBPix": {
+            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+            "to": f"{to_prefix}/2023preBPix/PhotonIDMVAShape.json.gz",
+            "type": "eos",
+        },
+        "2022postBPix": {
+            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+            "to": f"{to_prefix}/2023postBPix/PhotonIDMVAShape.json.gz",
+            "type": "eos",
+        },
         "2024": {
             "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
             "to": f"{to_prefix}/2024/PhotonIDMVAShape.json.gz",
@@ -353,7 +373,7 @@ def get_loose_phoID_json(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(
             resource_dir, "../higgs_dna/systematics/JSONs/LoosePhoIDSF"
         )
-    
+
     path_to_ingredients = "/eos/cms/store/group/phys_higgs/cmshgg/ingredients"
     loose_phoID_subfolder_name = "loose_phoID_SF"
 
@@ -500,7 +520,7 @@ def get_trigger_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2025/TriggerSF_lead_2025.json",
             "type": "eos",
         },
-        "2025_sublead": {   
+        "2025_sublead": {
             "from": os.path.join(path_to_ingredients, "2025", trigger_subfolder_name, "TriggerSF_sublead_2025.json"),
             "to": f"{to_prefix}/2025/TriggerSF_sublead_2025.json",
             "type": "eos",
@@ -672,7 +692,7 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
          "2024": {
-            "from": "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/POG/BTV/2024_Summer24/btagging_preliminary.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/btagging.json.gz",
             "to": f"{to_prefix}/2024_Summer24/btagging.json.gz",
             "type": "cvmfs",
         },
@@ -982,7 +1002,7 @@ def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
                    f"{to_prefix}/EGMScalesSmearing_Ele_20252G.v1.json.gz"],
             "type": "eos",
         },
-       
+
     }
     fetch_file(
         "Scale and Smearing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy"
@@ -1322,6 +1342,12 @@ def get_electron_json(logger, target_dir, use_xrdcp=False):
         "2023postBPix": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/EGM/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/electron.json.gz",
             "to": f"{to_prefix}/2023postBPix/electron.json.gz",
+            "type": "cvmfs",
+        },
+
+        "2024": {
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/EGM/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/electron.json.gz",
+            "to": f"{to_prefix}/2024/electron.json.gz",
             "type": "cvmfs",
         },
     }
@@ -2025,6 +2051,48 @@ def get_photonid_json_lowmass(logger, target_dir, use_xrdcp=False):
     fetch_file("PhotonID_LM", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
 
+def get_tau_json(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/POG/TAU/"
+        )
+
+    cvmfs_base_path = "/cvmfs/cms-griddata.cern.ch/cat/metadata/TAU"
+
+    from_to_dict = {
+        # Run 3 (NanoAODv12)
+        "2022preEE": {
+            "from": os.path.join(cvmfs_base_path, "Run3-22CDSep23-Summer22-NanoAODv12/latest/tau.json.gz"),
+            "to": f"{to_prefix}/2022_Summer22/tau.json.gz",
+            "type": "cvmfs",
+        },
+        "2022postEE": {
+            "from": os.path.join(cvmfs_base_path, "Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/tau.json.gz"),
+            "to": f"{to_prefix}/2022_Summer22EE/tau.json.gz",
+            "type": "cvmfs",
+        },
+        "2023preBPix": {
+            "from": os.path.join(cvmfs_base_path, "Run3-23CSep23-Summer23-NanoAODv12/latest/tau.json.gz"),
+            "to": f"{to_prefix}/2023_Summer23/tau.json.gz",
+            "type": "cvmfs",
+        },
+        "2023postBPix": {
+            "from": os.path.join(cvmfs_base_path, "Run3-23DSep23-Summer23BPix-NanoAODv12/latest/tau.json.gz"),
+            "to": f"{to_prefix}/2023_Summer23BPix/tau.json.gz",
+            "type": "cvmfs",
+        },
+        "2024": {
+            "from": os.path.join(cvmfs_base_path, "Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/tau.json.gz"),
+            "to": f"{to_prefix}/2024_Summer24/tau.json.gz",
+            "type": "cvmfs",
+        },
+    }
+
+    fetch_file("tau", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Simple utility script to retrieve the needed files for corections, luminostiy mask, systematics uncertainties ..."
@@ -2070,7 +2138,8 @@ def main():
             "HHbbgg_bpairing",
             "HHbbgg_vbfpairing",
             "MuonScaRe",
-            "PhotonIDMVAShape"
+            "PhotonIDMVAShape",
+            "tau"
         ],
     )
 
@@ -2144,6 +2213,7 @@ def main():
         get_eveto_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_electronIdx_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_photonid_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_tau_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "GoldenJSON":
         get_goldenjson(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PU":
@@ -2224,6 +2294,8 @@ def main():
         get_electronIdx_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PhotonID_LM":
         get_photonid_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "tau":
+        get_tau_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     else:
         logger.info("Unknown target, exit now!")
         exit(0)
