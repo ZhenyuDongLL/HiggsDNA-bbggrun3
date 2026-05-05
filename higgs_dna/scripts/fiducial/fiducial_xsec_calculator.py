@@ -117,6 +117,7 @@ available_mass_points = ['120', '125', '130']
 available_fid_selections = ['fiducialGeometricFlag', 'fiducialClassicalFlag']
 available_years = ['2022', '2023', '2024']
 available_eras = ['2022preEE', '2022postEE', '2023preBPix', '2023postBPix', '2024', 'all']
+available_year_choices = available_years + ['all']
 
 # Command-line interface definition.
 parser = argparse.ArgumentParser(description = "Calculate the inclusive fiducial cross section of pp->H(yy)+X process(es) based on processed samples without detector-level selections. ")
@@ -124,8 +125,8 @@ parser.add_argument('path', type = str, help = "Path to the top-level folder con
 parser.add_argument('--process', type = str, choices = available_processes, default = 'ggH', help = "Please specify the process(es) for which you want to calculate the inclusive fiducial xsec.")
 parser.add_argument('--mass-points', nargs='+', choices = available_mass_points, default = available_mass_points, help = "Please specify the mass points to run over. If only one single mass point of 125 is specified: No interpolation is performed.")
 parser.add_argument('--fid-selection', type = str, choices = available_fid_selections, default = 'fiducialGeometricFlag', help = "Please specify the fiducial selection flag to use.")
-parser.add_argument('--year', type = str, choices = available_years, default = '2022', help = 'Please specify the desired year if you want to combine samples from multiple eras.')
-parser.add_argument('--era', type = str, choices = available_eras, default = '2022postEE', help = "Please specify the era(s) that you want to run over. If you specify 'all', an inverse variance weighting is performed to increase the precision.")
+parser.add_argument('--year', nargs='+', choices = available_year_choices, default = ['2022'], help = "Please specify one or more years to process, or 'all' to process every available year.")
+parser.add_argument('--era', type = str, choices = available_eras, default = '2022postEE', help = "Please specify the era(s) that you want to run over. If you specify 'all', an inverse variance weighting is performed across the selected years.")
 parser.add_argument('--bin', type = str, default = '|0|5000|', help = "Bin boundaries of the differential XS. The default")
 parser.add_argument('--obs', type = str, default = 'GenPTH', help = "Name of the differential observable.")
 parser.add_argument('--weight', type = str, default = 'weight', help = "Weight to use.")
@@ -147,6 +148,9 @@ else:
 if args.workers < 1:
     parser.error("--workers must be at least 1.")
 
+if 'all' in args.year and len(args.year) != 1:
+    parser.error("--year accepts either 'all' or one or more concrete years, not both.")
+
 if args.fid_selection == 'fiducialGeometricFlag':
     print('INFO: Using the geometric fiducial flag for the selection.')
 elif args.fid_selection == 'fiducialClassicalFlag':
@@ -161,14 +165,18 @@ elif args.process == 'xH':
 else:
     processes = [args.process]
 inferred_year = infer_year_from_era(args.era)
-year = inferred_year if inferred_year is not None else args.year
-if inferred_year is not None and args.year != inferred_year:
-    print(f"INFO: Inferring year {inferred_year} from era {args.era}.")
-# Expand the requested eras. `all` now means all concrete eras across all years.
-if args.era == 'all':
-    eras = [e for e in available_eras if e != 'all' and year in e]
+requested_years = list(available_years) if args.year == ['all'] else args.year
+if inferred_year is not None:
+    if requested_years != [inferred_year]:
+        print(f"INFO: Inferring year {inferred_year} from era {args.era}.")
+    selected_years = [inferred_year]
 else:
-    eras = [args.era] if year in args.era else []
+    selected_years = requested_years
+# Expand the requested eras. `all` now means all concrete eras across the selected years.
+if args.era == 'all':
+    eras = [e for year in selected_years for e in available_eras if e != 'all' and e.startswith(year)]
+else:
+    eras = [args.era] if inferred_year is not None else []
 resolved_era_labels = resolve_era_labels(path_folder, eras)
 available_directory_names = get_available_directory_names(path_folder)
 
@@ -405,7 +413,7 @@ def accumulate_sample(accumulator, arr, args, obs_bins):
             accumulator['alpha_num'][i, b] += float(ak.sum(masked_weights[b] * alpha_weight[mask]))
 
 
-def compute_sample_contribution(process, mass, era, resolved_era, path_folder, year, args, obs_bins, parquet_columns, available_dir_names):
+def compute_sample_contribution(process, mass, era, resolved_era, path_folder, sample_year, args, obs_bins, parquet_columns, available_dir_names):
     """
     Load one sample and compute its full contribution to all observable bins.
 
@@ -413,7 +421,7 @@ def compute_sample_contribution(process, mass, era, resolved_era, path_folder, y
     a fresh accumulator for one (process, mass, era) combination, which is then
     merged in the main thread.
     """
-    process_string = build_process_path(path_folder, year, process, mass, resolved_era, args, available_dir_names)
+    process_string = build_process_path(path_folder, sample_year, process, mass, resolved_era, args, available_dir_names)
     arr = ak.from_parquet(str(process_string), columns=parquet_columns)
     accumulator = initialize_mass_accumulator(len(obs_bins) - 1)
     accumulate_sample(accumulator, arr, args, obs_bins)
@@ -500,7 +508,10 @@ for process in processes:
     for mass in mass_points:
         print(f'INFO: Scheduling sample tasks for mass {mass}...')
         for era in eras:
-            sample_tasks.append((process, mass, era, resolved_era_labels[era]))
+            sample_year = infer_year_from_era(era)
+            if sample_year is None:
+                parser.error(f"Could not infer a year from era '{era}'.")
+            sample_tasks.append((process, mass, era, sample_year, resolved_era_labels[era]))
 
 with ThreadPoolExecutor(max_workers=args.workers) as executor:
     futures = {
@@ -511,13 +522,13 @@ with ThreadPoolExecutor(max_workers=args.workers) as executor:
             era,
             resolved_era,
             path_folder,
-            year,
+            sample_year,
             args,
             obs_bins,
             parquet_columns,
             available_directory_names,
         ): (process, mass, era)
-        for process, mass, era, resolved_era in sample_tasks
+        for process, mass, era, sample_year, resolved_era in sample_tasks
     }
 
     for future in as_completed(futures):
