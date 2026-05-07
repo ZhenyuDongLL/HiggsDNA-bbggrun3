@@ -6,7 +6,9 @@ import os
 import xgboost as xgb
 
 
-def add_diphoton_mva_inputs_for_lowmass(diphotons, events, mc_flow_corrected=False):
+def add_diphoton_mva_inputs_for_lowmass(
+    diphotons, events, mc_flow_corrected=False, beamspot_sigmaZ=3.5
+):
     # * sigma right vertex
     dEoE_pho1 = diphotons["pho_lead"].energyErr / diphotons["pho_lead"].energy
     dEoE_pho2 = diphotons["pho_sublead"].energyErr / diphotons["pho_sublead"].energy
@@ -57,9 +59,6 @@ def add_diphoton_mva_inputs_for_lowmass(diphotons, events, mc_flow_corrected=Fal
 
     denominator = 1.0 - tanh_pho1 * tanh_pho2 - sech_pho1 * sech_pho2 * cos_dphi
 
-    # beam spot sigma Z for lowmass is 3.5
-    ## https://indico.cern.ch/event/1360969/contributions/5864116/attachments/2824580/4934078/2022postEE_LM_DiphotonBDT_Hgg.pdf
-    beamspot_sigmaZ = 3.5
     angle_reso_wv = (-np.sqrt(2.0) * beamspot_sigmaZ / denominator) * (
         numerator_pho1 / direction_pho1.mag + numerator_pho2 / direction_pho2.mag
     )

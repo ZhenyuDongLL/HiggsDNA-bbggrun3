@@ -75,6 +75,7 @@ class LowMassProcessor(HggSkeletonProcessor):
         validate_with_electrons: bool = False,
         output_format: str = "parquet",
         e_veto: str = "presel",
+        name_with_stat: bool = True,
     ) -> None:
         super().__init__(
             metaconditions,
@@ -100,6 +101,7 @@ class LowMassProcessor(HggSkeletonProcessor):
 
         self.nano_version = nano_version
         self.name_convention = "DAS"
+        self.name_with_stat = name_with_stat
 
         # diphoton preselection cuts
         if not self.validate_with_electrons:
@@ -116,6 +118,18 @@ class LowMassProcessor(HggSkeletonProcessor):
         self.ptom2_cut = 0.28
         # mvaid cut > -0.9
         self.min_mvaid = -0.9
+        self.diphoton_mass_cut_lo = 65
+        self.diphoton_mass_cut_hi = 120
+        # beam spot sigma Z for lowmass 2022postEE is 3.5, for other years are different
+        ## https://indico.cern.ch/event/1360969/contributions/5864116/attachments/2824580/4934078/2022postEE_LM_DiphotonBDT_Hgg.pdf
+        self.beamspot_sigmaZ_map = {
+            "2022postEE": 3.5,
+            "2022preEE": 3.2,
+            "2023preBPix": 3.7,
+            "2023postBPix": 3.7,
+            "2024": 3.7,
+            "default": 3.5,
+        }
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
@@ -425,6 +439,11 @@ class LowMassProcessor(HggSkeletonProcessor):
 
             diphotons = build_diphoton_candidates(photons, self.min_pt_lead_photon)
 
+            # diphoton candidates should pass diphoton_mass cut first
+            diphotons = diphotons[
+                (diphotons.mass > self.diphoton_mass_cut_lo)
+                & (diphotons.mass < self.diphoton_mass_cut_hi)
+            ]
             # ! only keep both pass/single pass/none pass pairs
             # presel: both photons don't have pixelSeed
             # single_invert: one photon has pixelSeed, another doesn't have pixelSeed
@@ -628,13 +647,24 @@ class LowMassProcessor(HggSkeletonProcessor):
             diphotons["Njets2p5"] = Njets2p5
 
             # * add diphoton mva inputs
+            # setup beamspot_sigmaZ based on year
             if self.data_kind == "mc" and self.doFlow_corrections:
                 diphotons = add_diphoton_mva_inputs_for_lowmass(
-                    diphotons, events, mc_flow_corrected=True
+                    diphotons,
+                    events,
+                    mc_flow_corrected=True,
+                    beamspot_sigmaZ=self.beamspot_sigmaZ_map.get(
+                        self.year[dataset_name][0], self.beamspot_sigmaZ_map["default"]
+                    ),
                 )
             else:
                 diphotons = add_diphoton_mva_inputs_for_lowmass(
-                    diphotons, events, mc_flow_corrected=False
+                    diphotons,
+                    events,
+                    mc_flow_corrected=False,
+                    beamspot_sigmaZ=self.beamspot_sigmaZ_map.get(
+                        self.year[dataset_name][0], self.beamspot_sigmaZ_map["default"]
+                    ),
                 )
 
             # run taggers on the events list with added diphotons
@@ -908,6 +938,20 @@ class LowMassProcessor(HggSkeletonProcessor):
                     ]
 
                 fname = apply_naming_convention(self, events)
+                # add statistics of this job to the file name
+                if self.name_with_stat:
+                    fname_tmp = fname.replace(".parquet", "")
+                    if metadata["sum_genw_presel"] == "Data":
+                        event_weight_sum = str(histos_etc[dataset_name]["nTot"])
+                        fname = f"{fname_tmp}_SUM_{event_weight_sum}.parquet"
+                    else:
+                        event_weight_sum = (
+                            metadata["sum_genw_presel"]
+                            .replace(".", "p")
+                            .replace("e-", "eminus")
+                            .replace("e+", "eplus")
+                        )
+                        fname = f"{fname_tmp}_GENSUM_{event_weight_sum}.parquet"
 
                 subdirs = []
                 if "dataset" in events.metadata:
