@@ -23,13 +23,13 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
 
     if type == "nominal":
         if year == "2022postEE":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/nominal_sigma_m_postEE_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/nominal_sigma_m_postEE_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2022preEE":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/nominal_sigma_m_preEE_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/nominal_sigma_m_preEE_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2023postBPix":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/nominal_sigma_m_postBPix_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/nominal_sigma_m_postBPix_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2023preBPix":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/nominal_sigma_m_preBPix_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/nominal_sigma_m_preBPix_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2024":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2024/sigma_m_nominal_2024_CDFs.pkl.gz')
         else:
@@ -39,13 +39,13 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
 
     elif type == "smeared":
         if year == "2022postEE":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/sigma_m_smeared_postEE_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/sigma_m_smeared_postEE_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2022preEE":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/sigma_m_smeared_preEE_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/sigma_m_smeared_preEE_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2023postBPix":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_smeared_postBPix_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_smeared_postBPix_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2023preBPix":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_smeared_preBPix_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_smeared_preBPix_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2024":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2024/sigma_m_smeared_2024_CDFs.pkl.gz')
         else:
@@ -55,13 +55,13 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
 
     elif type == "corr":
         if year == "2022postEE":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/sigma_m_corr_postEE_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/sigma_m_corr_postEE_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2022preEE":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/sigma_m_corr_preEE_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/sigma_m_corr_preEE_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2023postBPix":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_corr_postBPix_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_corr_postBPix_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2023preBPix":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_corr_preBPix_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_corr_preBPix_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2024":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2024/sigma_m_nominal_corr_2024_CDFs.pkl.gz')
         else:
@@ -78,13 +78,13 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
 
             sys.exit(1)
         if year == "2022postEE":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/sigma_m_smeared_corr_postEE_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022postEE/sigma_m_smeared_corr_postEE_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2022preEE":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/sigma_m_smeared_corr_preEE_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2022preEE/sigma_m_smeared_corr_preEE_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2023postBPix":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_smeared_corr_postBPix_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023postBPix/sigma_m_smeared_corr_postBPix_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2023preBPix":
-            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_smeared_corr_preBPix_CDFs.pkl.gz')
+            decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2023preBPix/sigma_m_smeared_corr_preBPix_CDFs_Zmmg_SaS.pkl.gz')
         elif year == "2024":
             decl.loadCdfs(os.path.dirname(__file__) + '/decorrelation_CDFs/2024/sigma_m_smeared_corr_2024_CDFs.pkl.gz')
         else:
@@ -103,11 +103,4 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
     decl.df = df.loc[:, [var, dVar]]
     decl.df.reset_index(inplace=True)
 
-    # options.ref is the mass bin (125.)
-    df['{}_decorr'.format(var)] = decl.doDecorr(ref)
-
-    # performing the decorrelation
-    events["sigma_m_over_m_decorr"] = decl.doDecorr(ref)
-
-    # returning the array with the decorrelated mass resolution
-    return events["sigma_m_over_m_decorr"]
+    return decl.doDecorr(ref)
