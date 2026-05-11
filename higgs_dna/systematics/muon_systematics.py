@@ -107,7 +107,7 @@ def filter_boundaries(pt_corr, pt, low_pt_threshold=26):
     return pt_corr
 
 
-def pt_resol(pt, eta, nL, cset):
+def pt_resol(pt, eta, nL, cset, roccor=False, low_pt_threshold=26):
     """ "
     Function for the calculation of the resolution correction
     Input:
@@ -122,9 +122,12 @@ def pt_resol(pt, eta, nL, cset):
     std = get_std(pt, eta, nL, cset)
     k = get_k(eta, "nom", cset)
 
-    pt_corr = pt * (1 + k * std * rndm)
+    if roccor:
+        pt_corr = pt * 1.0 / (1.0 + k * std * rndm)
+    else:
+        pt_corr = pt * (1 + k * std * rndm)
 
-    pt_corr = filter_boundaries(pt_corr, pt)
+    filter_boundaries(pt_corr, pt, low_pt_threshold=low_pt_threshold)
 
     # MUO POG style guard: revert extreme smearing to original pt
     ratio = pt_corr / pt
@@ -182,7 +185,7 @@ def pt_resol_var(pt_woresol, pt_wresol, eta, updn, cset):
     return pt_var_f
 
 
-def pt_scale(is_data, pt, eta, phi, charge, cset):
+def pt_scale(is_data, pt, eta, phi, charge, cset, low_pt_threshold=26):
     """
     Function for the calculation of the scale correction
     Input:
@@ -206,7 +209,7 @@ def pt_scale(is_data, pt, eta, phi, charge, cset):
 
     pt_corr = 1.0 / (m_f / pt + charge * a_f)
 
-    pt_corr = filter_boundaries(pt_corr, pt)
+    pt_corr = filter_boundaries(pt_corr, pt, low_pt_threshold=low_pt_threshold)
 
     return pt_corr
 
@@ -251,7 +254,7 @@ def pt_scale_var(pt, eta, phi, charge, updn, cset):
 
 
 # Reference: https://gitlab.cern.ch/cms-muonPOG/muonscarekit
-def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=True):
+def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=True, low_pt_threshold=26):
     """
     Applies the photon pt scale corrections (use on data!) and corresponding uncertainties (on MC!).
     JSONs need to be pulled first with scripts/pull_files.py
@@ -265,11 +268,29 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
     muons_jagged = events.Muon
     muons = ak.flatten(muons_jagged)
 
-    if year == "2025":
-        year = "2024"
-        logger.info("[ Muon S&S ] WARNING: there are no specific scale corrections for 2025 yet, using 2024 corrections instead.")
+    is_roccor = False
 
-    if year == "2022preEE":
+    if year == "2016preVFP":
+        is_roccor = True
+        path_json = os.path.join(
+            os.path.dirname(__file__), "JSONs/MuonScaRe/2016preVFP.json"
+        )
+    elif year == "2016postVFP":
+        is_roccor = True
+        path_json = os.path.join(
+            os.path.dirname(__file__), "JSONs/MuonScaRe/2016postVFP.json"
+        )
+    elif year == "2017":
+        is_roccor = True
+        path_json = os.path.join(
+            os.path.dirname(__file__), "JSONs/MuonScaRe/2017.json"
+        )
+    elif year == "2018":
+        is_roccor = True
+        path_json = os.path.join(
+            os.path.dirname(__file__), "JSONs/MuonScaRe/2018.json"
+        )
+    elif year == "2022preEE":
         path_json = os.path.join(
             os.path.dirname(__file__), "JSONs/MuonScaRe/2022_Summer22.json"
         )
@@ -289,9 +310,13 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
         path_json = os.path.join(
             os.path.dirname(__file__), "JSONs/MuonScaRe/2024.json"
         )
+    elif year == "2025":
+        path_json = os.path.join(
+            os.path.dirname(__file__), "JSONs/MuonScaRe/2025.json"
+        )
     else:
         logger.info(
-            'WARNING: there are only scale corrections for the year strings ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]! \n Exiting. \n'
+            'WARNING: there are only scale corrections for the year strings ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]! \n Exiting. \n'
         )
         exit()
 
@@ -307,6 +332,7 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
             muons.phi,
             muons.charge,
             evaluator,
+            low_pt_threshold=low_pt_threshold,
         )
 
         muons["pt_scale_factor"] = muons_pt_scalecorr / muons.pt_nanoaod
@@ -322,7 +348,7 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
         else:
             # * MC needs both scale and resolution corrections
             muons_pt_scarecorr = pt_resol(
-                muons.pt_scalecorr, muons.eta, muons.nTrackerLayers, evaluator
+                muons.pt_scalecorr, muons.eta, muons.nTrackerLayers, evaluator, roccor=is_roccor, low_pt_threshold=low_pt_threshold
             )
             muons["pt_scare_factor"] = muons_pt_scarecorr / muons.pt_nanoaod
             muons["pt_scarecorr"] = muons_pt_scarecorr
@@ -337,6 +363,9 @@ def muon_pt_scare(pt, events, year="2022postEE", unc_type=None, is_correction=Tr
     else:
         if not hasattr(events, "genWeight"):
             raise ValueError("Scale uncertainties should only be applied to MC!")
+
+        if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
+            logger.error("Muon scale uncertainties for 2016-2018 are not implemented! \n Exiting. \n")
 
         if unc_type:
             if unc_type == "Scale":

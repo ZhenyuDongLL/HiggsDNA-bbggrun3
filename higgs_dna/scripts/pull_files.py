@@ -876,7 +876,7 @@ def get_scale_and_smearing(logger, target_dir, use_xrdcp=False):
         to_prefix = target_dir
     else:
         to_prefix = os.path.join(
-            resource_dir, "../higgs_dna/systematics/JSONs/scaleAndSmearing"
+            resource_dir, "../higgs_dna/systematics/JSONs/scaleAndSmearing/EGM/"
         )
     cvmfs_base_path = "/cvmfs/cms-griddata.cern.ch/cat/metadata/EGM/"
     tag = 'latest'  # latest tag always points to the most recent recommended corrections
@@ -890,6 +890,7 @@ def get_scale_and_smearing(logger, target_dir, use_xrdcp=False):
         "2023preBPix": "Run3-23CSep23-Summer23-NanoAODv12",
         "2023postBPix": "Run3-23DSep23-Summer23BPix-NanoAODv12",
         "2024": "Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15",
+        "2025": "Run3-25Prompt-Summer24-NanoAODv15",
     }
 
     from_to_dict = {
@@ -913,93 +914,58 @@ def get_scale_and_smearing_IJazZ(logger, target_dir, use_xrdcp=False):
         to_prefix = target_dir
     else:
         to_prefix = os.path.join(
-            resource_dir, "../higgs_dna/systematics/JSONs/scaleAndSmearing"
+            resource_dir, "../higgs_dna/systematics/JSONs/scaleAndSmearing/Hgg/"
         )
 
     from_to_dict = {
+        "2016preVFP": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_RunII2016preVFP.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_RunII2016preVFP.v1.json.gz"],
+            "type": "eos",
+        },
+        "2016postVFP": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_RunII2016postVFP.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_RunII2016postVFP.v1.json.gz"],
+            "type": "eos",
+        },
+        "2017": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_RunII2017.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_RunII2017.v1.json.gz"],
+            "type": "eos",
+        },
+        "2018": {
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2018/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_RunII2018.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_RunII2018.v1.json.gz"],
+            "type": "eos",
+        },
         "2022preEE": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ/preEE/EGMScalesSmearing_Pho_2022preEE.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ/preEE/EGMScalesSmearing_Pho_2022preEE2G.v1.json.gz"],
-            "to":   [f"{to_prefix}/EGMScalesSmearing_Pho_2022preEE.v1.json.gz",
-                     f"{to_prefix}/EGMScalesSmearing_Pho_2022preEE2G.v1.json.gz"],
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_22232022preEE.v1.json.gz"],
+            "to":   [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_22232022preEE.v1.json.gz"],
             "type": "eos",
         },
         "2022postEE": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ/postEE/EGMScalesSmearing_Pho_2022postEE.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ/postEE/EGMScalesSmearing_Pho_2022postEE2G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2022postEE.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Pho_2022postEE2G.v1.json.gz"],
-            "type": "eos",
-        },
-        "2022preEE_Electrons": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ_for_electrons/preEE/EGMScalesSmearing_Ele_2022preEE.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ_for_electrons/preEE/EGMScalesSmearing_Ele_2022preEE2G.v1.json.gz"],
-            "to":   [f"{to_prefix}/EGMScalesSmearing_Ele_2022preEE.v1.json.gz",
-                     f"{to_prefix}/EGMScalesSmearing_Ele_2022preEE2G.v1.json.gz"],
-            "type": "eos",
-        },
-        "2022postEE_Electrons": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ_for_electrons/postEE/EGMScalesSmearing_Ele_2022postEE.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_IJazZ_for_electrons/postEE/EGMScalesSmearing_Ele_2022postEE2G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2022postEE.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Ele_2022postEE2G.v1.json.gz"],
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2022/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_22232022postEE.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_22232022postEE.v1.json.gz"],
             "type": "eos",
         },
         "2023preBPix": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/preBPix/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/preBPix/EGMScalesSmearing_Pho_2023preBPIX2G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Pho_2023preBPIX2G.v1.json.gz"],
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_22232023preBPIX.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_22232023preBPIX.v1.json.gz"],
             "type": "eos",
         },
         "2023postBPix": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/postBPix/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ/postBPix/EGMScalesSmearing_Pho_2023postBPIX2G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Pho_2023postBPIX2G.v1.json.gz"],
-            "type": "eos",
-        },
-
-        "2023preBPix_Electrons": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ_for_electrons/preBPix/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ_for_electrons/preBPix/EGMScalesSmearing_Ele_2023preBPIX2G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Ele_2023preBPIX2G.v1.json.gz"],
-            "type": "eos",
-        },
-        "2023postBPix_Electrons": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ_for_electrons/postBPix/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_IJazZ_for_electrons/postBPix/EGMScalesSmearing_Ele_2023postBPIX2G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Ele_2023postBPIX2G.v1.json.gz"],
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2023/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_22232023postBPIX.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_22232023postBPIX.v1.json.gz"],
             "type": "eos",
         },
         "2024": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/SandS_IJazZ/EGMScalesSmearing_Pho_2024_mvaID.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/SandS_IJazZ/EGMScalesSmearing_Pho_2024_mvaID2G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2024_mvaID.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Pho_2024_mvaID2G.v1.json.gz"],
-            "type": "eos",
-        },
-        "2024_Electrons": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/SandS_IJazZ_for_electrons/EGMScalesSmearing_Ele_2024.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/SandS_IJazZ_for_electrons/EGMScalesSmearing_Ele_20242G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2024.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Ele_20242G.v1.json.gz"],
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2024/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_2024.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_2024.v1.json.gz"],
             "type": "eos",
         },
         "2025": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/SandS_IJazZ/EGMScalesSmearing_Pho_2025.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/SandS_IJazZ/EGMScalesSmearing_Pho_20252G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Pho_2025.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Pho_20252G.v1.json.gz"],
-            "type": "eos",
-        },
-        "2025_Electrons": {
-            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/SandS_IJazZ_for_electrons/EGMScalesSmearing_Ele_2025.v1.json.gz",
-                     "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/SandS_IJazZ_for_electrons/EGMScalesSmearing_Ele_20252G.v1.json.gz"],
-            "to": [f"{to_prefix}/EGMScalesSmearing_Ele_2025.v1.json.gz",
-                   f"{to_prefix}/EGMScalesSmearing_Ele_20252G.v1.json.gz"],
+            "from": ["/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/SandS_Zee_Zmmg/EGMScalesSmearing_ZeeZmmg_2025.v1.json.gz"],
+            "to": [f"{to_prefix}/EGMScalesSmearing_ZeeZmmg_2025.v1.json.gz"],
             "type": "eos",
         },
 
@@ -1879,6 +1845,26 @@ def get_muon_scale_smearing(logger, target_dir, use_xrdcp=False):
         )
 
     from_to_dict = {
+        "2016preVFP": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/RoccoR/MuonScalesSmearing_2016preVFPUL_set5.v1.json.gz",
+            "to": f"{to_prefix}/2016preVFP.json",
+            "type": "eos",
+        },
+        "2016postVFP": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/RoccoR/MuonScalesSmearing_2016postVFPUL_set5.v1.json.gz",
+            "to": f"{to_prefix}/2016postVFP.json",
+            "type": "eos",
+        },
+        "2017": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/RoccoR/MuonScalesSmearing_2017UL_set5.v1.json.gz",
+            "to": f"{to_prefix}/2017.json",
+            "type": "eos",
+        },
+        "2018": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2018/RoccoR/MuonScalesSmearing_2018UL_set5.v1.json.gz",
+            "to": f"{to_prefix}/2018.json",
+            "type": "eos",
+        },
         "2022postEE": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/muon_scalesmearing.json.gz",
             "to": f"{to_prefix}/2022_Summer22EE.json.gz",
@@ -1902,6 +1888,11 @@ def get_muon_scale_smearing(logger, target_dir, use_xrdcp=False):
         "2024": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/muon_scalesmearing.json.gz",
             "to": f"{to_prefix}/2024.json.gz",
+            "type": "eos",
+        },
+        "2025": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/muonScaRe_2025.json",
+            "to": f"{to_prefix}/2025.json",
             "type": "eos",
         }
     }
@@ -2099,6 +2090,7 @@ def main():
     )
 
     parser.add_argument(
+        "-t",
         "--target",
         dest="target",
         help="Choose the target to download (default: %(default)s)",

@@ -201,10 +201,6 @@ class TopProcessor(HggSkeletonProcessor):  # type: ignore
         except KeyError:
             systematic_names = []
 
-        # save raw pt for scale/smearing corrections
-        events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
-        events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
-
         # we need the uncorrected pt for jets, photons, electrons and muons for the type-I MET correction
         # field pt_raw is already defined in jerc_jet in a different way, so the name should be avoided
         events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_nano")

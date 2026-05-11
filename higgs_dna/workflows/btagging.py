@@ -38,7 +38,6 @@ import warnings
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import numpy
-import sys
 import vector
 import pathlib
 import pickle
@@ -178,54 +177,6 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
             systematic_names = self.systematics[dataset_name]
         except KeyError:
             systematic_names = []
-
-        # If --Smear-sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt spectrum need to be smeared in order to properly calculate the smeared sigma_m_m
-        if (
-            self.data_kind == "mc"
-            and self.Smear_sigma_m
-            and ("Smearing_Trad" not in correction_names and "Smearing_IJazZ" not in correction_names and "Smearing2G_IJazZ" not in correction_names)
-        ):
-            warnings.warn(
-                "Smearing_Trad or Smearing_IJazZ or Smearing2G_IJazZ should be specified in the corrections field in .json in order to smear the mass!"
-            )
-            sys.exit(0)
-
-        # save raw pt if we use scale/smearing corrections
-        # These needs to be before the smearing of the mass resolution in order to have the raw pt for the function
-        s_or_s_applied = False
-        s_or_s_ele_applied = False
-        for correction in correction_names:
-            if "scale" or "smearing" in correction.lower():
-                if "Electron" in correction:
-                    s_or_s_ele_applied = True
-                else:
-                    s_or_s_applied = True
-        if s_or_s_applied:
-            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
-        if s_or_s_ele_applied:
-            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
-
-        # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
-        # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
-        if self.data_kind == "data" and self.Smear_sigma_m:
-            if "Scale_Trad" in correction_names:
-                correction_name = "Smearing_Trad"
-            elif "Scale_IJazZ" in correction_names:
-                correction_name = "Smearing_IJazZ"
-            elif "Scale2G_IJazZ" in correction_names:
-                correction_name = "Smearing2G_IJazZ"
-            else:
-                logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
-                sys.exit(0)
-
-            logger.info(
-                f"""
-                Applying correction {correction_name} to dataset {dataset_name}\n
-                This is only for the addition of the smearing term to the sigma_m_over_m in data\n
-                """
-            )
-            varying_function = available_object_corrections[correction_name]
-            events = varying_function(events=events, year=self.year[dataset_name][0])
 
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():

@@ -17,7 +17,6 @@ import awkward as ak
 import logging
 import warnings
 import numpy
-import sys
 import copy
 from coffea.analysis_tools import Weights
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
@@ -180,17 +179,6 @@ class ZeeProcessor(HggSkeletonProcessor):
         except KeyError:
             systematic_names = []
 
-        # If --Smear-sigma_m == True and no Smearing correction in .json for MC throws an error, since the pt spectrum need to be smeared in order to properly calculate the smeared sigma_m_m
-        if (
-            self.data_kind == "mc"
-            and self.Smear_sigma_m
-            and ("Smearing_Trad" not in correction_names and "Smearing_IJazZ" not in correction_names and "Smearing2G_IJazZ" not in correction_names)
-        ):
-            warnings.warn(
-                "Smearing_Trad or Smearing_IJazZ or Smearing2G_IJazZ should be specified in the corrections field in .json in order to smear the mass!"
-            )
-            sys.exit(0)
-
         # Matching photons eta and phi to electrons and making basic selection
         events["Photon"] = events.Photon[events.Photon.electronIdx > -1]
         events = events[ak.num(events.Photon) >= 2]
@@ -204,29 +192,6 @@ class ZeeProcessor(HggSkeletonProcessor):
         matched_electrons["isScEtaEE"] = numpy.abs(matched_electrons.ScEta) > 1.566
 
         events["Electron"] = matched_electrons
-
-        # save raw pt
-        events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
-        events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
-
-        # Since now we are applying Smearing term to the sigma_m_over_m i added this portion of code
-        # specially for the estimation of smearing terms for the data events [data pt/energy] are not smeared!
-        if self.data_kind == "data" and self.Smear_sigma_m:
-            if "Scale_Trad" in correction_names:
-                correction_name = "Smearing_Trad"
-            elif "Scale_IJazZ" in correction_names:
-                correction_name = "Smearing_IJazZ"
-            elif "Scale2G_IJazZ" in correction_names:
-                correction_name = "Smearing2G_IJazZ"
-            else:
-                logger.info('Specify a scale correction for the data in the corrections field in .json in order to smear the mass!')
-                sys.exit(0)
-
-            logger.info(
-                f"\nApplying correction {correction_name} to dataset {dataset_name}\n"
-            )
-            varying_function = available_object_corrections[correction_name]
-            events = varying_function(events=events, year=self.year[dataset_name][0])
 
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():
@@ -526,15 +491,6 @@ class ZeeProcessor(HggSkeletonProcessor):
             )
             PhiEtaStar = ak.fill_none(PhiEtaStar, -999.0)
             diphotons["PhiEtaStar"] = PhiEtaStar
-
-            AbsDeltaPhoPhi = numpy.abs(DeltaPhoPhi)
-            PhiAcop = ak.full_like(AbsDeltaPhoPhi, numpy.pi) - AbsDeltaPhoPhi
-            PhiEtaStar = numpy.tan(PhiAcop / 2) / numpy.cosh(
-                (LeadPho.eta - SubleadPho.eta) / 2
-            )
-            AbsPhiEtaStar = numpy.abs(PhiEtaStar)
-            AbsPhiEtaStar = ak.fill_none(AbsPhiEtaStar, -999.0)
-            diphotons["AbsPhiEtaStar"] = AbsPhiEtaStar
 
             CosThetaStarCS = 2 * (
                 (

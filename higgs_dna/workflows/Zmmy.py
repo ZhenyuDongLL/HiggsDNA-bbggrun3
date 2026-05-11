@@ -8,14 +8,17 @@ from higgs_dna.selections.lepton_selections_Zmmy import (
 )
 from higgs_dna.selections.lumi_selections import select_lumis
 from higgs_dna.utils.dumping_utils import (
+    apply_naming_convention,
     dump_ak_array,
     dress_branches,
 )
 
 # from higgs_dna.utils.dumping_utils import diphoton_list_to_pandas, dump_pandas
+from higgs_dna.systematics import object_systematics as available_object_systematics
 from higgs_dna.systematics import object_corrections as available_object_corrections
 from higgs_dna.systematics import weight_systematics as available_weight_systematics
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
+from higgs_dna.systematics import apply_systematic_variations_object_level
 from higgs_dna.tools.flow_corrections import calculate_flow_corrections
 
 from typing import Any, Dict, List, Optional
@@ -83,6 +86,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
         )
         self.trigger_group = ".*DoubleMuon.*"
         self.analysis = "ZmmyAnalysis"
+        self.name_convention = "DAS"
         # muon selection cuts
         self.muon_pt_threshold = 10
         self.muon_max_eta = 2.4
@@ -92,7 +96,7 @@ class ZmmyProcessor(HggSkeletonProcessor):
         self.min_farmuon_pt = 20
         self.min_dimuon_mass = 35
         # photon selection cuts
-        self.photon_pt_threshold = 20
+        self.photon_pt_threshold = 10
 
         # mumugamma selection cuts
         self.Zmass = 91.2
@@ -129,10 +133,10 @@ class ZmmyProcessor(HggSkeletonProcessor):
     def process(self, events: ak.Array) -> Dict[Any, Any]:
         self.resolve_nano_version(events)
         dataset = events.metadata["dataset"]
-        eve_sel = PackedSelection()
 
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
+        self.update_tracker_iso = self.year[dataset][0] in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025", "2026"]  # only for 2022 data, as recommended by Hgg POG
 
         run_summary = defaultdict(float)
         run_summary[dataset] = {}
@@ -202,20 +206,6 @@ class ZmmyProcessor(HggSkeletonProcessor):
         except KeyError:
             systematic_names = []
 
-        # save raw pt if we use scale/smearing corrections
-        s_or_s_applied = False
-        s_or_s_ele_applied = False
-        for correction in correction_names:
-            if "scale" or "smearing" in correction.lower():
-                if "Electron" in correction:
-                    s_or_s_ele_applied = True
-                else:
-                    s_or_s_applied = True
-        if s_or_s_applied:
-            events["Photon"] = ak.with_field(events.Photon, events.Photon.pt, "pt_raw")
-        if s_or_s_ele_applied:
-            events["Electron"] = ak.with_field(events.Electron, events.Electron.pt, "pt_raw")
-
         # object corrections:
         for correction_name in correction_names:
             if correction_name in available_object_corrections.keys():
@@ -229,9 +219,50 @@ class ZmmyProcessor(HggSkeletonProcessor):
                 warnings.warn(f"Could not process correction {correction_name}.")
                 continue
 
+        # Add object-level photon systematics and build the per-variation photon collections.
+        collections = {"Photon": events.Photon}
+        collections = apply_systematic_variations_object_level(
+            systematic_names,
+            events,
+            self.year[dataset][0],
+            logger,
+            available_object_systematics,
+            available_weight_systematics,
+            collections,
+        )
+        varied_photons = collections["Photon"]
+        photons_dct = {"nominal": varied_photons}
+        for systematic in varied_photons.systematics.fields:
+            for variation in varied_photons.systematics[systematic].fields:
+                photons_dct[f"{systematic}_{variation}"] = varied_photons.systematics[systematic][variation]
+
+        events_base = events
+        for do_variation in photons_dct:
+            events_var = ak.with_field(events_base, photons_dct[do_variation], "Photon")
+            self._process_variation(
+                events=events_var,
+                dataset=dataset,
+                correction_names=correction_names,
+                systematic_names=systematic_names,
+                do_variation=do_variation,
+                metadata=metadata,
+            )
+
+        return run_summary
+
+    def _process_variation(
+        self,
+        events: ak.Array,
+        dataset: str,
+        correction_names: List[str],
+        systematic_names: List[str],
+        do_variation: str,
+        metadata: Dict[str, str],
+    ) -> None:
+        eve_sel = PackedSelection()
+
         # select muons
         muons = events.Muon
-        muons["charge"] = events.Muon.charge
         good_muons = muons[select_muons_zmmy(self, muons)]
         dimuons = ak.combinations(good_muons, 2, fields=["lead", "sublead"])
         sel_dimuons = (
@@ -297,6 +328,8 @@ class ZmmyProcessor(HggSkeletonProcessor):
             ntuple["muon_near_tunep_pt"] = (
                 events.mmy.muon_near.pt * events.mmy.muon_near.tunepRelPt
             )
+            if "pt_nanoaod" in events.mmy.muon_near.fields:
+                ntuple['muon_near_pt_raw'] = events.mmy.muon_near.pt_nanoaod
             ntuple["muon_near_track_ptErr"] = events.mmy.muon_near.ptErr
             # far muon
             ntuple["muon_far_pt"] = events.mmy.muon_far.pt
@@ -308,6 +341,8 @@ class ZmmyProcessor(HggSkeletonProcessor):
             ntuple["muon_far_tunep_pt"] = (
                 events.mmy.muon_far.pt * events.mmy.muon_far.tunepRelPt
             )
+            if "pt_nanoaod" in events.mmy.muon_far.fields:
+                ntuple['muon_far_pt_raw'] = events.mmy.muon_far.pt_nanoaod
             ntuple["muon_far_track_ptErr"] = events.mmy.muon_far.ptErr
             ntuple["Z_mmy"] = events.Z_mmy
             ntuple["eta_mmy"] = events.mmy.photon.photon_ScEta_mmy
@@ -344,89 +379,96 @@ class ZmmyProcessor(HggSkeletonProcessor):
             )
             photon_in_mmy["muon_near_dR_SC"] = vec_muon_near.deltaR(vec_photon)
             photon_in_mmy["muon_far_dR_SC"] = vec_muon_far.deltaR(vec_photon)
-            ## update traker iso
-            ### backup traker isolation
-            photon_in_mmy["trkSumPtHollowConeDR03_nano"] = photon_in_mmy[
-                "trkSumPtHollowConeDR03"
-            ]
-            photon_in_mmy["trkSumPtSolidConeDR04_nano"] = photon_in_mmy[
-                "trkSumPtSolidConeDR04"
-            ]
-            ### modification refer to: https://indico.cern.ch/event/1319573/contributions/5694074/attachments/2769362/4824835/202312_Zmmg_Hgg.pdf#page=5
-            #### photon_trkSumPtHollowConeDR03
-            ##### only near muon in the cone, and iso/pt1 > 0.998
-            sel_one_incone_mu_trkIso03 = (
-                (photon_in_mmy["muon_near_dR_SC"] < 0.3)
-                & (photon_in_mmy["muon_far_dR_SC"] > 0.3)
-                & (
+
+            if self.update_tracker_iso:
+                ## update traker iso
+                ### backup traker isolation
+                photon_in_mmy["trkSumPtHollowConeDR03_nano"] = photon_in_mmy[
+                    "trkSumPtHollowConeDR03"
+                ]
+                photon_in_mmy["trkSumPtSolidConeDR04_nano"] = photon_in_mmy[
+                    "trkSumPtSolidConeDR04"
+                ]
+                ### modification refer to: https://indico.cern.ch/event/1319573/contributions/5694074/attachments/2769362/4824835/202312_Zmmg_Hgg.pdf#page=5
+                #### photon_trkSumPtHollowConeDR03
+                ##### only near muon in the cone, and iso/pt1 > 0.998
+                sel_one_incone_mu_trkIso03 = (
+                    (photon_in_mmy["muon_near_dR_SC"] < 0.3)
+                    & (photon_in_mmy["muon_far_dR_SC"] > 0.3)
+                    & (
+                        photon_in_mmy["trkSumPtHollowConeDR03_nano"]
+                        / ntuple["muon_near_pt"]
+                        > 0.998
+                    )
+                )
+                ##### both near and far muon are in the cone, and iso/(pt1+pt2) > 0.95
+                sel_two_incone_mu_trkIso03 = (
+                    (photon_in_mmy["muon_near_dR_SC"] < 0.3)
+                    & (photon_in_mmy["muon_far_dR_SC"] < 0.3)
+                    & (
+                        (photon_in_mmy["trkSumPtHollowConeDR03_nano"])
+                        / (ntuple["muon_near_pt"] + ntuple["muon_far_pt"])
+                        > 0.95
+                    )
+                )
+                ##### subtract muon pt
+                tmp_pho_trkIso03 = (
                     photon_in_mmy["trkSumPtHollowConeDR03_nano"]
-                    / ntuple["muon_near_pt"]
-                    > 0.998
+                    - sel_one_incone_mu_trkIso03 * ntuple["muon_near_pt"]
+                    - sel_two_incone_mu_trkIso03
+                    * (ntuple["muon_near_pt"] + ntuple["muon_far_pt"])
                 )
-            )
-            ##### both near and far muon are in the cone, and iso/(pt1+pt2) > 0.95
-            sel_two_incone_mu_trkIso03 = (
-                (photon_in_mmy["muon_near_dR_SC"] < 0.3)
-                & (photon_in_mmy["muon_far_dR_SC"] < 0.3)
-                & (
-                    (photon_in_mmy["trkSumPtHollowConeDR03_nano"])
-                    / (ntuple["muon_near_pt"] + ntuple["muon_far_pt"])
-                    > 0.95
+                ##### update photon_trkSumPtHollowConeDR03
+                photon_in_mmy["trkSumPtHollowConeDR03"] = ak.where(
+                    tmp_pho_trkIso03 > 0, tmp_pho_trkIso03, 0
                 )
-            )
-            ##### subtract muon pt
-            tmp_pho_trkIso03 = (
-                photon_in_mmy["trkSumPtHollowConeDR03_nano"]
-                - sel_one_incone_mu_trkIso03 * ntuple["muon_near_pt"]
-                - sel_two_incone_mu_trkIso03
-                * (ntuple["muon_near_pt"] + ntuple["muon_far_pt"])
-            )
-            ##### update photon_trkSumPtHollowConeDR03
-            photon_in_mmy["trkSumPtHollowConeDR03"] = ak.where(
-                tmp_pho_trkIso03 > 0, tmp_pho_trkIso03, 0
-            )
-            #### photon_trkSumPtSolidConeDR04
-            ##### only near muon in the cone, and iso/pt1 > 0.998
-            sel_one_incone_mu_trkIso04 = (
-                (photon_in_mmy["muon_near_dR_SC"] < 0.4)
-                & (photon_in_mmy["muon_far_dR_SC"] > 0.4)
-                & (
-                    photon_in_mmy["trkSumPtSolidConeDR04_nano"] / ntuple["muon_near_pt"]
-                    > 0.998
+                #### photon_trkSumPtSolidConeDR04
+                ##### only near muon in the cone, and iso/pt1 > 0.998
+                sel_one_incone_mu_trkIso04 = (
+                    (photon_in_mmy["muon_near_dR_SC"] < 0.4)
+                    & (photon_in_mmy["muon_far_dR_SC"] > 0.4)
+                    & (
+                        photon_in_mmy["trkSumPtSolidConeDR04_nano"] / ntuple["muon_near_pt"]
+                        > 0.998
+                    )
                 )
-            )
-            ##### both near and far muon are in the cone, and iso/(pt1+pt2) > 0.95
-            sel_two_incone_mu_trkIso04 = (
-                (photon_in_mmy["muon_near_dR_SC"] < 0.4)
-                & (photon_in_mmy["muon_far_dR_SC"] < 0.4)
-                & (
-                    (photon_in_mmy["trkSumPtSolidConeDR04_nano"])
-                    / (ntuple["muon_near_pt"] + ntuple["muon_far_pt"])
-                    > 0.95
+                ##### both near and far muon are in the cone, and iso/(pt1+pt2) > 0.95
+                sel_two_incone_mu_trkIso04 = (
+                    (photon_in_mmy["muon_near_dR_SC"] < 0.4)
+                    & (photon_in_mmy["muon_far_dR_SC"] < 0.4)
+                    & (
+                        (photon_in_mmy["trkSumPtSolidConeDR04_nano"])
+                        / (ntuple["muon_near_pt"] + ntuple["muon_far_pt"])
+                        > 0.95
+                    )
                 )
-            )
-            ##### subtract muon pt
-            tmp_pho_trkIso04 = (
-                photon_in_mmy["trkSumPtSolidConeDR04_nano"]
-                - sel_one_incone_mu_trkIso04 * ntuple["muon_near_pt"]
-                - sel_two_incone_mu_trkIso04
-                * (ntuple["muon_near_pt"] + ntuple["muon_far_pt"])
-            )
-            ##### update photon_trkSumPtSolidConeDR04
-            photon_in_mmy["trkSumPtSolidConeDR04"] = ak.where(
-                tmp_pho_trkIso04 > 0, tmp_pho_trkIso04, 0
-            )
-            ###### Redo store of the photons
-            photon_in_mmy_collection = ak.singletons(photon_in_mmy)
-            counts = ak.num(photon_in_mmy_collection)
+                ##### subtract muon pt
+                tmp_pho_trkIso04 = (
+                    photon_in_mmy["trkSumPtSolidConeDR04_nano"]
+                    - sel_one_incone_mu_trkIso04 * ntuple["muon_near_pt"]
+                    - sel_two_incone_mu_trkIso04
+                    * (ntuple["muon_near_pt"] + ntuple["muon_far_pt"])
+                )
+                ##### update photon_trkSumPtSolidConeDR04
+                photon_in_mmy["trkSumPtSolidConeDR04"] = ak.where(
+                    tmp_pho_trkIso04 > 0, tmp_pho_trkIso04, 0
+                )
 
-            # Keeping the nano value
-            photon_in_mmy_collection["mvaID_nano"] = photon_in_mmy_collection["mvaID"]
+                ###### Redo store of the photons
+                photon_in_mmy_collection = ak.singletons(photon_in_mmy)
+                counts = ak.num(photon_in_mmy_collection)
 
-            # Recalculate photon mvaID after the muon pt subtractions
-            photon_in_mmy_collection["mvaID"] = ak.unflatten(
-                self.add_photonid_mva_run3(photon_in_mmy_collection, events), counts
-            )
+                # Keeping the nano value
+                photon_in_mmy_collection["mvaID_nano"] = photon_in_mmy_collection["mvaID"]
+
+                # Recalculate photon mvaID after the muon pt subtractions
+                photon_in_mmy_collection["mvaID"] = ak.unflatten(
+                    self.add_photonid_mva_run3(photon_in_mmy_collection, events), counts
+                )
+
+            else:
+                photon_in_mmy_collection = ak.singletons(photon_in_mmy)
+                counts = ak.num(photon_in_mmy_collection)
 
             ## Performing photon corrections using normalizing flows
             if self.data_kind == "mc" and self.doFlow_corrections:
@@ -441,7 +483,6 @@ class ZmmyProcessor(HggSkeletonProcessor):
 
                 # adding the corrected values to the tnp_candidates
                 for i in range(len(var_list)):
-
                     photon_in_mmy_collection["raw_" + str(var_list[i])] = photon_in_mmy_collection[str(var_list[i])]
                     photon_in_mmy_collection[str(var_list[i])] = ak.unflatten(
                         np.ascontiguousarray(corrected_inputs[:, i]), counts
@@ -514,72 +555,71 @@ class ZmmyProcessor(HggSkeletonProcessor):
             ntuple["weight_central"] = event_weights.weight() / events["genWeight"]
 
             # systematic variations of event weights go to nominal output dataframe:
-            for systematic_name in systematic_names:
-                if systematic_name in available_weight_systematics:
-                    logger.info(
-                        f"Adding systematic {systematic_name} to weight collection of dataset {dataset}"
-                    )
-                    if systematic_name == "LHEScale":
-                        if hasattr(events, "LHEScaleWeight"):
-                            ntuple["nLHEScaleWeight"] = ak.num(
-                                events.LHEScaleWeight,
-                                axis=1,
-                            )
-                            ntuple["LHEScaleWeight"] = events.LHEScaleWeight
-                        else:
-                            logger.info(
-                                f"No {systematic_name} Weights in dataset {dataset}"
-                            )
-                    elif systematic_name == "LHEPdf":
-                        if hasattr(events, "LHEPdfWeight"):
-                            # two AlphaS weights are removed
-                            ntuple["nLHEPdfWeight"] = (
-                                ak.num(
-                                    events.LHEPdfWeight,
+            if do_variation == "nominal":
+                for systematic_name in systematic_names:
+                    if systematic_name in available_weight_systematics:
+                        logger.info(
+                            f"Adding systematic {systematic_name} to weight collection of dataset {dataset}"
+                        )
+                        if systematic_name == "LHEScale":
+                            if hasattr(events, "LHEScaleWeight"):
+                                ntuple["nLHEScaleWeight"] = ak.num(
+                                    events.LHEScaleWeight,
                                     axis=1,
                                 )
-                                - 2
-                            )
-                            ntuple["LHEPdfWeight"] = events.LHEPdfWeight[:, :-2]
+                                ntuple["LHEScaleWeight"] = events.LHEScaleWeight
+                            else:
+                                logger.info(
+                                    f"No {systematic_name} Weights in dataset {dataset}"
+                                )
+                        elif systematic_name == "LHEPdf":
+                            if hasattr(events, "LHEPdfWeight"):
+                                # two AlphaS weights are removed
+                                ntuple["nLHEPdfWeight"] = (
+                                    ak.num(
+                                        events.LHEPdfWeight,
+                                        axis=1,
+                                    )
+                                    - 2
+                                )
+                                ntuple["LHEPdfWeight"] = events.LHEPdfWeight[:, :-2]
+                            else:
+                                logger.info(
+                                    f"No {systematic_name} Weights in dataset {dataset}"
+                                )
                         else:
-                            logger.info(
-                                f"No {systematic_name} Weights in dataset {dataset}"
+                            varying_function = available_weight_systematics[systematic_name]
+                            event_weights = varying_function(
+                                events=events,
+                                weights=event_weights,
+                                logger=logger,
+                                dataset=dataset,
+                                year=self.year[dataset][0],
                             )
-                    else:
-                        varying_function = available_weight_systematics[systematic_name]
-                        event_weights = varying_function(
-                            events=events,
-                            weights=event_weights,
-                            logger=logger,
-                            dataset=dataset,
-                            year=self.year[dataset][0],
-                        )
 
-                # Store variations with respect to central weight
-                if len(event_weights.variations):
-                    logger.info(
-                        "Adding systematic weight variations to nominal output file."
-                    )
-                    for modifier in event_weights.variations:
-                        ntuple["weight_" + modifier] = event_weights.weight(
-                            modifier=modifier
+                    # Store variations with respect to central weight
+                    if len(event_weights.variations):
+                        logger.info(
+                            "Adding systematic weight variations to nominal output file."
                         )
+                        for modifier in event_weights.variations:
+                            ntuple["weight_" + modifier] = event_weights.weight(
+                                modifier=modifier
+                            )
         # Add weight variables (=1) for data for consistent datasets
         else:
             ntuple["weight_central"] = ak.ones_like(ntuple["event"])
         # to Awkward array: this is necessary, or the saved parquet file is not correct
         ak_ntuple = ak.Array(ntuple)
         if self.output_location is not None:
-            fname = (
-                events.attrs["@events_factory"]._partition_key.replace("/", "_")
-                + ".parquet"
-            )
+            fname = apply_naming_convention(self, events)
             subdirs = []
             if "dataset" in events.metadata:
                 subdirs.append(events.metadata["dataset"])
-            dump_ak_array(self, ak_ntuple, fname, self.output_location, None, subdirs)
-
-        return run_summary
+            subdirs.append(do_variation)
+            dump_ak_array(
+                self, ak_ntuple, fname, self.output_location, metadata, subdirs
+            )
 
     def process_extra(self, events: ak.Array) -> ak.Array:
         return events, {}
