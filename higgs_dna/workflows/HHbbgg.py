@@ -566,7 +566,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
             # create PuppiMET objects
             puppiMET = events.PuppiMET
-            puppiMET = ak.with_name(puppiMET, "PtEtaPhiMCandidate")
+            puppiMET = ak.with_name(puppiMET, "MissingET")
 
             # FatJet variables
             fatjets["charge"] = ak.zeros_like(fatjets.pt)

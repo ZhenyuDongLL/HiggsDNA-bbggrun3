@@ -121,6 +121,7 @@ def get_genJets(
                 "eta": lead_pho.eta,
                 "phi": lead_pho.phi,
                 "mass": lead_pho.mass,
+                "charge": ak.zeros_like(lead_pho.mass),
             }
         )
         lead = ak.with_name(lead, "PtEtaPhiMCandidate")
@@ -130,6 +131,7 @@ def get_genJets(
                 "eta": sublead_pho.eta,
                 "phi": sublead_pho.phi,
                 "mass": sublead_pho.mass,
+                "charge": ak.zeros_like(sublead_pho.mass),
             }
         )
         sublead = ak.with_name(sublead, "PtEtaPhiMCandidate")

@@ -234,7 +234,7 @@ def DeltaR(photon, jet):
 
 def DeltaPhi(jet, MET):
     jet_obj = ak.with_name(jet, "Momentum4D")
-    MET_obj = ak.with_name(MET, "Momentum4D")
+    MET_obj = ak.with_name(MET, "Momentum2D")
     return vector.Spatial.deltaphi(jet_obj, MET_obj)
 
 

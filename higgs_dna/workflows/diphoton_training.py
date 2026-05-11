@@ -619,9 +619,9 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                     "dxySig": dipho_events.SV.dxySig,
                     "pAngle": dipho_events.SV.pAngle,
                     "chi2": dipho_events.SV.chi2,
-                    "x": dipho_events.SV.x,
-                    "y": dipho_events.SV.y,
-                    "z": dipho_events.SV.z,
+                    "sv_x": dipho_events.SV.x,
+                    "sv_y": dipho_events.SV.y,
+                    "sv_z": dipho_events.SV.z,
                     "ndof": dipho_events.SV.ndof,
                     "ntracks": dipho_events.SV.ntracks,
                 }
