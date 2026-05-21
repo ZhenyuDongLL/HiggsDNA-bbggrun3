@@ -21,7 +21,7 @@ def safe_divide(num, den):
     return 0.0 if den == 0 else num / den
 
 
-def evaluate_value_at_mass(values, mass_points, no_interpolation, target_mass=125.38):
+def evaluate_value_at_mass(values, mass_points, no_interpolation, target_mass=125.07):
     """
     Evaluate a quantity defined at discrete mass points at a desired target mass.
     If interpolation is disabled, the 125 GeV value is returned.
@@ -40,7 +40,7 @@ def evaluate_value_at_mass(values, mass_points, no_interpolation, target_mass=12
     return float(interpolate.splev(target_mass, spline))
 
 
-def compute_fid_xsec(in_frac, mass_points, xs_value, BR, no_interpolation, target_mass=125.38):
+def compute_fid_xsec(in_frac, mass_points, xs_value, BR, no_interpolation, target_mass=125.07):
     """
     Compute the fiducial cross section for a given observable.
 
@@ -50,7 +50,7 @@ def compute_fid_xsec(in_frac, mass_points, xs_value, BR, no_interpolation, targe
       xs_value (float): Cross section value from the XS map for the process.
       BR (float): Branching ratio.
       no_interpolation (bool): Flag to disable interpolation when only mass point 125 is provided.
-      target_mass (float): The mass at which to evaluate the spline (default 125.38).
+      target_mass (float): The mass at which to evaluate the spline (default 125.07).
     
     Returns:
       float: The computed fiducial cross section.
@@ -184,7 +184,7 @@ available_directory_names = get_available_directory_names(path_folder)
 obs_bins = [float(num) for num in args.bin.strip("|").split("|")]
 
 # Reference cross sections, in picobarn.
-# 13p6 values correspond to 125.38 GeV and are used for the final fiducial
+# 13p6 values correspond to 125.07 GeV and are used for the final fiducial
 # cross section normalisation after the acceptance extraction.
 XS_map = {'13':   {'ggH': 48.58, 'VBFH': 3.782, 'VH': 2.2569, 'ttH': 0.5071},
          '13p6': {'ggH': 51.96, 'VBFH': 4.067, 'VH': 2.3781, 'ttH': 0.5638},
@@ -253,7 +253,7 @@ processMap = {'2022':
 
 # Physics constants and systematic weight bookkeeping.
 BR = 0.2270/100 # SM value for mH close to 125: https://twiki.cern.ch/twiki/bin/view/LHCPhysics/CERNYellowReportPageBR
-mass_points = args.mass_points # The fiducial acceptance is interpolated to 125.38 GeV unless only mH=125 is requested.
+mass_points = args.mass_points # The fiducial acceptance is interpolated to 125.07 GeV unless only mH=125 is requested.
 # For POWHEG only the 125 GeV sample is available, so all requested mass points
 # are redirected to the same input directory.
 mass_powheg = {120:125, 125:125, 130:125}
@@ -468,7 +468,7 @@ def interpolate_acceptances_per_bin(mass_acceptances, acceptance_key, mass_point
     Interpolate one acceptance type across Higgs mass points, bin by bin.
 
     For each observable bin, the acceptance values at the available mass points
-    are evaluated at 125.38 GeV using the same spline logic as in the original
+    are evaluated at 125.07 GeV using the same spline logic as in the original
     implementation.
     """
     interpolated = np.zeros(n_bins)
@@ -548,7 +548,7 @@ mass_acceptances = {
     for process in processes
 }
 
-# Interpolate the mass-dependent acceptances to 125.38 GeV for each bin.
+# Interpolate the mass-dependent acceptances to 125.07 GeV for each bin.
 acceptance_keys = ['nom', 'scale_up', 'scale_dn', 'pdf_up', 'pdf_dn', 'alpha_up', 'alpha_dn']
 process_acceptance_arrays = {process: {} for process in processes}
 for process in processes:
@@ -636,25 +636,25 @@ for b in range(n_bins):
     print(f"The fiducial cross section (alpha_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] is: {fid_xsecs_per_bin_alpha_dn[b]} fb")
 
     acc_per_bin[b] = combine_acceptances(acc_per_bin_process)
-    print(f"The acceptance for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin[b]}")
+    print(f"The acceptance for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.07 GeV is: {acc_per_bin[b]}")
 
     acc_per_bin_scale_up[b] = combine_acceptances(acc_per_bin_process_scale_up)
-    print(f"The acceptance (scale_up) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_scale_up[b]}")
+    print(f"The acceptance (scale_up) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.07 GeV is: {acc_per_bin_scale_up[b]}")
 
     acc_per_bin_scale_dn[b] = combine_acceptances(acc_per_bin_process_scale_dn)
-    print(f"The acceptance (scale_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_scale_dn[b]}")
+    print(f"The acceptance (scale_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.07 GeV is: {acc_per_bin_scale_dn[b]}")
 
     acc_per_bin_pdf_up[b] = combine_acceptances(acc_per_bin_process_pdf_up)
-    print(f"The acceptance (pdf_up) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_pdf_up[b]}")
+    print(f"The acceptance (pdf_up) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.07 GeV is: {acc_per_bin_pdf_up[b]}")
 
     acc_per_bin_pdf_dn[b] = combine_acceptances(acc_per_bin_process_pdf_dn)
-    print(f"The acceptance (pdf_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_pdf_dn[b]}")
+    print(f"The acceptance (pdf_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.07 GeV is: {acc_per_bin_pdf_dn[b]}")
 
     acc_per_bin_alpha_up[b] = combine_acceptances(acc_per_bin_process_alpha_up)
-    print(f"The acceptance (alpha_up) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_alpha_up[b]}")
+    print(f"The acceptance (alpha_up) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.07 GeV is: {acc_per_bin_alpha_up[b]}")
 
     acc_per_bin_alpha_dn[b] = combine_acceptances(acc_per_bin_process_alpha_dn)
-    print(f"The acceptance (alpha_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.38 GeV is: {acc_per_bin_alpha_dn[b]}")
+    print(f"The acceptance (alpha_dn) for {args.obs} in [{obs_bins[b]},{obs_bins[b+1]}] at 125.07 GeV is: {acc_per_bin_alpha_dn[b]}")
 
 
 # Sum the bin-wise values to obtain the inclusive fiducial cross sections.
@@ -687,23 +687,27 @@ output = 'fidXS_'+output_obs+'_'+args.process
 if args.powheg: output += '_powheg'
 if args.weight != "weight": output += '_'+args.weight
 
+def _fl(d):
+    """Convert dict values to plain Python floats for clean output."""
+    return [float(v) for v in d.values()]
+
 # Write a compact Python file that can be imported directly by downstream plots.
 with open(output+'.py', 'w') as f:
         f.write('Boundaries = '+str(obs_bins)+' \n')
-        f.write('fidXS = '+str(list(fid_xsecs_per_bin.values()))+' \n')
-        f.write('fidXS_scale_up = '+str(list(fid_xsecs_per_bin_scale_up.values()))+' \n')
-        f.write('fidXS_scale_dn = '+str(list(fid_xsecs_per_bin_scale_dn.values()))+' \n')
-        f.write('fidXS_pdf_up = '+str(list(fid_xsecs_per_bin_pdf_up.values()))+' \n')
-        f.write('fidXS_pdf_dn = '+str(list(fid_xsecs_per_bin_pdf_dn.values()))+' \n')
-        f.write('fidXS_alpha_up = '+str(list(fid_xsecs_per_bin_alpha_up.values()))+' \n')
-        f.write('fidXS_alpha_dn = '+str(list(fid_xsecs_per_bin_alpha_dn.values()))+' \n')
-        f.write('Acc = '+str(list(acc_per_bin.values()))+' \n')
-        f.write('Acc_scale_up = '+str(list(acc_per_bin_scale_up.values()))+' \n')
-        f.write('Acc_scale_dn = '+str(list(acc_per_bin_scale_dn.values()))+' \n')
-        f.write('Acc_pdf_up = '+str(list(acc_per_bin_pdf_up.values()))+' \n')
-        f.write('Acc_pdf_dn = '+str(list(acc_per_bin_pdf_dn.values()))+' \n')
-        f.write('Acc_alpha_up = '+str(list(acc_per_bin_alpha_up.values()))+' \n')
-        f.write('Acc_alpha_dn = '+str(list(acc_per_bin_alpha_dn.values()))+' \n')
+        f.write('fidXS = '+str(_fl(fid_xsecs_per_bin))+' \n')
+        f.write('fidXS_scale_up = '+str(_fl(fid_xsecs_per_bin_scale_up))+' \n')
+        f.write('fidXS_scale_dn = '+str(_fl(fid_xsecs_per_bin_scale_dn))+' \n')
+        f.write('fidXS_pdf_up = '+str(_fl(fid_xsecs_per_bin_pdf_up))+' \n')
+        f.write('fidXS_pdf_dn = '+str(_fl(fid_xsecs_per_bin_pdf_dn))+' \n')
+        f.write('fidXS_alpha_up = '+str(_fl(fid_xsecs_per_bin_alpha_up))+' \n')
+        f.write('fidXS_alpha_dn = '+str(_fl(fid_xsecs_per_bin_alpha_dn))+' \n')
+        f.write('Acc = '+str(_fl(acc_per_bin))+' \n')
+        f.write('Acc_scale_up = '+str(_fl(acc_per_bin_scale_up))+' \n')
+        f.write('Acc_scale_dn = '+str(_fl(acc_per_bin_scale_dn))+' \n')
+        f.write('Acc_pdf_up = '+str(_fl(acc_per_bin_pdf_up))+' \n')
+        f.write('Acc_pdf_dn = '+str(_fl(acc_per_bin_pdf_dn))+' \n')
+        f.write('Acc_alpha_up = '+str(_fl(acc_per_bin_alpha_up))+' \n')
+        f.write('Acc_alpha_dn = '+str(_fl(acc_per_bin_alpha_dn))+' \n')
         if args.per_process_output:
             for process in processes:
                 f.write(f'fidXS_{process} = {per_process_fid_xsecs["fidXS"][process]} \n')
