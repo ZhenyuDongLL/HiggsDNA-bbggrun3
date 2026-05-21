@@ -16,17 +16,29 @@ def extract_tuples(input_string):
         tuples.append(tuple(map(str.strip, tuple_elements)))
     return tuples
 
-def extract_filter(dataset, additionalConditionTuple):
+def extract_filter(dataset, additionalConditionTuple, absolute_value_vars):
     variable, operator, value = additionalConditionTuple
 
     if operator == ">":
-        return dataset[variable] > float(value)
+        if variable in absolute_value_vars:
+            return np.abs(dataset[variable]) > float(value)
+        else: 
+            return dataset[variable] > float(value)
     elif operator == ">=":
-        return dataset[variable] >= float(value)
+        if variable in absolute_value_vars:
+            return np.abs(dataset[variable]) >= float(value)
+        else:
+            return dataset[variable] >= float(value)
     elif operator == "<":
-        return dataset[variable] < float(value)
+        if variable in absolute_value_vars:
+            return np.abs(dataset[variable]) < float(value)
+        else: 
+            return dataset[variable] < float(value)
     elif operator == "<=":
-        return dataset[variable] <= float(value)
+        if variable in absolute_value_vars:
+            return np.abs(dataset[variable]) <= float(value)
+        else:
+            return dataset[variable] <= float(value)
     elif operator == "==":
         if ("True" in value) or ("False" in value):
             value = bool(value)
@@ -38,8 +50,8 @@ def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="Ge
     # Initialize diff variable in the awkward array
     dataset[diffVariableName] = 0
 
-    # Specify variables which need the absolute value for the selection (eg. rapidity)
-    absolute_value_vars = ["GenYH"]
+    # Specify variables which need the absolute value for the selection (eg. rapidity). Assuming these requirement on these variables are always positive.
+    absolute_value_vars = ["GenYH", "GenCosThetaStarCS", "GenYJ0", "GenYJ1", "GenDYHJ0"]
 
     for range_min, range_max, fiducialTag, additionalConditions in ranges_dict.keys():
         diffId = ranges_dict[(range_min, range_max, fiducialTag, additionalConditions)]
@@ -57,7 +69,7 @@ def filter_and_set_diff_variable(dataset, ranges_dict, selectionVariableName="Ge
         if additionalConditions != "":
             tuple_list = extract_tuples(additionalConditions)
             for additionalCondition in tuple_list:
-                condition = condition & extract_filter(dataset, additionalCondition)
+                condition = condition & extract_filter(dataset, additionalCondition, absolute_value_vars)
         dataset[diffVariableName] = ak.where(condition, diffId, dataset[diffVariableName])
 
     return dataset
