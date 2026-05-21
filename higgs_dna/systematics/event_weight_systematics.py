@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 import correctionlib
 import awkward as ak
 from higgs_dna.utils.misc_utils import choose_jet
-from higgs_dna.utils.misc_utils import evaluate_ctag_wp
+from higgs_dna.utils.misc_utils import evaluate_ctag_wp, evaluate_btag_sf_eff_multiwp, compute_btag_multiwp
 from higgs_dna.tools.gen_helpers import get_genJets
 import logging
 import ast
@@ -800,7 +800,7 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
     ShapeSF_name_to_discriminant = {
         "deepJet_shape": "btagDeepFlav_B",
         "particleNet_shape": "btagPNetB",
-        "robustParticleTransformer_shape": "btagRobustParTAK4B"
+        "robustParticleTransformer_shape": "btagRobustParTAK4B",
     }
 
     btag_systematics = [
@@ -1073,67 +1073,74 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
     return weights
 
 
-def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is_correction=True, year="2017", **kwargs):
+def bTagFixedWP(events, jets, weights, dataset_name, mva_name, wp, bTagEffFileName, btagEffDatasetName=None, is_correction=True, year="2017", is_Run2_v15=False, **kwargs):
 
-    if year == "2024":
-        logger.warning("Current 2024 bTagFixedWP are not implemented, 2023PostBPix is used! These ntuples should not be used for a final physics result!")
-        year = "2023postBPix"
-
-    avail_years = ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix"]
+    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
     if year not in avail_years:
         logger.error(f"\n Only fixed WP Scale Factors for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
 
     avail_modes = ["L", "M", "T", "XT", "XXT"]
     if wp not in avail_modes:
-        logger.error(f"\n Only fixed WP Scale Factors for the mode strings {avail_years} are already implemented! \n Exiting. \n")
+        logger.error(f"\n Only fixed WP Scale Factors for the mode strings {avail_modes} are already implemented! \n Exiting. \n")
         exit()
+
+    eff_dataset_name = btagEffDatasetName if btagEffDatasetName is not None else dataset_name
 
     inputFilePath = "JSONs/"
     if bTagEffFileName is None:
-        bTagEffFileName = "midRun3.json.gz"
+        bTagEffFileName = "midRun3"
+
+    Run2_btag_json = ""
+    if is_Run2_v15:
+        Run2_btag_json = "_v15"
 
     btageff_correction_configs = {
         "2016preVFP":{
             "file": os.path.join(
-                inputFilePath , "bTagEff/2016preVFP_UL", bTagEffFileName
+                inputFilePath , "bTagEff/2016preVFP_UL/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         },
         "2016postVFP":{
             "file": os.path.join(
-                inputFilePath , "bTagEff/2016postVFP_UL", bTagEffFileName
+                inputFilePath , "bTagEff/2016postVFP_UL/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         },
         "2017":{
             "file": os.path.join(
-                inputFilePath , "bTagEff/2017_UL", bTagEffFileName
+                inputFilePath , "bTagEff/2017_UL/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         },
         "2018":{
             "file": os.path.join(
-                inputFilePath , "bTagEff/2018_UL", bTagEffFileName
+                inputFilePath , "bTagEff/2018_UL/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         },
         "2022preEE":{
             "file": os.path.join(
-                inputFilePath , "bTagEff/2022_Summer22", bTagEffFileName
+                inputFilePath , "bTagEff/2022_Summer22/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         },
         "2022postEE":{
             "file": os.path.join(
-                inputFilePath , "bTagEff/2022_Summer22EE", bTagEffFileName
+                inputFilePath , "bTagEff/2022_Summer22EE/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         },
         "2023preBPix":{
             "file": os.path.join(
-                inputFilePath , "bTagEff/2023_Summer23", bTagEffFileName
+                inputFilePath , "bTagEff/2023_Summer23/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         },
         "2023postBPix":{
             "file": os.path.join(
-                inputFilePath , "bTagEff/2023_Summer23BPix", bTagEffFileName
+                inputFilePath , "bTagEff/2023_Summer23BPix/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         },
+        "2024":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2024_Summer24/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        }
     }
 
     btageff_jsonpog_file = os.path.join(
@@ -1149,30 +1156,34 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
         logger.error("\n Error when reading the dataset name from the correction lib. \n")
         exit()
 
-    if (dataset_name in avail_procs):  # or any(s in dataset_name.lower() for s in ("ggh", "glugluh")) or any(s in dataset_name.lower() for s in ("tth")) or any(s in dataset_name.lower() for s in ("vbf", "vbfh")) or any(s in dataset_name.lower() for s in ("vh")) or any(s in dataset_name.lower() for s in ("bbh")):
+    if (eff_dataset_name in avail_procs):
 
         mva_name_to_btag_wp_name = {
             "particleNet": "particleNet_wp_values",
             "deepJet": "deepJet_wp_values",
-            "robustParticleTransformer": "robustParticleTransformer_wp_values"
+            "robustParticleTransformer": "robustParticleTransformer_wp_values",
+            "UParTAK4": "UParTAK4_wp_values"
         }
 
         mva_name_to_discriminator = {
             "particleNet": "btagPNetB",
             "deepJet": "btagDeepFlavB",
-            "robustParticleTransformer": "btagRobustParTAK4B"
+            "robustParticleTransformer": "btagRobustParTAK4B",
+            "UParTAK4": "btagUParTAK4B"
         }
 
         mva_name_to_btag_sf_name = {
             "light": {
                 "particleNet": "particleNet_light",
                 "deepJet": "deepJet_light",
-                "robustParticleTransformer": "robustParticleTransformer_light"
+                "robustParticleTransformer": "robustParticleTransformer_light",
+                "UParTAK4": "UParTAK4_light"
             },
             "comb": {
                 "particleNet": "particleNet_comb",
                 "deepJet": "deepJet_comb",
-                "robustParticleTransformer": "robustParticleTransformer_comb"
+                "robustParticleTransformer": "robustParticleTransformer_comb",
+                "UParTAK4": "UParTAK4_comb"
             }
         }
 
@@ -1180,11 +1191,15 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
             "correlated",
             "uncorrelated"
         ]
+        btag_systematics_modifiers = [
+            "correlated",
+            f"{year}",
+        ]
 
         btag_correction_configs = {
             "2016preVFP": {
                 "file": os.path.join(
-                    inputFilePath , "bTagSF/2016preVFP_UL/btagging.json.gz"
+                    inputFilePath , "bTagSF/2016preVFP_UL/btagging" + Run2_btag_json + ".json.gz"
                 ),
                 "wp": mva_name_to_btag_wp_name[mva_name],
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
@@ -1192,7 +1207,7 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
             },
             "2016postVFP": {
                 "file": os.path.join(
-                    inputFilePath , "bTagSF/2016postVFP_UL/btagging.json.gz"
+                    inputFilePath , "bTagSF/2016postVFP_UL/btagging" + Run2_btag_json + ".json.gz"
                 ),
                 "wp": mva_name_to_btag_wp_name[mva_name],
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
@@ -1200,7 +1215,7 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
             },
             "2017": {
                 "file": os.path.join(
-                    inputFilePath , "bTagSF/2017_UL/btagging.json.gz"
+                    inputFilePath , "bTagSF/2017_UL/btagging" + Run2_btag_json + ".json.gz"
                 ),
                 "wp": mva_name_to_btag_wp_name[mva_name],
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
@@ -1208,7 +1223,7 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
             },
             "2018": {
                 "file": os.path.join(
-                    inputFilePath , "bTagSF/2018_UL/btagging.json.gz"
+                    inputFilePath , "bTagSF/2018_UL/btagging" + Run2_btag_json + ".json.gz"
                 ),
                 "wp": mva_name_to_btag_wp_name[mva_name],
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
@@ -1216,7 +1231,7 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
             },
             "2022preEE":{
                 "file": os.path.join(
-                    inputFilePath , "bTagSF/2022_Summer22/btagging.json.gz"
+                    inputFilePath , "bTagSF/2022_Summer22/btagging" + Run2_btag_json + ".json.gz"
                 ),
                 "wp": mva_name_to_btag_wp_name[mva_name],
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
@@ -1224,7 +1239,7 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
             },
             "2022postEE":{
                 "file": os.path.join(
-                    inputFilePath , "bTagSF/2022_Summer22EE/btagging.json.gz"
+                    inputFilePath , "bTagSF/2022_Summer22EE/btagging" + Run2_btag_json + ".json.gz"
                 ),
                 "wp": mva_name_to_btag_wp_name[mva_name],
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
@@ -1232,7 +1247,7 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
             },
             "2023preBPix":{
                 "file": os.path.join(
-                    inputFilePath , "bTagSF/2023_Summer23/btagging.json.gz"
+                    inputFilePath , "bTagSF/2023_Summer23/btagging" + Run2_btag_json + ".json.gz"
                 ),
                 "wp": mva_name_to_btag_wp_name[mva_name],
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
@@ -1240,7 +1255,15 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
             },
             "2023postBPix":{
                 "file": os.path.join(
-                    inputFilePath , "bTagSF/2023_Summer23BPix/btagging.json.gz"
+                    inputFilePath , "bTagSF/2023_Summer23BPix/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+            "2024":{
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2024_Summer24/btagging" + Run2_btag_json + ".json.gz"
                 ),
                 "wp": mva_name_to_btag_wp_name[mva_name],
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
@@ -1254,22 +1277,42 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
 
         # Import evaluators
         light_evaluator = correctionlib.CorrectionSet.from_file(btagsf_jsonpog_file)[btag_correction_configs[year]["sf_light"]]
-        heavy_evaluator = correctionlib.CorrectionSet.from_file(btagsf_jsonpog_file)[btag_correction_configs[year]["sf_comb"]]
+        heavy_btagsf_jsonpog_file = btagsf_jsonpog_file
+        if is_Run2_v15 and ("2016preVFP" in year or "2016postVFP" in year or "2017" in year or "2018" in year):
+            heavy_btagsf_jsonpog_file = os.path.join(
+                os.path.dirname(__file__), inputFilePath, "bTagSF/2024_Summer24/btagging.json.gz"
+            )
+            logger.warning("Run2 v15 missing comb SF, fallback to 2024_Summer24 comb SF.")
+        heavy_evaluator = correctionlib.CorrectionSet.from_file(heavy_btagsf_jsonpog_file)[btag_correction_configs[year]["sf_comb"]]
         btageff_evaluator = correctionlib.CorrectionSet.from_file(btageff_jsonpog_file)["btagging_efficiencies"]
 
         chosenWP = correctionlib.CorrectionSet.from_file(btagsf_jsonpog_file)[btag_correction_configs[year]["wp"]].evaluate(wp)
 
         # Removing jets with eta beyond 2.5 and has negative discriminant score. (No bining exist in input JSON file for such jets)
-        tagged_jets = events["sel_jets"][
-            ((events["sel_jets"].pt) > 30)
-            & (np.abs(events["sel_jets"].eta) < 2.5)
-            & (events["sel_jets"][mva_name_to_discriminator[mva_name]] >= chosenWP)
+        relevant_jets = events["sel_jets"]
+
+        if jets is not None:
+            logger.info("using the dedicated jets input for b-tagging SF corrections and systematics")
+            relevant_jets = jets
+
+        # Era-dependent gen-jet pT threshold:
+        # - Run2 (2016–2018): pT > 30 GeV (Run2 recommendation)
+        # - Run3 (2022–2025): pT > 20 GeV (Run3 recommendation https://btv-wiki.docs.cern.ch/ScaleFactors/#important-notes)
+        if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
+            gen_jet_min_pt = 30
+        else:
+            gen_jet_min_pt = 20
+
+        tagged_jets = relevant_jets[
+            ((relevant_jets.pt) > gen_jet_min_pt)
+            & (np.abs(relevant_jets.eta) < 2.5)
+            & (relevant_jets[mva_name_to_discriminator[mva_name]] >= chosenWP)
         ]
 
-        untagged_jets = events["sel_jets"][
-            ((events["sel_jets"].pt) > 30)
-            & (np.abs(events["sel_jets"].eta) < 2.5)
-            & (events["sel_jets"][mva_name_to_discriminator[mva_name]] < chosenWP)
+        untagged_jets = relevant_jets[
+            ((relevant_jets.pt) > gen_jet_min_pt)
+            & (np.abs(relevant_jets.eta) < 2.5)
+            & (relevant_jets[mva_name_to_discriminator[mva_name]] < chosenWP)
         ]
 
         # Split jetcollection in heavy (hFlav == 4, 5) and in light flavor (hFlav == 0)
@@ -1338,351 +1381,221 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
 
         heavy_untagged_counts = ak.num(heavy_untagged_jet_hFlav)
 
-        Weight_Name = ""
+        # only calculate correction to nominal weight
+        # replace by accessing partial weight!
+        _light_tagged_central_sf = []
+        _heavy_tagged_central_sf = []
+
+        _light_untagged_central_sf = []
+        _light_untagged_btagEff = []
+        _heavy_untagged_central_sf = []
+        _heavy_untagged_btagEff = []
+
+        ###################
+        ### TAGGED JETS ###
+        ###################
+
+        # Evluate the scale factore per jet and unflatten the scale fatores in original structure
+        _light_tagged_central_sf = ak.unflatten(
+            light_evaluator.evaluate(
+                "central",
+                wp,
+                flat_light_tagged_jet_hFlav,
+                flat_light_tagged_jet_eta,
+                flat_light_tagged_jet_pt
+            ),
+            light_tagged_counts
+        )
+
+        flat_heavy_tagged_central_sf = heavy_evaluator.evaluate(
+            "central",
+            wp,
+            flat_heavy_tagged_jet_hFlav,
+            flat_heavy_tagged_jet_eta,
+            flat_heavy_tagged_jet_pt
+        )
+        _heavy_tagged_central_sf = ak.unflatten(
+            flat_heavy_tagged_central_sf,
+            heavy_tagged_counts
+        )
+
+        #####################
+        ### UNTAGGED JETS ###
+        #####################
+
+        # Evluate the scale factore per jet and unflatten the scale fatores in original structure
+        _light_untagged_central_sf = ak.unflatten(
+            light_evaluator.evaluate(
+                "central",
+                wp,
+                flat_light_untagged_jet_hFlav,
+                flat_light_untagged_jet_eta,
+                flat_light_untagged_jet_pt
+            ),
+            light_untagged_counts
+        )
+
+        _light_untagged_btagEff = ak.unflatten(
+            btageff_evaluator.evaluate(
+                eff_dataset_name,
+                wp,
+                flat_light_untagged_jet_hFlav,
+                flat_light_untagged_jet_pt
+            ),
+            light_untagged_counts
+        )
+
+        flat_heavy_untagged_central_sf = heavy_evaluator.evaluate(
+            "central",
+            wp,
+            flat_heavy_untagged_jet_hFlav,
+            flat_heavy_untagged_jet_eta,
+            flat_heavy_untagged_jet_pt
+        )
+        _heavy_untagged_central_sf = ak.unflatten(
+            flat_heavy_untagged_central_sf,
+            heavy_untagged_counts
+        )
+
+        _heavy_untagged_btagEff = ak.unflatten(
+            btageff_evaluator.evaluate(
+                eff_dataset_name,
+                wp,
+                flat_heavy_untagged_jet_hFlav,
+                flat_heavy_untagged_jet_pt
+            ),
+            heavy_untagged_counts
+        )
+
+        # Tagged jets
+        light_tagged_central_prod = ak.prod(_light_tagged_central_sf, axis=1)  # Product over the tagged jets
+        heavy_tagged_central_prod = ak.prod(_heavy_tagged_central_sf, axis=1)
+        tagged_central = heavy_tagged_central_prod * light_tagged_central_prod
+
+        # Untagged jets
+        untagged_heavy_numerator_central_prod = _heavy_untagged_central_sf * _heavy_untagged_btagEff
+        untagged_heavy_central = ak.prod((1 - untagged_heavy_numerator_central_prod) / (1 - _heavy_untagged_btagEff), axis=1)
+
+        untagged_light_numerator_central_prod = _light_untagged_central_sf * _light_untagged_btagEff
+        untagged_light_central = ak.prod((1 - untagged_light_numerator_central_prod) / (1 - _light_untagged_btagEff), axis=1)
+        untagged_central = untagged_heavy_central * untagged_light_central
+
+        w_btag_light_central = light_tagged_central_prod * untagged_light_central
+        w_btag_heavy_central = heavy_tagged_central_prod * untagged_heavy_central
+        w_btag_central = tagged_central * untagged_central
+
         if is_correction:
-            Weight_Name = "bTagFixedWP"
-            _light_tagged_sf = []
-            _heavy_tagged_sf = []
-
-            _light_untagged_sf = []
-            _light_untagged_btagEff = []
-            _heavy_untagged_sf = []
-            _heavy_untagged_btagEff = []
-
-            ###################
-            ### TAGGED JETS ###
-            ###################
-
-            # Evluate the scale factore per jet and unflatten the scale fatores in original structure
-            _light_tagged_sf = ak.unflatten(
-                light_evaluator.evaluate(
-                    "central",
-                    wp,
-                    flat_light_tagged_jet_hFlav,
-                    flat_light_tagged_jet_eta,
-                    flat_light_tagged_jet_pt
-                ),
-                light_tagged_counts
-            )
-
-            _heavy_tagged_sf = ak.unflatten(
-                heavy_evaluator.evaluate(
-                    "central",
-                    wp,
-                    flat_heavy_tagged_jet_hFlav,
-                    flat_heavy_tagged_jet_eta,
-                    flat_heavy_tagged_jet_pt
-                ),
-                heavy_tagged_counts
-            )
-
-            #####################
-            ### UNTAGGED JETS ###
-            #####################
-
-            # Evluate the scale factore per jet and unflatten the scale fatores in original structure
-            _light_untagged_sf = ak.unflatten(
-                light_evaluator.evaluate(
-                    "central",
-                    wp,
-                    flat_light_untagged_jet_hFlav,
-                    flat_light_untagged_jet_eta,
-                    flat_light_untagged_jet_pt
-                ),
-                light_untagged_counts
-            )
-
-            _light_untagged_btagEff = ak.unflatten(
-                btageff_evaluator.evaluate(
-                    dataset_name,
-                    flat_light_untagged_jet_hFlav,
-                    flat_light_untagged_jet_pt
-                ),
-                light_untagged_counts
-            )
-
-            _heavy_untagged_sf = ak.unflatten(
-                heavy_evaluator.evaluate(
-                    "central",
-                    wp,
-                    flat_heavy_untagged_jet_hFlav,
-                    flat_heavy_untagged_jet_eta,
-                    flat_heavy_untagged_jet_pt
-                ),
-                heavy_untagged_counts
-            )
-
-            _heavy_untagged_btagEff = ak.unflatten(
-                btageff_evaluator.evaluate(
-                    dataset_name,
-                    flat_heavy_untagged_jet_hFlav,
-                    flat_heavy_untagged_jet_pt
-                ),
-                heavy_untagged_counts
-            )
-
-            # Tagged jets
-            light_tagged_prod = ak.prod(_light_tagged_sf, axis=1)  # Product over the tagged jets
-            heavy_tagged_prod = ak.prod(_heavy_tagged_sf, axis=1)
-            tagged = heavy_tagged_prod * light_tagged_prod
-
-            # Untagged jets
-            untagged_heavy_numerator_prod = _heavy_untagged_sf * _heavy_untagged_btagEff
-            untagged_heavy = ak.prod((1 - untagged_heavy_numerator_prod) / (1 - _heavy_untagged_btagEff), axis=1)
-
-            untagged_light_numerator_prod = _light_untagged_sf * _light_untagged_btagEff
-            untagged_light = ak.prod((1 - untagged_light_numerator_prod) / (1 - _light_untagged_btagEff), axis=1)
-            untagged = untagged_heavy * untagged_light
-
-            w_btag_central = tagged * untagged
+            w_btag = w_btag_central
 
             w_btag_up = [None for _ in btag_systematics]
             w_btag_down = [None for _ in btag_systematics]
 
+            weights.add_multivariation(
+                name="bTagFixedWP",
+                weight=w_btag,
+                modifierNames=btag_systematics,
+                weightsUp=w_btag_up,
+                weightsDown=w_btag_down,
+                shift=False,
+            )
+
+            return weights
+
         else:
-            Weight_Name = "bTagFixedWP_sys"
-            # only calculate correction to nominal weight
-            # replace by accessing partial weight!
-            _light_tagged_central_sf = []
-            _heavy_tagged_central_sf = []
-
-            _light_untagged_central_sf = []
-            _light_untagged_btagEff = []
-            _heavy_untagged_central_sf = []
-            _heavy_untagged_btagEff = []
-
-            ###################
-            ### TAGGED JETS ###
-            ###################
-
-            # Evluate the scale factore per jet and unflatten the scale fatores in original structure
-            _light_tagged_central_sf = ak.unflatten(
-                light_evaluator.evaluate(
-                    "central",
-                    wp,
-                    flat_light_tagged_jet_hFlav,
-                    flat_light_tagged_jet_eta,
-                    flat_light_tagged_jet_pt
-                ),
-                light_tagged_counts
-            )
-
-            _heavy_tagged_central_sf = ak.unflatten(
-                heavy_evaluator.evaluate(
-                    "central",
-                    wp,
-                    flat_heavy_tagged_jet_hFlav,
-                    flat_heavy_tagged_jet_eta,
-                    flat_heavy_tagged_jet_pt
-                ),
-                heavy_tagged_counts
-            )
-
-            #####################
-            ### UNTAGGED JETS ###
-            #####################
-
-            # Evluate the scale factore per jet and unflatten the scale fatores in original structure
-            _light_untagged_central_sf = ak.unflatten(
-                light_evaluator.evaluate(
-                    "central",
-                    wp,
-                    flat_light_untagged_jet_hFlav,
-                    flat_light_untagged_jet_eta,
-                    flat_light_untagged_jet_pt
-                ),
-                light_untagged_counts
-            )
-
-            _light_untagged_btagEff = ak.unflatten(
-                btageff_evaluator.evaluate(
-                    dataset_name,
-                    flat_light_untagged_jet_hFlav,
-                    flat_light_untagged_jet_pt
-                ),
-                light_untagged_counts
-            )
-
-            _heavy_untagged_central_sf = ak.unflatten(
-                heavy_evaluator.evaluate(
-                    "central",
-                    wp,
-                    flat_heavy_untagged_jet_hFlav,
-                    flat_heavy_untagged_jet_eta,
-                    flat_heavy_untagged_jet_pt
-                ),
-                heavy_untagged_counts
-            )
-
-            _heavy_untagged_btagEff = ak.unflatten(
-                btageff_evaluator.evaluate(
-                    dataset_name,
-                    flat_heavy_untagged_jet_hFlav,
-                    flat_heavy_untagged_jet_pt
-                ),
-                heavy_untagged_counts
-            )
-
-            # Tagged jets
-            light_tagged_central_prod = ak.prod(_light_tagged_central_sf, axis=1)  # Product over the tagged jets
-            heavy_tagged_central_prod = ak.prod(_heavy_tagged_central_sf, axis=1)
-            tagged_central = heavy_tagged_central_prod * light_tagged_central_prod
-
-            # Untagged jets
-            untagged_heavy_numerator_central_prod = _heavy_untagged_central_sf * _heavy_untagged_btagEff
-            untagged_heavy_central = ak.prod((1 - untagged_heavy_numerator_central_prod) / (1 - _heavy_untagged_btagEff), axis=1)
-
-            untagged_light_numerator_central_prod = _light_untagged_central_sf * _light_untagged_btagEff
-            untagged_light_central = ak.prod((1 - untagged_light_numerator_central_prod) / (1 - _light_untagged_btagEff), axis=1)
-            untagged_central = untagged_heavy_central * untagged_light_central
-
-            w_btag_central = tagged_central * untagged_central
-
-            variations = {}
+            light_variations = {}
+            heavy_variations = {}
 
             for syst_name in btag_systematics:
-                # we will append the scale factors relative to all jets to be multiplied
-                variations[syst_name] = {}
+                light_variations[syst_name] = {}
+                heavy_variations[syst_name] = {}
 
-                _light_tagged_up_sf = []
-                _heavy_tagged_up_sf = []
-                _light_untagged_up_sf = []
-                _heavy_untagged_up_sf = []
-
-                _light_tagged_down_sf = []
-                _heavy_tagged_down_sf = []
-                _light_untagged_down_sf = []
-                _heavy_untagged_down_sf = []
-
-                _light_untagged_btagEff = []
-                _heavy_untagged_btagEff = []
-
-                ###################
-                ### TAGGED JETS ###
-                ###################
-
-                # Evluate the scale factore per jet and unflatten the scale fatores in original structure
                 _light_tagged_up_sf = ak.unflatten(
                     light_evaluator.evaluate(
                         "up_" + syst_name,
                         wp,
                         flat_light_tagged_jet_hFlav,
                         flat_light_tagged_jet_eta,
-                        flat_light_tagged_jet_pt
+                        flat_light_tagged_jet_pt,
                     ),
-                    light_tagged_counts
+                    light_tagged_counts,
                 )
-
-                _heavy_tagged_up_sf = ak.unflatten(
-                    heavy_evaluator.evaluate(
-                        "up_" + syst_name,
-                        wp,
-                        flat_heavy_tagged_jet_hFlav,
-                        flat_heavy_tagged_jet_eta,
-                        flat_heavy_tagged_jet_pt
-                    ),
-                    heavy_tagged_counts
-                )
-
                 _light_tagged_down_sf = ak.unflatten(
                     light_evaluator.evaluate(
                         "down_" + syst_name,
                         wp,
                         flat_light_tagged_jet_hFlav,
                         flat_light_tagged_jet_eta,
-                        flat_light_tagged_jet_pt
+                        flat_light_tagged_jet_pt,
                     ),
-                    light_tagged_counts
+                    light_tagged_counts,
                 )
-
+                _heavy_tagged_up_sf = ak.unflatten(
+                    heavy_evaluator.evaluate(
+                        "up_" + syst_name,
+                        wp,
+                        flat_heavy_tagged_jet_hFlav,
+                        flat_heavy_tagged_jet_eta,
+                        flat_heavy_tagged_jet_pt,
+                    ),
+                    heavy_tagged_counts,
+                )
                 _heavy_tagged_down_sf = ak.unflatten(
                     heavy_evaluator.evaluate(
                         "down_" + syst_name,
                         wp,
                         flat_heavy_tagged_jet_hFlav,
                         flat_heavy_tagged_jet_eta,
-                        flat_heavy_tagged_jet_pt
+                        flat_heavy_tagged_jet_pt,
                     ),
-                    heavy_tagged_counts
+                    heavy_tagged_counts,
                 )
 
-                #####################
-                ### UNTAGGED JETS ###
-                #####################
-
-                # Evluate the scale factore per jet and unflatten the scale fatores in original structure
                 _light_untagged_up_sf = ak.unflatten(
                     light_evaluator.evaluate(
                         "up_" + syst_name,
                         wp,
                         flat_light_untagged_jet_hFlav,
                         flat_light_untagged_jet_eta,
-                        flat_light_untagged_jet_pt
+                        flat_light_untagged_jet_pt,
                     ),
-                    light_untagged_counts
+                    light_untagged_counts,
                 )
-
-                _heavy_untagged_up_sf = ak.unflatten(
-                    heavy_evaluator.evaluate(
-                        "up_" + syst_name,
-                        wp,
-                        flat_heavy_untagged_jet_hFlav,
-                        flat_heavy_untagged_jet_eta,
-                        flat_heavy_untagged_jet_pt
-                    ),
-                    heavy_untagged_counts
-                )
-
                 _light_untagged_down_sf = ak.unflatten(
                     light_evaluator.evaluate(
                         "down_" + syst_name,
                         wp,
                         flat_light_untagged_jet_hFlav,
                         flat_light_untagged_jet_eta,
-                        flat_light_untagged_jet_pt
+                        flat_light_untagged_jet_pt,
                     ),
-                    light_untagged_counts
+                    light_untagged_counts,
                 )
-
+                _heavy_untagged_up_sf = ak.unflatten(
+                    heavy_evaluator.evaluate(
+                        "up_" + syst_name,
+                        wp,
+                        flat_heavy_untagged_jet_hFlav,
+                        flat_heavy_untagged_jet_eta,
+                        flat_heavy_untagged_jet_pt,
+                    ),
+                    heavy_untagged_counts,
+                )
                 _heavy_untagged_down_sf = ak.unflatten(
                     heavy_evaluator.evaluate(
                         "down_" + syst_name,
                         wp,
                         flat_heavy_untagged_jet_hFlav,
                         flat_heavy_untagged_jet_eta,
-                        flat_heavy_untagged_jet_pt
+                        flat_heavy_untagged_jet_pt,
                     ),
-                    heavy_untagged_counts
+                    heavy_untagged_counts,
                 )
 
-                _light_untagged_btagEff = ak.unflatten(
-                    btageff_evaluator.evaluate(
-                        dataset_name,
-                        flat_light_untagged_jet_hFlav,
-                        flat_light_untagged_jet_pt
-                    ),
-                    light_untagged_counts
-                )
-
-                _heavy_untagged_btagEff = ak.unflatten(
-                    btageff_evaluator.evaluate(
-                        dataset_name,
-                        flat_heavy_untagged_jet_hFlav,
-                        flat_heavy_untagged_jet_pt
-                    ),
-                    heavy_untagged_counts
-                )
-
-                # Tagged jets
-                light_tagged_up_prod = ak.prod(_light_tagged_up_sf, axis=1)  # Product over the tagged jets
-                heavy_tagged_up_prod = ak.prod(_heavy_tagged_up_sf, axis=1)
-                tagged_up = heavy_tagged_up_prod * light_tagged_up_prod
-
+                light_tagged_up_prod = ak.prod(_light_tagged_up_sf, axis=1)
                 light_tagged_down_prod = ak.prod(_light_tagged_down_sf, axis=1)
+                heavy_tagged_up_prod = ak.prod(_heavy_tagged_up_sf, axis=1)
                 heavy_tagged_down_prod = ak.prod(_heavy_tagged_down_sf, axis=1)
-                tagged_down = heavy_tagged_down_prod * light_tagged_down_prod
 
-                # Untagged jets
                 untagged_heavy_numerator_up_prod = _heavy_untagged_up_sf * _heavy_untagged_btagEff
                 untagged_heavy_up = ak.prod((1 - untagged_heavy_numerator_up_prod) / (1 - _heavy_untagged_btagEff), axis=1)
 
@@ -1691,33 +1604,624 @@ def bTagFixedWP(events, weights, dataset_name, mva_name, wp, bTagEffFileName, is
 
                 untagged_light_numerator_up_prod = _light_untagged_up_sf * _light_untagged_btagEff
                 untagged_light_up = ak.prod((1 - untagged_light_numerator_up_prod) / (1 - _light_untagged_btagEff), axis=1)
-                untagged_up = untagged_heavy_up * untagged_light_up
 
                 untagged_light_numerator_down_prod = _light_untagged_down_sf * _light_untagged_btagEff
                 untagged_light_down = ak.prod((1 - untagged_light_numerator_down_prod) / (1 - _light_untagged_btagEff), axis=1)
-                untagged_down = untagged_heavy_down * untagged_light_down
 
-                w_btag_up = tagged_up * untagged_up
-                w_btag_down = tagged_down * untagged_down
+                w_btag_light_up = light_tagged_up_prod * untagged_light_up
+                w_btag_light_down = light_tagged_down_prod * untagged_light_down
+                w_btag_heavy_up = heavy_tagged_up_prod * untagged_heavy_up
+                w_btag_heavy_down = heavy_tagged_down_prod * untagged_heavy_down
 
-                variations[syst_name]["up"] = w_btag_up
-                variations[syst_name]["down"] = w_btag_down
+                light_variations[syst_name]["up"] = w_btag_light_up
+                light_variations[syst_name]["down"] = w_btag_light_down
+                heavy_variations[syst_name]["up"] = w_btag_heavy_up
+                heavy_variations[syst_name]["down"] = w_btag_heavy_down
 
-            # coffea weights.add_multivariation() wants a list of arrays for the multiple up and down variations
-            # we devide sf_central because cofea processor save the up and down vartion by multiplying the central weights
-            w_btag_up = [variations[syst_name]["up"] / w_btag_central for syst_name in btag_systematics]
-            w_btag_down = [variations[syst_name]["down"] / w_btag_central for syst_name in btag_systematics]
+            w_btag = ak.values_astype(ak.ones_like(events.event), np.float32)
+            light_up = [light_variations[syst_name]["up"] / w_btag_light_central for syst_name in btag_systematics]
+            light_down = [light_variations[syst_name]["down"] / w_btag_light_central for syst_name in btag_systematics]
+            heavy_up = [heavy_variations[syst_name]["up"] / w_btag_heavy_central for syst_name in btag_systematics]
+            heavy_down = [heavy_variations[syst_name]["down"] / w_btag_heavy_central for syst_name in btag_systematics]
 
-        weights.add_multivariation(
-            name=Weight_Name,
-            weight=w_btag_central,
-            modifierNames=btag_systematics,
-            weightsUp=w_btag_up,
-            weightsDown=w_btag_down,
-            shift=False,
+            weights.add_multivariation(
+                name="btagSFlight",
+                weight=w_btag,
+                modifierNames=btag_systematics_modifiers,
+                weightsUp=light_up,
+                weightsDown=light_down,
+                shift=False,
+            )
+            weights.add_multivariation(
+                name="btagSFbc",
+                weight=w_btag,
+                modifierNames=btag_systematics_modifiers,
+                weightsUp=heavy_up,
+                weightsDown=heavy_down,
+                shift=False,
+            )
+            return weights
+
+    else:
+        logger.error(f"\n You specified the Btagging SF for dataset with {dataset_name}. First compute the Btagging efficiency correctionlib for your analysis before proceeding. \n")
+        exit()
+
+
+def bTagMultiFixedWP(events, jets, weights, dataset_name, mva_name, wps, bTagEffFileName, btagEffDatasetName=None, is_correction=True, year="2017", is_Run2_v15=False, **kwargs):
+
+    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    if year not in avail_years:
+        logger.error(f"\n Only fixed WP Scale Factors for the year strings {avail_years} are already implemented! \n Exiting. \n")
+        exit()
+
+    avail_modes = ["L", "M", "T", "XT", "XXT"]
+    for wp in wps:
+        if wp not in avail_modes:
+            logger.error(f"\n Only fixed WP Scale Factors for the mode strings {avail_modes} are already implemented! \n Exiting. \n")
+            exit()
+
+    eff_dataset_name = btagEffDatasetName if btagEffDatasetName is not None else dataset_name
+
+    inputFilePath = "JSONs/"
+    if bTagEffFileName is None:
+        bTagEffFileName = "midRun3"
+
+    Run2_btag_json = ""
+    if is_Run2_v15:
+        Run2_btag_json = "_v15"
+
+    btageff_correction_configs = {
+        "2016preVFP":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2016preVFP_UL/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2016postVFP":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2016postVFP_UL/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2017":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2017_UL/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2018":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2018_UL/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2022preEE":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2022_Summer22/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2022postEE":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2022_Summer22EE/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2023preBPix":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2023_Summer23/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2023postBPix":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2023_Summer23BPix/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2024":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2024_Summer24/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        }
+    }
+
+    btageff_jsonpog_file = os.path.join(
+        os.path.dirname(__file__), btageff_correction_configs[year]["file"]
+    )
+
+    try:
+        btageff_clib = correctionlib.CorrectionSet.from_file(btageff_jsonpog_file)
+        btageff_dict = ast.literal_eval(btageff_clib._data)
+
+        avail_procs = [current_proc["key"] for current_proc in btageff_dict["corrections"][0]["data"]["content"]]
+    except:
+        logger.error("\n Error when reading the dataset name from the correction lib. \n")
+        exit()
+
+    if (eff_dataset_name in avail_procs):
+
+        mva_name_to_btag_wp_name = {
+            "particleNet": "particleNet_wp_values",
+            "deepJet": "deepJet_wp_values",
+            "robustParticleTransformer": "robustParticleTransformer_wp_values",
+            "UParTAK4": "UParTAK4_wp_values"
+        }
+
+        mva_name_to_discriminator = {
+            "particleNet": "btagPNetB",
+            "deepJet": "btagDeepFlavB",
+            "robustParticleTransformer": "btagRobustParTAK4B",
+            "UParTAK4": "btagUParTAK4B"
+        }
+
+        mva_name_to_btag_sf_name = {
+            "light": {
+                "particleNet": "particleNet_light",
+                "deepJet": "deepJet_light",
+                "robustParticleTransformer": "robustParticleTransformer_light",
+                "UParTAK4": "UParTAK4_light"
+            },
+            "comb": {
+                "particleNet": "particleNet_comb",
+                "deepJet": "deepJet_comb",
+                "robustParticleTransformer": "robustParticleTransformer_comb",
+                "UParTAK4": "UParTAK4_comb"
+            }
+        }
+
+        btag_systematics = [
+            "correlated",
+            "uncorrelated"
+        ]
+        btag_systematics_modifiers = [
+            "correlated",
+            f"{year}",
+        ]
+
+        btag_correction_configs = {
+            "2016preVFP": {
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2016preVFP_UL/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+            "2016postVFP": {
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2016postVFP_UL/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+            "2017": {
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2017_UL/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+            "2018": {
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2018_UL/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+            "2022preEE":{
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2022_Summer22/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+            "2022postEE":{
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2022_Summer22EE/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+            "2023preBPix":{
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2023_Summer23/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+            "2023postBPix":{
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2023_Summer23BPix/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+            "2024":{
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2024_Summer24/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            },
+        }
+
+        btagsf_jsonpog_file = os.path.join(
+            os.path.dirname(__file__), btag_correction_configs[year]["file"]
         )
 
-        return weights
+        # Import evaluators
+        light_evaluator = correctionlib.CorrectionSet.from_file(btagsf_jsonpog_file)[btag_correction_configs[year]["sf_light"]]
+        heavy_btagsf_jsonpog_file = btagsf_jsonpog_file
+        if is_Run2_v15 and ("2016preVFP" in year or "2016postVFP" in year or "2017" in year or "2018" in year):
+            heavy_btagsf_jsonpog_file = os.path.join(
+                os.path.dirname(__file__), inputFilePath, "bTagSF/2024_Summer24/btagging.json.gz"
+            )
+            logger.warning("Run2 v15 missing comb SF, fallback to 2024_Summer24 comb SF.")
+        heavy_evaluator = correctionlib.CorrectionSet.from_file(heavy_btagsf_jsonpog_file)[btag_correction_configs[year]["sf_comb"]]
+        btageff_evaluator = correctionlib.CorrectionSet.from_file(btageff_jsonpog_file)["btagging_efficiencies"]
+
+        # official order, from loose to tight
+        wp_order = ["L", "M", "T", "XT", "XXT"]
+        wps = [wp for wp in wp_order if wp in wps]
+        wp_thr = {
+            wp: correctionlib.CorrectionSet.from_file(btagsf_jsonpog_file)[btag_correction_configs[year]["wp"]].evaluate(wp)
+            for wp in wps
+        }
+
+        # Era-dependent gen-jet pT threshold:
+        # - Run2 (2016–2018): pT > 30 GeV (Run2 recommendation)
+        # - Run3 (2022–2025): pT > 20 GeV (Run3 recommendation https://btv-wiki.docs.cern.ch/ScaleFactors/#important-notes)
+        if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
+            gen_jet_min_pt = 30
+        else:
+            gen_jet_min_pt = 20
+
+        # Removing jets with eta beyond 2.5 (No bining exist in input JSON file for such jets)
+        relevant_jets = events["sel_jets"][
+            ((events["sel_jets"].pt) > gen_jet_min_pt)
+            & (np.abs(events["sel_jets"].eta) < 2.5)
+        ]
+
+        if jets is not None:
+            logger.info("using the dedicated jets input for b-tagging SF corrections and systematics")
+            relevant_jets = jets[
+                ((jets.pt) > gen_jet_min_pt)
+                & (np.abs(jets.eta) < 2.5)
+            ]
+
+        # Split jets into "tagged J, not J+1" regions
+        # region : (wp_pass, wp_fail)
+        jets_by_region = {}
+        jets_by_region[(None, wps[0])] = relevant_jets[relevant_jets[mva_name_to_discriminator[mva_name]] < wp_thr[wps[0]]]
+        for i in range(len(wps)):
+            if i + 1 < len(wps):
+                jets_by_region[(wps[i], wps[i + 1])] = relevant_jets[(relevant_jets[mva_name_to_discriminator[mva_name]] >= wp_thr[wps[i]]) & (relevant_jets[mva_name_to_discriminator[mva_name]] < wp_thr[wps[i + 1]])]
+            else:
+                jets_by_region[(wps[i], None)] = relevant_jets[relevant_jets[mva_name_to_discriminator[mva_name]] >= wp_thr[wps[i]]]
+
+        # Split jetcollection in heavy (hFlav == 4, 5) and in light flavor (hFlav == 0)
+        light_jets_by_region = {}
+        heavy_jets_by_region = {}
+        for key in jets_by_region:
+            light_jets_by_region[key] = jets_by_region[key][jets_by_region[key].hFlav == 0]
+            heavy_jets_by_region[key] = jets_by_region[key][jets_by_region[key].hFlav >= 4]
+
+        # only calculate correction to nominal weight
+        # we will evaluate the scale factors relative to all jets used in the analysis to be multiplied
+
+        light_jet_by_region_pt = {}
+        light_jet_by_region_eta = {}
+        light_jet_by_region_hFlav = {}
+        flat_light_jet_by_region_pt = {}
+        flat_light_jet_by_region_eta = {}
+        flat_light_jet_by_region_hFlav = {}
+        light_jet_by_region_counts = {}
+
+        heavy_jet_by_region_pt = {}
+        heavy_jet_by_region_eta = {}
+        heavy_jet_by_region_hFlav = {}
+        flat_heavy_jet_by_region_pt = {}
+        flat_heavy_jet_by_region_eta = {}
+        flat_heavy_jet_by_region_hFlav = {}
+        heavy_jet_by_region_counts = {}
+
+        for key in jets_by_region:
+            # light jets
+            light_jet_by_region_pt[key] = light_jets_by_region[key].pt
+            light_jet_by_region_eta[key] = np.abs(light_jets_by_region[key].eta)
+            light_jet_by_region_hFlav[key] = light_jets_by_region[key].hFlav
+
+            # Convert the jets in one dimension array and store the orignal structure of the ak array in counts
+            flat_light_jet_by_region_pt[key] = ak.flatten(light_jet_by_region_pt[key])
+            flat_light_jet_by_region_eta[key] = ak.flatten(light_jet_by_region_eta[key])
+            flat_light_jet_by_region_hFlav[key] = ak.flatten(light_jet_by_region_hFlav[key])
+            light_jet_by_region_counts[key] = ak.num(light_jet_by_region_hFlav[key])
+
+            # heavy tagged jets
+            heavy_jet_by_region_pt[key] = heavy_jets_by_region[key].pt
+            heavy_jet_by_region_eta[key] = np.abs(heavy_jets_by_region[key].eta)
+            heavy_jet_by_region_hFlav[key] = heavy_jets_by_region[key].hFlav
+
+            # Convert the jets in one dimension array and store the orignal structure of the ak array in counts
+            flat_heavy_jet_by_region_pt[key] = ak.flatten(heavy_jet_by_region_pt[key])
+            flat_heavy_jet_by_region_eta[key] = ak.flatten(heavy_jet_by_region_eta[key])
+            flat_heavy_jet_by_region_hFlav[key] = ak.flatten(heavy_jet_by_region_hFlav[key])
+            heavy_jet_by_region_counts[key] = ak.num(heavy_jet_by_region_hFlav[key])
+
+        # only calculate correction to nominal weight
+        # replace by accessing partial weight!
+        _light_by_region_central_sf_pass = {}
+        _light_by_region_central_sf_fail = {}
+        _heavy_by_region_central_sf_pass = {}
+        _heavy_by_region_central_sf_fail = {}
+        _light_by_region_btagEff_pass = {}
+        _light_by_region_btagEff_fail = {}
+        _heavy_by_region_btagEff_pass = {}
+        _heavy_by_region_btagEff_fail = {}
+
+        # Evaluate the scale factors per jet and unflatten the scale factors in original structure
+        ##################
+        ### LIGHT JETS ###
+        ##################
+        for key in jets_by_region:
+            wp_pass, wp_fail = key
+            if wp_pass is not None:
+                _light_by_region_central_sf_pass[key], _light_by_region_btagEff_pass[key] = evaluate_btag_sf_eff_multiwp(
+                    "central",
+                    wp_pass,
+                    flat_light_jet_by_region_hFlav[key],
+                    flat_light_jet_by_region_eta[key],
+                    flat_light_jet_by_region_pt[key],
+                    light_jet_by_region_counts[key],
+                    light_evaluator,
+                    btageff_evaluator,
+                    eff_dataset_name
+                )
+
+            if wp_fail is not None:
+                _light_by_region_central_sf_fail[key], _light_by_region_btagEff_fail[key] = evaluate_btag_sf_eff_multiwp(
+                    "central",
+                    wp_fail,
+                    flat_light_jet_by_region_hFlav[key],
+                    flat_light_jet_by_region_eta[key],
+                    flat_light_jet_by_region_pt[key],
+                    light_jet_by_region_counts[key],
+                    light_evaluator,
+                    btageff_evaluator,
+                    eff_dataset_name
+                )
+
+        ##################
+        ### HEAVY JETS ###
+        ##################
+        for key in jets_by_region:
+            wp_pass, wp_fail = key
+
+            if wp_pass is not None:
+                _heavy_by_region_central_sf_pass[key] = ak.unflatten(
+                    heavy_evaluator.evaluate(
+                        "central",
+                        wp_pass,
+                        flat_heavy_jet_by_region_hFlav[key],
+                        flat_heavy_jet_by_region_eta[key],
+                        flat_heavy_jet_by_region_pt[key],
+                    ),
+                    heavy_jet_by_region_counts[key]
+                )
+                _heavy_by_region_btagEff_pass[key] = ak.unflatten(
+                    btageff_evaluator.evaluate(
+                        eff_dataset_name,
+                        wp_pass,
+                        flat_heavy_jet_by_region_hFlav[key],
+                        flat_heavy_jet_by_region_pt[key]
+                    ),
+                    heavy_jet_by_region_counts[key]
+                )
+
+            if wp_fail is not None:
+                _heavy_by_region_central_sf_fail[key] = ak.unflatten(
+                    heavy_evaluator.evaluate(
+                        "central",
+                        wp_fail,
+                        flat_heavy_jet_by_region_hFlav[key],
+                        flat_heavy_jet_by_region_eta[key],
+                        flat_heavy_jet_by_region_pt[key],
+                    ),
+                    heavy_jet_by_region_counts[key]
+                )
+                _heavy_by_region_btagEff_fail[key] = ak.unflatten(
+                    btageff_evaluator.evaluate(
+                        eff_dataset_name,
+                        wp_fail,
+                        flat_heavy_jet_by_region_hFlav[key],
+                        flat_heavy_jet_by_region_pt[key]
+                    ),
+                    heavy_jet_by_region_counts[key]
+                )
+
+        ################################
+        ### Calculate w_btag_central ###
+        ################################
+        w_btag_central = ak.ones_like(events.event, dtype=float)
+
+        w_btag_light_central = compute_btag_multiwp(
+            jets_by_region,
+            _light_by_region_central_sf_pass,
+            _light_by_region_central_sf_fail,
+            _light_by_region_btagEff_pass,
+            _light_by_region_btagEff_fail,
+            is_central=True
+        )
+        w_btag_heavy_central = compute_btag_multiwp(
+            jets_by_region,
+            _heavy_by_region_central_sf_pass,
+            _heavy_by_region_central_sf_fail,
+            _heavy_by_region_btagEff_pass,
+            _heavy_by_region_btagEff_fail,
+            is_central=True
+        )
+
+        w_btag_central = w_btag_central * (w_btag_light_central * w_btag_heavy_central)
+
+        def evaluate_btag_sf_multiwp_syst(
+            variation, wp,
+            flat_light_jet_hFlav, flat_light_jet_eta, flat_light_jet_pt, light_jet_counts,
+            flat_heavy_jet_hFlav, flat_heavy_jet_eta, flat_heavy_jet_pt, heavy_jet_counts
+        ):
+            _light_sf = ak.unflatten(
+                light_evaluator.evaluate(
+                    variation,
+                    wp,
+                    flat_light_jet_hFlav,
+                    flat_light_jet_eta,
+                    flat_light_jet_pt,
+                ),
+                light_jet_counts,
+            )
+            _heavy_sf = ak.unflatten(
+                heavy_evaluator.evaluate(
+                    variation,
+                    wp,
+                    flat_heavy_jet_hFlav,
+                    flat_heavy_jet_eta,
+                    flat_heavy_jet_pt,
+                ),
+                heavy_jet_counts,
+            )
+            return _light_sf, _heavy_sf
+
+        ###############################################################
+        ### Calculate the SF corrections and systematics variations ###
+        ###############################################################
+        if is_correction:
+            w_btag = w_btag_central
+
+            w_btag_up = [None for _ in btag_systematics]
+            w_btag_down = [None for _ in btag_systematics]
+
+            weights.add_multivariation(
+                name="bTagMultiFixedWP",
+                weight=w_btag,
+                modifierNames=btag_systematics,
+                weightsUp=w_btag_up,
+                weightsDown=w_btag_down,
+                shift=False,
+            )
+
+            return weights
+
+        else:
+            light_variations = {}
+            heavy_variations = {}
+
+            for syst_name in btag_systematics:
+                light_variations[syst_name] = {}
+                heavy_variations[syst_name] = {}
+
+                _light_by_region_up_sf_pass = {}
+                _light_by_region_up_sf_fail = {}
+                _heavy_by_region_up_sf_pass = {}
+                _heavy_by_region_up_sf_fail = {}
+                _light_by_region_down_sf_pass = {}
+                _light_by_region_down_sf_fail = {}
+                _heavy_by_region_down_sf_pass = {}
+                _heavy_by_region_down_sf_fail = {}
+
+                # Evluate the scale factore per jet and unflatten the scale fatores in original structure
+                for key in jets_by_region:
+                    wp_pass, wp_fail = key
+                    if wp_pass is not None:
+                        _light_by_region_up_sf_pass[key], _heavy_by_region_up_sf_pass[key] = evaluate_btag_sf_multiwp_syst(
+                            "up_" + syst_name,
+                            wp_pass,
+                            flat_light_jet_by_region_hFlav[key], flat_light_jet_by_region_eta[key], flat_light_jet_by_region_pt[key], light_jet_by_region_counts[key],
+                            flat_heavy_jet_by_region_hFlav[key], flat_heavy_jet_by_region_eta[key], flat_heavy_jet_by_region_pt[key], heavy_jet_by_region_counts[key]
+                        )
+                        _light_by_region_down_sf_pass[key], _heavy_by_region_down_sf_pass[key] = evaluate_btag_sf_multiwp_syst(
+                            "down_" + syst_name,
+                            wp_pass,
+                            flat_light_jet_by_region_hFlav[key], flat_light_jet_by_region_eta[key], flat_light_jet_by_region_pt[key], light_jet_by_region_counts[key],
+                            flat_heavy_jet_by_region_hFlav[key], flat_heavy_jet_by_region_eta[key], flat_heavy_jet_by_region_pt[key], heavy_jet_by_region_counts[key]
+                        )
+                    if wp_fail is not None:
+                        _light_by_region_up_sf_fail[key], _heavy_by_region_up_sf_fail[key] = evaluate_btag_sf_multiwp_syst(
+                            "up_" + syst_name,
+                            wp_fail,
+                            flat_light_jet_by_region_hFlav[key], flat_light_jet_by_region_eta[key], flat_light_jet_by_region_pt[key], light_jet_by_region_counts[key],
+                            flat_heavy_jet_by_region_hFlav[key], flat_heavy_jet_by_region_eta[key], flat_heavy_jet_by_region_pt[key], heavy_jet_by_region_counts[key]
+                        )
+                        _light_by_region_down_sf_fail[key], _heavy_by_region_down_sf_fail[key] = evaluate_btag_sf_multiwp_syst(
+                            "down_" + syst_name,
+                            wp_fail,
+                            flat_light_jet_by_region_hFlav[key], flat_light_jet_by_region_eta[key], flat_light_jet_by_region_pt[key], light_jet_by_region_counts[key],
+                            flat_heavy_jet_by_region_hFlav[key], flat_heavy_jet_by_region_eta[key], flat_heavy_jet_by_region_pt[key], heavy_jet_by_region_counts[key]
+                        )
+
+                ################################
+                ### Calculate w_btag_up/down ###
+                ################################
+                w_btag_light_up = compute_btag_multiwp(
+                    jets_by_region,
+                    _light_by_region_up_sf_pass,
+                    _light_by_region_up_sf_fail,
+                    _light_by_region_btagEff_pass,
+                    _light_by_region_btagEff_fail,
+                    is_central=False
+                )
+                w_btag_light_down = compute_btag_multiwp(
+                    jets_by_region,
+                    _light_by_region_down_sf_pass,
+                    _light_by_region_down_sf_fail,
+                    _light_by_region_btagEff_pass,
+                    _light_by_region_btagEff_fail,
+                    is_central=False
+                )
+                w_btag_heavy_up = compute_btag_multiwp(
+                    jets_by_region,
+                    _heavy_by_region_up_sf_pass,
+                    _heavy_by_region_up_sf_fail,
+                    _heavy_by_region_btagEff_pass,
+                    _heavy_by_region_btagEff_fail,
+                    is_central=False
+                )
+                w_btag_heavy_down = compute_btag_multiwp(
+                    jets_by_region,
+                    _heavy_by_region_down_sf_pass,
+                    _heavy_by_region_down_sf_fail,
+                    _heavy_by_region_btagEff_pass,
+                    _heavy_by_region_btagEff_fail,
+                    is_central=False
+                )
+
+                light_variations[syst_name]["up"] = w_btag_light_up
+                light_variations[syst_name]["down"] = w_btag_light_down
+                heavy_variations[syst_name]["up"] = w_btag_heavy_up
+                heavy_variations[syst_name]["down"] = w_btag_heavy_down
+
+            w_btag = ak.values_astype(ak.ones_like(events.event), np.float32)
+            light_up = [light_variations[syst_name]["up"] / w_btag_light_central for syst_name in btag_systematics]
+            light_down = [light_variations[syst_name]["down"] / w_btag_light_central for syst_name in btag_systematics]
+            heavy_up = [heavy_variations[syst_name]["up"] / w_btag_heavy_central for syst_name in btag_systematics]
+            heavy_down = [heavy_variations[syst_name]["down"] / w_btag_heavy_central for syst_name in btag_systematics]
+
+            weights.add_multivariation(
+                name="btagSFlight",
+                weight=w_btag,
+                modifierNames=btag_systematics_modifiers,
+                weightsUp=light_up,
+                weightsDown=light_down,
+                shift=False,
+            )
+            weights.add_multivariation(
+                name="btagSFbc",
+                weight=w_btag,
+                modifierNames=btag_systematics_modifiers,
+                weightsUp=heavy_up,
+                weightsDown=heavy_down,
+                shift=False,
+            )
+            return weights
 
     else:
         logger.error(f"\n You specified the Btagging SF for dataset with {dataset_name}. First compute the Btagging efficiency correctionlib for your analysis before proceeding. \n")

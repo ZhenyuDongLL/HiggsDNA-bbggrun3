@@ -110,6 +110,63 @@ def evaluate_ctag_wp(ctag_wps, nth_jet_pn_b_plus_c, nth_jet_pn_b_vs_c):
     return wp
 
 
+def evaluate_btag_sf_eff_multiwp(variation, wp, flat_jet_hFlav, flat_jet_eta, flat_jet_pt, jet_counts, sf_evaluator, eff_evaluator, dataset_name):
+    """Evaluate the b-tagging scale factor and efficiency for each jet in multi-WP case"""
+    sf = ak.unflatten(
+        sf_evaluator.evaluate(
+            variation,
+            wp,
+            flat_jet_hFlav,
+            flat_jet_eta,
+            flat_jet_pt,
+        ),
+        jet_counts
+    )
+    eff = ak.unflatten(
+        eff_evaluator.evaluate(
+            dataset_name,
+            wp,
+            flat_jet_hFlav,
+            flat_jet_pt
+        ),
+        jet_counts
+    )
+    return sf, eff
+
+
+def compute_btag_multiwp(jets_by_region, _sf_pass, _sf_fail, _btagEff_pass, _btagEff_fail, is_central):
+    """Compute the b-tagging weight for light/heavy jets in the multiwp case"""
+    w_btag_partial = None
+
+    for key in jets_by_region:
+        wp_pass, wp_fail = key
+        if wp_pass is not None and wp_fail is not None:
+            # jets in (J, J+1): use multi-WP formula
+            numerator = _sf_pass[key] * _btagEff_pass[key] - _sf_fail[key] * _btagEff_fail[key]
+            denominator = _btagEff_pass[key] - _btagEff_fail[key]
+            term = numerator / denominator
+            if is_central:
+                # Avoid the unphysical case: https://btv-wiki.docs.cern.ch/PerformanceCalibration/fixedWPSFRecommendations/
+                term = ak.where((numerator < 0), 1.0, term)
+        elif wp_pass is not None:
+            # region e.g. (T, None)
+            term = _sf_pass[key]
+        else:
+            # region e.g. (None, L)
+            numerator = 1 - _sf_fail[key] * _btagEff_fail[key]
+            denominator = 1 - _btagEff_fail[key]
+            term = numerator / denominator
+
+        term_prod = ak.prod(term, axis=1)
+
+        if w_btag_partial is None:
+            w_btag_partial = term_prod
+        else:
+            w_btag_partial = w_btag_partial * term_prod
+
+    return w_btag_partial
+
+
 @numba.vectorize(
     [
         numba.float32(numba.float32, numba.float32),
