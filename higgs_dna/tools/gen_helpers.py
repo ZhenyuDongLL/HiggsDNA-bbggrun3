@@ -279,6 +279,56 @@ def match_fatjet_hbb(reco_jets, gen_jets, n, fill_value, jet_size=0.8):
     return ak.fill_none(match_count == 2, fill_value)
 
 
+def match_jet_to_genpart(reco_jet, gen_parts, fill_value, jet_size=0.4):
+    """
+    Match a single reco jet to the closest gen particle within jet_size.
+    No filtering on pdgId is applied; gen_parts should be pre-filtered
+    (e.g. isLastCopy) before calling this function.
+
+    Parameters:
+    * reco_jet: (ak array) single reco jet (flat, e.g. result of ak.firsts)
+    * gen_parts: (ak array) gen particles registered as PtEtaPhiMCandidate,
+                 must carry fields 'pdgId' and 'mother_pdgId'
+                 (mother_pdgId pre-computed from genPartIdxMother)
+    * fill_value: value used when the reco jet is absent
+    * jet_size: DeltaR cone size for matching
+
+    Returns:
+    * matched_pdgId: pdgId of closest gen particle within jet_size,
+                     0 if reco jet exists but no match found, fill_value if absent
+    * matched_mother_pdgId: pdgId of its mother under the same conditions
+    """
+    reco_jet_singleton = ak.singletons(reco_jet)
+    reco_jet_singleton = ak.pad_none(reco_jet_singleton, 1, clip=True)
+
+    pairs = ak.cartesian({"reco": reco_jet_singleton, "gen": gen_parts}, axis=1)
+    pairs["deltaR"] = DeltaR(pairs["reco"], pairs["gen"])
+
+    best_match = ak.firsts(
+        pairs[ak.argmin(pairs["deltaR"], axis=1, keepdims=True)], axis=1
+    )
+    is_matched = ak.fill_none(best_match["deltaR"] < jet_size, False)
+    reco_exists = ~ak.is_none(reco_jet)
+
+    matched_pdgId = ak.values_astype(
+        ak.where(
+            reco_exists & is_matched,
+            best_match["gen"].pdgId,
+            ak.where(reco_exists, 0, fill_value),
+        ),
+        np.int32,
+    )
+    matched_mother_pdgId = ak.values_astype(
+        ak.where(
+            reco_exists & is_matched,
+            best_match["gen"].mother_pdgId,
+            ak.where(reco_exists, 0, fill_value),
+        ),
+        np.int32,
+    )
+    return matched_pdgId, matched_mother_pdgId
+
+
 def _count_decay_products(
     decay_products: ak.Array,
     particle_type: str,
