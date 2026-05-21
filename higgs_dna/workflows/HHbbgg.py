@@ -116,14 +116,14 @@ class HHbbggProcessor(HggSkeletonProcessor):
         self.global_muon = True
         self.mu_iso_wp = "loose"
         self.muon_photon_min_dr = 0.4
-        self.muon_max_dxy = None
-        self.muon_max_dz = None
+        self.muon_max_dxy = 0.2
+        self.muon_max_dz = 0.5
 
         # electron selection cuts
         self.el_id_wp = "WP80"
         self.electron_photon_min_dr = 0.3
-        self.electron_max_dxy = None
-        self.electron_max_dz = None
+        self.electron_max_dxy = 0.2
+        self.electron_max_dz = 0.5
 
         # jet selection cuts
         self.jet_jetId = "tightLepVeto"  # can be "tightLepVeto" or "tight": https://twiki.cern.ch/twiki/bin/view/CMS/JetID13p6TeV#nanoAOD_Flags
