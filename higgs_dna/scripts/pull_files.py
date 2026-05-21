@@ -648,26 +648,46 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
         to_prefix = os.path.join(resource_dir, "../higgs_dna/systematics/JSONs/bTagSF/")
 
     from_to_dict = {
-        # Run 2 UL (NanoAODv9)
+        # Run 2 UL (NanoAODv9 and NanoAODv15)
         "2016preVFP": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2016preVFP-UL-NanoAODv9/latest/btagging.json.gz",
             "to": f"{to_prefix}/2016preVFP_UL/btagging.json.gz",
             "type": "cvmfs",
+        },
+        "2016preVFP_v15": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagSF/UL2016preVFP-NanoAODv15/btagging.json.gz",
+            "to": f"{to_prefix}/2016preVFP_UL/btagging_v15.json.gz",
+            "type": "eos",
         },
         "2016postVFP": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2016postVFP-UL-NanoAODv9/latest/btagging.json.gz",
             "to": f"{to_prefix}/2016postVFP_UL/btagging.json.gz",
             "type": "cvmfs",
         },
+        "2016postVFP_v15": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagSF/UL2016postVFP-NanoAODv15/btagging.json.gz",
+            "to": f"{to_prefix}/2016postVFP_UL/btagging_v15.json.gz",
+            "type": "eos",
+        },
         "2017": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2017-UL-NanoAODv9/latest/btagging.json.gz",
             "to": f"{to_prefix}/2017_UL/btagging.json.gz",
             "type": "cvmfs",
         },
+        "2017_v15": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagSF/UL2017-NanoAODv15/btagging.json.gz",
+            "to": f"{to_prefix}/2017_UL/btagging_v15.json.gz",
+            "type": "eos",
+        },
         "2018": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2018-UL-NanoAODv9/latest/btagging.json.gz",
             "to": f"{to_prefix}/2018_UL/btagging.json.gz",
             "type": "cvmfs",
+        },
+        "2018_v15": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagSF/UL2018-NanoAODv15/btagging.json.gz",
+            "to": f"{to_prefix}/2018_UL/btagging_v15.json.gz",
+            "type": "eos",
         },
 
         # Run 3 (NanoAODv12)
@@ -1811,6 +1831,46 @@ def get_HHbbgg_DNN_bpairing_model(logger, target_dir, use_xrdcp=False):
     }
     fetch_file("HHbbgg_bpairing", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
+
+def get_HHbbgg_btag_eff_json(logger, target_dir, use_xrdcp=False):
+    if target_dir is not None:
+        to_prefix = target_dir
+    else:
+        to_prefix = os.path.join(
+            resource_dir, "../higgs_dna/systematics/JSONs/bTagEff/"
+        )
+
+    from_to_dict = {
+        # Using 2024_Summer24 bTag eff for all Run 2 years as a placeholder until run2 bTag effs are available
+        "bTag_eff_2016preVFP_v15": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "to": f"{to_prefix}/2016preVFP_UL/HHbbgg_v15.json.gz",
+            "type": "eos",
+        },
+        "bTag_eff_2016postVFP_v15": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "to": f"{to_prefix}/2016postVFP_UL/HHbbgg_v15.json.gz",
+            "type": "eos",
+        },
+        "bTag_eff_2017_v15": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "to": f"{to_prefix}/2017_UL/HHbbgg_v15.json.gz",
+            "type": "eos",
+        },
+        "bTag_eff_2018_v15": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "to": f"{to_prefix}/2018_UL/HHbbgg_v15.json.gz",
+            "type": "eos",
+        },
+        "bTag_eff_2024": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "to": f"{to_prefix}/2024_Summer24/HHbbgg.json.gz",
+            "type": "eos",
+        },
+    }
+    fetch_file("HHbbgg_bTag_eff", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
+
+
 def get_HHbbgg_DNN_vbfpairing_model(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
@@ -2128,6 +2188,7 @@ def main():
             "HHbbgg_mbb_reg_model",
             "HHbbgg_weight_interference",
             "HHbbgg_bpairing",
+            "HHbbgg_bTag_eff",
             "HHbbgg_vbfpairing",
             "MuonScaRe",
             "PhotonIDMVAShape",
@@ -2198,6 +2259,7 @@ def main():
         get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_muon_scale_smearing(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_HHbbgg_DNN_bpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+        get_HHbbgg_btag_eff_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_HHbbgg_DNN_vbfpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_photonid_mva_shape_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
         get_trigger_json_lowmass(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
@@ -2272,6 +2334,8 @@ def main():
         get_HHbbgg_weight_interference_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "HHbbgg_bpairing":
         get_HHbbgg_DNN_bpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
+    elif args.target == "HHbbgg_bTag_eff":
+        get_HHbbgg_btag_eff_json(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "HHbbgg_vbfpairing":
         get_HHbbgg_DNN_vbfpairing_model(logger, args.target_dir, use_xrdcp=args.use_xrdcp)
     elif args.target == "PhotonIDMVAShape":

@@ -88,6 +88,11 @@ def update_json_config(keyword, year):
             # Remove bTag SF correction for now as we don't have SFs
             if any("PNet_bTagShapeSF" == corr for corr in config["corrections"][keyword]):
                 config["corrections"][keyword].remove("PNet_bTagShapeSF")
+                # Add multi fixed WP bTag SFs for 2024 and Run2
+                if "2024" in year:
+                    config["corrections"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT")
+                if any(x in year for x in ("2018", "2017", "2016")):
+                    config["corrections"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT_Run2_v15")
             if any(x in year for x in ("2018", "2017", "2016")):
                 if any("Smearing2G_IJazZ" == corr for corr in config["corrections"][keyword]):
                     config["corrections"][keyword].remove("Smearing2G_IJazZ")
@@ -98,6 +103,10 @@ def update_json_config(keyword, year):
         if any(x in year for x in ("2024", "2018", "2017", "2016")):
             if any("PNet_bTagShapeSF" == syst for syst in config["systematics"][keyword]):
                 config["systematics"][keyword].remove("PNet_bTagShapeSF")
+                if "2024" in year:
+                    config["systematics"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT")
+                if any(x in year for x in ("2018", "2017", "2016")):
+                    config["systematics"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT_Run2_v15")
     new_filename = f"runner_mc_{year}_{keyword}.json"
     with open(new_filename, "w") as f:
         json.dump(config, f, indent=4)

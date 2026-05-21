@@ -919,6 +919,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                     dijet_DNNpair_Score = choose_jet(dijets.DNNpair_Score, 0, -999.0)
                     diphotons[f"{AnType}_dijet_DNNpair_Score"] = dijet_DNNpair_Score
 
+                events[f"{AnType}_dijet_first_pair"] = ak.concatenate([ak.firsts(dijets["first_jet"])[:, None], ak.firsts(dijets["second_jet"])[:, None],], axis=1)
                 lead_bjet_pt = choose_jet(dijets["first_jet"].pt, 0, -999.0)
                 lead_bjet_eta = choose_jet(dijets["first_jet"].eta, 0, -999.0)
                 lead_bjet_phi = choose_jet(dijets["first_jet"].phi, 0, -999.0)
@@ -1478,9 +1479,12 @@ class HHbbggProcessor(HggSkeletonProcessor):
                             # adding muons and electrons because I don't want to introduce a naming obligation like e.g. "sel_muons" in the syst functions
                             muons=events["sel_muons"][selection_mask],
                             electrons=events["sel_electrons"][selection_mask],
+                            jets=events["nonResReg_vbfpair_dijet_first_pair"][selection_mask],
                             weights=event_weights,
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
+                            bTagEffFileName="HHbbgg",
+                            btagEffDatasetName="GluGlutoHH_kl-1p00_kt-1p00_c2-0p00",
                         )
                 if "2024" not in self.year[dataset_name][0]:
                     diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
@@ -1539,9 +1543,12 @@ class HHbbggProcessor(HggSkeletonProcessor):
                                     # adding muons and electrons because I don't want to introduce a naming obligation like e.g. "sel_muons" in the syst functions
                                     muons=events["sel_muons"][selection_mask],
                                     electrons=events["sel_electrons"][selection_mask],
+                                    jets=events["nonResReg_vbfpair_dijet_first_pair"][selection_mask],
                                     weights=event_weights,
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],
+                                    bTagEffFileName="HHbbgg",
+                                    btagEffDatasetName="GluGlutoHH_kl-1p00_kt-1p00_c2-0p00",
                                 )
 
                 diphotons["weight"] = event_weights.weight()

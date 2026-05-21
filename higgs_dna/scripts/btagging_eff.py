@@ -141,6 +141,7 @@ def main():
         "postBPix": "2023_Summer23BPix",
         "2023preBPix": "2023_Summer23",
         "2023postBPix": "2023_Summer23BPix",
+        "2024": "2024_Summer24",
     }
 
     pt_bin_edges = [20, 30, 50, 70, 100, 140, 200, 300, 600, 1000]
@@ -150,103 +151,149 @@ def main():
         for current_folder in separated_procs_eras_dict[current_era]:
             current_proc_long = current_folder.split("/")[-1]
             filepaths = glob.glob(os.path.join(current_folder, "nominal", "*.pkl"))
-            genBJet_recoBJet = []
-            genBJet_recoJet = []
-            genCJet_recoBJet = []
-            genCJet_recoJet = []
-            genLJet_recoBJet = []
-            genLJet_recoJet = []
+            genBJet_recoBJet = defaultdict(list)
+            genBJet_recoJet  = defaultdict(list)
+            genCJet_recoBJet = defaultdict(list)
+            genCJet_recoJet  = defaultdict(list)
+            genLJet_recoBJet = defaultdict(list)
+            genLJet_recoJet  = defaultdict(list)
 
             # Adding all the lists
             for current_file in filepaths:
                 with open(current_file, 'rb') as pickle_file:
                     data = pickle.load(pickle_file)
-                genBJet_recoBJet += list(data["genBJet_recoBJet"])
-                genBJet_recoJet += list(data["genBJet_recoJet"])
-                genCJet_recoBJet += list(data["genCJet_recoBJet"])
-                genCJet_recoJet += list(data["genCJet_recoJet"])
-                genLJet_recoBJet += list(data["genLJet_recoBJet"])
-                genLJet_recoJet += list(data["genLJet_recoJet"])
+                
+                wps = sorted({key.split("_")[-1] for key in data if key.startswith("genBJet_recoBJet_")})
 
-            genBJet_recoBJet_histo, _ = np.histogram(genBJet_recoBJet, bins=pt_bin_edges)
-            genBJet_recoJet_histo, _ = np.histogram(genBJet_recoJet, bins=pt_bin_edges)
+                if len(wps) == 0:
+                    wps = [None]
 
-            genCJet_recoBJet_histo, _ = np.histogram(genCJet_recoBJet, bins=pt_bin_edges)
-            genCJet_recoJet_histo, _ = np.histogram(genCJet_recoJet, bins=pt_bin_edges)
+                for wp in wps:
+                    suffix = "" if wp is None else f"_{wp}"
 
-            genLJet_recoBJet_histo, _ = np.histogram(genLJet_recoBJet, bins=pt_bin_edges)
-            genLJet_recoJet_histo, _ = np.histogram(genLJet_recoJet, bins=pt_bin_edges)
+                    genBJet_recoBJet[wp] += list(data[f"genBJet_recoBJet{suffix}"])
+                    genBJet_recoJet[wp]  += list(data[f"genBJet_recoJet{suffix}"])
+                    genCJet_recoBJet[wp] += list(data[f"genCJet_recoBJet{suffix}"])
+                    genCJet_recoJet[wp]  += list(data[f"genCJet_recoJet{suffix}"])
+                    genLJet_recoBJet[wp] += list(data[f"genLJet_recoBJet{suffix}"])
+                    genLJet_recoJet[wp]  += list(data[f"genLJet_recoJet{suffix}"])
 
-            genBJet_bEfficiency = []
-            genCJet_bEfficiency = []
-            genLJet_bEfficiency = []
+            all_efficiencies[current_proc_long] = {}
+            for wp in genBJet_recoBJet.keys():
+                genBJet_recoBJet_histo, _ = np.histogram(genBJet_recoBJet[wp], bins=pt_bin_edges)
+                genBJet_recoJet_histo,  _ = np.histogram(genBJet_recoJet[wp],  bins=pt_bin_edges)
 
-            for i in range(0, len(genBJet_recoJet_histo)):
-                if genBJet_recoJet_histo[i] == 0:
-                    genBJet_bEfficiency.append(0)
-                else:
-                    genBJet_bEfficiency.append(genBJet_recoBJet_histo[i] / genBJet_recoJet_histo[i])
-                if genCJet_recoJet_histo[i] == 0:
-                    genCJet_bEfficiency.append(0)
-                else:
-                    genCJet_bEfficiency.append(genCJet_recoBJet_histo[i] / genCJet_recoJet_histo[i])
-                if genLJet_recoJet_histo[i] == 0:
-                    genLJet_bEfficiency.append(0)
-                else:
-                    genLJet_bEfficiency.append(genLJet_recoBJet_histo[i] / genLJet_recoJet_histo[i])
+                genCJet_recoBJet_histo, _ = np.histogram(genCJet_recoBJet[wp], bins=pt_bin_edges)
+                genCJet_recoJet_histo, _ = np.histogram(genCJet_recoJet[wp], bins=pt_bin_edges)
 
-            genBJet_bEfficiency_uncert = []
-            genCJet_bEfficiency_uncert = []
-            genLJet_bEfficiency_uncert = []
+                genLJet_recoBJet_histo, _ = np.histogram(genLJet_recoBJet[wp], bins=pt_bin_edges)
+                genLJet_recoJet_histo, _ = np.histogram(genLJet_recoJet[wp], bins=pt_bin_edges)
 
-            for i in range(0, len(genBJet_recoJet_histo)):
-                if genBJet_recoJet_histo[i] == 0:
-                    genBJet_bEfficiency_uncert.append(0)
-                else:
-                    genBJet_bEfficiency_uncert.append(np.sqrt((genBJet_bEfficiency[i] * (1 - genBJet_bEfficiency[i])) / genBJet_recoJet_histo[i]))
-                if genCJet_recoJet_histo[i] == 0:
-                    genCJet_bEfficiency_uncert.append(0)
-                else:
-                    genCJet_bEfficiency_uncert.append(np.sqrt((genCJet_bEfficiency[i] * (1 - genCJet_bEfficiency[i])) / genCJet_recoJet_histo[i]))
-                if genLJet_recoJet_histo[i] == 0:
-                    genLJet_bEfficiency_uncert.append(0)
-                else:
-                    genLJet_bEfficiency_uncert.append(np.sqrt((genLJet_bEfficiency[i] * (1 - genLJet_bEfficiency[i])) / genLJet_recoJet_histo[i]))
+                genBJet_bEfficiency = []
+                genCJet_bEfficiency = []
+                genLJet_bEfficiency = []
 
-            efficiencies = {
-                5: genBJet_bEfficiency,
-                4: genCJet_bEfficiency,
-                0: genLJet_bEfficiency
-            }
+                for i in range(0, len(genBJet_recoJet_histo)):
+                    if genBJet_recoJet_histo[i] == 0:
+                        genBJet_bEfficiency.append(0)
+                    else:
+                        genBJet_bEfficiency.append(genBJet_recoBJet_histo[i] / genBJet_recoJet_histo[i])
+                    if genCJet_recoJet_histo[i] == 0:
+                        genCJet_bEfficiency.append(0)
+                    else:
+                        genCJet_bEfficiency.append(genCJet_recoBJet_histo[i] / genCJet_recoJet_histo[i])
+                    if genLJet_recoJet_histo[i] == 0:
+                        genLJet_bEfficiency.append(0)
+                    else:
+                        genLJet_bEfficiency.append(genLJet_recoBJet_histo[i] / genLJet_recoJet_histo[i])
 
-            all_efficiencies[current_proc_long] = efficiencies
+                genBJet_bEfficiency_uncert = []
+                genCJet_bEfficiency_uncert = []
+                genLJet_bEfficiency_uncert = []
+
+                for i in range(0, len(genBJet_recoJet_histo)):
+                    if genBJet_recoJet_histo[i] == 0:
+                        genBJet_bEfficiency_uncert.append(0)
+                    else:
+                        genBJet_bEfficiency_uncert.append(np.sqrt((genBJet_bEfficiency[i] * (1 - genBJet_bEfficiency[i])) / genBJet_recoJet_histo[i]))
+                    if genCJet_recoJet_histo[i] == 0:
+                        genCJet_bEfficiency_uncert.append(0)
+                    else:
+                        genCJet_bEfficiency_uncert.append(np.sqrt((genCJet_bEfficiency[i] * (1 - genCJet_bEfficiency[i])) / genCJet_recoJet_histo[i]))
+                    if genLJet_recoJet_histo[i] == 0:
+                        genLJet_bEfficiency_uncert.append(0)
+                    else:
+                        genLJet_bEfficiency_uncert.append(np.sqrt((genLJet_bEfficiency[i] * (1 - genLJet_bEfficiency[i])) / genLJet_recoJet_histo[i]))
+
+                efficiencies = {
+                    5: genBJet_bEfficiency,
+                    4: genCJet_bEfficiency,
+                    0: genLJet_bEfficiency
+                }
+
+                all_efficiencies[current_proc_long][wp] = efficiencies
 
         # Creation of the correctionlib file
-        process_corrections = [
-            {"key": process, "value": cs.Category(
-                nodetype="category",
-                input="hadronFlavour",
-                content=create_hadron_flavour_correction(hadron_data, pt_bin_edges),
-            )}
-            for process, hadron_data in all_efficiencies.items()
-        ]
-
-        btagging_efficiencies = cs.Correction(
-            name="btagging_efficiencies",
-            description="Correction that contains the b-tagging efficiencies as a function of the proces, the jet hadron flavour and the transverse momentum.",
-            version=1,
-            inputs=[
-                cs.Variable(name="process", type="string", description="Simulation process"),
-                cs.Variable(name="hadronFlavour", type="int", description="Jet hadron flavour"),
-                cs.Variable(name="pt", type="real", description="Jet transverse momentum"),
-            ],
-            output=cs.Variable(name="efficiency", type="real", description="B-tagging efficiency"),
-            data=cs.Category(
-                nodetype="category",
-                input="process",
-                content=process_corrections,
-            ),
-        )
+        wps_present = set()
+        for proc in all_efficiencies.values():
+            wps_present |= set(proc.keys())
+        
+        if wps_present == {None}:
+            process_corrections = [
+                {"key": process, "value": cs.Category(
+                    nodetype="category",
+                    input="hadronFlavour",
+                    content=create_hadron_flavour_correction(hadron_data[None], pt_bin_edges),
+                )}
+                for process, hadron_data in all_efficiencies.items()
+            ]
+            btagging_efficiencies = cs.Correction(
+                name="btagging_efficiencies",
+                description="Correction that contains the b-tagging efficiencies as a function of the proces, the jet hadron flavour and the transverse momentum.",
+                version=1,
+                inputs=[
+                    cs.Variable(name="process", type="string", description="Simulation process"),
+                    cs.Variable(name="hadronFlavour", type="int", description="Jet hadron flavour"),
+                    cs.Variable(name="pt", type="real", description="Jet transverse momentum"),
+                ],
+                output=cs.Variable(name="efficiency", type="real", description="B-tagging efficiency"),
+                data=cs.Category(
+                    nodetype="category",
+                    input="process",
+                    content=process_corrections,
+                ),
+            )
+        else:
+            process_corrections = [
+                {"key": process, "value": cs.Category(
+                    nodetype="category",
+                    input="wp",
+                    content=[{"key": wp, "value": cs.Category(
+                                nodetype="category",
+                                input="hadronFlavour",
+                                content=create_hadron_flavour_correction(wp_data, pt_bin_edges),
+                            )} 
+                            for wp, wp_data in hadron_data.items() if wp is not None],
+                )}
+                for process, hadron_data in all_efficiencies.items()
+            ]
+            btagging_efficiencies = cs.Correction(
+                name="btagging_efficiencies",
+                description="Correction that contains the b-tagging efficiencies as a function of the proces, the jet hadron flavour and the transverse momentum.",
+                version=1,
+                inputs=[
+                    cs.Variable(name="process", type="string", description="Simulation process"),
+                    cs.Variable(name="wp", type="string", description="B-tagging working point"),
+                    cs.Variable(name="hadronFlavour", type="int", description="Jet hadron flavour"),
+                    cs.Variable(name="pt", type="real", description="Jet transverse momentum"),
+                ],
+                output=cs.Variable(name="efficiency", type="real", description="B-tagging efficiency"),
+                data=cs.Category(
+                    nodetype="category",
+                    input="process",
+                    content=process_corrections,
+                ),
+            )
 
         cset = correctionlib.schemav2.CorrectionSet(
             schema_version=2,
