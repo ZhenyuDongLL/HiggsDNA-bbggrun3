@@ -35,7 +35,7 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
         else:
             print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix, 2024")
             sys.exit(1)
-        df["sigma_m_over_m"] = events.sigma_m_over_m.to_numpy()
+        df["sigma_m_over_m"] = events.sigma_m_over_m.to_numpy(allow_missing=False)
 
     elif type == "smeared":
         if year == "2022postEE":
@@ -51,7 +51,7 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
         else:
             print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix, 2024")
             sys.exit(1)
-        df["sigma_m_over_m"] = events.sigma_m_over_m_Smeared.to_numpy()
+        df["sigma_m_over_m"] = events.sigma_m_over_m_Smeared.to_numpy(allow_missing=False)
 
     elif type == "corr":
         if year == "2022postEE":
@@ -67,7 +67,7 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
         else:
             print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix, 2024")
             sys.exit(1)
-        df["sigma_m_over_m"] = events.sigma_m_over_m_corr.to_numpy()
+        df["sigma_m_over_m"] = events.sigma_m_over_m_corr.to_numpy(allow_missing=False)
 
     elif type == "corr_smeared":
         if not IsSAS_ET_Dependent:
@@ -90,15 +90,15 @@ def decorrelate_mass_resolution(events: ak.Array, type: str, year, IsSAS_ET_Depe
         else:
             print("Specify a valid era: 2022postEE, 2022preEE, 2023postBPix, 2023preBPix, 2024")
             sys.exit(1)
-        df["sigma_m_over_m"] = events.sigma_m_over_m_Smeared_corr.to_numpy()
+        df["sigma_m_over_m"] = events.sigma_m_over_m_Smeared_corr.to_numpy(allow_missing=False)
 
     else:
         print("Specify a valid type: nominal,smeared,corr,corr_smeared")
         sys.exit(1)
 
     # Reading directly the smeared sigma_m_over_m
-    df["mass"] = events.mass.to_numpy()
-    df["weight"] = events.weight.to_numpy()
+    df["mass"] = events.mass.to_numpy(allow_missing=False)
+    df["weight"] = events.weight.to_numpy(allow_missing=False)
 
     decl.df = df.loc[:, [var, dVar]]
     decl.df.reset_index(inplace=True)
