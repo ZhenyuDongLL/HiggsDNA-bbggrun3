@@ -247,10 +247,12 @@ class STXSProcessor(HggSkeletonProcessor):
             # Add sum of gen weights before selection for each HTXS.stage_1_2 bin
             base_dict = {
                 "HTXS_stage1_2_cat_pTjet30GeV": events.HTXS.stage1_2_cat_pTjet30GeV.to_numpy(),
+                "HTXS_stage1_2_fine_cat_pTjet30GeV": events.HTXS.stage1_2_fine_cat_pTjet30GeV.to_numpy(),
                 "genWeight": events.genWeight.to_numpy(),
             }
 
             unique_htxs_categories = numpy.unique(base_dict["HTXS_stage1_2_cat_pTjet30GeV"])
+            unique_htxs_fine_categories = numpy.unique(base_dict["HTXS_stage1_2_fine_cat_pTjet30GeV"])
 
             # Check if LHE scale and pdf weights are present
             has_lhe_scale = hasattr(events, "LHEScaleWeight")
@@ -284,13 +286,17 @@ class STXSProcessor(HggSkeletonProcessor):
 
             accum_df = pd.DataFrame(accum_dict, copy=False)
             accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum().reindex(unique_htxs_categories, fill_value=0)
+            accum_fine_sums = accum_df.groupby("HTXS_stage1_2_fine_cat_pTjet30GeV").sum().reindex(unique_htxs_fine_categories, fill_value=0)
 
             custom_accumulator = {}
             custom_accumulator["sum_genw_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+            custom_accumulator["sum_genw_presel_HTXS_stage1_2_fine_cat_pTjet30GeV"] = {}
             if has_lhe_scale:
                 custom_accumulator["sum_lhescalew_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                custom_accumulator["sum_lhescalew_presel_HTXS_stage1_2_fine_cat_pTjet30GeV"] = {}
             if has_lhe_pdf:
                 custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_fine_cat_pTjet30GeV"] = {}
 
             for bin_val in accum_sums.index:
                 custom_accumulator["sum_genw_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = accum_sums["genWeight"][bin_val]
@@ -304,6 +310,21 @@ class STXSProcessor(HggSkeletonProcessor):
                 if has_lhe_pdf:
                     custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = {
                         f"LHEPdfWeight_{i}": accum_sums[f"LHEPdfWeight_{i}"][bin_val]
+                        for i in range(n_lhe_pdf_weights)
+                    }
+
+            for bin_val in accum_fine_sums.index:
+                custom_accumulator["sum_genw_presel_HTXS_stage1_2_fine_cat_pTjet30GeV"][bin_val] = accum_fine_sums["genWeight"][bin_val]
+
+                if has_lhe_scale:
+                    custom_accumulator["sum_lhescalew_presel_HTXS_stage1_2_fine_cat_pTjet30GeV"][bin_val] = {
+                        f"LHEScaleWeight_{i}": accum_fine_sums[f"LHEScaleWeight_{i}"][bin_val]
+                        for i in range(n_lhe_scale_weights)
+                    }
+
+                if has_lhe_pdf:
+                    custom_accumulator["sum_lhepdfw_presel_HTXS_stage1_2_fine_cat_pTjet30GeV"][bin_val] = {
+                        f"LHEPdfWeight_{i}": accum_fine_sums[f"LHEPdfWeight_{i}"][bin_val]
                         for i in range(n_lhe_pdf_weights)
                     }
 
@@ -951,6 +972,7 @@ class STXSProcessor(HggSkeletonProcessor):
                 # Preparation for HTXS measurements later, start with stage 0 to disentangle VH into WH and ZH for final fits
                 diphotons["HTXS_stage_0"] = events.HTXS.stage_0
                 diphotons["HTXS_stage1_2_cat_pTjet30GeV"] = events.HTXS.stage1_2_cat_pTjet30GeV
+                diphotons["HTXS_stage1_2_fine_cat_pTjet30GeV"] = events.HTXS.stage1_2_fine_cat_pTjet30GeV
             # Fill zeros for data because there is no GenVtx for data, obviously
             else:
                 diphotons["dZ"] = ak.zeros_like(events.PV.z)
@@ -1063,6 +1085,7 @@ class STXSProcessor(HggSkeletonProcessor):
 
                 base_dict = {
                     "HTXS_stage1_2_cat_pTjet30GeV": events.HTXS.stage1_2_cat_pTjet30GeV[selection_mask].to_numpy(),
+                    "HTXS_stage1_2_fine_cat_pTjet30GeV": events.HTXS.stage1_2_fine_cat_pTjet30GeV[selection_mask].to_numpy(),
                     "genWeight": events.genWeight[selection_mask].to_numpy(),
                 }
 
@@ -1088,12 +1111,16 @@ class STXSProcessor(HggSkeletonProcessor):
 
                 accum_df = pd.DataFrame(accum_dict, copy=False)
                 accum_sums = accum_df.groupby("HTXS_stage1_2_cat_pTjet30GeV").sum().reindex(unique_htxs_categories, fill_value=0)
+                accum_fine_sums = accum_df.groupby("HTXS_stage1_2_fine_cat_pTjet30GeV").sum().reindex(unique_htxs_fine_categories, fill_value=0)
 
                 custom_accumulator["sum_genw_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                custom_accumulator["sum_genw_postsel_HTXS_stage1_2_fine_cat_pTjet30GeV"] = {}
                 if has_lhe_scale:
                     custom_accumulator["sum_lhescalew_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                    custom_accumulator["sum_lhescalew_postsel_HTXS_stage1_2_fine_cat_pTjet30GeV"] = {}
                 if has_lhe_pdf:
                     custom_accumulator["sum_lhepdfw_postsel_HTXS_stage1_2_cat_pTjet30GeV"] = {}
+                    custom_accumulator["sum_lhepdfw_postsel_HTXS_stage1_2_fine_cat_pTjet30GeV"] = {}
 
                 for bin_val in accum_sums.index:
                     custom_accumulator["sum_genw_postsel_HTXS_stage1_2_cat_pTjet30GeV"][bin_val] = accum_sums["genWeight"][bin_val]
@@ -1110,7 +1137,22 @@ class STXSProcessor(HggSkeletonProcessor):
                             for i in range(n_lhe_pdf_weights)
                         }
 
-                del base_dict, lhescale_dict, lhepdf_dict, accum_df, accum_sums
+                for bin_val in accum_fine_sums.index:
+                    custom_accumulator["sum_genw_postsel_HTXS_stage1_2_fine_cat_pTjet30GeV"][bin_val] = accum_fine_sums["genWeight"][bin_val]
+
+                    if has_lhe_scale:
+                        custom_accumulator["sum_lhescalew_postsel_HTXS_stage1_2_fine_cat_pTjet30GeV"][bin_val] = {
+                            f"LHEScaleWeight_{i}": accum_fine_sums[f"LHEScaleWeight_{i}"][bin_val]
+                            for i in range(n_lhe_scale_weights)
+                        }
+
+                    if has_lhe_pdf:
+                        custom_accumulator["sum_lhepdfw_postsel_HTXS_stage1_2_fine_cat_pTjet30GeV"][bin_val] = {
+                            f"LHEPdfWeight_{i}": accum_fine_sums[f"LHEPdfWeight_{i}"][bin_val]
+                            for i in range(n_lhe_pdf_weights)
+                        }
+
+                del base_dict, lhescale_dict, lhepdf_dict, accum_df, accum_sums, accum_fine_sums
                 if has_lhe_scale:
                     del lhescaleweight
                 if has_lhe_pdf:
