@@ -110,10 +110,14 @@ def infer_year_from_era(era):
             return year
     return None
 
+def _fl(d):
+    """Convert dict values to plain Python floats for clean output."""
+    return [float(v) for v in d.values()]
 
 
 available_processes = ['ggH', 'VBFH', 'VH', 'ttH', 'all', 'xH']
 available_mass_points = ['120', '125', '130']
+available_scale_weight_indices = [0, 1, 3, 5, 7, 8]
 available_fid_selections = ['fiducialGeometricFlag', 'fiducialClassicalFlag']
 available_years = ['2022', '2023', '2024']
 available_eras = ['2022preEE', '2022postEE', '2023preBPix', '2023postBPix', '2024', 'all']
@@ -124,6 +128,7 @@ parser = argparse.ArgumentParser(description = "Calculate the inclusive fiducial
 parser.add_argument('path', type = str, help = "Path to the top-level folder containing the different directories. Please only run this on the output of the ParticleLevelProcessor.")
 parser.add_argument('--process', type = str, choices = available_processes, default = 'ggH', help = "Please specify the process(es) for which you want to calculate the inclusive fiducial xsec.")
 parser.add_argument('--mass-points', nargs='+', choices = available_mass_points, default = available_mass_points, help = "Please specify the mass points to run over. If only one single mass point of 125 is specified: No interpolation is performed.")
+parser.add_argument('--scale-weight-indices', nargs='+', type=int, choices = available_scale_weight_indices, default = available_scale_weight_indices, help = "Please specify the scale weight indices to run over. Default: [0,1,3,5,7,8]")
 parser.add_argument('--fid-selection', type = str, choices = available_fid_selections, default = 'fiducialGeometricFlag', help = "Please specify the fiducial selection flag to use.")
 parser.add_argument('--year', nargs='+', choices = available_year_choices, default = ['2022'], help = "Please specify one or more years to process, or 'all' to process every available year.")
 parser.add_argument('--era', type = str, choices = available_eras, default = '2022postEE', help = "Please specify the era(s) that you want to run over. If you specify 'all', an inverse variance weighting is performed across the selected years.")
@@ -257,7 +262,7 @@ mass_points = args.mass_points # The fiducial acceptance is interpolated to 125.
 # For POWHEG only the 125 GeV sample is available, so all requested mass points
 # are redirected to the same input directory.
 mass_powheg = {120:125, 125:125, 130:125}
-scale_weight_indices = [0, 1, 3, 5, 7, 8]
+scale_weight_indices = args.scale_weight_indices
 pdf_weight_indices = list(range(1, 101))
 alpha_weight_map = {'alpha_up': 101, 'alpha_dn': 102}
 alpha_keys = list(alpha_weight_map.keys())
@@ -686,10 +691,8 @@ if output_obs.startswith("Gen"):
 output = 'fidXS_'+output_obs+'_'+args.process
 if args.powheg: output += '_powheg'
 if args.weight != "weight": output += '_'+args.weight
-
-def _fl(d):
-    """Convert dict values to plain Python floats for clean output."""
-    return [float(v) for v in d.values()]
+if len(scale_weight_indices) != len(available_scale_weight_indices):
+    output += '_scale'+"".join([str(scale_weight_index) for scale_weight_index in scale_weight_indices])
 
 # Write a compact Python file that can be imported directly by downstream plots.
 with open(output+'.py', 'w') as f:
