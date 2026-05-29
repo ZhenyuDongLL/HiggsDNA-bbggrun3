@@ -19,12 +19,14 @@ def run_analysis(nano_version, parent_dir, keyword, year, memory):
     memoryLine = f"--memory {memory} " if memory is not None else ""
     smear = ""
     deco = ""
-    doflow = ""
+    doflow = "--doFlow-corrections "
     triggerGroup = ""
     if not any(y in year for y in ["2016", "2017", "2018"]):
         smear = "--Smear-sigma-m "
         deco = "--doDeco "
-        doflow = "--doFlow-corrections "
+    if "2025" in year:
+        smear = ""
+        deco = ""
     if year == "2018":
         triggerGroup = '--triggerGroup ".*EGamma.*2018.*" '
     command = (
@@ -48,11 +50,20 @@ def run_analysis(nano_version, parent_dir, keyword, year, memory):
     os.system(command)
 
 
-def update_json_config(keyword, year):
-    # Using the preliminary JSON - to be updated for final results
-    with open("submission/tools_HHbbgg/prelim_runner_mc_template.json", "r") as f:
+def update_json_config(keyword, year, split_mc=False):
+    # Using the preliminary JSON except for 2024 - to be updated for final results
+    if "2024" in year:
+        json_path = "submission/tools_HHbbgg/runner_mc_template.json"
+    else:
+        json_path = "submission/tools_HHbbgg/prelim_runner_mc_template.json"
+    with open(json_path, "r") as f:
         config = json.load(f)
     config["samplejson"] = f"samples_mc_{year}_{keyword}.json"
+    if "split_mc" in config:
+        if ("2024" in year) or ("2025" in year):
+            config["split_mc"] = True  # Enable MC splitting for 2024 and 2025
+        else:
+            config["split_mc"] = False
     if "year" in config:
         config["year"].pop("GluGluToHH", None)
         config["year"][keyword] = [f"{year}"]
@@ -71,28 +82,32 @@ def update_json_config(keyword, year):
         config["corrections"][keyword] = config["corrections"].pop("GluGluToHH", [])
         if "GluGluHtoGG" in keyword:
             config["corrections"][keyword].append("NNLOPS")
-        if any(x in year for x in ("2024", "2018", "2017", "2016")):
+        if "2025" in year:
+            config["corrections"][keyword].remove("ElectronVetoSF")
+        if any(x in year for x in ("2024", "2025", "2018", "2017", "2016")):
             if any("jet" in corr for corr in config["corrections"][keyword]):
                 jerc_idxs = [
                     idx for idx, corr in enumerate(config["corrections"][keyword])
                     if "jet" in corr
                 ]
                 for jerc_idx in jerc_idxs:
-                    # Remove '_syst' from jerc as we don't have for 2024/2025/Run2 yet
-                    run2_years = ["2016", "2017", "2018", "2024"]
+                    # Remove '_syst' from jerc as we don't have for 2025/Run2 yet
+                    run2_years = ["2016", "2017", "2018"]
                     if any(x in year for x in run2_years):
-                        config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("_pnetNu_syst", "_Run2_v15")
-                        config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("_syst","_Run2_v15")
-                    else:
+                        config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("_pnetNu_syst", "_pnetNu_Run2_v15")
+                        config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("fatjet_syst","fatjet_Run2_v15")
+                    elif any(x in year for x in ["2025"]):
                         config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("_syst", "")
             # Remove bTag SF correction for now as we don't have SFs
             if any("PNet_bTagShapeSF" == corr for corr in config["corrections"][keyword]):
                 config["corrections"][keyword].remove("PNet_bTagShapeSF")
                 # Add multi fixed WP bTag SFs for 2024 and Run2
-                if "2024" in year:
+                if any(x in year for x in ("2024")):
                     config["corrections"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT")
                 if any(x in year for x in ("2018", "2017", "2016")):
                     config["corrections"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT_Run2_v15")
+                if any(x in year for x in ("2022", "2023")):
+                    config["corrections"][keyword].append("bTagMultiFixedWP_PNetAK4LMTXTXXT")
             if any(x in year for x in ("2018", "2017", "2016")):
                 if any("Smearing2G_IJazZ" == corr for corr in config["corrections"][keyword]):
                     config["corrections"][keyword].remove("Smearing2G_IJazZ")
@@ -100,13 +115,15 @@ def update_json_config(keyword, year):
                 config["corrections"][keyword].append("L1PreFiring")
     if "systematics" in config:
         config["systematics"][keyword] = config["systematics"].pop("GluGluToHH", [])
-        if any(x in year for x in ("2024", "2018", "2017", "2016")):
+        if any(x in year for x in ("2024", "2025", "2018", "2017", "2016")):
             if any("PNet_bTagShapeSF" == syst for syst in config["systematics"][keyword]):
                 config["systematics"][keyword].remove("PNet_bTagShapeSF")
-                if "2024" in year:
+                if any(x in year for x in ("2024")):
                     config["systematics"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT")
                 if any(x in year for x in ("2018", "2017", "2016")):
                     config["systematics"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT_Run2_v15")
+                if any(x in year for x in ("2024")):
+                    config["systematics"][keyword].append("bTagMultiFixedWP_PNetAK4LMTXTXXT")
     new_filename = f"runner_mc_{year}_{keyword}.json"
     with open(new_filename, "w") as f:
         json.dump(config, f, indent=4)
@@ -119,9 +136,10 @@ def main():
     parser.add_argument("-k", "--keyword", required=True, help="Keyword for dataset filtering")
     parser.add_argument("-c", "--cmsdas", required=True, help="Keyword for cmsdas filtering")
     parser.add_argument("-p", "--parent-dir", required=True, help="Directory to store output parquets")
-    parser.add_argument("-y", "--year", required=True, choices=["2022postEE","2022preEE","2023postBPix","2023preBPix", "2024", "2018","2017","2016preVFP","2016postVFP"], help="year")
+    parser.add_argument("-y", "--year", required=True, choices=["2022postEE","2022preEE","2023postBPix","2023preBPix", "2024", "2025", "2018", "2017","2016preVFP","2016postVFP"], help="year")
     parser.add_argument("-n", "--nano", required=True, help="nano-version")
     parser.add_argument("-m", "--memory", help="condor job memory")
+    parser.add_argument("-s", "--split-mc", action="store_true", help="Enable MC splitting by event ID (even for 2024, odd for 2025)")
     parser.add_argument(
         "-w",
         "--where",
@@ -147,7 +165,7 @@ def main():
     fetch_datasets(sample_file, dbs_instance=args.instance, region=args.where)
 
     # Update and save JSON configuration
-    update_json_config(args.keyword, args.year)
+    update_json_config(args.keyword, args.year, split_mc=args.split_mc)
 
     # Launch jobs
     run_analysis(args.nano, args.parent_dir, args.keyword, args.year, args.memory)

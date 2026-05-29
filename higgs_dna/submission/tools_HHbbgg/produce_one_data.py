@@ -20,7 +20,7 @@ def validate_run_analysis(nano_version, parent_dir, keyword, year, memory):
     smear = ""
     deco = ""
     triggerGroup = ""
-    if not any(y in year for y in ["2016", "2017", "2018"]):
+    if not any(y in year for y in ["2016", "2017", "2018", "2025"]):
         smear = "--Smear-sigma-m "
         deco = "--doDeco "
     if year == "2018":
@@ -50,7 +50,7 @@ def run_analysis(nano_version, parent_dir, keyword, year, memory):
     smear = ""
     deco = ""
     triggerGroup = ""
-    if not any(y in year for y in ["2016", "2017", "2018"]):
+    if not any(y in year for y in ["2016", "2017", "2018", "2025"]):
         smear = "--Smear-sigma-m "
         deco = "--doDeco "
     if year == "2018":
@@ -97,18 +97,11 @@ def update_json_config(keyword, year):
         config["corrections"][keyword] = config["corrections"].pop("Run2023Cv1", [])
         config["corrections"][keyword] = ["Scale2G_IJazZ"]
         if "2022" in keyword:
-            config["corrections"][keyword].append("jec_pnetNu_Run" + keyword[7:])
-            config["corrections"][keyword].append("jec_AK8_Run" + keyword[7:])
+            config["corrections"][keyword].append("jec_pnetNu_Data2022")
+            config["corrections"][keyword].append("jec_AK8_Data2022")
         elif "2023" in keyword:
-            if "Cv4" in keyword:
-                config["corrections"][keyword].append("jec_pnetNu_RunCv4")
-                config["corrections"][keyword].append("jec_AK8_RunCv4")
-            elif "Dv" in keyword:
-                config["corrections"][keyword].append("jec_pnetNu_RunD")
-                config["corrections"][keyword].append("jec_AK8_RunD")
-            else:
-                config["corrections"][keyword].append("jec_pnetNu_RunCv123")
-                config["corrections"][keyword].append("jec_AK8_RunCv123")
+            config["corrections"][keyword].append("jec_pnetNu_Data2023")
+            config["corrections"][keyword].append("jec_AK8_Data2023")
         elif "2024" in keyword:
             config["corrections"][keyword].append("jec_pnetNu_Data2024")
             config["corrections"][keyword].append("jec_AK8_Data2024")
@@ -116,8 +109,15 @@ def update_json_config(keyword, year):
             config["corrections"][keyword].append("jec_pnetNu_Data2025")
             config["corrections"][keyword].append("jec_AK8_Data2025")
         elif "2018" or "2016" or "2017" in keyword:
-            config["corrections"][keyword].append("jec_Run2_v15_Run" + keyword[7])
-            config["corrections"][keyword].append("jec_AK8_Run2_v15_Run" + keyword[7])
+            if "2018" in keyword:
+                config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2018")
+                config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2018")
+            if "2017" in keyword:
+                config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2017")
+                config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2017")
+            if "2016" in keyword:
+                config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2016")
+                config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2016")
             config["corrections"][keyword].append("Scale_Trad")
             if any("Scale2G_IJazZ" == corr for corr in config["corrections"][keyword]):
                 config["corrections"][keyword].remove("Scale2G_IJazZ")

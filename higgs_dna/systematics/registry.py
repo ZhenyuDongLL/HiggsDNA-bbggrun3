@@ -378,6 +378,7 @@ weight_systematics = {
     "bTagFixedWP_UParTAK4ExtraExtraTight_Run2_v15": partial(bTagFixedWP, mva_name="UParTAK4", wp="XXT", is_correction=False, is_Run2_v15=True),
     "bTagMultiFixedWP_UParTAK4LMTXTXXT": partial(bTagMultiFixedWP, mva_name="UParTAK4", wps=["L", "M", "T", "XT", "XXT"], is_correction=False),
     "bTagMultiFixedWP_UParTAK4LMTXTXXT_Run2_v15": partial(bTagMultiFixedWP, mva_name="UParTAK4", wps=["L", "M", "T", "XT", "XXT"], is_correction=False, is_Run2_v15=True),
+    "bTagMultiFixedWP_PNetAK4LMTXTXXT": partial(bTagMultiFixedWP, mva_name="particleNet", wps=["L", "M", "T", "XT", "XXT"],is_correction=False),
     "ParT_bTagShapeSF": partial(bTagShapeSF, ShapeSF_name="robustParticleTransformer_shape", is_correction=False),
     "AlphaS": partial(AlphaS),
     "PartonShower": partial(PartonShower),
@@ -460,6 +461,7 @@ weight_corrections = {
     "bTagFixedWP_UParTAK4ExtraExtraTight_Run2_v15": partial(bTagFixedWP, mva_name="UParTAK4", wp="XXT", is_correction=True, is_Run2_v15=True),
     "bTagMultiFixedWP_UParTAK4LMTXTXXT": partial(bTagMultiFixedWP, mva_name="UParTAK4", wps=["L", "M", "T", "XT", "XXT"], is_correction=True),
     "bTagMultiFixedWP_UParTAK4LMTXTXXT_Run2_v15": partial(bTagMultiFixedWP, mva_name="UParTAK4", wps=["L", "M", "T", "XT", "XXT"], is_correction=True, is_Run2_v15=True),
+    "bTagMultiFixedWP_PNetAK4LMTXTXXT": partial(bTagMultiFixedWP, mva_name="particleNet", wps=["L", "M", "T", "XT", "XXT"],is_correction=True),
     "ParT_bTagShapeSF": partial(bTagShapeSF, ShapeSF_name="robustParticleTransformer_shape", is_correction=True),
     "NNLOPS": partial(NNLOPS, is_correction=True),  # backwards compatible
     "NNLOPS_amcatnlo": partial(NNLOPS, generator="mcatnlo", is_correction=True),

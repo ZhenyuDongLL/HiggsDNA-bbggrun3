@@ -201,19 +201,19 @@ def jerc_jet(
     jerc_json = {
         "2016preVFP": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2016preVFP_UL/" + jetType + "_jerc" + Run2_PUPPI_json + ".json.gz",
+            "../systematics/JSONs/POG/JME/2016preVFP_UL/" + jetType + "_jerc" + regFlag + Run2_PUPPI_json + ".json.gz",
         ),
         "2016postVFP": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2016postVFP_UL/" + jetType + "_jerc" + Run2_PUPPI_json + ".json.gz",
+            "../systematics/JSONs/POG/JME/2016postVFP_UL/" + jetType + "_jerc" + regFlag + Run2_PUPPI_json + ".json.gz",
         ),
         "2017": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2017_UL/" + jetType + "_jerc" + Run2_PUPPI_json + ".json.gz",
+            "../systematics/JSONs/POG/JME/2017_UL/" + jetType + "_jerc" + regFlag + Run2_PUPPI_json + ".json.gz",
         ),
         "2018": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2018_UL/" + jetType + "_jerc" + Run2_PUPPI_json + ".json.gz",
+            "../systematics/JSONs/POG/JME/2018_UL/" + jetType + "_jerc" + regFlag + Run2_PUPPI_json + ".json.gz",
         ),
         "2022preEE": os.path.join(
             os.path.dirname(__file__),
@@ -242,65 +242,62 @@ def jerc_jet(
     }
     jec_version = {
         "2016preVFP": {
-            "RunB": f"Summer{'20' if is_Run2_v15 else '19'}UL16APV_RunBCD_{'V1' if is_Run2_v15 else 'V7'}_DATA",
-            "RunC": f"Summer{'20' if is_Run2_v15 else '19'}UL16APV_RunBCD_{'V1' if is_Run2_v15 else 'V7'}_DATA",
-            "RunD": f"Summer{'20' if is_Run2_v15 else '19'}UL16APV_RunBCD_{'V1' if is_Run2_v15 else 'V7'}_DATA",
-            "RunE": f"Summer{'20' if is_Run2_v15 else '19'}UL16APV_RunEF_{'V1' if is_Run2_v15 else 'V7'}_DATA",
-            "RunF": f"Summer{'20' if is_Run2_v15 else '19'}UL16APV_RunEF_{'V1' if is_Run2_v15 else 'V7'}_DATA",
-            "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL16APV_{'V1' if is_Run2_v15 else 'V7'}_MC",
+            "RunB": "Summer19UL16APV_RunBCD_V7_DATA",
+            "RunC": "Summer19UL16APV_RunBCD_V7_DATA",
+            "RunD": "Summer19UL16APV_RunBCD_V7_DATA",
+            "RunE": "Summer19UL16APV_RunEF_V7_DATA",
+            "RunF": "Summer19UL16APV_RunEF_V7_DATA",
+            "Data": "Summer20UL16APVNanoV15_V1_DATA",
+            "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL16APV{'NanoV15' if is_Run2_v15 else ''}_{'V1' if is_Run2_v15 else 'V7'}_MC",
         },
         "2016postVFP": {
-            "RunF": f"Summer{'20' if is_Run2_v15 else '19'}UL16_RunFGH_{'V1' if is_Run2_v15 else 'V7'}_DATA",
-            "RunG": f"Summer{'20' if is_Run2_v15 else '19'}UL16_RunFGH_{'V1' if is_Run2_v15 else 'V7'}_DATA",
-            "RunH": f"Summer{'20' if is_Run2_v15 else '19'}UL16_RunFGH_{'V1' if is_Run2_v15 else 'V7'}_DATA",
-            "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL16_{'V1' if is_Run2_v15 else 'V7'}_MC",
+            "RunF": "Summer19UL16_RunFGH_V7_DATA",
+            "RunG": "Summer19UL16_RunFGH_V7_DATA",
+            "RunH": "Summer19UL16_RunFGH_V7_DATA",
+            "Data": "Summer20UL16NanoV15_V1_DATA",
+            "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL16{'NanoV15' if is_Run2_v15 else ''}_{'V1' if is_Run2_v15 else 'V7'}_MC",
         },
         "2017": {
-            "RunB": f"Summer{'20' if is_Run2_v15 else '19'}UL17_RunB_{'V1' if is_Run2_v15 else 'V5'}_DATA",
-            "RunC": f"Summer{'20' if is_Run2_v15 else '19'}UL17_RunC_{'V1' if is_Run2_v15 else 'V5'}_DATA",
-            "RunD": f"Summer{'20' if is_Run2_v15 else '19'}UL17_RunD_{'V1' if is_Run2_v15 else 'V5'}_DATA",
-            "RunE": f"Summer{'20' if is_Run2_v15 else '19'}UL17_RunE_{'V1' if is_Run2_v15 else 'V5'}_DATA",
-            "RunF": f"Summer{'20' if is_Run2_v15 else '19'}UL17_RunF_{'V1' if is_Run2_v15 else 'V5'}_DATA",
-            "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL17_{'V1' if is_Run2_v15 else 'V5'}_MC",
+            "RunB": "Summer19UL17_RunB_V5_DATA",
+            "RunC": "Summer19UL17_RunC_V5_DATA",
+            "RunD": "Summer19UL17_RunD_V5_DATA",
+            "RunE": "Summer19UL17_RunE_V5_DATA",
+            "RunF": "Summer19UL17_RunF_V5_DATA",
+            "Data": "Summer20UL17NanoV15_V1_DATA",
+            "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL17{'NanoV15' if is_Run2_v15 else ''}_{'V1' if is_Run2_v15 else 'V5'}_MC",
         },
         "2018": {
-            "RunA": f"Summer{'20' if is_Run2_v15 else '19'}UL18_RunA_{'V1' if is_Run2_v15 else 'V5'}_DATA",
-            "RunB": f"Summer{'20' if is_Run2_v15 else '19'}UL18_RunB_{'V1' if is_Run2_v15 else 'V5'}_DATA",
-            "RunC": f"Summer{'20' if is_Run2_v15 else '19'}UL18_RunC_{'V1' if is_Run2_v15 else 'V5'}_DATA",
-            "RunD": f"Summer{'20' if is_Run2_v15 else '19'}UL18_RunD_{'V1' if is_Run2_v15 else 'V5'}_DATA",
-            "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL18_{'V1' if is_Run2_v15 else 'V5'}_MC",
+            "RunA": "Summer19UL18_RunA_V5_DATA",
+            "RunB": "Summer19UL18_RunB_V5_DATA",
+            "RunC": "Summer19UL18_RunC_V5_DATA",
+            "RunD": "Summer19UL18_RunD_V5_DATA",
+            "Data": "Summer20UL18NanoV15_V1_DATA",
+            "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL18{'NanoV15' if is_Run2_v15 else ''}_{'V1' if is_Run2_v15 else 'V5'}_MC",
         },
         "2022preEE": {
-            "RunC": f"Summer22_22Sep2023_RunCD_{'V3' if reg == '' else 'V2'}_DATA",
-            "RunD": f"Summer22_22Sep2023_RunCD_{'V3' if reg == '' else 'V2'}_DATA",
-            "MC": f"Summer22_22Sep2023_{'V3' if reg == '' else 'V2'}_MC",
+            "Data": f"Summer22_22Sep2023_{'V3' if reg == '' else 'V4'}_DATA",
+            "MC": f"Summer22_22Sep2023_{'V3' if reg == '' else 'V4'}_MC",
         },
         "2022postEE": {
-            "RunE": f"Summer22EE_22Sep2023_RunE_{'V3' if reg == '' else 'V2'}_DATA",
-            "RunF": f"Summer22EE_22Sep2023_RunF_{'V3' if reg == '' else 'V2'}_DATA",
-            "RunG": f"Summer22EE_22Sep2023_RunG_{'V3' if reg == '' else 'V2'}_DATA",
-            "MC": f"Summer22EE_22Sep2023_{'V3' if reg == '' else 'V2'}_MC",
+            "Data": f"Summer22EE_22Sep2023_{'V3' if reg == '' else 'V4'}_DATA",
+            "MC": f"Summer22EE_22Sep2023_{'V3' if reg == '' else 'V4'}_MC",
         },
         # For 2023, the correct era is chosen based on the run the event is in.
-        # Details: https://gitlab.cern.ch/cms-nanoAOD/jsonpog-integration/-/merge_requests/118
         "2023preBPix": {
-            "Data": f"Summer23Prompt23_{'V2' if reg == '' else 'V1'}_DATA",
-            "RunCv123": f"Summer23Prompt23_RunCv123_{'V2' if reg == '' else 'V1'}_DATA",
-            "RunCv4": f"Summer23Prompt23_RunCv4_{'V2' if reg == '' else 'V1'}_DATA",
-            "MC": f"Summer23Prompt23_{'V2' if reg == '' else 'V1'}_MC",
+            "Data": f"Summer23Prompt23_{'V3' if reg == '' else 'V4'}_DATA",
+            "MC": f"Summer23Prompt23_{'V3' if reg == '' else 'V4'}_MC",
         },
         "2023postBPix": {
-            "Data": f"Summer23BPixPrompt23_{'V3' if reg == '' else 'V1'}_DATA",
-            "RunD": f"Summer23BPixPrompt23_RunD_{'V3' if reg == '' else 'V1'}_DATA",
-            "MC": f"Summer23BPixPrompt23_{'V3' if reg == '' else 'V1'}_MC",
+            "Data": f"Summer23BPixPrompt23_{'V3' if reg == '' else 'V4'}_DATA",
+            "MC": f"Summer23BPixPrompt23_{'V3' if reg == '' else 'V4'}_MC",
         },
         "2024": {
-            "Data": "Summer24Prompt24_V2_DATA",
-            "MC": "Summer24Prompt24_V2_MC"
+            "Data": f"Summer24Prompt24_{'V2' if reg == '' else 'V3'}_DATA",
+            "MC": f"Summer24Prompt24_{'V2' if reg == '' else 'V3'}_MC"
         },
         "2025": {
-            "Data": "Winter25Prompt25_V3_DATA",
-            "MC": "Winter25Prompt25_V3_MC"
+            "Data": "Winter25Prompt25_{'V3' if reg == '' else 'V3'}_DATA",
+            "MC": "Winter25Prompt25_{'V3' if reg == '' else 'V3'}_MC"
         },
     }
     jec = jec_version[year][era]

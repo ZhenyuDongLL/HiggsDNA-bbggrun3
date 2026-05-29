@@ -104,7 +104,6 @@ def add_jetId(jets, nano_version, year, flattenUnflatten=False):
             if year in fallback_years:
                 logger.warning(f"There is no dedicated {year} jetID. As the {year} PUPPI tune is the same as the 2024 one, the 2024 jetID used! ")
                 year = "2024"
-
             jerc_json = {
                 "2022preEE": os.path.join(
                     os.path.dirname(__file__),

@@ -349,6 +349,8 @@ def select_fatjets(
     electrons: ak.highlevel.Array,
 ) -> ak.highlevel.Array:
     # same as select_jets(), but uses fatjet variables
+    fatjets["jetId"] = add_jetId(fatjets, self.nano_version, self.year)
+    fatjetId_cut = fatjets.jetId >= 2
     pt_cut = fatjets.pt > self.fatjet_pt_threshold
     eta_cut = abs(fatjets.eta) < self.fatjet_max_eta
     dr_dipho_cut = ak.ones_like(pt_cut) > 0
@@ -393,7 +395,8 @@ def select_fatjets(
         dr_muons_cut = fatjets.pt > -1
 
     return (
-        (pt_cut)
+        (fatjetId_cut)
+        & (pt_cut)
         & (eta_cut)
         & (dr_dipho_cut)
         & (dr_pho_lead_cut)
@@ -409,23 +412,24 @@ def jetvetomap(self, events, logger, dataset_name, year="2022preEE"):
     """
     systematic = "jetvetomap"
     sel_obj = PackedSelection()
-
+    # The NanoAODv15 Run 2 jet veto maps are identical to those used in NanoAODv9.
+    # You can optionally switch to jetvetomaps.json.gz to explicitly use those maps.
     json_dict = {
         "2016preVFP": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2016preVFP_UL/jetvetomaps.json.gz",
+            "../systematics/JSONs/POG/JME/2016preVFP_UL/jetvetomaps_v15.json.gz",
         ),
         "2016postVFP": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2016postVFP_UL/jetvetomaps.json.gz",
+            "../systematics/JSONs/POG/JME/2016postVFP_UL/jetvetomaps_v15.json.gz",
         ),
         "2017": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2017_UL/jetvetomaps.json.gz",
+            "../systematics/JSONs/POG/JME/2017_UL/jetvetomaps_v15.json.gz",
         ),
         "2018": os.path.join(
             os.path.dirname(__file__),
-            "../systematics/JSONs/POG/JME/2018_UL/jetvetomaps.json.gz",
+            "../systematics/JSONs/POG/JME/2018_UL/jetvetomaps_v15.json.gz",
         ),
         "2022preEE": os.path.join(
             os.path.dirname(__file__),
