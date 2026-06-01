@@ -14,7 +14,7 @@ from higgs_dna.utils.misc_utils import choose_jet, DPhiV1V2, rapidity_from_pt_et
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import logging
-import warnings
+
 import numpy
 import sys
 from coffea.analysis_tools import Weights
@@ -129,9 +129,8 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
                 # event weight corrections will be applied after photon preselection / application of further taggers
                 continue
             else:
-                # may want to throw an error instead, needs to be discussed
-                warnings.warn(f"Could not process correction {correction_name}.")
-                continue
+                logger.error(f"The correction '{correction_name}' does not exist.")
+                raise ValueError(f"The correction '{correction_name}' does not exist.")
 
         # Filling with some dummy values
         diphotons = ak.Array({"pt": numpy.ones(len(events))})
@@ -442,6 +441,11 @@ class ParticleLevelProcessor(HggSkeletonProcessor):
                     dataset_name=dataset_name,
                     year=self.year[dataset_name][0],
                 )
+            elif correction_name in available_object_corrections:
+                continue
+            else:
+                logger.error(f"The correction '{correction_name}' does not exist.")
+                raise ValueError(f"The correction '{correction_name}' does not exist.")
         diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]  # Here, if diphotons none, then also the weight is None.
         diphotons["weight"] = event_weights.weight()
 

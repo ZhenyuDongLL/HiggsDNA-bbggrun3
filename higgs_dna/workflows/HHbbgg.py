@@ -45,7 +45,7 @@ from higgs_dna.systematics import weight_systematics as available_weight_systema
 from higgs_dna.systematics import weight_corrections as available_weight_corrections
 from higgs_dna.systematics import apply_systematic_variations_object_level
 
-import warnings
+
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import numpy
@@ -281,9 +281,8 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 # event weight corrections will be applied after photon preselection / application of further taggers
                 continue
             else:
-                # may want to throw an error instead, needs to be discussed
-                warnings.warn(f"Could not process correction {correction_name}.")
-                continue
+                logger.error(f"The correction '{correction_name}' does not exist.")
+                raise ValueError(f"The correction '{correction_name}' does not exist.")
 
         original_photons = events.Photon
         original_electrons = events.Electron
@@ -1524,6 +1523,11 @@ class HHbbggProcessor(HggSkeletonProcessor):
                             bTagEffFileName="HHbbgg",
                             btagEffDatasetName="GluGlutoHH_kl-1p00_kt-1p00_c2-0p00",
                         )
+                    elif correction_name in available_object_corrections:
+                        continue
+                    else:
+                        logger.error(f"The correction '{correction_name}' does not exist.")
+                        raise ValueError(f"The correction '{correction_name}' does not exist.")
                 if "2024" not in self.year[dataset_name][0]:
                     diphotons["bTagWeight"] = event_weights.partial_weight(include=["bTagSF"])
 
@@ -1588,6 +1592,11 @@ class HHbbggProcessor(HggSkeletonProcessor):
                                     bTagEffFileName="HHbbgg",
                                     btagEffDatasetName="GluGlutoHH_kl-1p00_kt-1p00_c2-0p00",
                                 )
+                        elif systematic_name in available_object_systematics:
+                            continue
+                        else:
+                            logger.error(f"The systematic '{systematic_name}' does not exist.")
+                            raise ValueError(f"The systematic '{systematic_name}' does not exist.")
 
                 diphotons["weight"] = event_weights.weight()
                 diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]

@@ -360,9 +360,8 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                 # event weight corrections will be applied after photon preselection / application of further taggers
                 continue
             else:
-                # may want to throw an error instead, needs to be discussed
-                warnings.warn(f"Could not process correction {correction_name}.")
-                continue
+                logger.error(f"The correction '{correction_name}' does not exist.")
+                raise ValueError(f"The correction '{correction_name}' does not exist.")
 
         # apply jetvetomap: only retain events that without any jets in the veto region
         if not self.skipJetVetoMap:
@@ -410,11 +409,8 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                 # event weight systematics will be applied after photon preselection / application of further taggers
                 continue
             else:
-                # may want to throw an error instead, needs to be discussed
-                warnings.warn(
-                    f"Could not process systematic variation {systematic_name}."
-                )
-                continue
+                logger.error(f"The systematic '{systematic_name}' does not exist.")
+                raise ValueError(f"The systematic '{systematic_name}' does not exist.")
 
         # Applying systematic variations
         photons_dct = {}
@@ -785,6 +781,11 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
                         )
+                    elif correction_name in available_object_corrections:
+                        continue
+                    else:
+                        logger.error(f"The correction '{correction_name}' does not exist.")
+                        raise ValueError(f"The correction '{correction_name}' does not exist.")
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
                     for systematic_name in systematic_names:
@@ -835,6 +836,11 @@ class DiphoTrainingProcessor(HggSkeletonProcessor):  # type: ignore
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],
                                 )
+                        elif systematic_name in available_object_systematics:
+                            continue
+                        else:
+                            logger.error(f"The systematic '{systematic_name}' does not exist.")
+                            raise ValueError(f"The systematic '{systematic_name}' does not exist.")
 
                 diphotons["weight"] = event_weights.weight()
                 diphotons["weight_central"] = event_weights.weight() / dipho_events[selection_mask].genWeight

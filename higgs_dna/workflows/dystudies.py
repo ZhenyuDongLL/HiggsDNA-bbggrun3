@@ -15,7 +15,7 @@ from higgs_dna.tools.sigma_m_tools import compute_sigma_m
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import logging
-import warnings
+
 import numpy
 from coffea.analysis_tools import Weights
 
@@ -125,9 +125,8 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
                 # event weight corrections will be applied after photon preselection / application of further taggers
                 continue
             else:
-                # may want to throw an error instead, needs to be discussed
-                warnings.warn(f"Could not process correction {correction_name}.")
-                continue
+                logger.error(f"The correction '{correction_name}' does not exist.")
+                raise ValueError(f"The correction '{correction_name}' does not exist.")
 
         original_photons = events.Photon
 
@@ -305,6 +304,11 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
                         )
+                    elif correction_name in available_object_corrections:
+                        continue
+                    else:
+                        logger.error(f"The correction '{correction_name}' does not exist.")
+                        raise ValueError(f"The correction '{correction_name}' does not exist.")
 
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
@@ -323,6 +327,11 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
                                 dataset_name=dataset_name,
                                 year=self.year[dataset_name][0],
                             )
+                        elif systematic_name in available_object_systematics:
+                            continue
+                        else:
+                            logger.error(f"The systematic '{systematic_name}' does not exist.")
+                            raise ValueError(f"The systematic '{systematic_name}' does not exist.")
 
             # Compute and store the different variations of sigma_m_over_m
             tnp_candidates = compute_sigma_m(tnp_candidates, processor='tnp', flow_corrections=self.doFlow_corrections, smear=self.Smear_sigma_m, IsData=(self.data_kind == "data"))
