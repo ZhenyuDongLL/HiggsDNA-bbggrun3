@@ -1,4 +1,3 @@
-import warnings
 import logging
 import sys
 from functools import partial
@@ -41,7 +40,11 @@ def apply_systematic_variations_object_level(systematic_names, events, dataset_y
                     )
                 )
             else:
-                warnings.warn(
+                logger.error(
+                    f"Systematic '{syst}' is defined for object '{obj_type}' "
+                    "but no corresponding collection was provided."
+                )
+                raise ValueError(
                     f"Systematic '{syst}' is defined for object '{obj_type}' "
                     "but no corresponding collection was provided."
                 )
@@ -49,7 +52,8 @@ def apply_systematic_variations_object_level(systematic_names, events, dataset_y
             # Weight systematics are handled later.
             continue
         else:
-            warnings.warn(f"Could not process systematic variation '{syst}'.")
+            logger.error(f"The systematic '{syst}' does not exist.")
+            raise ValueError(f"The systematic '{syst}' does not exist.")
     return collections
 
 

@@ -34,7 +34,7 @@ from higgs_dna.systematics import weight_corrections as available_weight_correct
 from higgs_dna.systematics import apply_systematic_variations_object_level
 
 import os
-import warnings
+
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import numpy
@@ -191,9 +191,8 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
                 # event weight corrections will be applied after photon preselection / application of further taggers
                 continue
             else:
-                # may want to throw an error instead, needs to be discussed
-                warnings.warn(f"Could not process correction {correction_name}.")
-                continue
+                logger.error(f"The correction '{correction_name}' does not exist.")
+                raise ValueError(f"The correction '{correction_name}' does not exist.")
 
         # apply jetvetomap: only retain events that without any jets in the veto region
         if not self.skipJetVetoMap:
@@ -765,9 +764,8 @@ class BTaggingEfficienciesHHbbggProcessor(HggSkeletonProcessor):
                 # event weight corrections will be applied after photon preselection / application of further taggers
                 continue
             else:
-                # may want to throw an error instead, needs to be discussed
-                warnings.warn(f"Could not process correction {correction_name}.")
-                continue
+                logger.error(f"The correction '{correction_name}' does not exist.")
+                raise ValueError(f"The correction '{correction_name}' does not exist.")
 
         # apply jetvetomap: only retain events that without any jets in the veto region
         if not self.skipJetVetoMap:

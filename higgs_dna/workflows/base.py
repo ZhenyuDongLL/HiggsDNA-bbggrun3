@@ -189,9 +189,8 @@ class HggBaseProcessor(HggSkeletonProcessor):  # type: ignore
                 # event weight corrections will be applied after photon preselection / application of further taggers
                 continue
             else:
-                # may want to throw an error instead, needs to be discussed
-                logger.warning(f"Could not process correction {correction_name}.")
-                continue
+                logger.error(f"The correction '{correction_name}' does not exist.")
+                raise ValueError(f"The correction '{correction_name}' does not exist.")
 
         # apply jetvetomap: only retain events that without any jets in the veto region
         if not self.skipJetVetoMap:
@@ -500,6 +499,11 @@ class HggBaseProcessor(HggSkeletonProcessor):  # type: ignore
 
                         varying_function = available_weight_corrections[correction_name]
                         event_weights = varying_function(**common_args)
+                    elif correction_name in available_object_corrections:
+                        continue
+                    else:
+                        logger.error(f"The correction '{correction_name}' does not exist.")
+                        raise ValueError(f"The correction '{correction_name}' does not exist.")
 
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
@@ -551,6 +555,11 @@ class HggBaseProcessor(HggSkeletonProcessor):  # type: ignore
 
                                 varying_function = available_weight_systematics[systematic_name]
                                 event_weights = varying_function(**common_args)
+                        elif systematic_name in available_object_systematics:
+                            continue
+                        else:
+                            logger.error(f"The systematic '{systematic_name}' does not exist.")
+                            raise ValueError(f"The systematic '{systematic_name}' does not exist.")
 
                 diphotons["weight"] = event_weights.weight()
                 diphotons["weight_central"] = event_weights.weight() / events["genWeight"][selection_mask]

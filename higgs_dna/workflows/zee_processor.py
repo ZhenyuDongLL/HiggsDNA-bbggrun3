@@ -15,7 +15,7 @@ from higgs_dna.tools.jetID import add_jetId
 from typing import Any, Dict, List, Optional
 import awkward as ak
 import logging
-import warnings
+
 import numpy
 import copy
 from coffea.analysis_tools import Weights
@@ -206,9 +206,8 @@ class ZeeProcessor(HggSkeletonProcessor):
                 # event weight corrections will be applied after photon preselection / application of further taggers
                 continue
             else:
-                # may want to throw an error instead, needs to be discussed
-                warnings.warn(f"Could not process correction {correction_name}.")
-                continue
+                logger.error(f"The correction '{correction_name}' does not exist.")
+                raise ValueError(f"The correction '{correction_name}' does not exist.")
 
         photons = events.Photon
 
@@ -684,6 +683,11 @@ class ZeeProcessor(HggSkeletonProcessor):
 
                         varying_function = available_weight_corrections[correction_name]
                         event_weights = varying_function(**common_args)
+                    elif correction_name in available_object_corrections:
+                        continue
+                    else:
+                        logger.error(f"The correction '{correction_name}' does not exist.")
+                        raise ValueError(f"The correction '{correction_name}' does not exist.")
 
                 # systematic variations of event weights go to nominal output dataframe:
                 if do_variation == "nominal":
@@ -738,6 +742,11 @@ class ZeeProcessor(HggSkeletonProcessor):
 
                                 varying_function = available_weight_systematics[systematic_name]
                                 event_weights = varying_function(**common_args)
+                        elif systematic_name in available_object_systematics:
+                            continue
+                        else:
+                            logger.error(f"The systematic '{systematic_name}' does not exist.")
+                            raise ValueError(f"The systematic '{systematic_name}' does not exist.")
 
                 if PNet_present and (self.nano_version < 12):
                     logger.error("\n B-Tagging systematics and corrections using Particle Net are only available for NanoAOD v12 or higher. Exiting! \n")
