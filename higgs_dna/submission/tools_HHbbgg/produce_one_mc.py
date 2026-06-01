@@ -52,7 +52,7 @@ def run_analysis(nano_version, parent_dir, keyword, year, memory):
 
 def update_json_config(keyword, year, split_mc=False):
     # Using the preliminary JSON except for 2024 - to be updated for final results
-    if "2024" in year:
+    if any(x in year for x in ("2024", "2022", "2023")):
         json_path = "submission/tools_HHbbgg/runner_mc_template.json"
     else:
         json_path = "submission/tools_HHbbgg/prelim_runner_mc_template.json"
@@ -84,7 +84,7 @@ def update_json_config(keyword, year, split_mc=False):
             config["corrections"][keyword].append("NNLOPS")
         if "2025" in year:
             config["corrections"][keyword].remove("ElectronVetoSF")
-        if any(x in year for x in ("2024", "2025", "2018", "2017", "2016")):
+        if any(x in year for x in ("2024", "2025", "2018", "2017", "2016","2022","2023")):
             if any("jet" in corr for corr in config["corrections"][keyword]):
                 jerc_idxs = [
                     idx for idx, corr in enumerate(config["corrections"][keyword])

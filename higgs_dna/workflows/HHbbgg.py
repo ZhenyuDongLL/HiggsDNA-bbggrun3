@@ -570,7 +570,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             ]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
             jets["index"] = ak.local_index(jets.pt)
-
+            print(fatjets.fields)
             # fatjet selection and pt ordering
             fatjets = fatjets[select_fatjets(self, fatjets, diphotons, sel_muons, sel_electrons)]  # For now, having the same preselection as jet. Can be changed later
 

@@ -6,12 +6,14 @@
     "jec_syst_Total_up": "jec_syst_Total_up",
     "jer_syst_down": "jer_syst_down",
     "jer_syst_up": "jer_syst_up",
-    "Material_down": "Material_down",
-    "Material_up": "Material_up",
-    "ScaleEB2G_IJazZ_down": "ScaleEB2G_IJazZ_down",
-    "ScaleEB2G_IJazZ_up": "ScaleEB2G_IJazZ_up",
-    "ScaleEE2G_IJazZ_down": "ScaleEE2G_IJazZ_down",
-    "ScaleEE2G_IJazZ_up": "ScaleEE2G_IJazZ_up",
-    "Smearing2G_IJazZ_down": "Smearing2G_IJazZ_down",
-    "Smearing2G_IJazZ_up": "Smearing2G_IJazZ_up"
+    "ScaleEB_Zee_down": "ScaleEB_Zee_down",
+    "ScaleEB_Zee_up": "ScaleEB_Zee_up",
+    "ScaleEE_Zee_down": "ScaleEE_Zee_down",
+    "ScaleEE_Zee_up": "ScaleEE_Zee_up",
+    "ScaleEB_Zmmg_down": "ScaleEB_Zmmg_down",
+    "ScaleEB_Zmmg_up": "ScaleEB_Zmmg_up",
+    "ScaleEE_Zmmg_down": "ScaleEE_Zmmg_down",
+    "ScaleEE_Zmmg_up": "ScaleEE_Zmmg_up",
+    "Smearing_down": "Smearing_down",
+    "Smearing_up": "Smearing_up"
 }
