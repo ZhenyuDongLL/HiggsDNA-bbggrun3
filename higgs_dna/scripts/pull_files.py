@@ -395,22 +395,22 @@ def get_loose_phoID_json(logger, target_dir, use_xrdcp=False):
         },
         "2022preEE": {
             "from": os.path.join(path_to_ingredients, "2022", loose_phoID_subfolder_name, "2022PreEE_IDMVA0p7_SF.json"),
-            "to": f"{to_prefix}/2022preEE/LoosePhoIDSF_2022PreEE.json",
+            "to": f"{to_prefix}/2022preEE/LoosePhoIDSF_2022preEE.json",
             "type": "eos",
         },
         "2022postEE": {
             "from": os.path.join(path_to_ingredients, "2022", loose_phoID_subfolder_name, "2022PostEE_IDMVA0p7_SF.json"),
-            "to": f"{to_prefix}/2022postEE/LoosePhoIDSF_2022PostEE.json",
+            "to": f"{to_prefix}/2022postEE/LoosePhoIDSF_2022postEE.json",
             "type": "eos",
         },
         "2023preBPix": {
             "from": os.path.join(path_to_ingredients, "2023", loose_phoID_subfolder_name, "2023PreBPiX_IDMVA0p7_SF.json"),
-            "to": f"{to_prefix}/2023preBPix/LoosePhoIDSF_2023PreBPix.json",
+            "to": f"{to_prefix}/2023preBPix/LoosePhoIDSF_2023preBPix.json",
             "type": "eos",
         },
         "2023postBPix": {
             "from": os.path.join(path_to_ingredients, "2023", loose_phoID_subfolder_name, "2023PostBPiX_IDMVA0p7_SF.json"),
-            "to": f"{to_prefix}/2023postBPix/LoosePhoIDSF_2023PostBPiX.json",
+            "to": f"{to_prefix}/2023postBPix/LoosePhoIDSF_2023postBPix.json",
             "type": "eos",
         },
         "2024": {
