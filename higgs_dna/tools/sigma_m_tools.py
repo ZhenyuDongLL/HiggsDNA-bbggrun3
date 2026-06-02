@@ -36,6 +36,8 @@ def compute_sigma_m(diphotons, processor='base', flow_corrections=False, smear=T
         # - the smeared
         # - the "nominal" corrected
         # - the corrected + smearing term
+        if smear and ("rho_smear" not in diphotons["pho_lead"].fields):
+            raise AttributeError("You need to apply the S&S corrections to compute smeared sigma_m variables. The 'rho_smear' column is missing.")
 
         # Lets start by the nominal!
         if flow_corrections and not IsData:
@@ -50,6 +52,9 @@ def compute_sigma_m(diphotons, processor='base', flow_corrections=False, smear=T
                 diphotons["sigma_m_over_m_Smeared"] = sigma_m_smeared(diphotons.pho_lead.energyErr, diphotons.pho_sublead.energyErr, diphotons["pho_lead"].pt * np.cosh(diphotons["pho_lead"].eta), diphotons["pho_sublead"].pt * np.cosh(diphotons["pho_sublead"].eta), diphotons["pho_lead"].rho_smear, diphotons["pho_sublead"].rho_smear)
 
     elif processor == 'tnp':
+        if smear and ("rho_smear" not in diphotons["tag"].fields):
+            raise AttributeError("You need to apply the S&S corrections to compute smeared sigma_m variables. The 'rho_smear' column is missing.")
+
         # Lets start by the nominal!
         if flow_corrections and not IsData:
             diphotons["sigma_m_over_m"] = sigma_m(diphotons.tag.raw_energyErr, diphotons.probe.raw_energyErr, diphotons["tag"].pt * np.cosh(diphotons["tag"].eta), diphotons["probe"].pt * np.cosh(diphotons["probe"].eta))
