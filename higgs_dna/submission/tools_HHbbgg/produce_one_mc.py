@@ -19,11 +19,12 @@ def run_analysis(nano_version, parent_dir, keyword, year, memory):
     memoryLine = f"--memory {memory} " if memory is not None else ""
     smear = ""
     deco = ""
-    doflow = "--doFlow-corrections "
+    doflow = ""
     triggerGroup = ""
     if not any(y in year for y in ["2016", "2017", "2018"]):
         smear = "--Smear-sigma-m "
         deco = "--doDeco "
+        doflow = "--doFlow-corrections "  # Change when NF gets merged
     if "2025" in year:
         smear = ""
         deco = ""
@@ -52,8 +53,9 @@ def run_analysis(nano_version, parent_dir, keyword, year, memory):
 
 def update_json_config(keyword, year, split_mc=False):
     # Using the preliminary JSON except for 2024 - to be updated for final results
-    if any(x in year for x in ("2024", "2022", "2023")):
+    if any(x in year for x in ("2025","2024", "2022", "2023", "2016", "2017", "2018")):
         json_path = "submission/tools_HHbbgg/runner_mc_template.json"
+        print("Choosing runner_mc_template.json")
     else:
         json_path = "submission/tools_HHbbgg/prelim_runner_mc_template.json"
     with open(json_path, "r") as f:
@@ -82,9 +84,7 @@ def update_json_config(keyword, year, split_mc=False):
         config["corrections"][keyword] = config["corrections"].pop("GluGluToHH", [])
         if "GluGluHtoGG" in keyword:
             config["corrections"][keyword].append("NNLOPS")
-        if "2025" in year:
-            config["corrections"][keyword].remove("ElectronVetoSF")
-        if any(x in year for x in ("2024", "2025", "2018", "2017", "2016","2022","2023")):
+        if any(x in year for x in ("2024", "2025", "2018", "2017", "2016", "2022", "2023")):
             if any("jet" in corr for corr in config["corrections"][keyword]):
                 jerc_idxs = [
                     idx for idx, corr in enumerate(config["corrections"][keyword])
@@ -94,36 +94,43 @@ def update_json_config(keyword, year, split_mc=False):
                     # Remove '_syst' from jerc as we don't have for 2025/Run2 yet
                     run2_years = ["2016", "2017", "2018"]
                     if any(x in year for x in run2_years):
-                        config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("_pnetNu_syst", "_pnetNu_Run2_v15")
-                        config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("fatjet_syst","fatjet_Run2_v15")
-                    elif any(x in year for x in ["2025"]):
-                        config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("_syst", "")
+                        config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("_pnetNu_syst", "_pnetNu_Run2_v15_syst")
+                        config["corrections"][keyword][jerc_idx] = config["corrections"][keyword][jerc_idx].replace("fatjet_syst","fatjet_Run2_v15_syst")
             # Remove bTag SF correction for now as we don't have SFs
             if any("PNet_bTagShapeSF" == corr for corr in config["corrections"][keyword]):
                 config["corrections"][keyword].remove("PNet_bTagShapeSF")
                 # Add multi fixed WP bTag SFs for 2024 and Run2
-                if any(x in year for x in ("2024")):
+                if any(x in year for x in ("2024", "2025")):
                     config["corrections"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT")
                 if any(x in year for x in ("2018", "2017", "2016")):
                     config["corrections"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT_Run2_v15")
                 if any(x in year for x in ("2022", "2023")):
                     config["corrections"][keyword].append("bTagMultiFixedWP_PNetAK4LMTXTXXT")
             if any(x in year for x in ("2018", "2017", "2016")):
-                if any("Smearing2G_IJazZ" == corr for corr in config["corrections"][keyword]):
-                    config["corrections"][keyword].remove("Smearing2G_IJazZ")
-                    config["corrections"][keyword].append("Smearing_Trad")
                 config["corrections"][keyword].append("L1PreFiring")
+            if any(x in year for x in ("2016","2017","2018")):
+                if "ElectronVetoSF" in config["corrections"][keyword]:
+                    config["corrections"][keyword].remove("ElectronVetoSF")  # remove when correction get merged!
+            if any(x in year for x in ("2016","2017","2018","2025")):
+                if "LoosePhoIDSF" in config["corrections"][keyword]:
+                    config["corrections"][keyword].remove("LoosePhoIDSF")
     if "systematics" in config:
         config["systematics"][keyword] = config["systematics"].pop("GluGluToHH", [])
-        if any(x in year for x in ("2024", "2025", "2018", "2017", "2016")):
+        if any(x in year for x in ("2024", "2025", "2018", "2017", "2016", "2022", "2023")):
             if any("PNet_bTagShapeSF" == syst for syst in config["systematics"][keyword]):
                 config["systematics"][keyword].remove("PNet_bTagShapeSF")
-                if any(x in year for x in ("2024")):
+                if any(x in year for x in ("2024", "2025")):
                     config["systematics"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT")
                 if any(x in year for x in ("2018", "2017", "2016")):
                     config["systematics"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT_Run2_v15")
-                if any(x in year for x in ("2024")):
+                if any(x in year for x in ("2022","2023")):
                     config["systematics"][keyword].append("bTagMultiFixedWP_PNetAK4LMTXTXXT")
+            if any(x in year for x in ("2016","2017","2018")):
+                if "ElectronVetoSF" in config["systematics"][keyword]:
+                    config["systematics"][keyword].remove("ElectronVetoSF")  # remove when correction get merged!
+            if any(x in year for x in ("2016","2017","2018","2025")):
+                if "LoosePhoIDSF" in config["systematics"][keyword]:
+                    config["systematics"][keyword].remove("LoosePhoIDSF")
     new_filename = f"runner_mc_{year}_{keyword}.json"
     with open(new_filename, "w") as f:
         json.dump(config, f, indent=4)

@@ -7,7 +7,7 @@
     "Run2023Cv1": ["2023preBPix"]
 },
 "corrections": {
-    "Run2023Cv1": ["Scale2G_IJazZ", "jec_pnetNu_RunC", "jec_AK8_RunC"]
+    "Run2023Cv1": ["Scale", "jec_pnetNu_RunC", "jec_AK8_RunC"]
 },
 "systematics": {
     "Run2023Cv1": []

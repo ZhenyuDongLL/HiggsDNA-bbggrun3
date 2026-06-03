@@ -95,7 +95,7 @@ def update_json_config(keyword, year):
             config["metaconditions"] = "Era2022_v1"
     if "corrections" in config:
         config["corrections"][keyword] = config["corrections"].pop("Run2023Cv1", [])
-        config["corrections"][keyword] = ["Scale2G_IJazZ"]
+        config["corrections"][keyword] = ["Scale"]
         if "2022" in keyword:
             config["corrections"][keyword].append("jec_pnetNu_Data2022")
             config["corrections"][keyword].append("jec_AK8_Data2022")
@@ -118,9 +118,6 @@ def update_json_config(keyword, year):
             if "2016" in keyword:
                 config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2016")
                 config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2016")
-            config["corrections"][keyword].append("Scale_Trad")
-            if any("Scale2G_IJazZ" == corr for corr in config["corrections"][keyword]):
-                config["corrections"][keyword].remove("Scale2G_IJazZ")
     if "systematics" in config:
         config["systematics"][keyword] = config["systematics"].pop("Run2023Cv1", [])
     new_filename = f"runner_data_{year}_{keyword}.json"

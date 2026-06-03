@@ -721,6 +721,11 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2024_Summer24/btagging.json.gz",
             "type": "cvmfs",
         },
+        "2025": {
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run3-25Prompt-Summer24-NanoAODv15/latest/btagging.json.gz",
+            "to": f"{to_prefix}/2025_Summer24/btagging.json.gz",
+            "type": "cvmfs",
+        }
     }
     fetch_file("bTag", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -1025,6 +1030,11 @@ def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/decorrelation_CDFs",
             "type": "eos",
         },
+        "2025": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/decorrelation_CDFs/",
+            "to": f"{to_prefix}/decorrelation_CDFs",
+            "type": "eos",
+	}
     }
     fetch_file("CDFs", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
@@ -1324,7 +1334,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2022Summer22_PNet": {
-            "from": os.path.join(eos_path_PNet, "Run3Summer22_22Sep2023", "regJet_jerc.json.gz"),
+            "from": os.path.join(eos_path_PNet, "Run3Summer22_22Sep2023/regJet_jerc.json.gz"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2022_Summer22/jet_jerc_PNet.json.gz",
@@ -1340,7 +1350,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2022Summer22EE_PNet": {
-            "from": os.path.join(eos_path_PNet, "Run3Summer22EE_22Sep2023", "regJet_jerc.json.gz"),
+            "from": os.path.join(eos_path_PNet, "Run3Summer22EE_22Sep2023/regJet_jerc.json.gz"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2022_Summer22EE/jet_jerc_PNet.json.gz",
@@ -1356,7 +1366,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2023_Summer23_PNet": {
-            "from": os.path.join(eos_path_PNet, "Run3Summer23Prompt23", "regJet_jerc.json.gz"),
+            "from": os.path.join(eos_path_PNet, "Run3Summer23Prompt23/regJet_jerc.json.gz"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2023_Summer23/jet_jerc_PNet.json.gz",
@@ -1372,7 +1382,7 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2023_Summer23BPix_PNet": {
-            "from": os.path.join(eos_path_PNet, "Run3Summer23BPixPrompt23", "regJet_jerc.json.gz"),
+            "from": os.path.join(eos_path_PNet, "Run3Summer23BPixPrompt23/regJet_jerc.json.gz"),
             "to": os.path.join(
                 to_prefix,
                 "../higgs_dna/systematics/JSONs/POG/JME/2023_Summer23BPix/jet_jerc_PNet.json.gz",
@@ -1387,6 +1397,14 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             ),
             "type": "cvmfs",
         },
+        "2024_Summer24_PNet": {
+            "from": os.path.join(eos_path_PNet, "Run3Summer24Prompt24/regJet_jerc.json.gz"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2024_Summer24",
+            ),
+            "type": "eos",
+        },
         "2025_Winter25": {
             "from": os.path.join(base_path, "Run3-25Prompt-Winter25-NanoAODv15/2026-02-09"),
             "to": os.path.join(
@@ -1395,6 +1413,14 @@ def get_jetmet_json(logger, target_dir, use_xrdcp=False):
             ),
             "type": "cvmfs",
         },
+        "2025_Winter25_PNet": {
+            "from": os.path.join(eos_path_PNet,"Run3Winter25Prompt25/regJet_jerc.json.gz"),
+            "to": os.path.join(
+                to_prefix,
+                "../higgs_dna/systematics/JSONs/POG/JME/2025_Winter25",
+            ),
+            "type": "eos",
+        }
     }
 
     fetch_file("JetMET", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
@@ -1967,6 +1993,11 @@ def get_HHbbgg_btag_eff_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2024_Summer24/HHbbgg.json.gz",
             "type": "eos",
         },
+        "bTag_eff_2025": {
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "to": f"{to_prefix}/2025_Summer24/HHbbgg.json.gz",
+            "type": "eos",
+        }
     }
     fetch_file("HHbbgg_bTag_eff", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
