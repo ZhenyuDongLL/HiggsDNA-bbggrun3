@@ -637,6 +637,11 @@ def get_eveto_json(logger, target_dir, use_xrdcp=False):
             "to": f"{to_prefix}/2024/CSEV_SFcorrections.json",
             "type": "eos",
         },
+        "2025": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/jtao/HiggsDNA_JSONs/2025_CSEV_SFcorrections.json",
+            "to": f"{to_prefix}/2025/CSEV_SFcorrections.json",
+            "type": "eos",
+        },
     }
     fetch_file("eVetoSF", logger, from_to_dict, use_xrdcp=use_xrdcp, type="copy")
 
