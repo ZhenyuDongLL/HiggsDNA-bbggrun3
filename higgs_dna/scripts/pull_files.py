@@ -1933,27 +1933,27 @@ def get_muon_scale_smearing(logger, target_dir, use_xrdcp=False):
         "2022postEE": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-22EFGSep23-Summer22EE-NanoAODv12/latest/muon_scalesmearing.json.gz",
             "to": f"{to_prefix}/2022_Summer22EE.json.gz",
-            "type": "eos",
+            "type": "cvmfs",
         },
         "2022preEE": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-22CDSep23-Summer22-NanoAODv12/latest/muon_scalesmearing.json.gz",
             "to": f"{to_prefix}/2022_Summer22.json.gz",
-            "type": "eos",
+            "type": "cvmfs",
         },
         "2023postBPix": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-23DSep23-Summer23BPix-NanoAODv12/latest/muon_scalesmearing.json.gz",
             "to": f"{to_prefix}/2023_Summer23BPix.json.gz",
-            "type": "eos",
+            "type": "cvmfs",
         },
         "2023preBPix": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-23CSep23-Summer23-NanoAODv12/latest/muon_scalesmearing.json.gz",
             "to": f"{to_prefix}/2023_Summer23.json.gz",
-            "type": "eos",
+            "type": "cvmfs",
         },
         "2024": {
             "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/MUO/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/muon_scalesmearing.json.gz",
             "to": f"{to_prefix}/2024.json.gz",
-            "type": "eos",
+            "type": "cvmfs",
         },
         "2025": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/muonScaRe_2025.json",
