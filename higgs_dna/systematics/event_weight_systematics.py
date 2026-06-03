@@ -294,7 +294,7 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]
     if year not in avail_years:
         logger.warning(f"\n WARNING: only eVetoSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
@@ -344,7 +344,7 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
-    elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
+    elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]:
         # presentation of the updated 2022 SF with dR>0.1: https://indico.cern.ch/event/1536748/contributions/6471184/attachments/3056856/5405041/202504_Zmmg_eveto_DRG0p1_ForEG_Updated.pdf
         if year == "2022preEE":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2022/preEE_CSEV_SFcorrections.json")
@@ -355,9 +355,12 @@ def ElectronVetoSF(photons, weights, year="2017", is_correction=True, **kwargs):
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/preBPix_CSEV_SFcorrections.json")
         if year == "2023postBPix":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2023/postBPix_CSEV_SFcorrections.json")
-        # Preliminary 2024 results, has to be changed once the official SFs are available
+        # 2024 results: https://indico.cern.ch/event/1581226/contributions/6681514/attachments/3129159/5605375/Zmmg_2024data_JTaoForHgg_04092025.pdf
         if year == "2024":
             json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2024/CSEV_SFcorrections.json")
+        # 2025 results: https://indico.cern.ch/event/1681519/contributions/7082251/attachments/3272528/5846374/202605_Zmmg_2025data.pdf
+        if year == "2025":
+            json_file = os.path.join(os.path.dirname(__file__), "JSONs/ElectronVetoSF/2025/CSEV_SFcorrections.json")
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["CSEV_SFs"]
 
         if is_correction:
