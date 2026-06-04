@@ -338,27 +338,27 @@ def get_photonid_mva_shape_json(logger, target_dir, use_xrdcp=False):
 
     from_to_dict = {
         "2022preEE": {
-            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+            "from": os.path.join(path_to_ingredients, "2022", "PhotonIDMVAShape", "PhotonIDMVAShape_2223.json.gz"),
             "to": f"{to_prefix}/2022preEE/PhotonIDMVAShape.json.gz",
             "type": "eos",
         },
         "2022postEE": {
-            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+            "from": os.path.join(path_to_ingredients, "2022", "PhotonIDMVAShape", "PhotonIDMVAShape_2223.json.gz"),
             "to": f"{to_prefix}/2022postEE/PhotonIDMVAShape.json.gz",
             "type": "eos",
         },
-        "2022preBPix": {
-            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+        "2023preBPix": {
+            "from": os.path.join(path_to_ingredients, "2023", "PhotonIDMVAShape", "PhotonIDMVAShape_2223.json.gz"),
             "to": f"{to_prefix}/2023preBPix/PhotonIDMVAShape.json.gz",
             "type": "eos",
         },
-        "2022postBPix": {
-            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+        "2023postBPix": {
+            "from": os.path.join(path_to_ingredients, "2023", "PhotonIDMVAShape", "PhotonIDMVAShape_2223.json.gz"),
             "to": f"{to_prefix}/2023postBPix/PhotonIDMVAShape.json.gz",
             "type": "eos",
         },
         "2024": {
-            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape.json.gz"),
+            "from": os.path.join(path_to_ingredients, "2024", "PhotonIDMVAShape", "PhotonIDMVAShape_24.json.gz"),
             "to": f"{to_prefix}/2024/PhotonIDMVAShape.json.gz",
             "type": "eos",
         },
