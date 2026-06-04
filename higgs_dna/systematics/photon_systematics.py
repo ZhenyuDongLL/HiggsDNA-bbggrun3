@@ -320,7 +320,6 @@ def PhotonIDMVAShape(mvaID, events, year="2024", is_correction=True, workflow="b
 
         return np.concatenate((uncertainty_up, uncertainty_down), axis=1)
 
-    logger.warning("[PhotonIDMVAShape] This is preliminary and was derived with an mvaID > -0.9 cut using Zee-based corrections. Both of these will be revised once the Zmmy-based corrections are ready.")
     jsonpog_file = os.path.join(
         os.path.dirname(__file__),
         f"JSONs/PhotonIDMVAShape/{year}/PhotonIDMVAShape.json.gz",
