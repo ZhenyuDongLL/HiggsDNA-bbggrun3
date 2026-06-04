@@ -209,6 +209,13 @@ def main(args):
         else:
             temp = loadData(files, proc)
             data = awkward.concatenate([data, temp])
+
+    #Check whether the input parquets have been produced with the proper MVA ID cut
+    if not awkward.any(data.Min_mvaID < idcut):
+        error_msg = f"No photons found with MVA ID < {idcut} in the input data. Make sure that input HiggsDNA files have been produced with photon MVA ID > -0.9."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
     sdbd_events = data[(data.Max_mvaID > idcut) & (data.Min_mvaID < idcut)]
     logger.info('Total SBD Yield: ' + str(np.sum(sdbd_events.weight)))
     del data
