@@ -349,11 +349,7 @@ def select_fatjets(
     electrons: ak.highlevel.Array,
 ) -> ak.highlevel.Array:
     # same as select_jets(), but uses fatjet variables
-    if self.nano_version == 12:
-        fatjetId_cut = ak.ones_like(fatjets.pt, dtype=bool)
-    else:
-        fatjets["jetId"] = add_jetId(fatjets, self.nano_version, self.year)
-        fatjetId_cut = fatjets.jetId >= 2
+    fatjetId_cut = fatjets.jetId_corrected >= 2
     pt_cut = fatjets.pt > self.fatjet_pt_threshold
     eta_cut = abs(fatjets.eta) < self.fatjet_max_eta
     dr_dipho_cut = ak.ones_like(pt_cut) > 0

@@ -108,9 +108,6 @@ def update_json_config(keyword, year, split_mc=False):
                     config["corrections"][keyword].append("bTagMultiFixedWP_PNetAK4LMTXTXXT")
             if any(x in year for x in ("2018", "2017", "2016")):
                 config["corrections"][keyword].append("L1PreFiring")
-            if any(x in year for x in ("2016","2017","2018")):
-                if "ElectronVetoSF" in config["corrections"][keyword]:
-                    config["corrections"][keyword].remove("ElectronVetoSF")  # remove when correction get merged!
             if any(x in year for x in ("2016","2017","2018","2025")):
                 if "LoosePhoIDSF" in config["corrections"][keyword]:
                     config["corrections"][keyword].remove("LoosePhoIDSF")
@@ -125,9 +122,6 @@ def update_json_config(keyword, year, split_mc=False):
                     config["systematics"][keyword].append("bTagMultiFixedWP_UParTAK4LMTXTXXT_Run2_v15")
                 if any(x in year for x in ("2022","2023")):
                     config["systematics"][keyword].append("bTagMultiFixedWP_PNetAK4LMTXTXXT")
-            if any(x in year for x in ("2016","2017","2018")):
-                if "ElectronVetoSF" in config["systematics"][keyword]:
-                    config["systematics"][keyword].remove("ElectronVetoSF")  # remove when correction get merged!
             if any(x in year for x in ("2016","2017","2018","2025")):
                 if "LoosePhoIDSF" in config["systematics"][keyword]:
                     config["systematics"][keyword].remove("LoosePhoIDSF")

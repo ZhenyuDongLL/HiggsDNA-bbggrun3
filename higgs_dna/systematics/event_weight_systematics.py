@@ -1662,9 +1662,7 @@ def bTagMultiFixedWP(events, jets, weights, dataset_name, mva_name, wps, bTagEff
         if wp not in avail_modes:
             logger.error(f"\n Only fixed WP Scale Factors for the mode strings {avail_modes} are already implemented! \n Exiting. \n")
             exit()
-
     eff_dataset_name = btagEffDatasetName if btagEffDatasetName is not None else dataset_name
-
     inputFilePath = "JSONs/"
     if bTagEffFileName is None:
         bTagEffFileName = "midRun3"

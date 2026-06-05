@@ -570,6 +570,10 @@ class HHbbggProcessor(HggSkeletonProcessor):
             ]
             jets = jets[ak.argsort(jets.pt, ascending=False)]
             jets["index"] = ak.local_index(jets.pt)
+            if self.nano_version == 12:
+                fatjets["jetId_corrected"] = fatjets.jetId
+            else:
+                fatjets["jetId_corrected"] = add_jetId(fatjets, self.nano_version, self.year[dataset_name][0], flattenUnflatten=True)  # add fat jet ID based on nano version
             # fatjet selection and pt ordering
             fatjets = fatjets[select_fatjets(self, fatjets, diphotons, sel_muons, sel_electrons)]  # For now, having the same preselection as jet. Can be changed later
 

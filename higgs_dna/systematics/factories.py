@@ -64,6 +64,16 @@ def add_jme_corr_syst(corrections_dict, systematics_dict, logger):
                 jer_syst=True,
                 is_Run2_v15=True
             ),
+            "jerc_jet_pnetNu_Run2_v15_syst": partial(
+                jerc_jet,
+                pt=None,
+                apply_jec=True,
+                jec_syst=True,
+                apply_jer=True,
+                jer_syst=True,
+                is_Run2_v15=True,
+                reg="PNetRegressionPlusNeutrino"
+            ),
             "jerc_fatjet_syst": partial(
                 jerc_jet,
                 pt=None,
