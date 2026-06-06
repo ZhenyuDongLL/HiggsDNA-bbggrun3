@@ -1989,22 +1989,22 @@ def get_HHbbgg_btag_eff_json(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "bTag_eff_2022": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2022_Summer22/HHbbgg.json.gz",
             "to": f"{to_prefix}/2022_Summer22/HHbbgg.json.gz",
             "type": "eos",
         },
         "bTag_eff_2022EE": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2022_Summer22EE/HHbbgg.json.gz",
             "to": f"{to_prefix}/2022_Summer22EE/HHbbgg.json.gz",
             "type": "eos",
         },
         "bTag_eff_2023": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2023_Summer23/HHbbgg.json.gz",
             "to": f"{to_prefix}/2023_Summer23/HHbbgg.json.gz",
             "type": "eos",
         },
         "bTag_eff_2023BPix": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2023_Summer23BPix/HHbbgg.json.gz",
             "to": f"{to_prefix}/2023_Summer23BPix/HHbbgg.json.gz",
             "type": "eos",
         },
