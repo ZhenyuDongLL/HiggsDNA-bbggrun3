@@ -263,7 +263,7 @@ class STXSProcessor(HggSkeletonProcessor):
             n_lhe_scale_weights = 0
             if has_lhe_scale:
                 events["LHEScaleWeight"] = ak.to_regular(events.LHEScaleWeight)
-                lhescaleweight = events.LHEScaleWeight.to_numpy()
+                lhescaleweight = events.LHEScaleWeight.to_numpy() * events.genWeight.to_numpy()[:, numpy.newaxis]
                 n_lhe_scale_weights = lhescaleweight.shape[1]
                 lhescale_dict = {
                     f"LHEScaleWeight_{i}": lhescaleweight[:, i]
@@ -275,7 +275,7 @@ class STXSProcessor(HggSkeletonProcessor):
             n_lhe_pdf_weights = 0
             if has_lhe_pdf:
                 events["LHEPdfWeight"] = ak.to_regular(events.LHEPdfWeight)
-                lhepdfweight = events.LHEPdfWeight.to_numpy()
+                lhepdfweight = events.LHEPdfWeight.to_numpy() * events.genWeight.to_numpy()[:, numpy.newaxis]
                 n_lhe_pdf_weights = lhepdfweight.shape[1]
                 lhepdf_dict = {
                     f"LHEPdfWeight_{i}": lhepdfweight[:, i]
@@ -1101,7 +1101,7 @@ class STXSProcessor(HggSkeletonProcessor):
                 # Add LHE scale weights if present
                 lhescale_dict = {}
                 if has_lhe_scale:
-                    lhescaleweight = events.LHEScaleWeight[selection_mask].to_numpy()
+                    lhescaleweight = events.LHEScaleWeight[selection_mask].to_numpy() * events.genWeight[selection_mask].to_numpy()[:, numpy.newaxis]
                     lhescale_dict = {
                         f"LHEScaleWeight_{i}": lhescaleweight[:, i]
                         for i in range(n_lhe_scale_weights)
@@ -1110,7 +1110,7 @@ class STXSProcessor(HggSkeletonProcessor):
                 # Add LHE pdf weights if present
                 lhepdf_dict = {}
                 if has_lhe_pdf:
-                    lhepdfweight = events.LHEPdfWeight[selection_mask].to_numpy()
+                    lhepdfweight = events.LHEPdfWeight[selection_mask].to_numpy() * events.genWeight[selection_mask].to_numpy()[:, numpy.newaxis]
                     lhepdf_dict = {
                         f"LHEPdfWeight_{i}": lhepdfweight[:, i]
                         for i in range(n_lhe_pdf_weights)
