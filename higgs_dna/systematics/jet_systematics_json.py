@@ -10,19 +10,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def get_jer_correction_set(jer_json, jer_ptres_tag, jer_sf_tag):
+def get_jer_correction_set(jer_json, jer_ptres_tag, jer_sf_tag, jer_unc_tag=None):
     # learned from: https://github.com/cms-nanoAOD/correctionlib/issues/130
     with gzip.open(jer_json) as fin:
         cset = CorrectionSet.parse_raw(fin.read())
-
+    # Build list of required tags to keep
+    tags_to_keep = [jer_ptres_tag, jer_sf_tag]
+    if jer_unc_tag:
+        tags_to_keep.append(jer_unc_tag)
+    original_tags = [c.name for c in cset.corrections] 
     cset.corrections = [
-        c
-        for c in cset.corrections
-        if c.name
-        in (
-            jer_ptres_tag,
-            jer_sf_tag,
-        )
+        c for c in cset.corrections if c.name in tags_to_keep
     ]
     cset.compound_corrections = []
 
@@ -94,16 +92,30 @@ def get_jer_correction_set(jer_json, jer_ptres_tag, jer_sf_tag):
     ceval = cset.to_evaluator()
     return ceval
 
-
-def get_jersmear(_eval_dict, _ceval, _jer_sf_tag, _syst="nom"):
-    _eval_dict.update({"systematic": _syst})
-    _inputs_jer_sf = [_eval_dict[input.name] for input in _ceval[_jer_sf_tag].inputs]
-    _jer_sf = _ceval[_jer_sf_tag].evaluate(*_inputs_jer_sf)
+def get_jersmear(_eval_dict, _ceval, _jer_sf_tag, _syst="nom", _jer_unc_tag=None):
+    _inputs_jer_sf = [_eval_dict[input.name] for input in _ceval[_jer_sf_tag].inputs]    
+    if _jer_unc_tag is not None:
+        # --- JRV2 Methodology --- https://cms-talk.web.cern.ch/t/new-jer-smearing-inputs-available-for-2024-and-2025/145723
+        # Both tags only require (eta, pt), no "up"/"down" string argument needed
+        _jer_sf_nominal = _ceval[_jer_sf_tag].evaluate(*_inputs_jer_sf)
+        if _syst == "nom":
+            _jer_sf = _jer_sf_nominal
+        else:
+            _inputs_jer_unc = [_eval_dict[input.name] for input in _ceval[_jer_unc_tag].inputs]
+            _jer_unc = _ceval[_jer_unc_tag].evaluate(*_inputs_jer_unc)
+            if _syst == "up":
+                _jer_sf = _jer_sf_nominal * (1.0 + _jer_unc)
+            elif _syst == "down":
+                _jer_sf = _jer_sf_nominal * (1.0 - _jer_unc)
+    else:
+        # --- JRV1 Methodology (Legacy fallback) ---
+        _eval_dict.update({"systematic": _syst})
+        _inputs_jer_sf = [_eval_dict[input.name] for input in _ceval[_jer_sf_tag].inputs]
+        _jer_sf = _ceval[_jer_sf_tag].evaluate(*_inputs_jer_sf)
     _eval_dict.update({"JERsf": _jer_sf})
     _inputs = [_eval_dict[input.name] for input in _ceval["JERSmear"].inputs]
     _jersmear = _ceval["JERSmear"].evaluate(*_inputs)
     return _eval_dict, _jersmear
-
 
 def apply_split_jec_variations(jec_syst_map, jec, algo, cset, year, era, eval_dict, jets, AK8):
     for i in jec_syst_map:
@@ -275,29 +287,29 @@ def jerc_jet(
             "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL18{'NanoV15' if is_Run2_v15 else ''}_{'V1' if is_Run2_v15 else 'V5'}_MC",
         },
         "2022preEE": {
-            "Data": f"Summer22_22Sep2023_{'V3' if reg == '' else 'V4'}_DATA",
-            "MC": f"Summer22_22Sep2023_{'V3' if reg == '' else 'V4'}_MC",
+            "Data": f"Summer22_22Sep2023_V4_DATA",
+            "MC": f"Summer22_22Sep2023_V4_MC",
         },
         "2022postEE": {
-            "Data": f"Summer22EE_22Sep2023_{'V3' if reg == '' else 'V4'}_DATA",
-            "MC": f"Summer22EE_22Sep2023_{'V3' if reg == '' else 'V4'}_MC",
+            "Data": f"Summer22EE_22Sep2023_V4_DATA",
+            "MC": f"Summer22EE_22Sep2023_V4_MC",
         },
         # For 2023, the correct era is chosen based on the run the event is in.
         "2023preBPix": {
-            "Data": f"Summer23Prompt23_{'V3' if reg == '' else 'V4'}_DATA",
-            "MC": f"Summer23Prompt23_{'V3' if reg == '' else 'V4'}_MC",
+            "Data": f"Summer23Prompt23_V4_DATA",
+            "MC": f"Summer23Prompt23_V4_MC",
         },
         "2023postBPix": {
-            "Data": f"Summer23BPixPrompt23_{'V3' if reg == '' else 'V4'}_DATA",
-            "MC": f"Summer23BPixPrompt23_{'V3' if reg == '' else 'V4'}_MC",
+            "Data": f"Summer23BPixPrompt23_V4_DATA",
+            "MC": f"Summer23BPixPrompt23_V4_MC",
         },
         "2024": {
-            "Data": f"Summer24Prompt24_{'V2' if reg == '' else 'V3'}_DATA",
-            "MC": f"Summer24Prompt24_{'V2' if reg == '' else 'V3'}_MC"
+            "Data": f"Summer24Prompt24_V3_DATA",
+            "MC": f"Summer24Prompt24_V3_MC"
         },
         "2025": {
-            "Data": "Winter25Prompt25_{'V3' if reg == '' else 'V3'}_DATA",
-            "MC": "Winter25Prompt25_{'V3' if reg == '' else 'V3'}_MC"
+            "Data": "Winter25Prompt25_V3_DATA",
+            "MC": "Winter25Prompt25_V3_MC"
         },
     }
     jec = jec_version[year][era]
@@ -499,22 +511,25 @@ def jerc_jet(
     if apply_jer or jer_syst:
         # learned from: https://github.com/cms-nanoAOD/correctionlib/issues/130
         jer_version = {
-            "2016preVFP": "Summer20UL16APV_JRV3_MC",
-            "2016postVFP": "Summer20UL16_JRV3_MC",
-            "2017": f"Summer19UL17_JR{'V3' if is_Run2_v15 else 'V2'}_MC",
-            "2018": "Summer19UL18_JRV2_MC",
-            "2022preEE": "Summer22_22Sep2023_JRV1_MC",
-            "2022postEE": "Summer22EE_22Sep2023_JRV1_MC",
-            "2023preBPix": "Summer23Prompt23_RunCv1234_JRV1_MC",
-            "2023postBPix": "Summer23BPixPrompt23_RunD_JRV1_MC",
+            "2016preVFP": "Summer20UL16APV_JRV5_MC",
+            "2016postVFP": "Summer20UL16_JRV5_MC",
+            "2017": f"Summer19UL17_JR{'V4' if is_Run2_v15 else 'V4'}_MC",
+            "2018": "Summer19UL18_JRV3_MC",
+            "2022preEE": "Summer22_22Sep2023_JRV2_MC",
+            "2022postEE": "Summer22EE_22Sep2023_JRV2_MC",
+            "2023preBPix": "Summer23Prompt23_RunCv1234_JRV2_MC",
+            "2023postBPix": "Summer23BPixPrompt23_RunD_JRV2_MC",
             # This is preliminary, should be changed once files with 2024 and 2025 JER are available
-            "2024": "Summer23BPixPrompt23_RunD_JRV1_MC",
-            "2025": "Summer23BPixPrompt23_RunD_JRV1_MC",
+            "2024": "Summer24Prompt24_JRV1_MC",
+            "2025": "Summer24Prompt25_JRV1_MC",
         }
         jer = jer_version[year]
         jer_ptres_tag = f"{jer}_PtResolution_{algo}"
         jer_sf_tag = f"{jer}_ScaleFactor_{algo}"
 
+        # Check if we are running under a JRV2 tag structure
+        is_jrv2 = "JRV2" in jer
+        jer_unc_tag = f"{jer}_SFUncertainty_{algo}" if is_jrv2 else None
         # this is a hack to make sure the JER corrections aren't applied for unmatched jets with 2.5 < |eta| < 3.0
         # by setting the gen pT to the reco pT no JER shift will be applied since this is based on the pT difference
         # TODO should be removed once a proper fix is implemented at the json level
@@ -524,7 +539,7 @@ def jerc_jet(
             pt_gen_orig = jets["pt_gen"]
             jets["pt_gen"] = ak.where((jets.pt_gen < 0) & (abs(jets.eta) > 2.5) & (abs(jets.eta) < 3.0), jets.pt, jets.pt_gen)
 
-        ceval_jer = get_jer_correction_set(jerc_json[year], jer_ptres_tag, jer_sf_tag)
+        ceval_jer = get_jer_correction_set(jerc_json[year], jer_ptres_tag, jer_sf_tag, jer_unc_tag)
 
         # update evaluate dictionary
         eval_dict.update(
@@ -554,7 +569,7 @@ def jerc_jet(
             }
         )
         if apply_jer:
-            eval_dict, jersmear = get_jersmear(eval_dict, ceval_jer, jer_sf_tag, "nom")
+            eval_dict, jersmear = get_jersmear(eval_dict, ceval_jer, jer_sf_tag, "nom", jer_unc_tag)
             jets["pt_jer"] = jets.pt * jersmear
             jets["mass_jer"] = jets.mass * jersmear
         if jer_syst:
@@ -562,11 +577,11 @@ def jerc_jet(
             if AK8:
                 jetTag = "jer_AK8"
             # jer up
-            eval_dict, jersmear = get_jersmear(eval_dict, ceval_jer, jer_sf_tag, "up")
+            eval_dict, jersmear = get_jersmear(eval_dict, ceval_jer, jer_sf_tag, "up", jer_unc_tag)
             jets[f"pt_{jetTag}_syst_up"] = jets.pt * jersmear
             jets[f"mass_{jetTag}_syst_up"] = jets.mass * jersmear
             # jer down
-            eval_dict, jersmear = get_jersmear(eval_dict, ceval_jer, jer_sf_tag, "down")
+            eval_dict, jersmear = get_jersmear(eval_dict, ceval_jer, jer_sf_tag, "down", jer_unc_tag)
             jets[f"pt_{jetTag}_syst_down"] = jets.pt * jersmear
             jets[f"mass_{jetTag}_syst_down"] = jets.mass * jersmear
         if apply_jer:

@@ -20,9 +20,6 @@ def validate_run_analysis(nano_version, parent_dir, keyword, year, memory):
     smear = ""
     deco = ""
     triggerGroup = ""
-    if not any(y in year for y in ["2016", "2017", "2018", "2025"]):
-        smear = "--Smear-sigma-m "
-        deco = "--doDeco "
     if year == "2018":
         triggerGroup = '--triggerGroup ".*EGamma.*2018.*" '
     command = (
@@ -50,9 +47,6 @@ def run_analysis(nano_version, parent_dir, keyword, year, memory):
     smear = ""
     deco = ""
     triggerGroup = ""
-    if not any(y in year for y in ["2016", "2017", "2018", "2025"]):
-        smear = "--Smear-sigma-m "
-        deco = "--doDeco "
     if year == "2018":
         triggerGroup = '--triggerGroup ".*EGamma.*2018.*" '
     command = (
@@ -96,7 +90,16 @@ def update_json_config(keyword, year):
     if "corrections" in config:
         config["corrections"][keyword] = config["corrections"].pop("Run2023Cv1", [])
         config["corrections"][keyword] = ["Scale"]
-        if "2022" in keyword:
+        if "2016" in keyword:
+            config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2016")
+            config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2016")
+        elif "2017" in keyword:
+            config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2017")
+            config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2017")
+        elif "2018" in keyword:
+            config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2018")
+            config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2018")
+        elif "2022" in keyword:
             config["corrections"][keyword].append("jec_pnetNu_Data2022")
             config["corrections"][keyword].append("jec_AK8_Data2022")
         elif "2023" in keyword:
@@ -108,16 +111,6 @@ def update_json_config(keyword, year):
         elif "2025" in keyword:
             config["corrections"][keyword].append("jec_pnetNu_Data2025")
             config["corrections"][keyword].append("jec_AK8_Data2025")
-        elif "2018" or "2016" or "2017" in keyword:
-            if "2018" in keyword:
-                config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2018")
-                config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2018")
-            if "2017" in keyword:
-                config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2017")
-                config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2017")
-            if "2016" in keyword:
-                config["corrections"][keyword].append("jec_pnetNu_Run2_v15_Data2016")
-                config["corrections"][keyword].append("jec_AK8_Run2_v15_Data2016")
     if "systematics" in config:
         config["systematics"][keyword] = config["systematics"].pop("Run2023Cv1", [])
     new_filename = f"runner_data_{year}_{keyword}.json"
