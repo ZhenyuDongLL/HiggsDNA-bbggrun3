@@ -56,7 +56,7 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
             bTagEffFileName=bTagEffFileName,
             output_location=output_location,
             taggers=taggers,
-            trigger_group=".*SingleEle.*",
+            trigger_group=".*EGamma.*2018.*" if trigger_group == ".*EGamma.*2018.*" else ".*SingleEle.*",   # previously hardcoded ".*SingleEle.*"
             analysis="tagAndProbe",
             applyCQR=applyCQR,
             skipJetVetoMap=False,
@@ -132,12 +132,13 @@ class TagAndProbeProcessor(HggSkeletonProcessor):
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
+            flows_photonid_mva = self.resolve_flows_photonid_mva(events)
             original_photons = apply_flow_corrections_to_photons(
                 original_photons,
                 events,
                 self.meta,
                 self.year[dataset_name][0],
-                self.add_photonid_mva_run3,
+                flows_photonid_mva,
                 logger
             )
 

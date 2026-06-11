@@ -216,12 +216,13 @@ class HggFiducialProcessor(HggSkeletonProcessor):  # type: ignore
 
         # Computing the normalizing flow correction
         if self.data_kind == "mc" and self.doFlow_corrections:
+            flows_photonid_mva = self.resolve_flows_photonid_mva(events)
             original_photons = apply_flow_corrections_to_photons(
                 original_photons,
                 events,
                 self.meta,
                 self.year[dataset_name][0],
-                self.add_photonid_mva_run3,
+                flows_photonid_mva,
                 logger
             )
 

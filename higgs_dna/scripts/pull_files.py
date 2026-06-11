@@ -1037,10 +1037,34 @@ def get_mass_decorrelation_CDF(logger, target_dir, use_xrdcp=False):
 def get_Flow_files(logger, target_dir, use_xrdcp=False):
     if target_dir is not None:
         to_prefix = target_dir
+        to_prefix_run2_mva = target_dir
     else:
         to_prefix = os.path.join(resource_dir, "../higgs_dna/tools/flows")
+        to_prefix_run2_mva = os.path.join(
+            resource_dir, "../higgs_dna/metaconditions/photon_id_mva_weights"
+        )
 
     from_to_dict = {
+        "Run2": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/Flows/hgg_photon_id_mva_weights/",
+            "to": to_prefix_run2_mva,
+            "type": "eos",
+        },
+        "2016": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2016/Flows/",
+            "to": f"{to_prefix}/2016_model/",
+            "type": "eos",
+        },
+        "2017": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2017/Flows/",
+            "to": f"{to_prefix}/2017_model/",
+            "type": "eos",
+        },
+        "2018": {
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2018/Flows/",
+            "to": f"{to_prefix}/2018_model/",
+            "type": "eos",
+        },
         "Run3": {
             "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/Run3/",
             "to": f"{to_prefix}/run3_mvaID_models/",
@@ -1516,12 +1540,12 @@ def get_pileup(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2024": {
-            "from": f"/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/puWeights_BCDEFGHI.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/LUM/Run3-24CDEReprocessingFGHIPrompt-Summer24-NanoAODv15/latest/puWeights_BCDEFGHI.json.gz",
             "to": f"{to_prefix}/pileup_2024.json.gz",
             "type": "cvmfs",
         },
         "2025": {
-            "from": f"/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/puWeights2025.json.gz",
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/ingredients/2025/puWeights2025.json.gz",
             "to": f"{to_prefix}/pileup_2025.json.gz",
             "type": "eos",
         },

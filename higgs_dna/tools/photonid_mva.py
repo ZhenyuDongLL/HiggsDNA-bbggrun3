@@ -12,7 +12,7 @@ def load_photonid_mva(fname: str) -> Optional[xgboost.Booster]:
         photonid_mva.load_model(fname)
     except (xgboost.core.XGBoostError, FileNotFoundError) as e:
         warnings.warn(
-            f"Could not load photonid MVA model from '{fname}': {e}. Skipping.",
+            f"Could not load RUN 2 photonid MVA model from '{fname}': {e}. Skipping.",
             stacklevel=2
         )
         photonid_mva = None
@@ -22,6 +22,7 @@ def load_photonid_mva(fname: str) -> Optional[xgboost.Booster]:
 def calculate_photonid_mva(
     mva: Tuple[Optional[xgboost.Booster], List[str]],
     photon: ak.Array,
+    sigmoid: bool = False,
 ) -> ak.Array:
     """Recompute PhotonIDMVA on-the-fly. This step is necessary considering that the inputs have to be corrected
     with the QRC process. Following is the list of features (barrel has 12, endcap two more):
@@ -56,14 +57,15 @@ def calculate_photonid_mva(
 
     mvaID = photonid_mva.predict(tempmatrix)
 
-    # Only needed to compare to TMVA
-    # mvaID = 1.0 - 2.0 / (1.0 + numpy.exp(2.0 * mvaID))
-
-    # the previous transformation was not working correctly, peakin at about 0.7
-    # since we can't really remember why that functional form was picked in the first place we decided
-    # to switch to a simpler stretch of the output that works better, even though not perfectly.
-    # Open for changes/ideas
-    mvaID = -1 + 2 * mvaID
+    if sigmoid:
+        # Only needed to compare to TMVA
+        mvaID = 1.0 - 2.0 / (1.0 + numpy.exp(2.0 * mvaID))
+    else:
+        # the previous transformation was not working correctly, peakin at about 0.7
+        # since we can't really remember why that functional form was picked in the first place we decided
+        # to switch to a simpler stretch of the output that works better, even though not perfectly.
+        # Open for changes/ideas
+        mvaID = -1 + 2 * mvaID
 
     return mvaID
 

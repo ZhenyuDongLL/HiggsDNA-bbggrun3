@@ -34,102 +34,90 @@
 
     "flashggPhotons" :
     {
-        "photonIdMVAweightfile_EB" : "flashgg/MicroAOD/data/PhoID_barrel_UL2017_GJetMC_SATrain_nTree2k_LR_0p1_13052020_BDTG.weights.xml",
-        "photonIdMVAweightfile_EE" : "flashgg/MicroAOD/data/PhoID_endcap_UL2017_GJetMC_SATrain_nTree2k_LR_0p1_13052020_BDTG.weights.xml",
-        "effAreasConfigFile" : "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_TrueVtx.txt",
-        "is2017" : true,
-
-        "inputs_EB" : ["energyRaw",
-            "r9", 
+        "photonIdMVAweightfile_EB" : "XGB_Model_Barrel_EGM_Fall2017V2_PhoID.json",
+        "photonIdMVAweightfile_EE" : "XGB_Model_Endcap_EGM_Fall2017V2_PhoID.json",
+        "inputs_EB": 
+        [
+            "energyRaw",
+            "r9",
             "sieie",
             "etaWidth",
             "phiWidth",
             "sieip",
             "s4",
-            "hoe",
-            "ecalPFClusterIso",
-            "trkSumPtHollowConeDR03",
-            "trkSumPtSolidConeDR04",
-            "pfChargedIso",
+            "pfPhoIso03",
+            "pfChargedIsoPFPV",
             "pfChargedIsoWorstVtx",
             "ScEta",
-            "fixedGridRhoAll"],
-
-        "inputs_EE" : ["energyRaw",
-            "r9", 
+            "fixedGridRhoAll"
+        ],
+        "inputs_EE":
+        [
+            "energyRaw",
+            "r9",
             "sieie",
             "etaWidth",
             "phiWidth",
             "sieip",
             "s4",
-            "hoe",
-            "ecalPFClusterIso",
-            "hcalPFClusterIso",
-            "trkSumPtHollowConeDR03",
-            "trkSumPtSolidConeDR04",
-            "pfChargedIso",
+            "pfPhoIso03",
+            "pfChargedIsoPFPV",
             "pfChargedIsoWorstVtx",
             "ScEta",
             "fixedGridRhoAll",
             "esEffSigmaRR",
-            "esEnergyOverRawE"],
-
-        "inputs_EB_corr" : ["energyRaw",
-        "corr_r9", 
-        "corr_sieie",
-        "corr_etaWidth",
-        "corr_phiWidth",
-        "corr_sieip",
-        "corr_s4",
-        "corr_hoe",
-        "corr_ecalPFClusterIso",
-        "corr_trkSumPtHollowConeDR03",
-        "corr_trkSumPtSolidConeDR04",
-        "corr_pfChargedIso",
-        "corr_pfChargedIsoWorstVtx",
-        "ScEta",
-        "fixedGridRhoAll"] ,
-
-        "inputs_EE_corr" : ["energyRaw",
-        "corr_r9", 
-        "corr_sieie",
-        "corr_etaWidth",
-        "corr_phiWidth",
-        "corr_sieip",
-        "corr_s4",
-        "corr_hoe",
-        "corr_ecalPFClusterIso",
-        "corr_hcalPFClusterIso",
-        "corr_trkSumPtHollowConeDR03",
-        "corr_trkSumPtSolidConeDR04",
-        "corr_pfChargedIso",
-        "corr_pfChargedIsoWorstVtx",
-        "ScEta",
-        "fixedGridRhoAll",
-        "corr_esEffSigmaRR",
-        "corr_esEnergyOverRawE"],
-
-        "flow_inputs" : [
-            "r9", 
+            "esEnergyOverRawE"
+        ],
+        "inputs_EB_corr": 
+        [
+            "energyRaw",
+            "corr_r9",
+            "corr_sieie",
+            "corr_etaWidth",
+            "corr_phiWidth",
+            "corr_sieip",
+            "corr_s4",
+            "corr_pfPhoIso03",
+            "corr_pfChargedIsoPFPV",
+            "corr_pfChargedIsoWorstVtx",
+            "ScEta",
+            "fixedGridRhoAll"
+        ],
+        "inputs_EE_corr":
+        [
+            "energyRaw",
+            "corr_r9",
+            "corr_sieie",
+            "corr_etaWidth",
+            "corr_phiWidth",
+            "corr_sieip",
+            "corr_s4",
+            "corr_pfPhoIso03",
+            "corr_pfChargedIsoPFPV",
+            "corr_pfChargedIsoWorstVtx",
+            "ScEta",
+            "fixedGridRhoAll",
+            "corr_esEffSigmaRR",
+            "corr_esEnergyOverRawE"
+        ],
+        "flow_inputs":
+        [
+            "r9",
             "sieie",
             "etaWidth",
             "phiWidth",
             "sieip",
             "s4",
-            "hoe",
-            "ecalPFClusterIso",
-            "trkSumPtHollowConeDR03",
-            "trkSumPtSolidConeDR04",
-            "pfChargedIso",
+            "pfPhoIso03",
+            "pfChargedIsoPFPV",
             "pfChargedIsoWorstVtx",
             "esEffSigmaRR",
             "esEnergyOverRawE",
-            "hcalPFClusterIso",
-            "energyErr"],
-    
-        "Isolation_transform_order" : [6,7,8,9,10,11,12,13,14]
-
-
+            "energyErr"
+        ],
+        "Isolation_transform_order": [6,7,8,9,10],
+        "effAreasConfigFile" : "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_TrueVtx.txt",
+        "is2017" : true
     },
 
     "flashggDiPhotons" :

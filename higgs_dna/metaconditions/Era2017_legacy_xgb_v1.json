@@ -34,8 +34,8 @@
 
     "flashggPhotons" :
     {
-        "photonIdMVAweightfile_EB" : "XGB_Model_Barrel_SA_phoID_UL2017_woCorr.json",
-        "photonIdMVAweightfile_EE" : "XGB_Model_Endcap_SA_phoID_UL2017_woCorr.json",
+        "photonIdMVAweightfile_EB" : "XGB_Model_Barrel_EGM_Fall2017V2_PhoID.json",
+        "photonIdMVAweightfile_EE" : "XGB_Model_Endcap_EGM_Fall2017V2_PhoID.json",
         "inputs_EB": 
         [
             "energyRaw",
@@ -48,7 +48,7 @@
             "pfPhoIso03",
             "pfChargedIsoPFPV",
             "pfChargedIsoWorstVtx",
-            "eta",
+            "ScEta",
             "fixedGridRhoAll"
         ],
         "inputs_EE":
@@ -63,11 +63,59 @@
             "pfPhoIso03",
             "pfChargedIsoPFPV",
             "pfChargedIsoWorstVtx",
-            "eta",
+            "ScEta",
             "fixedGridRhoAll",
             "esEffSigmaRR",
             "esEnergyOverRawE"
         ],
+        "inputs_EB_corr": 
+        [
+            "energyRaw",
+            "corr_r9",
+            "corr_sieie",
+            "corr_etaWidth",
+            "corr_phiWidth",
+            "corr_sieip",
+            "corr_s4",
+            "corr_pfPhoIso03",
+            "corr_pfChargedIsoPFPV",
+            "corr_pfChargedIsoWorstVtx",
+            "ScEta",
+            "fixedGridRhoAll"
+        ],
+        "inputs_EE_corr":
+        [
+            "energyRaw",
+            "corr_r9",
+            "corr_sieie",
+            "corr_etaWidth",
+            "corr_phiWidth",
+            "corr_sieip",
+            "corr_s4",
+            "corr_pfPhoIso03",
+            "corr_pfChargedIsoPFPV",
+            "corr_pfChargedIsoWorstVtx",
+            "ScEta",
+            "fixedGridRhoAll",
+            "corr_esEffSigmaRR",
+            "corr_esEnergyOverRawE"
+        ],
+        "flow_inputs":
+        [
+            "r9",
+            "sieie",
+            "etaWidth",
+            "phiWidth",
+            "sieip",
+            "s4",
+            "pfPhoIso03",
+            "pfChargedIsoPFPV",
+            "pfChargedIsoWorstVtx",
+            "esEffSigmaRR",
+            "esEnergyOverRawE",
+            "energyErr"
+        ],
+        "Isolation_transform_order": [6,7,8,9,10],
         "effAreasConfigFile" : "RecoEgamma/PhotonIdentification/data/Fall17/effAreaPhotons_cone03_pfPhotons_90percentBased_TrueVtx.txt",
         "is2017" : true
     },

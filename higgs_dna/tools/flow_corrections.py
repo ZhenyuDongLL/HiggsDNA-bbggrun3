@@ -2,12 +2,13 @@ import awkward as ak
 import torch
 import zuko
 import numpy as np
+from typing import Union
 import sys
 import os
 from packaging.version import parse as parse_version
 
 
-def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_mva_run3, logger=None):
+def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_mva_function, logger=None):
     """
     Apply normalizing flow corrections to the photon collection and update the photonID MVA.
 
@@ -16,14 +17,18 @@ def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_
         events (ak.Array): The events collection.
         meta (dict): Metadata containing correction inputs".
         year (str): The dataset year identifier.
-        add_photonid_mva_run3 (callable): Function to recompute the photonID MVA.
+        add_photonid_mva_function (callable): Function to recompute the photonID MVA.
         logger (logging.Logger, optional).
 
     Returns:
         ak.Array: The updated photon collection with flow corrections applied.
     """
-    if logger is not None:
-        logger.info("Calculating normalizing flow corrections to photon MVA ID inputs")
+    is_run2 = any([y in year for y in ["2016", "2017", "2018"]])
+    is_run3 = any([y in year for y in ["2022", "2023", "2024", "2025", "2026"]])
+    if logger is not None and is_run2:
+        logger.info("Calculating normalizing flow corrections to Run 2 photon MVA ID inputs")
+    elif logger is not None and is_run3:
+        logger.info("Calculating normalizing flow corrections to Run 3 photon MVA ID inputs")
 
     # Get counts to be used for unflattening the corrected inputs.
     counts = photons.num() if hasattr(photons, "num") else ak.num(photons)
@@ -45,8 +50,16 @@ def apply_flow_corrections_to_photons(photons, events, meta, year, add_photonid_
         photons["raw_" + str(var)] = photons[str(var)]
         photons[str(var)] = ak.unflatten(corrected_inputs[:, i], counts)
 
-    # Update the photonID MVA using the new, corrected inputs.
-    photons["mvaID"] = ak.unflatten(add_photonid_mva_run3(photons, events), counts)
+    # Update the photonID MVA using the new, corrected inputs. The Run 2 helper
+    # returns the full jagged photon collection, while the Run 3 helper returns
+    # flat MVA values.
+    updated_mva = add_photonid_mva_function(photons, events)
+    if hasattr(updated_mva, "fields") and "mvaID" in updated_mva.fields:
+        photons["mvaID"] = updated_mva["mvaID"]
+    elif len(updated_mva) == len(counts):
+        photons["mvaID"] = updated_mva
+    else:
+        photons["mvaID"] = ak.unflatten(updated_mva, counts)
 
     return photons
 
@@ -76,7 +89,19 @@ def calculate_flow_corrections(photon: ak.Array, events, inputs_list, isolation_
     if parse_version(zuko.__version__) >= parse_version("1.5.0"):
 
         # Reading the normalizing flow models!
-        if (year == "2022postEE"):
+        if ("2016" in year):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, slope=1e-4, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2016_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False), strict=False)
+        elif (year == "2017"):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, slope=1e-4, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2017_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False), strict=False)
+        elif (year == "2018"):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, slope=1e-4, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2018_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False), strict=False)
+        elif (year == "2022postEE"):
             flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, slope=1e-4)
             path_means_std = os.path.join(os.path.dirname(__file__), 'flows/postEE/')
             flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False), strict=False)
@@ -102,7 +127,19 @@ def calculate_flow_corrections(photon: ak.Array, events, inputs_list, isolation_
     else:
 
         # Reading the normalizing flow models!
-        if (year == "2022postEE"):
+        if ("2016" in year):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2016_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+        elif (year == "2017"):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2017_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+        elif (year == "2018"):
+            flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2, passes=2)
+            path_means_std = os.path.join(os.path.dirname(__file__), 'flows/2018_model/')
+            flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
+        elif (year == "2022postEE"):
             flow = zuko.flows.NSF(len(var_list), context=len(conditions_list) + 2, bins=10, transforms=5, hidden_features=[256] * 2)
             path_means_std = os.path.join(os.path.dirname(__file__), 'flows/postEE/')
             flow.load_state_dict(torch.load(path_means_std + 'best_model_.pth', map_location=torch.device('cpu'), weights_only=False))
@@ -125,7 +162,6 @@ def calculate_flow_corrections(photon: ak.Array, events, inputs_list, isolation_
         else:
             print('\nThere is no model trained for this specific year!! - Exiting')
             sys.exit(0)
-
     rho = events.Rho.fixedGridRhoAll * ak.ones_like(photon.pt)
     rho = ak.flatten(rho)
     photon = ak.flatten(photon)
@@ -198,6 +234,29 @@ def apply_flow(input_tensor : torch.tensor, conditions_tensor : torch.tensor, fl
 
 
 def perform_pre_processing(input_tensor : torch.tensor, conditions_tensor : torch.tensor, isolation_indexes, path=False, year='2022PostEE'):
+    shifts = {
+        "2016": {
+            6: 0.6,     # pfPhoIso03
+            7: 3.0,     # pfChargedIsoPFPV
+            8: 1.0,     # pfChargedIsoWorstVtx
+            9: 10.0,    # esEffSigmaRR
+            10: 0.2,    # esEnergyOverRawE
+        },
+        "2017": {
+            6: 0.6,     # pfPhoIso03
+            7: 3.0,     # pfChargedIsoPFPV
+            8: 1.0,     # pfChargedIsoWorstVtx
+            9: 10.0,    # esEffSigmaRR
+            10: 0.2,    # esEnergyOverRawE
+        },
+        "2018": {
+            6: 0.6,     # pfPhoIso03
+            7: 3.0,     # pfChargedIsoPFPV
+            8: 1.0,     # pfChargedIsoWorstVtx
+            9: 10.0,    # esEffSigmaRR
+            10: 0.2,    # esEnergyOverRawE
+        },
+    }
 
     # Fist we make the isolation variables transformations
     # The indexes_for_iso_transform arrays point to the indexes in the inputs where the isolation variables are
@@ -206,20 +265,28 @@ def perform_pre_processing(input_tensor : torch.tensor, conditions_tensor : torc
 
     # creating the constructors
     for index in indexes_for_iso_transform:
-
-        # since hoe has very low values, the shift value (value until traingular events are sampled) must be diferent here
-        if (index == 6):
-            if year == '2024':
-                vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.002))
-            elif year == '2025':
-                vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.02))
-            else:
-                vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.001))
+        using_year_key = None
+        for year_key, shifts_for_year in shifts.items():
+            if year_key in year and index in shifts_for_year:
+                using_year_key = year_key
+                break
+        if using_year_key is not None:
+            vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=shifts[using_year_key][index]))
+            print(f"[DEBUG] Using shift value of {shifts[using_year_key][index]} for index {index} in year {year}")
         else:
-            if year == '2025':
-                vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.2))
+            # since hoe has very low values, the shift value (value until traingular events are sampled) must be diferent here
+            if (index == 6):
+                if year == '2024':
+                    vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.002))
+                elif year == '2025':
+                    vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.02))
+                else:
+                    vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.001))
             else:
-                vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu')))
+                if year == '2025':
+                    vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu'), b=0.2))
+                else:
+                    vector_for_iso_constructors_mc.append(Make_iso_continuous(input_tensor[:,index], device=torch.device('cpu')))
 
     # Applying the transformations
     counter = 0
@@ -261,7 +328,7 @@ def invert_pre_processing(input_tensor: torch.tensor, input_mean_for_std: torch.
 
 
 class Make_iso_continuous:
-    def __init__(self, tensor, device, b=False):
+    def __init__(self, tensor, device, b: Union[float, bool] = False):
 
         self.device = device
         self.iso_bigger_zero = tensor > 0
