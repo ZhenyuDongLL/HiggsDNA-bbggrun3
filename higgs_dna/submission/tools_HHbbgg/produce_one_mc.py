@@ -44,7 +44,7 @@ def run_analysis(nano_version, parent_dir, keyword, year, memory):
     os.system(command)
 
 
-def update_json_config(keyword, year, split_mc=False):
+def update_json_config(keyword, year):
     # Using final JSON (including systematics) for all the years
     if any(x in year for x in ("2025","2024", "2022", "2023", "2016", "2017", "2018")):
         json_path = "submission/tools_HHbbgg/runner_mc_template.json"
@@ -126,7 +126,6 @@ def main():
     parser.add_argument("-y", "--year", required=True, choices=["2022postEE","2022preEE","2023postBPix","2023preBPix", "2024", "2025", "2018", "2017","2016preVFP","2016postVFP"], help="year")
     parser.add_argument("-n", "--nano", required=True, help="nano-version")
     parser.add_argument("-m", "--memory", help="condor job memory")
-    parser.add_argument("-s", "--split-mc", action="store_true", help="Enable MC splitting by event ID (even for 2024, odd for 2025)")
     parser.add_argument(
         "-w",
         "--where",
@@ -152,7 +151,7 @@ def main():
     fetch_datasets(sample_file, dbs_instance=args.instance, region=args.where)
 
     # Update and save JSON configuration
-    update_json_config(args.keyword, args.year, split_mc=args.split_mc)
+    update_json_config(args.keyword, args.year)
 
     # Launch jobs
     run_analysis(args.nano, args.parent_dir, args.keyword, args.year, args.memory)

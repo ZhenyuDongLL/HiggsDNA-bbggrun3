@@ -8,6 +8,7 @@ from higgs_dna.tools.HHbbgg_bpairing import Compute_DNN_bpairing
 from higgs_dna.tools.HHbbgg_vbfpairing import apply_VBFHH_pairing
 from higgs_dna.tools.HHbbgg_mbb_regression import calculate_mbb_regression
 from higgs_dna.tools.jetID import add_jetId
+from higgs_dna.tools.mc_splitting import split_mc_events
 from higgs_dna.selections.photon_selections import photon_preselection
 from higgs_dna.selections.diphoton_selections import build_diphoton_candidates, apply_fiducial_cut_det_level
 from higgs_dna.selections.lepton_selections import select_electrons, select_muons
@@ -84,6 +85,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
         doFlow_corrections: bool = False,
         validate_with_electrons: bool = False,
         output_format: str = "parquet",
+        split_mc: bool = False,
     ) -> None:
         super().__init__(
             metaconditions,
@@ -107,6 +109,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
             output_format=output_format
         )
 
+        self.split_mc = split_mc
         self.bbgg_analysis = ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair", "nonResReg_vbfpair"]
         self.nano_version = nano_version
         self.name_convention = "DAS"
@@ -168,6 +171,9 @@ class HHbbggProcessor(HggSkeletonProcessor):
 
         # data or monte carlo?
         self.data_kind = "mc" if hasattr(events, "GenPart") else "data"
+
+        # MC splitting based on event ID and year for 2024 and 2025 datasets
+        events = split_mc_events(events, split_mc=self.split_mc, data_kind=self.data_kind, year=self.year[dataset_name][0])
 
         # here we start recording possible coffea accumulators
         # most likely histograms, could be counters, arrays, ...
