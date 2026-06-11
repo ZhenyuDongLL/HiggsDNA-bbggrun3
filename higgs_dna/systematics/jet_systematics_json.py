@@ -514,7 +514,7 @@ def jerc_jet(
         jer_version = {
             "2016preVFP": "Summer20UL16APV_JRV5_MC",
             "2016postVFP": "Summer20UL16_JRV5_MC",
-            "2017": f"Summer19UL17_JR{'V4' if is_Run2_v15 else 'V4'}_MC",
+            "2017": "Summer19UL17_JRV4_MC",
             "2018": "Summer19UL18_JRV3_MC",
             "2022preEE": "Summer22_22Sep2023_JRV2_MC",
             "2022postEE": "Summer22EE_22Sep2023_JRV2_MC",
@@ -527,10 +527,8 @@ def jerc_jet(
         jer = jer_version[year]
         jer_ptres_tag = f"{jer}_PtResolution_{algo}"
         jer_sf_tag = f"{jer}_ScaleFactor_{algo}"
-
-        # Check if we are running under a JRV2 tag structure
-        is_jrv2 = "JRV2" in jer
-        jer_unc_tag = f"{jer}_SFUncertainty_{algo}" if is_jrv2 else None
+        # We are running under a "JRV2" tag structure
+        jer_unc_tag = f"{jer}_SFUncertainty_{algo}"
         # this is a hack to make sure the JER corrections aren't applied for unmatched jets with 2.5 < |eta| < 3.0
         # by setting the gen pT to the reco pT no JER shift will be applied since this is based on the pT difference
         # TODO should be removed once a proper fix is implemented at the json level
