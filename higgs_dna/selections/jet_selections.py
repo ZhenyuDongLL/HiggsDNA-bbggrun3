@@ -349,7 +349,7 @@ def select_fatjets(
     electrons: ak.highlevel.Array,
 ) -> ak.highlevel.Array:
     # same as select_jets(), but uses fatjet variables
-    fatjetId_cut = fatjets.jetId_corrected >= 2 # the tight fatjets ID is OK for |η| < 2.7
+    fatjetId_cut = fatjets.jetId_corrected >= 2  # the tight fatjets ID is OK for |η| < 2.7
     pt_cut = fatjets.pt > self.fatjet_pt_threshold
     eta_cut = abs(fatjets.eta) < self.fatjet_max_eta
     dr_dipho_cut = ak.ones_like(pt_cut) > 0

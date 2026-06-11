@@ -18,7 +18,6 @@ def get_jer_correction_set(jer_json, jer_ptres_tag, jer_sf_tag, jer_unc_tag=None
     tags_to_keep = [jer_ptres_tag, jer_sf_tag]
     if jer_unc_tag:
         tags_to_keep.append(jer_unc_tag)
-    original_tags = [c.name for c in cset.corrections] 
     cset.corrections = [
         c for c in cset.corrections if c.name in tags_to_keep
     ]
@@ -92,8 +91,9 @@ def get_jer_correction_set(jer_json, jer_ptres_tag, jer_sf_tag, jer_unc_tag=None
     ceval = cset.to_evaluator()
     return ceval
 
+
 def get_jersmear(_eval_dict, _ceval, _jer_sf_tag, _syst="nom", _jer_unc_tag=None):
-    _inputs_jer_sf = [_eval_dict[input.name] for input in _ceval[_jer_sf_tag].inputs]    
+    _inputs_jer_sf = [_eval_dict[input.name] for input in _ceval[_jer_sf_tag].inputs]
     if _jer_unc_tag is not None:
         # --- JRV2 Methodology --- https://cms-talk.web.cern.ch/t/new-jer-smearing-inputs-available-for-2024-and-2025/145723
         # Both tags only require (eta, pt), no "up"/"down" string argument needed
@@ -116,6 +116,7 @@ def get_jersmear(_eval_dict, _ceval, _jer_sf_tag, _syst="nom", _jer_unc_tag=None
     _inputs = [_eval_dict[input.name] for input in _ceval["JERSmear"].inputs]
     _jersmear = _ceval["JERSmear"].evaluate(*_inputs)
     return _eval_dict, _jersmear
+
 
 def apply_split_jec_variations(jec_syst_map, jec, algo, cset, year, era, eval_dict, jets, AK8):
     for i in jec_syst_map:
@@ -287,25 +288,25 @@ def jerc_jet(
             "MC": f"Summer{'20' if is_Run2_v15 else '19'}UL18{'NanoV15' if is_Run2_v15 else ''}_{'V1' if is_Run2_v15 else 'V5'}_MC",
         },
         "2022preEE": {
-            "Data": f"Summer22_22Sep2023_V4_DATA",
-            "MC": f"Summer22_22Sep2023_V4_MC",
+            "Data": "Summer22_22Sep2023_V4_DATA",
+            "MC": "Summer22_22Sep2023_V4_MC",
         },
         "2022postEE": {
-            "Data": f"Summer22EE_22Sep2023_V4_DATA",
-            "MC": f"Summer22EE_22Sep2023_V4_MC",
+            "Data": "Summer22EE_22Sep2023_V4_DATA",
+            "MC": "Summer22EE_22Sep2023_V4_MC",
         },
         # For 2023, the correct era is chosen based on the run the event is in.
         "2023preBPix": {
-            "Data": f"Summer23Prompt23_V4_DATA",
-            "MC": f"Summer23Prompt23_V4_MC",
+            "Data": "Summer23Prompt23_V4_DATA",
+            "MC": "Summer23Prompt23_V4_MC",
         },
         "2023postBPix": {
-            "Data": f"Summer23BPixPrompt23_V4_DATA",
-            "MC": f"Summer23BPixPrompt23_V4_MC",
+            "Data": "Summer23BPixPrompt23_V4_DATA",
+            "MC": "Summer23BPixPrompt23_V4_MC",
         },
         "2024": {
-            "Data": f"Summer24Prompt24_V3_DATA",
-            "MC": f"Summer24Prompt24_V3_MC"
+            "Data": "Summer24Prompt24_V3_DATA",
+            "MC": "Summer24Prompt24_V3_MC"
         },
         "2025": {
             "Data": "Winter25Prompt25_V3_DATA",
