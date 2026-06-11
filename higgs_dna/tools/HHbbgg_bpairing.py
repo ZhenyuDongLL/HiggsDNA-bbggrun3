@@ -79,15 +79,19 @@ def CreatePairs(j1, j2, diphotons_notsort, nano_version):
         "lead_bjet_eta": ak.fill_none(jet1.eta, -999),
         "lead_bjet_phi": ak.fill_none(jet1.phi, -999),
         "lead_bjet_mass": ak.fill_none(jet1.mass, - 999),
+        "lead_bjet_ptOvermass": ak.fill_none(jet1.pt / dijet.mass, -999),
         "lead_bjet_btagPNetB": ak.fill_none(ak.flatten(ak.pad_none(j1.btagPNetB, 1, axis=1)), -999),
         "lead_bjet_btagRobustParTAK4B": ak.fill_none(ak.flatten(ak.pad_none(j1.btagRobustParTAK4B if nano_version <= 13 else j1.btagUParTAK4B, 1, axis=1)), -999),
+        "lead_bjet_btagUParTAK4B": ak.fill_none(ak.flatten(ak.pad_none(j1.btagRobustParTAK4B if nano_version <= 13 else j1.btagUParTAK4B, 1, axis=1)), -999),
         "lead_bjet_btagDeepFlav_B": ak.fill_none(ak.flatten(ak.pad_none(j1.btagDeepFlav_B, 1, axis=1)), -999),
         "sublead_bjet_pt": ak.fill_none(jet2.pt, -999),
         "sublead_bjet_eta": ak.fill_none(jet2.eta, -999),
         "sublead_bjet_phi": ak.fill_none(jet2.phi, -999),
         "sublead_bjet_mass": ak.fill_none(jet2.mass, -999),
+        "sublead_bjet_ptOvermass": ak.fill_none(jet2.pt / dijet.mass, -999),
         "sublead_bjet_btagPNetB": ak.fill_none(ak.flatten(ak.pad_none(j2.btagPNetB, 1, axis=1)), -999),
         "sublead_bjet_btagRobustParTAK4B": ak.fill_none(ak.flatten(ak.pad_none(j2.btagRobustParTAK4B if nano_version <= 13 else j2.btagUParTAK4B, 1, axis=1)), -999),
+        "sublead_bjet_btagUParTAK4B": ak.fill_none(ak.flatten(ak.pad_none(j2.btagRobustParTAK4B if nano_version <= 13 else j2.btagUParTAK4B, 1, axis=1)), -999),
         "sublead_bjet_btagDeepFlav_B": ak.fill_none(ak.flatten(ak.pad_none(j2.btagDeepFlav_B, 1, axis=1)), -999),
         "DeltaRj1j2": ak.fill_none(DeltaRj1j2, -999),
         "absCosThetaStar_CS": ak.fill_none(getCosThetaStar_CS(dijet,diphoton), -999),
@@ -157,24 +161,34 @@ def Compute_DNN_bpairing(dijets, diphotons, keras_model, nano_version):
     original_count = ak.num(dijets, axis=1)
     dijet = dijets[ak.local_index(dijets, axis=1) < 10]
 
-    var = [
-        'lead_bjet_pt',
-        'lead_bjet_mass',
-        'sublead_bjet_pt' ,
-        'sublead_bjet_mass' ,
-        'lead_bjet_btagPNetB',
-        'lead_bjet_btagRobustParTAK4B',
-        'lead_bjet_btagDeepFlav_B',
-        'sublead_bjet_btagPNetB',
-        'sublead_bjet_btagRobustParTAK4B',
-        'sublead_bjet_btagDeepFlav_B',
-        'absCosThetaStar_CS',
-        "absCosThetaStar_jj",
-        'DeltaRj1j2',
-        "DeltaR_jg_min" ,
-        "DeltaR_jg_notmin" ,
-        "n_jets"
-    ]
+    if "Run2" in keras_model:
+        var = [
+            'lead_bjet_ptOvermass',
+            'sublead_bjet_ptOvermass',
+            'lead_bjet_btagPNetB',
+            'lead_bjet_btagUParTAK4B',
+            'lead_bjet_btagDeepFlav_B',
+            'sublead_bjet_btagPNetB',
+            'sublead_bjet_btagUParTAK4B',
+            'sublead_bjet_btagDeepFlav_B',
+            'absCosThetaStar_CS',
+            'absCosThetaStar_jj',
+            'DeltaRj1j2',
+            'DeltaR_jg_min'
+        ]
+    else:
+        var = [
+            'lead_bjet_ptOvermass',
+            'sublead_bjet_ptOvermass',
+            'lead_bjet_btagPNetB',
+            'lead_bjet_btagDeepFlav_B',
+            'sublead_bjet_btagPNetB',
+            'sublead_bjet_btagDeepFlav_B',
+            'absCosThetaStar_CS',
+            'absCosThetaStar_jj',
+            'DeltaRj1j2',
+            'DeltaR_jg_min'
+        ]
 
     session = ort.InferenceSession(keras_model)
     input_name = session.get_inputs()[0].name

@@ -915,7 +915,10 @@ class HHbbggProcessor(HggSkeletonProcessor):
             dijets_base = calculate_mbb_regression(model_file, dijets_base)
 
             if any("DNNpair" in item for item in self.bbgg_analysis):
-                keras_model = os.path.join(os.path.dirname(__file__), "../tools/HHbbgg_DNN_bpairing_allyears.onnx")
+                if any(y in self.year[dataset_name][0] for y in ["2016preVFP", "2016postVFP", "2017", "2018"]):
+                    keras_model = os.path.join(os.path.dirname(__file__), "../tools/HHbbgg_bpairing_Run2_allyears.onnx")
+                elif any(y in self.year[dataset_name][0] for y in ["2022", "2023", "2024", "2025"]):
+                    keras_model = os.path.join(os.path.dirname(__file__), "../tools/HHbbgg_bpairing_Run3_allyears.onnx")
                 dijets_base["DNNpair_Score"] = Compute_DNN_bpairing(dijets_base,diphotons,keras_model,self.nano_version)
 
             for AnType in self.bbgg_analysis:
