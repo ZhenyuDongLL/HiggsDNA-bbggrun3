@@ -193,7 +193,7 @@ def LoosePhoIdSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function, only 2017 is implemented up to now
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024","2025"]
     if year not in avail_years:
         print(f"\n WARNING: only LoosePhoIDSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
@@ -242,7 +242,7 @@ def LoosePhoIdSF(photons, weights, year="2017", is_correction=True, **kwargs):
             )
             sfdown = sfdown_lead * sfdown_sublead / _sf
 
-    elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]:
+    elif year in ["2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["IDMVA_SF"]
         if is_correction:
             # only calculate correction to nominal weight
@@ -411,7 +411,7 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
     """
 
     # era/year defined as parameter of the function
-    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    avail_years = ["2016", "2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]
     if year not in avail_years:
         logger.warning(f"\n WARNING: only PreselSF corrections for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
@@ -430,10 +430,12 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2023postBPix/Preselection_2023PostBPiX.json")
     elif year == "2024":
         json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2024/Preselection_2024.json")
+    elif year == "2025":
+        json_file = os.path.join(os.path.dirname(__file__), "JSONs/Preselection/2025/Preselection_2025.json")
 
     if year in ["2016", "2017", "2018"]:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["PreselSF"]
-    elif "2022" in year or "2023" in year or "2024" in year:
+    elif "2022" in year or "2023" in year or "2024" or "2025" in year:
         evaluator = correctionlib.CorrectionSet.from_file(json_file)["Preselection_SF"]
 
     if year in ["2016", "2017", "2018"]:
@@ -479,7 +481,7 @@ def PreselSF(photons, weights, year="2017", is_correction=True, **kwargs):
     # In principle, we should use the fully correct formula https://indico.cern.ch/event/1360948/contributions/5783762/attachments/2788516/4870824/24_02_02_HIG-23-014_PreAppPres.pdf#page=7
     # However, if the SF is pt-binned, the approximation of the multiplication of the two SFs is fully exact
     # N.B. The preselection SFs for Run3 are without the loose photon ID cut
-    elif "2022" in year or "2023" in year or "2024" in year:
+    elif "2022" in year or "2023" in year or "2024" or "2025" in year:
         if is_correction:
             # only calculate correction to nominal weight
             sf_lead = evaluator.evaluate(
