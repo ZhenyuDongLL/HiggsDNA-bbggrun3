@@ -419,7 +419,7 @@ def get_loose_phoID_json(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "2025": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/lgazi/IDMVA_SF/2025/loose_phoID0p7_SF/2025_phoid0p7_SF.json"),
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/lgazi/IDMVA_SF/2025/loose_phoID0p7_SF/2025_phoid0p7_SF.json",
             "to": f"{to_prefix}/2025/LoosePhoIDSF_2025.json",
 	    "type": "eos",
 	},
@@ -590,7 +590,7 @@ def get_presel_json(logger, target_dir, use_xrdcp=False):
             "type": "eos",
         },
         "2025": {
-            "from": "/eos/cms/store/group/phys_higgs/cmshgg/lgazi/Preselection_SF/2025/2025_Preselection_SF.json"),
+            "from": "/eos/cms/store/group/phys_higgs/cmshgg/lgazi/Preselection_SF/2025/2025_Preselection_SF.json",
 	    "to": f"{to_prefix}/2025/Preselection_2025.json",
             "type": "eos",
         },
