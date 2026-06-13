@@ -4,7 +4,7 @@ import subprocess
 # Initialize VOMS proxy
 print("Initializing VOMS proxy...")
 subprocess.run("voms-proxy-init --rfc --voms cms -valid 192:00", shell=True, check=True)
-outbase_dir = "/eos/user/" + os.environ['USER'][:1] + "/" + os.environ['USER'] + "/HiggsDNA_v4PrelimProd/"
+outbase_dir = "/eos/user/" + os.environ['USER'][:1] + "/" + os.environ['USER'] + "/HiggsDNA_v7Production/"
 extra_dir = ""
 
 samples = [
