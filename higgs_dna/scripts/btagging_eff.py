@@ -133,6 +133,10 @@ def main():
         output_dir = args.output_dir
 
     outputDir_era_dict = {
+        "2016preVFP": "2016preVFP_UL",
+        "2016postVFP": "2016postVFP_UL",
+        "2017": "2017_UL",
+        "2018": "2018_UL",
         "preEE": "2022_Summer22",
         "postEE": "2022_Summer22EE",
         "2022preEE": "2022_Summer22",

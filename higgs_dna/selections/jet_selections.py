@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def getBTagMVACut(mva_name, mva_wp, year):
+def getBTagMVACut(mva_name, mva_wp, year, nano_version=None):
     mva_name_to_btag_wp_name = {
         "particleNet": "particleNet_wp_values",
         "deepJet": "deepJet_wp_values",
@@ -22,6 +22,11 @@ def getBTagMVACut(mva_name, mva_wp, year):
 
     # Based on recommendations for the tight QCD WP seen here:
     # https://btv-wiki.docs.cern.ch/PerformanceCalibration/#working-points
+    if (nano_version == 15) and (year in ["2016preVFP", "2016postVFP", "2017", "2018"]):
+        btagging_file_name = "btagging_v15.json.gz"
+    else:
+        btagging_file_name = "btagging.json.gz"
+
     btag_correction_configs = {
         "2016preVFP": {
             "file": os.path.join(
@@ -30,7 +35,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "systematics",
                 "JSONs",
                 "bTagSF",
-                "2016preVFP_UL/btagging.json.gz",
+                f"2016preVFP_UL/{btagging_file_name}",
             )
         },
         "2016postVFP": {
@@ -40,7 +45,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "systematics",
                 "JSONs",
                 "bTagSF",
-                "2016postVFP_UL/btagging.json.gz",
+                f"2016postVFP_UL/{btagging_file_name}",
             )
         },
         "2017": {
@@ -50,7 +55,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "systematics",
                 "JSONs",
                 "bTagSF",
-                "2017_UL/btagging.json.gz",
+                f"2017_UL/{btagging_file_name}",
             )
         },
         "2018": {
@@ -60,7 +65,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "systematics",
                 "JSONs",
                 "bTagSF",
-                "2018_UL/btagging.json.gz",
+                f"2018_UL/{btagging_file_name}",
             )
         },
         "2022preEE": {
@@ -70,7 +75,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "systematics",
                 "JSONs",
                 "bTagSF",
-                "2022_Summer22/btagging.json.gz",
+                f"2022_Summer22/{btagging_file_name}",
             )
         },
         "2022postEE": {
@@ -80,7 +85,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "systematics",
                 "JSONs",
                 "bTagSF",
-                "2022_Summer22EE/btagging.json.gz",
+                f"2022_Summer22EE/{btagging_file_name}",
             )
         },
         "2023preBPix": {
@@ -90,7 +95,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "systematics",
                 "JSONs",
                 "bTagSF",
-                "2023_Summer23/btagging.json.gz",
+                f"2023_Summer23/{btagging_file_name}",
             )
         },
         "2023postBPix": {
@@ -100,7 +105,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "systematics",
                 "JSONs",
                 "bTagSF",
-                "2023_Summer23BPix/btagging.json.gz",
+                f"2023_Summer23BPix/{btagging_file_name}",
             )
         },
         "2024": {
@@ -110,7 +115,7 @@ def getBTagMVACut(mva_name, mva_wp, year):
                 "systematics",
                 "JSONs",
                 "bTagSF",
-                "2024_Summer24/btagging.json.gz",
+                f"2024_Summer24/{btagging_file_name}",
             )
         },
     }

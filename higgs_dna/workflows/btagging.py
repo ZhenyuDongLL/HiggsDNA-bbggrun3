@@ -483,7 +483,8 @@ class BTaggingEfficienciesProcessor(HggSkeletonProcessor):
             # Based on recommendations for the tight QCD WP seen here: https://btv-wiki.docs.cern.ch/PerformanceCalibration/#working-points
             btag_WP = getBTagMVACut(mva_name=self.bjet_mva,
                                     mva_wp=self.bjet_wp,
-                                    year=self.year[dataset_name][0])
+                                    year=self.year[dataset_name][0],
+                                    nano_version=self.nano_version)
 
             btag_mva_column = list(btagMVA_selection[self.bjet_mva].keys())[0]
 
@@ -671,8 +672,10 @@ class BTaggingEfficienciesHHbbggProcessor(HggSkeletonProcessor):
         else:
             gen_jet_min_pt = 20
 
-        if "2024" in self.year[dataset_name][0]:
+        if self.nano_version in [14, 15]:
             self.bjet_mva = "btagUParTAK4B"
+        else:
+            self.bjet_mva = "btagPNetB"
 
         logger.info(f"Deriving b-tagging efficiencies for {dataset_name} ({self.year[dataset_name][0]}) with mva {self.bjet_mva}")
 
@@ -1070,7 +1073,8 @@ class BTaggingEfficienciesHHbbggProcessor(HggSkeletonProcessor):
                     wp: getBTagMVACut(
                         mva_name=self.bjet_mva,
                         mva_wp=wp,
-                        year=self.year[dataset_name][0]
+                        year=self.year[dataset_name][0],
+                        nano_version=self.nano_version
                     )
                     for wp in self.bjet_wps
                 }
@@ -1135,7 +1139,8 @@ class BTaggingEfficienciesHHbbggProcessor(HggSkeletonProcessor):
             elif hasattr(self, "bjet_wp") and self.bjet_wp is not None:
                 btag_WP = getBTagMVACut(mva_name=self.bjet_mva,
                                         mva_wp=self.bjet_wp,
-                                        year=self.year[dataset_name][0])
+                                        year=self.year[dataset_name][0],
+                                        nano_version=self.nano_version)
 
                 btag_mva_column = list(btagMVA_selection[self.bjet_mva].keys())[0]
 

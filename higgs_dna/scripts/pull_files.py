@@ -2003,24 +2003,23 @@ def get_HHbbgg_btag_eff_json(logger, target_dir, use_xrdcp=False):
         )
 
     from_to_dict = {
-        # Using 2024_Summer24 bTag eff for all Run 2 years as a placeholder until run2 bTag effs are available
         "bTag_eff_2016preVFP_v15": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2016preVFP_UL/HHbbgg_v15.json.gz",
             "to": f"{to_prefix}/2016preVFP_UL/HHbbgg_v15.json.gz",
             "type": "eos",
         },
         "bTag_eff_2016postVFP_v15": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2016postVFP_UL/HHbbgg_v15.json.gz",
             "to": f"{to_prefix}/2016postVFP_UL/HHbbgg_v15.json.gz",
             "type": "eos",
         },
         "bTag_eff_2017_v15": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2017_UL/HHbbgg_v15.json.gz",
             "to": f"{to_prefix}/2017_UL/HHbbgg_v15.json.gz",
             "type": "eos",
         },
         "bTag_eff_2018_v15": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2024_Summer24/HHbbgg.json.gz",
+            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagEff/2018_UL/HHbbgg_v15.json.gz",
             "to": f"{to_prefix}/2018_UL/HHbbgg_v15.json.gz",
             "type": "eos",
         },
