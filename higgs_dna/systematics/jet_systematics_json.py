@@ -187,7 +187,7 @@ def jerc_jet(
         algo = "AK4PFPuppi" + reg
     else:
         if is_Run2_v15:
-            algo = "AK4PFPuppi"
+            algo = "AK4PFPuppi" + reg
         else:
             algo = "AK4PFchs"
 

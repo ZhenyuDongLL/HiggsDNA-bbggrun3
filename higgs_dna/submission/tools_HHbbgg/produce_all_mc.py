@@ -408,10 +408,10 @@ samples = [
         "nano": "13"
     },
     {
-       "keyword": "ttHtoGG",
-       "cmsdas": "/TTH-Hto2G_Par-M-125_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
-       "year": "2024",
-       "nano": "15"
+        "keyword": "ttHtoGG",
+        "cmsdas": "/TTH-Hto2G_Par-M-125_TuneCP5_13p6TeV_amcatnloFXFX-pythia8/RunIII2024Summer24NanoAODv15-150X_mcRun3_2024_realistic_v2-v2/NANOAODSIM",
+        "year": "2024",
+        "nano": "15"
     },
     {
         "keyword": "ttHtoGG",

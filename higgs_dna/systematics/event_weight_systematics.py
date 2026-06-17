@@ -1080,7 +1080,7 @@ def bTagShapeSF(events, weights, ShapeSF_name, is_correction=True, year="2017", 
 
 def bTagFixedWP(events, jets, weights, dataset_name, mva_name, wp, bTagEffFileName, btagEffDatasetName=None, is_correction=True, year="2017", is_Run2_v15=False, **kwargs):
 
-    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]
     if year not in avail_years:
         logger.error(f"\n Only fixed WP Scale Factors for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
@@ -1144,6 +1144,11 @@ def bTagFixedWP(events, jets, weights, dataset_name, mva_name, wp, bTagEffFileNa
         "2024":{
             "file": os.path.join(
                 inputFilePath , "bTagEff/2024_Summer24/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2025":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2025_Summer24/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         }
     }
@@ -1274,6 +1279,14 @@ def bTagFixedWP(events, jets, weights, dataset_name, mva_name, wp, bTagEffFileNa
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
                 "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
             },
+            "2025":{
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2025_Summer24/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            }
         }
 
         btagsf_jsonpog_file = os.path.join(
@@ -1654,7 +1667,7 @@ def bTagFixedWP(events, jets, weights, dataset_name, mva_name, wp, bTagEffFileNa
 
 def bTagMultiFixedWP(events, jets, weights, dataset_name, mva_name, wps, bTagEffFileName, btagEffDatasetName=None, is_correction=True, year="2017", is_Run2_v15=False, **kwargs):
 
-    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024"]
+    avail_years = ["2016preVFP", "2016postVFP", "2017", "2018", "2022preEE", "2022postEE", "2023preBPix", "2023postBPix", "2024", "2025"]
     if year not in avail_years:
         logger.error(f"\n Only fixed WP Scale Factors for the year strings {avail_years} are already implemented! \n Exiting. \n")
         exit()
@@ -1717,6 +1730,11 @@ def bTagMultiFixedWP(events, jets, weights, dataset_name, mva_name, wps, bTagEff
         "2024":{
             "file": os.path.join(
                 inputFilePath , "bTagEff/2024_Summer24/" + bTagEffFileName + Run2_btag_json + ".json.gz"
+            )
+        },
+        "2025":{
+            "file": os.path.join(
+                inputFilePath , "bTagEff/2025_Summer24/" + bTagEffFileName + Run2_btag_json + ".json.gz"
             )
         }
     }
@@ -1847,6 +1865,14 @@ def bTagMultiFixedWP(events, jets, weights, dataset_name, mva_name, wps, bTagEff
                 "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
                 "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
             },
+            "2025":{
+                "file": os.path.join(
+                    inputFilePath , "bTagSF/2025_Summer24/btagging" + Run2_btag_json + ".json.gz"
+                ),
+                "wp": mva_name_to_btag_wp_name[mva_name],
+                "sf_light": mva_name_to_btag_sf_name["light"][mva_name],
+                "sf_comb": mva_name_to_btag_sf_name["comb"][mva_name]
+            }
         }
 
         btagsf_jsonpog_file = os.path.join(
