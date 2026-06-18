@@ -672,7 +672,7 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2016preVFP_v15": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagSF/UL2016preVFP-NanoAODv15/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2016preVFP-UL-NanoAODv15/2026-06-18/btagging.json.gz",
             "to": f"{to_prefix}/2016preVFP_UL/btagging_v15.json.gz",
             "type": "eos",
         },
@@ -682,7 +682,7 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2016postVFP_v15": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagSF/UL2016postVFP-NanoAODv15/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2016postVFP-UL-NanoAODv15/2026-06-18/btagging.json.gz",
             "to": f"{to_prefix}/2016postVFP_UL/btagging_v15.json.gz",
             "type": "eos",
         },
@@ -692,7 +692,7 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2017_v15": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagSF/UL2017-NanoAODv15/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2017-UL-NanoAODv15/2026-06-18/btagging.json.gz",
             "to": f"{to_prefix}/2017_UL/btagging_v15.json.gz",
             "type": "eos",
         },
@@ -702,7 +702,7 @@ def get_btag_json(logger, target_dir, use_xrdcp=False):
             "type": "cvmfs",
         },
         "2018_v15": {
-            "from": "/eos/cms/store/group/phys_b2g/HHbbgg/chuxue/bTagSF/UL2018-NanoAODv15/btagging.json.gz",
+            "from": "/cvmfs/cms-griddata.cern.ch/cat/metadata/BTV/Run2-2018-UL-NanoAODv15/2026-06-18/btagging.json.gz",
             "to": f"{to_prefix}/2018_UL/btagging_v15.json.gz",
             "type": "eos",
         },
