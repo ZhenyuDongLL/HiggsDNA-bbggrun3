@@ -1296,11 +1296,6 @@ def bTagFixedWP(events, jets, weights, dataset_name, mva_name, wp, bTagEffFileNa
         # Import evaluators
         light_evaluator = correctionlib.CorrectionSet.from_file(btagsf_jsonpog_file)[btag_correction_configs[year]["sf_light"]]
         heavy_btagsf_jsonpog_file = btagsf_jsonpog_file
-        if is_Run2_v15 and ("2016preVFP" in year or "2016postVFP" in year or "2017" in year or "2018" in year):
-            heavy_btagsf_jsonpog_file = os.path.join(
-                os.path.dirname(__file__), inputFilePath, "bTagSF/2024_Summer24/btagging.json.gz"
-            )
-            logger.warning("Run2 v15 missing comb SF, fallback to 2024_Summer24 comb SF.")
         heavy_evaluator = correctionlib.CorrectionSet.from_file(heavy_btagsf_jsonpog_file)[btag_correction_configs[year]["sf_comb"]]
         btageff_evaluator = correctionlib.CorrectionSet.from_file(btageff_jsonpog_file)["btagging_efficiencies"]
 
@@ -1318,18 +1313,20 @@ def bTagFixedWP(events, jets, weights, dataset_name, mva_name, wp, bTagEffFileNa
         # - Run3 (2022–2025): pT > 20 GeV (Run3 recommendation https://btv-wiki.docs.cern.ch/ScaleFactors/#important-notes)
         if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
             gen_jet_min_pt = 30
+            max_eta = 2.4
         else:
             gen_jet_min_pt = 20
+            max_eta = 2.5
 
         tagged_jets = relevant_jets[
             ((relevant_jets.pt) > gen_jet_min_pt)
-            & (np.abs(relevant_jets.eta) < 2.5)
+            & (np.abs(relevant_jets.eta) < max_eta)
             & (relevant_jets[mva_name_to_discriminator[mva_name]] >= chosenWP)
         ]
 
         untagged_jets = relevant_jets[
             ((relevant_jets.pt) > gen_jet_min_pt)
-            & (np.abs(relevant_jets.eta) < 2.5)
+            & (np.abs(relevant_jets.eta) < max_eta)
             & (relevant_jets[mva_name_to_discriminator[mva_name]] < chosenWP)
         ]
 
@@ -1791,7 +1788,8 @@ def bTagMultiFixedWP(events, jets, weights, dataset_name, mva_name, wps, bTagEff
             "correlated",
             f"{year}",
         ]
-
+        print(mva_name)
+        print("bTagSF/2016preVFP_UL/btagging" + Run2_btag_json + ".json.gz")
         btag_correction_configs = {
             "2016preVFP": {
                 "file": os.path.join(
@@ -1882,11 +1880,6 @@ def bTagMultiFixedWP(events, jets, weights, dataset_name, mva_name, wps, bTagEff
         # Import evaluators
         light_evaluator = correctionlib.CorrectionSet.from_file(btagsf_jsonpog_file)[btag_correction_configs[year]["sf_light"]]
         heavy_btagsf_jsonpog_file = btagsf_jsonpog_file
-        if is_Run2_v15 and ("2016preVFP" in year or "2016postVFP" in year or "2017" in year or "2018" in year):
-            heavy_btagsf_jsonpog_file = os.path.join(
-                os.path.dirname(__file__), inputFilePath, "bTagSF/2024_Summer24/btagging.json.gz"
-            )
-            logger.warning("Run2 v15 missing comb SF, fallback to 2024_Summer24 comb SF.")
         heavy_evaluator = correctionlib.CorrectionSet.from_file(heavy_btagsf_jsonpog_file)[btag_correction_configs[year]["sf_comb"]]
         btageff_evaluator = correctionlib.CorrectionSet.from_file(btageff_jsonpog_file)["btagging_efficiencies"]
 
@@ -1903,20 +1896,22 @@ def bTagMultiFixedWP(events, jets, weights, dataset_name, mva_name, wps, bTagEff
         # - Run3 (2022–2025): pT > 20 GeV (Run3 recommendation https://btv-wiki.docs.cern.ch/ScaleFactors/#important-notes)
         if year in ["2016preVFP", "2016postVFP", "2017", "2018"]:
             gen_jet_min_pt = 30
+            max_eta = 2.4
         else:
             gen_jet_min_pt = 20
+            max_eta = 2.5
 
-        # Removing jets with eta beyond 2.5 (No bining exist in input JSON file for such jets)
+        # Removing jets with eta beyond 2.4/2.5 (No bining exist in input JSON file for such jets)
         relevant_jets = events["sel_jets"][
             ((events["sel_jets"].pt) > gen_jet_min_pt)
-            & (np.abs(events["sel_jets"].eta) < 2.5)
+            & (np.abs(events["sel_jets"].eta) < max_eta)
         ]
 
         if jets is not None:
             logger.info("using the dedicated jets input for b-tagging SF corrections and systematics")
             relevant_jets = jets[
                 ((jets.pt) > gen_jet_min_pt)
-                & (np.abs(jets.eta) < 2.5)
+                & (np.abs(jets.eta) < max_eta)
             ]
 
         # Split jets into "tagged J, not J+1" regions
