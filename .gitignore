@@ -153,31 +153,10 @@ higgs_dna/samples/*.json
 higgs_dna/metaconditions/CAF/
 
 ## JSONs for systematics
-# Weight-based Egamma objects
-higgs_dna/systematics/JSONs/TriggerSF/
-higgs_dna/systematics/JSONs/Preselection/
-higgs_dna/systematics/JSONs/ElectronVetoSF/
-higgs_dna/systematics/JSONs/SF_photon_ID/
-higgs_dna/systematics/JSONs/LoosePhoIDSF/
-higgs_dna/systematics/JSONs/LooseMvaSF/
-# Weight-based jets
-higgs_dna/systematics/JSONs/cTagSF/
-higgs_dna/systematics/JSONs/bTagSF/
-# Weight-based event level
-higgs_dna/systematics/JSONs/pileup
-# Variable-based Egamma (potentially custom for Hgg)
-higgs_dna/systematics/JSONs/scaleAndSmearing/
-higgs_dna/systematics/JSONs/FNUF/
-higgs_dna/systematics/JSONs/Material
-higgs_dna/systematics/JSONs/ShowerShape/
-higgs_dna/systematics/JSONs/PhotonIDMVAShape/
-# Variable-based central (e.g. JME)
-higgs_dna/systematics/JSONs/POG/
-# B-Tagging efficiencies (analysis-specific), keep midRun3.json.gz as an example file
-higgs_dna/systematics/JSONs/bTagEff/
-!higgs_dna/systematics/JSONs/bTagEff/*/midRun3.json.gz
-# Variable-based muons
-higgs_dna/systematics/JSONs/MuonScaRe/
+# Personal fork policy: NOTHING under JSONs/ is shared. Everyone runs pull_files.
+# (Upstream gitignores paths piecemeal and still tracks a few large SS / pileup /
+# midRun3 files — we untrack those on v7_noIso_bbgg.)
+higgs_dna/systematics/JSONs/
 # JEC and JER (not sure why it is named data to be honest)
 higgs_dna/systematics/data/
 
