@@ -75,6 +75,15 @@ def main():
         default=5000,
         help="Length of the tbasket in the ROOT file.",
     )
+    parser.add_argument(
+        "--sqrts",
+        type=str,
+        default="13p6TeV",
+        help=(
+            "Centre-of-mass energy tag embedded in DiphotonTree names. "
+            "Default 13p6TeV (Run 3). Pass 13TeV for Run 2."
+        ),
+    )
     args = parser.parse_args()
     source_path = args.source
     target_path = args.target
@@ -246,22 +255,23 @@ def main():
 # For data: {inputTreeDir}/Data_{sqrts}_{category}
     labels = {}
     names = {}
+    sqrts = args.sqrts
     if args.type == "mc":
         for cat in cat_dict:
             if len(process.split("_"))>1:
                 # If process of the form {process}_{mass}
                 names[
                     cat
-                ] = f"DiphotonTree/{process.split('_')[0]}_{process.split('_')[-1]}_13TeV_{cat}"  # _"+cat_postfix[process]
+                ] = f"DiphotonTree/{process.split('_')[0]}_{process.split('_')[-1]}_{sqrts}_{cat}"  # _"+cat_postfix[process]
             else:
                 names[
                 cat
-                ] = f"DiphotonTree/{process}_125_13TeV_{cat}"  # _"+cat_postfix[process]
+                ] = f"DiphotonTree/{process}_125_{sqrts}_{cat}"  # _"+cat_postfix[process]
             labels[cat] = []
         if len(process.split("_"))>1:
-            name_notag = "DiphotonTree/" + process.split('_')[0] + f"_{process.split('_')[-1]}_13TeV_NOTAG"
+            name_notag = "DiphotonTree/" + process.split('_')[0] + f"_{process.split('_')[-1]}_{sqrts}_NOTAG"
         else:
-            name_notag = "DiphotonTree/" + process + "_125_13TeV_NOTAG"
+            name_notag = "DiphotonTree/" + process + f"_125_{sqrts}_NOTAG"
         # flashggFinalFit needs to have each systematic variation in a different branch
         if args.do_syst:
             for var in variation_dict:
@@ -272,7 +282,7 @@ def main():
                     if len(process.split("_"))>1:
                         labels[cat].append(
                             [
-                                "DiphotonTree/" + process.split('_')[0] + f"_{process.split('_')[-1]}_13TeV_{cat}_" + syst_,
+                                "DiphotonTree/" + process.split('_')[0] + f"_{process.split('_')[-1]}_{sqrts}_{cat}_" + syst_,
                                 "weight",
                                 syst_,
                                 cat,
@@ -281,7 +291,7 @@ def main():
                     else:
                         labels[cat].append(
                         [
-                            "DiphotonTree/" + process + f"_125_13TeV_{cat}_" + syst_,
+                            "DiphotonTree/" + process + f"_125_{sqrts}_{cat}_" + syst_,
                             "weight",
                             syst_,
                             cat,
@@ -291,8 +301,8 @@ def main():
     else:
         for cat in cat_dict:
             labels[cat] = []
-            labels[cat].append([f"DiphotonTree/Data_13TeV_{cat}", cat])
-            names[cat] = f"DiphotonTree/Data_13TeV_{cat}"
+            labels[cat].append([f"DiphotonTree/Data_{sqrts}_{cat}", cat])
+            names[cat] = f"DiphotonTree/Data_{sqrts}_{cat}"
 
     # Now we want to write the dictionary to a root file, since object systematics don't come from
     # the nominal file we have to separate again the treatment of them from the object ones

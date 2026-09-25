@@ -27,7 +27,7 @@ def MKDIRP(dirpath, verbose=False, dry_run=False):
     return
 
 
-def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, diff_variable_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, outfiles_map_str, job_flavor, memory, decompose_string, logger, verbose_str, process_map, custom_accumulator_str, do_b_weight_normalisation_str, do_BTagRescaleVariableInfo_str, do_theory_weight_normalisation_str):
+def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, dirlist_path, var_dict, cat_dict_loc, var_dict_loc, genBinning_str, diff_variable_str, skip_normalisation_str, merge_data_str, do_syst_str, tbasket_str, outfiles_map_str, job_flavor, memory, decompose_string, logger, verbose_str, process_map, custom_accumulator_str, do_b_weight_normalisation_str, do_BTagRescaleVariableInfo_str, do_theory_weight_normalisation_str, sqrts_str=""):
 
     job_flavor = job_flavor or "microcentury"
 
@@ -373,7 +373,7 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                        executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str} || exit 107\n")
+                        executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str} {sqrts_str} || exit 107\n")
                         executable_file.write("exit 0\n")
                         executable_file.write("fi\n")
                     os.system(f"chmod 775 {job_file_executable}")
@@ -433,13 +433,13 @@ def htcondor_postprocessing(_opt, OUT_PATH, IN_PATH, CONDOR_PATH, SCRIPT_DIR, di
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str} || exit 107\n")
+                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str} {sqrts_str} || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                         else:
                             os.chdir(SCRIPT_DIR)
                             executable_file.write(f"if [ $1 -eq 0 ]; then\n")
-                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str} || exit 107\n")
+                            executable_file.write(f"    convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split('_')[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split('_')[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} --abs {genBinning_str} {tbasket_str} {outfiles_map_str} {sqrts_str} || exit 107\n")
                             executable_file.write("exit 0\n")
                             executable_file.write("fi\n")
                 os.system(f"chmod 775 {job_file_executable}")

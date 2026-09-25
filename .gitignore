@@ -211,3 +211,8 @@ higgs_dna/metaconditions/photon_id_mva_weights/*.json
 higgs_dna/metaconditions/hpc_bdt/*.h5
 higgs_dna/metaconditions/hpc_bdt/*.xgb
 higgs_dna/metaconditions/corrections/cqr_weights/
+
+# local submit artifacts (do not share)
+higgs_dna/runner_*.json
+higgs_dna/samples_*.json
+higgs_dna/samples_*.txt

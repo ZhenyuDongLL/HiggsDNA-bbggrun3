@@ -1,4 +1,7 @@
 # process_map.yaml is used in prepare_output_file.py to map incoming name to a standard naming convention
+# Matching is a substring check on the first "_" token; the first hit wins.
+# Keep GGJets above GJet: "GJet" is a substring of "GGJets".
+NMSSM:        nmssm
 GluGluHtoGG:  ggh
 GluGluHto2G:  ggh
 ggh:          ggh
@@ -32,5 +35,6 @@ bbHtoGG:      bbh
 bbHto2G:      bbh
 DYto2L:       dy
 GG-Box:       ggbox
+GGJets:       ggjets
 GJet:         gjet
 Data:         data

@@ -262,6 +262,13 @@ def main():
         help="Path to YAML/JSON defining ROOT-output filename templates."
     )
     parser.add_option(
+        "--sqrts",
+        dest="sqrts",
+        type="string",
+        default="13p6TeV",
+        help="Centre-of-mass tag in DiphotonTree names. Default 13p6TeV; use 13TeV for Run 2.",
+    )
+    parser.add_option(
         "--time",
         type=str,
         dest="time",
@@ -493,6 +500,7 @@ def main():
     diff_variable_str = f"--diff-variable {opt.diff_variable}" if opt.diff_variable else ""
     tbasket_str = f"--tbasket-length {opt.root_tbasket_length}" if (opt.root_tbasket_length != "") else ""
     outfiles_map_str = f"--outfiles-map {outfiles_map_file}" if (opt.outfiles_map != "")  else ""
+    sqrts_str = f"--sqrts {opt.sqrts}" if opt.sqrts else ""
     custom_accumulator_str = "--custom-accumulator" if opt.custom_accumulator else ""
     verbose_str = "--verbose" if opt.verbose else ""
 
@@ -687,7 +695,7 @@ def main():
                         MKDIRP(f"{OUT_PATH}/root/{file}")
                         os.chdir(SCRIPT_DIR)
                         os.system(
-                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs"
+                            f"convert_parquet_to_root.py {IN_PATH}/merged/{file}/merged.parquet {OUT_PATH}/root/{file}/merged.root mc --process {decompose_string(file, process_map)} {args} --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} {sqrts_str} --abs"
                         )
                     elif "data" in file.lower():
                         if opt.type and opt.type.lower() == "mc":
@@ -713,12 +721,12 @@ def main():
                             MKDIRP(f"{OUT_PATH}/root/Data")
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} {sqrts_str} --abs'
                             )
                         else:
                             os.chdir(SCRIPT_DIR)
                             os.system(
-                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} --abs'
+                                f'convert_parquet_to_root.py {IN_PATH}/merged/Data_{file.split("_")[-1]}/allData_merged.parquet {OUT_PATH}/root/Data/allData_{file.split("_")[-1]}.root data --cats {cat_dict_loc} --vars {var_dict_loc} {verbose_str} {genBinning_str} {tbasket_str} {outfiles_map_str} {sqrts_str} --abs'
                             )
 
         if opt.ws:
@@ -782,7 +790,7 @@ def main():
             cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
             diff_variable_str=diff_variable_str,
             skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, time=opt.time, partition=opt.job_flavor,memory=opt.memory, decompose_string=decompose_string, logger=logger,
-            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str, do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str, do_theory_weight_normalisation_str=do_theory_weight_normalisation_str
+            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str, do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str, do_theory_weight_normalisation_str=do_theory_weight_normalisation_str, sqrts_str=sqrts_str
             )
 
     elif opt.batch == "condor":
@@ -791,7 +799,7 @@ def main():
             var_dict=var_dict, cat_dict_loc=cat_dict_loc, var_dict_loc=var_dict_loc, genBinning_str=genBinning_str,
             diff_variable_str=diff_variable_str,
             skip_normalisation_str=skip_normalisation_str, merge_data_str=merge_data_str, do_syst_str=do_syst_str, tbasket_str=tbasket_str, job_flavor=opt.job_flavor, memory=opt.memory,decompose_string=decompose_string, logger=logger,
-            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str,do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str, do_theory_weight_normalisation_str=do_theory_weight_normalisation_str
+            process_map=process_map, outfiles_map_str=outfiles_map_str, verbose_str=verbose_str, custom_accumulator_str=custom_accumulator_str, do_b_weight_normalisation_str=do_b_weight_normalisation_str,do_BTagRescaleVariableInfo_str=do_BTagRescaleVariableInfo_str, do_theory_weight_normalisation_str=do_theory_weight_normalisation_str, sqrts_str=sqrts_str
         )
 
     # We don't want to leave trash around

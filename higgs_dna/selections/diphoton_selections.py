@@ -47,18 +47,18 @@ def apply_fiducial_cut_det_level(
     self,
     diphotons: ak.Array,
 ) -> ak.Array:
-    lead_rel_iso = diphotons.pho_lead.pfRelIso03_all if hasattr(diphotons.pho_lead, "pfRelIso03_all") else diphotons.pho_lead.pfRelIso03_all_quadratic  # photons.pfRelIso03_chg for v11, photons.pfRelIso03_chg_quadratic v12 and above
-    sublead_rel_iso = diphotons.pho_sublead.pfRelIso03_all if hasattr(diphotons.pho_sublead, "pfRelIso03_all") else diphotons.pho_sublead.pfRelIso03_all_quadratic  # photons.pfRelIso03_chg for v11, photons.pfRelIso03_chg_quadratic v12 and above
-    # Determine if event passes fiducial Hgg cuts at detector-level
+    # Detector-level fiducial: pT/m_gg and |eta| only.
+    # The absolute isolation cut (rel_iso * pt < 10) is omitted. It removes
+    # high-MX signal when the sister photon pollutes the isolation cone.
     if self.fiducialCuts == 'classical':
-        fid_det_passed = (diphotons.pho_lead.pt / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (lead_rel_iso * diphotons.pho_lead.pt < 10) & ((sublead_rel_iso * diphotons.pho_sublead.pt) < 10) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
+        fid_det_passed = (diphotons.pho_lead.pt / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
 
     elif self.fiducialCuts == 'geometric':
-        fid_det_passed = (numpy.sqrt(diphotons.pho_lead.pt * diphotons.pho_sublead.pt) / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (lead_rel_iso * diphotons.pho_lead.pt < 10) & (sublead_rel_iso * diphotons.pho_sublead.pt < 10) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
+        fid_det_passed = (numpy.sqrt(diphotons.pho_lead.pt * diphotons.pho_sublead.pt) / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
 
     elif self.fiducialCuts == 'store_flag':
-        fid_classical = (diphotons.pho_lead.pt / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (lead_rel_iso * diphotons.pho_lead.pt < 10) & ((sublead_rel_iso * diphotons.pho_sublead.pt) < 10) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
-        fid_geometric = (numpy.sqrt(diphotons.pho_lead.pt * diphotons.pho_sublead.pt) / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (lead_rel_iso * diphotons.pho_lead.pt < 10) & (sublead_rel_iso * diphotons.pho_sublead.pt < 10) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
+        fid_classical = (diphotons.pho_lead.pt / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
+        fid_geometric = (numpy.sqrt(diphotons.pho_lead.pt * diphotons.pho_sublead.pt) / diphotons.mass > 1 / 3) & (diphotons.pho_sublead.pt / diphotons.mass > 1 / 4) & (numpy.abs(diphotons.pho_lead.eta) < 2.5) & (numpy.abs(diphotons.pho_sublead.eta) < 2.5)
         diphotons['pass_fiducial_classical'] = fid_classical
         diphotons['pass_fiducial_geometric'] = fid_geometric
 
