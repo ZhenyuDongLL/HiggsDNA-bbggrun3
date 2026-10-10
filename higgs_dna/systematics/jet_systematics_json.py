@@ -305,12 +305,12 @@ def jerc_jet(
             "MC": "Summer23BPixPrompt23_V4_MC",
         },
         "2024": {
-            "Data": "Summer24Prompt24_V3_DATA",
-            "MC": "Summer24Prompt24_V3_MC"
+            "Data": "Summer24Prompt24_V5_DATA",
+            "MC": "Summer24Prompt24_V5_MC"
         },
         "2025": {
-            "Data": "Winter25Prompt25_V3_DATA",
-            "MC": "Winter25Prompt25_V3_MC"
+            "Data": "Winter25Prompt25_V5_DATA",
+            "MC": "Winter25Prompt25_V5_MC"
         },
     }
     jec = jec_version[year][era]
@@ -521,8 +521,8 @@ def jerc_jet(
             "2023preBPix": "Summer23Prompt23_RunCv1234_JRV2_MC",
             "2023postBPix": "Summer23BPixPrompt23_RunD_JRV2_MC",
             # This is preliminary, should be changed once files with 2024 and 2025 JER are available
-            "2024": "Summer24Prompt24_JRV1_MC",
-            "2025": "Summer24Prompt25_JRV1_MC",
+            "2024": "Summer24Prompt24_JRV2_MC",
+            "2025": "Summer24Prompt25_JRV2_MC",
         }
         jer = jer_version[year]
         jer_ptres_tag = f"{jer}_PtResolution_{algo}"

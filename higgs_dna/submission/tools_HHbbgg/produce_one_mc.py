@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import json
 
@@ -11,8 +12,13 @@ def write_sample_txt(keyword, year, cmsdas):
 
 
 def fetch_datasets(sample_file, dbs_instance='prod/global', region='Yolo'):
-    command = f"python scripts/samples/fetch_datasets.py -i {sample_file} -w {region} --dbs-instance {dbs_instance}"
-    os.system(command)
+    command = (
+        f"{sys.executable} scripts/samples/fetch_datasets.py -i {sample_file} "
+        f"-w {region} --dbs-instance {dbs_instance}"
+    )
+    rc = os.system(command)
+    if rc != 0:
+        raise RuntimeError(f"fetch_datasets failed ({rc}): {command}")
 
 
 def run_analysis(nano_version, parent_dir, keyword, year, memory):

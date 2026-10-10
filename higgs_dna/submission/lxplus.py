@@ -84,7 +84,13 @@ class LXPlusVanillaSubmitter:
         self.input_dir = os.path.join(self.analysis_dir, "inputs")
         Path(self.input_dir).mkdir(parents=True, exist_ok=True)
 
-        self.jobs_dir = os.path.join(self.analysis_dir, "jobs")
+        # Condor schedds cannot use /eos/home-X as Iwd; with -spool they also
+        # transfer the executable as basename relative to initialdir. Keep
+        # analysis JSON inputs on EOS, but put .sh/.sub/logs on AFS.
+        user = os.environ.get("USER", "zhdong")
+        self.condor_initialdir = f"/afs/cern.ch/user/{user[0]}/{user}/condor/higgsdna_vlxp_iwd"
+        Path(self.condor_initialdir).mkdir(parents=True, exist_ok=True)
+        self.jobs_dir = os.path.join(self.condor_initialdir, self.analysis_name, "jobs")
         Path(self.jobs_dir).mkdir(parents=True, exist_ok=True)
         self.job_files = []
 
@@ -214,13 +220,9 @@ class LXPlusVanillaSubmitter:
         if cluster_per_sample:
             for sample, analysis_list in self.json_analysis_files.items():
                 base_name = f"AN-{sample}"
-                jobs_dir = os.path.realpath(self.jobs_dir).replace("/eos/home-", "/eos/user/")
-                if "/eos/user" in jobs_dir:
-                    job_dir = "root://eosuser.cern.ch/" + jobs_dir
-                elif "/eos/cms" in jobs_dir:
-                    job_dir = "root://eoscms.cern.ch/" + jobs_dir
-                else:
-                    job_dir = jobs_dir
+                # Job files live on AFS (see self.jobs_dir); do not rewrite to /eos/user.
+                jobs_dir = os.path.realpath(self.jobs_dir)
+                job_dir = jobs_dir
                 n_jobs = len(analysis_list)
                 max_mat = self._compute_max_materialize(n_jobs)
 
@@ -263,11 +265,15 @@ class LXPlusVanillaSubmitter:
                         exe.write("fi\n")
                 os.chmod(job_file_executable, 0o775)
 
-                # Submit file
+                # Submit file — initialdir MUST be the directory that contains the .sh
+                # (Condor -spool transfers executable as basename relative to initialdir).
                 job_file_submit = os.path.join(jobs_dir, f"{base_name}.sub")
                 with open(job_file_submit, "w") as sub:
+                    # Absolute AFS path: condor_submit resolves relative exe
+                    # against cwd (often EOS), not against initialdir.
                     sub.write(f"executable = {job_file_executable}\n")
                     sub.write("arguments = $(ProcId)\n")
+                    sub.write(f"initialdir = {jobs_dir}\n")
                     sub.write(f"output = {base_name}.$(ClusterId).$(ProcId).out\n")
                     sub.write(f"error = {base_name}.$(ClusterId).$(ProcId).err\n")
                     sub.write(f"log = {jobs_dir}/{base_name}.$(ClusterId).log\n")
@@ -282,6 +288,10 @@ class LXPlusVanillaSubmitter:
                         sub.write(
                             f'transfer_output_remaps = "{STAGE_TARBALL_NAME} = {destination}"\n'
                         )
+                    else:
+                        # Transfer wrapper .sh (basename under initialdir=jobs_dir).
+                        sub.write("should_transfer_files = YES\n")
+                        sub.write("when_to_transfer_output = ON_EXIT\n")
                     sub.write(f'+JobFlavour = "{self.queue}"\n')
                     sub.write('on_exit_remove = (ExitBySignal == False) && (ExitCode == 0)\n')
                     sub.write('on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n')
@@ -298,24 +308,19 @@ class LXPlusVanillaSubmitter:
             for sample, analysis_list in self.json_analysis_files.items():
                 for analysis_json in analysis_list:
                     base_name = os.path.splitext(os.path.basename(analysis_json))[0]
-                    jobs_dir = os.path.realpath(self.jobs_dir).replace("/eos/home-", "/eos/user/")
-                    if "/eos/user" in jobs_dir:
-                        job_dir = "root://eosuser.cern.ch/" + jobs_dir
-                    elif "/eos/cms" in jobs_dir:
-                        job_dir = "root://eoscms.cern.ch/" + jobs_dir
-                    else:
-                        job_dir = jobs_dir
+                    jobs_dir = os.path.realpath(self.jobs_dir)
+                    job_dir = jobs_dir
                     job_file_submit = os.path.join(jobs_dir, f"{base_name}.sub")
                     max_mat = self._compute_max_materialize(1)
                     analysis_json_argument = analysis_json
                     if self.stage_output:
                         analysis_json_argument = os.path.basename(analysis_json)
                     args_ = self.args_string.replace(original_analysis_path, analysis_json_argument).replace(" vanilla_lxplus", " iterative")
-                    if self.stage_output:
-                        job_file_executable = os.path.join(jobs_dir, f"{base_name}.sh")
-                        with open(job_file_executable, "w") as exe:
-                            exe.write("#!/bin/sh\n")
-                            exe.write(f"export X509_USER_PROXY={proxy}\n")
+                    job_file_executable = os.path.join(jobs_dir, f"{base_name}.sh")
+                    with open(job_file_executable, "w") as exe:
+                        exe.write("#!/bin/sh\n")
+                        exe.write(f"export X509_USER_PROXY={proxy}\n")
+                        if self.stage_output:
                             exe.write(
                                 f'export {SCRATCH_DUMP_ENV}="${{_CONDOR_SCRATCH_DIR}}/{base_name}_stage"\n'
                             )
@@ -339,13 +344,14 @@ class LXPlusVanillaSubmitter:
                             exe.write("fi\n")
                             exe.write(f'rm -rf "${{{SCRATCH_DUMP_ENV}}}"\n')
                             exe.write("exit ${RUN_RC}\n")
-                        os.chmod(job_file_executable, 0o775)
-                    with open(job_file_submit, "w") as sub:
-                        if self.stage_output:
-                            sub.write(f"executable = {job_file_executable}\n")
                         else:
-                            sub.write("executable = /usr/bin/env\n")
-                            sub.write(f"arguments = {sys.prefix}/bin/run_analysis.py {args_} || exit 107\n")
+                            exe.write(
+                                f"/usr/bin/env {sys.prefix}/bin/run_analysis.py {args_} || exit 107\n"
+                            )
+                    os.chmod(job_file_executable, 0o775)
+                    with open(job_file_submit, "w") as sub:
+                        sub.write(f"executable = {job_file_executable}\n")
+                        sub.write(f"initialdir = {jobs_dir}\n")
                         sub.write(f"output = {base_name}.out\n")
                         sub.write(f"error = {base_name}.err\n")
                         sub.write(f"log = {jobs_dir}/{base_name}.log\n")
@@ -363,6 +369,9 @@ class LXPlusVanillaSubmitter:
                             sub.write(
                                 f'transfer_output_remaps = "{STAGE_TARBALL_NAME} = {destination}"\n'
                             )
+                        else:
+                            sub.write("should_transfer_files = YES\n")
+                            sub.write("when_to_transfer_output = ON_EXIT\n")
                         sub.write(f'+JobFlavour = "{self.queue}"\n')
                         sub.write('on_exit_remove = (ExitBySignal == False) && (ExitCode == 0)\n')
                         sub.write('on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)\n')
@@ -381,7 +390,11 @@ class LXPlusVanillaSubmitter:
         Submit all the generated .sub files to HTCondor.
         """
         for jf in self.job_files:
-            if self.current_dir.startswith("/eos"):
+            # Job files are on AFS now — do not -spool from EOS (that rewrote
+            # executable paths and caused transfer failures under AFS Iwd).
+            if str(self.jobs_dir).startswith("/afs/"):
+                subprocess.run(["condor_submit", jf])
+            elif self.current_dir.startswith("/eos"):
                 subprocess.run(["condor_submit", "-spool", jf])
             else:
                 subprocess.run(["condor_submit", jf])

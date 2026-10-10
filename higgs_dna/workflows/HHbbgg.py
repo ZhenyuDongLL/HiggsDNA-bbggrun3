@@ -110,7 +110,9 @@ class HHbbggProcessor(HggSkeletonProcessor):
         )
 
         self.split_mc = split_mc
-        self.bbgg_analysis = ["Res", "Res_DNNpair", "nonRes", "nonResReg", "nonResReg_DNNpair", "nonResReg_vbfpair"]
+        # Resonant X→HY→bbgg only: drop nonRes*/VBF to avoid unused branches and
+        # the nonResReg_vbfpair DeltaPhi(jet,jet) crash with current vector.
+        self.bbgg_analysis = ["Res", "Res_DNNpair"]
         self.nano_version = nano_version
         self.name_convention = "DAS"
 
@@ -1271,7 +1273,13 @@ class HHbbggProcessor(HggSkeletonProcessor):
                 self.calc_cut_flow(f"{AnType}_two_btagged_jets", diphotons[diphotons[f"{AnType}_has_two_btagged_jets"]], metadata)
                 self.calc_cut_flow(f"{AnType}_two_btagged_jets_or_atleast_one_fatjet", diphotons[diphotons[f"is_{AnType}"]], metadata)
 
-            diphotons = diphotons[(diphotons["is_Res"] | diphotons["is_nonRes"])]
+            # Keep events passing any enabled analysis flag (is_{AnType}).
+            # Do not hard-code is_nonRes — it is absent when nonRes* is dropped.
+            keep = None
+            for AnType in self.bbgg_analysis:
+                flag = diphotons[f"is_{AnType}"]
+                keep = flag if keep is None else (keep | flag)
+            diphotons = diphotons[keep]
 
             diphotons["nBXXTight"] = nBXXTight
             diphotons["nBXTight"] = nBXTight
@@ -1529,7 +1537,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                             # adding muons and electrons because I don't want to introduce a naming obligation like e.g. "sel_muons" in the syst functions
                             muons=events["sel_muons"][selection_mask],
                             electrons=events["sel_electrons"][selection_mask],
-                            jets=events["nonResReg_vbfpair_dijet_first_pair"][selection_mask],
+                            jets=events["Res_dijet_first_pair"][selection_mask],
                             weights=event_weights,
                             dataset_name=dataset_name,
                             year=self.year[dataset_name][0],
@@ -1598,7 +1606,7 @@ class HHbbggProcessor(HggSkeletonProcessor):
                                     # adding muons and electrons because I don't want to introduce a naming obligation like e.g. "sel_muons" in the syst functions
                                     muons=events["sel_muons"][selection_mask],
                                     electrons=events["sel_electrons"][selection_mask],
-                                    jets=events["nonResReg_vbfpair_dijet_first_pair"][selection_mask],
+                                    jets=events["Res_dijet_first_pair"][selection_mask],
                                     weights=event_weights,
                                     dataset_name=dataset_name,
                                     year=self.year[dataset_name][0],

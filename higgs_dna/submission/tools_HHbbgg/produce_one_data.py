@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import json
 
@@ -11,8 +12,10 @@ def write_sample_txt(keyword, year, cmsdas):
 
 
 def fetch_datasets(sample_file):
-    command = f"python scripts/samples/fetch_datasets.py -i {sample_file} -w Yolo"
-    os.system(command)
+    command = f"{sys.executable} scripts/samples/fetch_datasets.py -i {sample_file} -w Yolo"
+    rc = os.system(command)
+    if rc != 0:
+        raise RuntimeError(f"fetch_datasets failed ({rc}): {command}")
 
 
 def validate_run_analysis(nano_version, parent_dir, keyword, year, memory):
